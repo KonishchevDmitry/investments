@@ -1,0 +1,11 @@
+[package]
+name = "investment-analyzer"
+version = "0.1.0"
+authors = ["Dmitry Konishchev"]
+
+[dependencies]
+csv = "*"
+easy-logging = "*"
+log = "*"
+serde = "*"
+serde_derive = "*"
