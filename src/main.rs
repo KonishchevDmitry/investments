@@ -10,5 +10,8 @@ mod statement;
 
 fn main() {
     easy_logging::init(module_path!(), log::Level::Trace).unwrap();
-    statement::ib::InteractiveBrokersStatementParser::new().parse().unwrap();
+
+    if let Err(e) = statement::ib::InteractiveBrokersStatementParser::new().parse() {
+        println!("Error: {}.", e)
+    }
 }
