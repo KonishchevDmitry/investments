@@ -1,3 +1,4 @@
+extern crate chrono;
 extern crate csv;
 extern crate easy_logging;
 #[macro_use] extern crate log;
@@ -11,7 +12,7 @@ mod statement;
 fn main() {
     easy_logging::init(module_path!(), log::Level::Trace).unwrap();
 
-    if let Err(e) = statement::ib::InteractiveBrokersStatementParser::new().parse() {
+    if let Err(e) = statement::ib::IbStatementParser::new().parse() {
         println!("Error: {}.", e)
     }
 }

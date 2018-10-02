@@ -1,15 +1,23 @@
 use std::io;
 use std::iter::Iterator;
 
+use chrono::{NaiveDate, Duration};
+
 use csv::{self, StringRecord};
 
 use core::{EmptyResult, GenericResult};
 
-pub struct InteractiveBrokersStatementParser {}
+use super::StatementBuilder;
 
-impl InteractiveBrokersStatementParser {
-    pub fn new() -> InteractiveBrokersStatementParser {
-        InteractiveBrokersStatementParser {}
+pub struct IbStatementParser {
+    statement: StatementBuilder,
+}
+
+impl IbStatementParser {
+    pub fn new() -> IbStatementParser {
+        IbStatementParser {
+            statement: StatementBuilder::new(),
+        }
     }
 
     pub fn parse(&mut self) -> EmptyResult {
@@ -60,16 +68,9 @@ impl InteractiveBrokersStatementParser {
                     continue 'header;
                 }
 
-                if record.len() < 1 || record.get(0).unwrap() != name {
+                if record.len() < 2 || record.get(0).unwrap() != name {
                     return Err!("Invalid data record where {:?} data record is expected: {}",
                                 name, format_record(&record));
-                }
-
-                if record.len() != fields.len() + 2 {
-                    return Err!(concat!(
-                        "Invalid data record: ({}). The number of values doesn't match the number ",
-                        "of fields in the header."
-                    ), format_record(&record))
                 }
 
                 if let Some(data_types) = data_types {
@@ -78,7 +79,7 @@ impl InteractiveBrokersStatementParser {
                     }
                 }
 
-                parser.parse(&Record {
+                parser.parse(self, &Record {
                     name: name,
                     fields: &fields,
                     values: record,
@@ -87,6 +88,9 @@ impl InteractiveBrokersStatementParser {
 
             break;
         }
+        
+        // FIXME
+        trace!("Statement: {:?}.", self.statement);
 
         Ok(())
     }
@@ -101,10 +105,12 @@ struct Record<'a> {
 impl<'a> Record<'a> {
     fn get_value(&self, field: &str) -> GenericResult<&str> {
         if let Some(index) = self.fields.iter().position(|other: &&str| *other == field) {
-            return Ok(self.values.get(2 + index).unwrap());
-        } else {
-            return Err!("{:?} record doesn't have {:?} field", self.name, field)
+            if let Some(value) = self.values.get(index + 2) {
+                return Ok(value);
+            }
         }
+
+        Err!("{:?} record doesn't have {:?} field", self.name, field)
     }
 }
 
@@ -112,7 +118,7 @@ fn is_header(record: &StringRecord) -> bool {
     record.len() >= 2 && record.get(1).unwrap() == "Header"
 }
 
-fn parse_header<'a>(record: &'a StringRecord) -> GenericResult<(&'a str, Vec<&'a str>)> {
+fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
     let name = record.get(0).unwrap();
     let fields = record.iter().skip(2).collect::<Vec<_>>();
     trace!("Header: {}: {}.", name, format_record_iter(fields.iter().map(|field: &&str| *field)));
@@ -121,29 +127,20 @@ fn parse_header<'a>(record: &'a StringRecord) -> GenericResult<(&'a str, Vec<&'a
 
 trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
-    fn parse(&self, record: &Record) -> EmptyResult;
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult;
 }
 
 // HACK: HERE
 struct StatementInfoParser {}
 
 impl RecordParser for StatementInfoParser {
-    fn parse(&self, record: &Record) -> EmptyResult {
-        if record.get_value("Field Name")? != "Period" {
-            return Ok(());
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        if record.get_value("Field Name")? == "Period" {
+            let period = record.get_value("Field Value")?;
+            let period = parse_date_range(period)?;
+            parser.statement.set_period(period)?;
         }
 
-        let period = record.get_value("Field Value")?;
-        error!(">>> {}", period);
-//        let name = record.get();
-//        #[derive(Deserialize)]
-//        struct Info {
-//            name: String,
-//            value: String,
-//        }
-//
-//        let info: Info = record.deserialize(None)?;
-//        error!("{}: {}", info.name, info.value);
         Ok(())
     }
 }
@@ -189,7 +186,42 @@ impl RecordParser for UnknownRecordParser {
 //    }
 
     fn data_types(&self) -> Option<&'static [&'static str]> { None }
-    fn parse(&self, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
         Ok(())
+    }
+}
+
+fn parse_date_range(period: &str) -> GenericResult<(NaiveDate, NaiveDate)> {
+    let dates = period.split(" - ").collect::<Vec<_>>();
+
+    return Ok(match dates.len() {
+        1 => {
+            let date = parse_date(dates[0])?;
+            (date, date + Duration::days(1))
+        },
+        2 => (parse_date(dates[0])?, parse_date(dates[1])? + Duration::days(1)),
+        _ => return Err!("Invalid date: {:?}", period),
+    });
+}
+
+fn parse_date(date: &str) -> GenericResult<NaiveDate> {
+    Ok(NaiveDate::parse_from_str(date, "%B %d, %Y").map_err(|_| format!(
+        "Invalid date: {:?}", date))?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn range_parsing() {
+        assert_eq!(parse_date_range("October 1, 2018").unwrap(),
+                   (NaiveDate::from_ymd(2018, 10, 1), NaiveDate::from_ymd(2018, 10, 2)));
+
+        assert_eq!(parse_date_range("September 30, 2018").unwrap(),
+                   (NaiveDate::from_ymd(2018, 9, 30), NaiveDate::from_ymd(2018, 10, 1)));
+
+        assert_eq!(parse_date_range("May 21, 2018 - September 28, 2018").unwrap(),
+                   (NaiveDate::from_ymd(2018, 5, 21), NaiveDate::from_ymd(2018, 9, 29)));
     }
 }
