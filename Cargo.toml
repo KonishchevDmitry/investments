@@ -4,9 +4,11 @@ version = "0.1.0"
 authors = ["Dmitry Konishchev"]
 
 [dependencies]
+bigdecimal = "*"
 chrono = "*"
 csv = "*"
 easy-logging = "*"
+lazy_static = "*"
 log = "*"
 serde = "*"
 serde_derive = "*"
