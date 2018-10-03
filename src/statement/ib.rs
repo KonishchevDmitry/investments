@@ -32,7 +32,7 @@ impl IbStatementParser {
                 let record = result?;
 
                 if !is_header(&record) {
-                    return Err!("Invalid header record: {}", format_record_iter(record.iter()));
+                    return Err!("Invalid header record: {}", format_record(&record));
                 }
 
                 Some(record)
@@ -51,14 +51,6 @@ impl IbStatementParser {
             };
 
             let data_types = parser.data_types();
-
-            // HACK
-//            if let Some(expected_fields) = parser.fields() {
-//                if fields != expected_fields {
-//                    return Err!("{:?} header has an unexpected fields: {}",
-//                            name, format_record(fields.iter().map(|field: &&str| *field)));
-//                }
-//            }
 
             while let Some(result) = records.next() {
                 let record = result?;
@@ -88,9 +80,9 @@ impl IbStatementParser {
 
             break;
         }
-        
+
         // FIXME
-        trace!("Statement: {:?}.", self.statement);
+        debug!("Statement: {:?}.", self.statement);
 
         Ok(())
     }
@@ -121,7 +113,7 @@ fn is_header(record: &StringRecord) -> bool {
 fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
     let name = record.get(0).unwrap();
     let fields = record.iter().skip(2).collect::<Vec<_>>();
-    trace!("Header: {}: {}.", name, format_record_iter(fields.iter().map(|field: &&str| *field)));
+    trace!("Header: {}: {}.", name, format_record(fields.iter().map(|field: &&str| *field)));
     Ok((name, fields))
 }
 
@@ -130,7 +122,6 @@ trait RecordParser {
     fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult;
 }
 
-// HACK: HERE
 struct StatementInfoParser {}
 
 impl RecordParser for StatementInfoParser {
@@ -145,50 +136,28 @@ impl RecordParser for StatementInfoParser {
     }
 }
 
-fn parse_data(record: &StringRecord) -> EmptyResult {
-    // HACK
-    if record.len() < 2 || !match record.get(1).unwrap() {
-        "Data" | "Total" | "SubTotal" => true,
-        _ => false,
-    } {
-        return Err!("Invalid data record: {}", format_record(&record));
+struct UnknownRecordParser {}
+
+impl RecordParser for UnknownRecordParser {
+    fn data_types(&self) -> Option<&'static [&'static str]> {
+        None
     }
 
-    //    let data_spec = DataSpec {
-    //        name: record.get(0).unwrap().to_owned(),
-    //        values: record.iter().skip(2).map(|value| value.to_owned()).collect(),
-    //    };
-
-    trace!("Data: {}.", format_record_iter(record.iter().skip(2)));
-
-    Ok(())
+    fn parse(&self, _parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        if false {
+            trace!("Data: {}.", format_record(record.values.iter().skip(1)));
+        }
+        Ok(())
+    }
 }
 
-fn format_record(record: &StringRecord) -> String {
-    format_record_iter(record.iter())
-}
+fn format_record<'a, I>(iter: I) -> String
+    where I: IntoIterator<Item = &'a str> {
 
-fn format_record_iter<'a, I>(iter: I) -> String
-where
-    I: IntoIterator<Item = &'a str>,
-{
     iter.into_iter()
         .map(|value| format!("{:?}", value))
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-struct UnknownRecordParser {}
-
-impl RecordParser for UnknownRecordParser {
-//    fn fields(&self) -> Option<&'static [&'static str]> {
-//        None
-//    }
-
-    fn data_types(&self) -> Option<&'static [&'static str]> { None }
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
-        Ok(())
-    }
 }
 
 fn parse_date_range(period: &str) -> GenericResult<(NaiveDate, NaiveDate)> {
