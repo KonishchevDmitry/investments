@@ -15,7 +15,8 @@ mod types;
 fn main() {
     easy_logging::init(module_path!(), log::Level::Trace).unwrap();
 
-    if let Err(e) = statement::ib::IbStatementParser::new().parse() {
-        println!("Error: {}.", e)
+    match statement::ib::IbStatementParser::new().parse() {
+        Ok(statement) => debug!("{:#?}", statement),
+        Err(e) => println!("Error: {}.", e),
     }
 }

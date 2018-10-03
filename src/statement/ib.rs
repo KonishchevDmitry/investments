@@ -7,7 +7,7 @@ use csv::{self, StringRecord};
 
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
-use statement::{StatementBuilder, Transaction};
+use statement::{Statement, StatementBuilder, Transaction};
 use types::Date;
 
 pub struct IbStatementParser {
@@ -21,7 +21,7 @@ impl IbStatementParser {
         }
     }
 
-    pub fn parse(&mut self) -> EmptyResult {
+    pub fn parse(mut self) -> GenericResult<Statement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)
@@ -73,7 +73,7 @@ impl IbStatementParser {
                     }
                 }
 
-                parser.parse(self, &Record {
+                parser.parse(&mut self, &Record {
                     name: name,
                     fields: &fields,
                     values: &record,
@@ -85,10 +85,7 @@ impl IbStatementParser {
             break;
         }
 
-        // FIXME
-        debug!("Statement: {:#?}.", self.statement);
-
-        Ok(())
+        Ok(self.statement.get().map_err(|e| format!("Invalid statement: {}", e))?)
     }
 }
 

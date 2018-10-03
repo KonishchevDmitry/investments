@@ -1,14 +1,17 @@
-use chrono::NaiveDate;
-
-use core::EmptyResult;
+use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use types::Date;
 
 pub mod ib;
 
 #[derive(Debug)]
+pub struct Statement {
+    period: (Date, Date),
+    deposits: Vec<Transaction>,
+}
+
 struct StatementBuilder {
-    period: Option<(NaiveDate, NaiveDate)>,
+    period: Option<(Date, Date)>,
     deposits: Vec<Transaction>,
 }
 
@@ -20,14 +23,28 @@ impl StatementBuilder {
         }
     }
 
-    fn set_period(&mut self, period: (NaiveDate, NaiveDate)) -> EmptyResult {
-        set_option("period", &mut self.period, period)
+    fn set_period(&mut self, period: (Date, Date)) -> EmptyResult {
+        set_option("statement period", &mut self.period, period)
+    }
+
+    fn get(self) -> GenericResult<Statement> {
+        return Ok(Statement {
+            period: get_option("statement period", self.period)?,
+            deposits: self.deposits,
+        })
+    }
+}
+
+fn get_option<T>(name: &str, option: Option<T>) -> GenericResult<T> {
+    match option {
+        Some(value) => Ok(value),
+        Node => Err!("{} is missing", name)
     }
 }
 
 fn set_option<T>(name: &str, option: &mut Option<T>, value: T) -> EmptyResult {
     if option.is_some() {
-        return Err!("Duplicate statement {}", name);
+        return Err!("Duplicate {}", name);
     }
     *option = Some(value);
     Ok(())
