@@ -1,25 +1,33 @@
 use std::collections::HashSet;
 use std::ops::Deref;
 use std::ptr;
+use std::str::FromStr;
 use std::sync::Mutex;
 
-pub use bigdecimal::BigDecimal as Decimal;
+use core::GenericResult;
+use types::Decimal;
 
 lazy_static! {
     static ref CURRENCIES: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
 }
 
+#[derive(Debug)]
 pub struct Cash {
     currency: &'static str,
-    value: Decimal,
+    amount: Decimal,
 }
 
 impl Cash {
-    pub fn new(currency: &str, value: Decimal) -> Cash {
+    pub fn new(currency: &str, amount: Decimal) -> Cash {
         Cash {
             currency: get_currency(currency),
-            value: value,
+            amount: amount,
         }
+    }
+
+    pub fn new_from_string(currency: &str, amount: &str) -> GenericResult<Cash> {
+        Ok(Cash::new(currency, Decimal::from_str(amount).map_err(|_| format!(
+            "Invalid cash amount: {:?}", amount))?))
     }
 }
 

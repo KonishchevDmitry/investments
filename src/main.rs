@@ -10,6 +10,7 @@ extern crate serde;
 #[macro_use] mod core;
 mod currency;
 mod statement;
+mod types;
 
 fn main() {
     easy_logging::init(module_path!(), log::Level::Trace).unwrap();

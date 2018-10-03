@@ -1,14 +1,14 @@
 use std::io;
 use std::iter::Iterator;
 
-use chrono::{NaiveDate, Duration};
+use chrono::Duration;
 
 use csv::{self, StringRecord};
 
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
-
-use super::StatementBuilder;
+use statement::{StatementBuilder, Transaction};
+use types::Date;
 
 pub struct IbStatementParser {
     statement: StatementBuilder,
@@ -48,6 +48,7 @@ impl IbStatementParser {
 
             let parser: Box<RecordParser> = match name {
                 "Statement" => Box::new(StatementInfoParser {}),
+                "Deposits & Withdrawals" => Box::new(DepositsInfoParser {}),
                 _ => Box::new(UnknownRecordParser {}),
             };
 
@@ -75,15 +76,17 @@ impl IbStatementParser {
                 parser.parse(self, &Record {
                     name: name,
                     fields: &fields,
-                    values: record,
-                })?;
+                    values: &record,
+                }).map_err(|e| format!(
+                    "Failed to parse ({}) record: {}", format_record(&record), e
+                ))?;
             }
 
             break;
         }
 
         // FIXME
-        debug!("Statement: {:?}.", self.statement);
+        debug!("Statement: {:#?}.", self.statement);
 
         Ok(())
     }
@@ -92,7 +95,7 @@ impl IbStatementParser {
 struct Record<'a> {
     name: &'a str,
     fields: &'a Vec<&'a str>,
-    values: StringRecord,
+    values: &'a StringRecord,
 }
 
 impl<'a> Record<'a> {
@@ -142,24 +145,19 @@ struct DepositsInfoParser {}
 impl RecordParser for DepositsInfoParser {
     fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
+        if currency.starts_with("Total") {
+            return Ok(());
+        }
+
+        // FIXME: Distinguish withdrawals from deposits
         let date = parse_transaction_date(record.get_value("Settle Date")?)?;
-        let currency = record.get_value("Amount")?;
+        let amount = Cash::new_from_string(currency, record.get_value("Amount")?)?;
+
+        parser.statement.deposits.push(Transaction::new(date, amount));
+
         Ok(())
     }
 }
-
-/*
-Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
-Deposits & Withdrawals,Data,RUB,2018-06-22,Electronic Fund Transfer,100000
-Deposits & Withdrawals,Data,RUB,2018-07-31,Electronic Fund Transfer,462000
-Deposits & Withdrawals,Data,RUB,2018-09-10,Electronic Fund Transfer,400000
-Deposits & Withdrawals,Data,Total,,,962000
-Deposits & Withdrawals,Data,Total in USD,,,14647.442
-Deposits & Withdrawals,Data,USD,2018-05-24,Electronic Fund Transfer,19985
-Deposits & Withdrawals,Data,USD,2018-06-27,Electronic Fund Transfer,5889
-Deposits & Withdrawals,Data,Total,,,25874
-Deposits & Withdrawals,Data,Total Deposits & Withdrawals in USD,,,40521.442
-*/
 
 struct UnknownRecordParser {}
 
@@ -185,7 +183,7 @@ fn format_record<'a, I>(iter: I) -> String
         .join(", ")
 }
 
-fn parse_period(period: &str) -> GenericResult<(NaiveDate, NaiveDate)> {
+fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
     let dates = period.split(" - ").collect::<Vec<_>>();
 
     return Ok(match dates.len() {
@@ -198,16 +196,16 @@ fn parse_period(period: &str) -> GenericResult<(NaiveDate, NaiveDate)> {
     });
 }
 
-fn parse_period_date(date: &str) -> GenericResult<NaiveDate> {
+fn parse_period_date(date: &str) -> GenericResult<Date> {
     parse_date(date, "%B %d, %Y")
 }
 
-fn parse_transaction_date(date: &str) -> GenericResult<NaiveDate> {
+fn parse_transaction_date(date: &str) -> GenericResult<Date> {
     parse_date(date, "%Y-%m-%d")
 }
 
-fn parse_date(date: &str, format: &str) -> GenericResult<NaiveDate> {
-    Ok(NaiveDate::parse_from_str(date, format).map_err(|_| format!(
+fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
+    Ok(Date::parse_from_str(date, format).map_err(|_| format!(
         "Invalid date: {:?}", date))?)
 }
 
@@ -218,17 +216,17 @@ mod tests {
     #[test]
     fn period_parsing() {
         assert_eq!(parse_period("October 1, 2018").unwrap(),
-                   (NaiveDate::from_ymd(2018, 10, 1), NaiveDate::from_ymd(2018, 10, 2)));
+                   (Date::from_ymd(2018, 10, 1), Date::from_ymd(2018, 10, 2)));
 
         assert_eq!(parse_period("September 30, 2018").unwrap(),
-                   (NaiveDate::from_ymd(2018, 9, 30), NaiveDate::from_ymd(2018, 10, 1)));
+                   (Date::from_ymd(2018, 9, 30), Date::from_ymd(2018, 10, 1)));
 
         assert_eq!(parse_period("May 21, 2018 - September 28, 2018").unwrap(),
-                   (NaiveDate::from_ymd(2018, 5, 21), NaiveDate::from_ymd(2018, 9, 29)));
+                   (Date::from_ymd(2018, 5, 21), Date::from_ymd(2018, 9, 29)));
     }
 
     #[test]
     fn transaction_date_parsing() {
-        assert_eq!(parse_transaction_date("2018-06-22").unwrap(), NaiveDate::from_ymd(2018, 6, 22));
+        assert_eq!(parse_transaction_date("2018-06-22").unwrap(), Date::from_ymd(2018, 6, 22));
     }
 }
