@@ -9,6 +9,7 @@ use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use broker_statement::{BrokerStatement, BrokerStatementBuilder, Transaction};
 use types::Date;
+use util;
 
 pub struct IbStatementParser {
     statement: BrokerStatementBuilder,
@@ -194,16 +195,11 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
 }
 
 fn parse_period_date(date: &str) -> GenericResult<Date> {
-    parse_date(date, "%B %d, %Y")
+    util::parse_date(date, "%B %d, %Y")
 }
 
 fn parse_transaction_date(date: &str) -> GenericResult<Date> {
-    parse_date(date, "%Y-%m-%d")
-}
-
-fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
-    Ok(Date::parse_from_str(date, format).map_err(|_| format!(
-        "Invalid date: {:?}", date))?)
+    util::parse_date(date, "%Y-%m-%d")
 }
 
 #[cfg(test)]

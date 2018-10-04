@@ -38,7 +38,7 @@ impl BrokerStatementBuilder {
 fn get_option<T>(name: &str, option: Option<T>) -> GenericResult<T> {
     match option {
         Some(value) => Ok(value),
-        Node => Err!("{} is missing", name)
+        None => Err!("{} is missing", name)
     }
 }
 
