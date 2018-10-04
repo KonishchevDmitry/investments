@@ -7,21 +7,21 @@ use csv::{self, StringRecord};
 
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
-use statement::{Statement, StatementBuilder, Transaction};
+use broker_statement::{BrokerStatement, BrokerStatementBuilder, Transaction};
 use types::Date;
 
 pub struct IbStatementParser {
-    statement: StatementBuilder,
+    statement: BrokerStatementBuilder,
 }
 
 impl IbStatementParser {
     pub fn new() -> IbStatementParser {
         IbStatementParser {
-            statement: StatementBuilder::new(),
+            statement: BrokerStatementBuilder::new(),
         }
     }
 
-    pub fn parse(mut self) -> GenericResult<Statement> {
+    pub fn parse(mut self) -> GenericResult<BrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)

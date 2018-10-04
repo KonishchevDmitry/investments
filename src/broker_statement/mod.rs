@@ -5,19 +5,19 @@ use types::Date;
 pub mod ib;
 
 #[derive(Debug)]
-pub struct Statement {
+pub struct BrokerStatement {
     period: (Date, Date),
     deposits: Vec<Transaction>,
 }
 
-struct StatementBuilder {
+struct BrokerStatementBuilder {
     period: Option<(Date, Date)>,
     deposits: Vec<Transaction>,
 }
 
-impl StatementBuilder {
-    fn new() -> StatementBuilder {
-        StatementBuilder {
+impl BrokerStatementBuilder {
+    fn new() -> BrokerStatementBuilder {
+        BrokerStatementBuilder {
             period: None,
             deposits: Vec::new(),
         }
@@ -27,8 +27,8 @@ impl StatementBuilder {
         set_option("statement period", &mut self.period, period)
     }
 
-    fn get(self) -> GenericResult<Statement> {
-        return Ok(Statement {
+    fn get(self) -> GenericResult<BrokerStatement> {
+        return Ok(BrokerStatement {
             period: get_option("statement period", self.period)?,
             deposits: self.deposits,
         })

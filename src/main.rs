@@ -9,13 +9,13 @@ extern crate serde;
 
 #[macro_use] mod core;
 mod currency;
-mod statement;
+mod broker_statement;
 mod types;
 
 fn main() {
     easy_logging::init(module_path!(), log::Level::Trace).unwrap();
 
-    match statement::ib::IbStatementParser::new().parse() {
+    match broker_statement::ib::IbStatementParser::new().parse() {
         Ok(statement) => debug!("{:#?}", statement),
         Err(e) => println!("Error: {}.", e),
     }
