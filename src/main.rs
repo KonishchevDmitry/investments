@@ -1,6 +1,8 @@
 extern crate bigdecimal;
 extern crate chrono;
 extern crate csv;
+#[macro_use] extern crate diesel;
+#[macro_use] extern crate diesel_migrations;
 extern crate easy_logging;
 #[macro_use] extern crate indoc;
 #[macro_use] extern crate lazy_static;
@@ -10,10 +12,12 @@ extern crate reqwest;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_xml_rs;
+extern crate tempfile;
 
 #[macro_use] mod core;
-mod currency;
+mod db;
 mod broker_statement;
+mod currency;
 mod types;
 mod util;
 

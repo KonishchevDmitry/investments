@@ -12,6 +12,8 @@ use core::GenericResult;
 use types::{Date, Decimal};
 use util;
 
+mod rates_cache;
+
 #[cfg(not(test))]
 const CBR_URL: &'static str = "http://www.cbr.ru";
 
