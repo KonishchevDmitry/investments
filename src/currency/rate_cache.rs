@@ -8,22 +8,22 @@ use core::{GenericResult, GenericError};
 use db::{self, schema::currency_rates, models};
 use types::{Date, Decimal};
 
-pub struct CurrencyRatesCache {
+pub struct CurrencyRateCache {
     today: Date,
     db: db::Connection,
 }
 
-impl CurrencyRatesCache {
-    pub fn new(connection: db::Connection) -> CurrencyRatesCache {
+impl CurrencyRateCache {
+    pub fn new(connection: db::Connection) -> CurrencyRateCache {
         let today = chrono::Local::today();
 
-        CurrencyRatesCache {
+        CurrencyRateCache {
             today: Date::from_ymd(today.year(), today.month(), today.day()),
             db: connection,
         }
     }
 
-    pub fn get_price(&self, currency: &str, date: Date) -> GenericResult<CurrencyRatesCacheResult> {
+    pub fn get(&self, currency: &str, date: Date) -> GenericResult<CurrencyRateCacheResult> {
         if date >= self.today {
             return Err!("An attempt to get price for the future")
         }
@@ -36,7 +36,7 @@ impl CurrencyRatesCache {
                 .get_result::<Option<String>>(&self.db).optional()?;
 
             if let Some(cached_price) = result {
-                return Ok(CurrencyRatesCacheResult::Exists(match cached_price {
+                return Ok(CurrencyRateCacheResult::Exists(match cached_price {
                     Some(price) => Some(Decimal::from_str(&price).map_err(|_| format!(
                         "Got an invalid price from the database: {:?}", price))?),
                     None => None,
@@ -69,13 +69,17 @@ impl CurrencyRatesCache {
             assert!(start_date <= end_date);
             assert!(end_date < self.today);
 
-            Ok(CurrencyRatesCacheResult::Missing(start_date, end_date))
+            Ok(CurrencyRateCacheResult::Missing(start_date, end_date))
         })
+    }
+
+    pub fn save() {
+
     }
 }
 
 #[derive(Debug)]
-pub enum CurrencyRatesCacheResult {
+pub enum CurrencyRateCacheResult {
     Exists(Option<Decimal>),
     Missing(Date, Date),
 }
@@ -85,19 +89,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rates_cache() {
+    fn rate_cache() {
         let currency = "USD";
         let database = NamedTempFile::new().unwrap();
         let connection = db::connect(database.path().to_str().unwrap()).unwrap();
 
-        let mut cache = CurrencyRatesCache::new(connection);
+        let mut cache = CurrencyRateCache::new(connection);
         cache.today = Date::from_ymd(2018, 2, 9);
 
         let mut date = cache.today.with_day(4).unwrap();
 
         assert_matches!(
-            cache.get_price(currency, date).unwrap(),
-            CurrencyRatesCacheResult::Missing(from, to) if (
+            cache.get(currency, date).unwrap(),
+            CurrencyRateCacheResult::Missing(from, to) if (
                 from == Date::from_ymd(2018, 1, 1) && to == Date::from_ymd(2018, 2, 8))
         );
 
