@@ -7,6 +7,7 @@ extern crate easy_logging;
 #[macro_use] extern crate indoc;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
+#[cfg(test)] #[macro_use] extern crate matches;
 #[cfg(test)] extern crate mockito;
 extern crate reqwest;
 extern crate serde;

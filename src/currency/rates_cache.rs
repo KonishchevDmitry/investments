@@ -1,6 +1,84 @@
+use std::str::FromStr;
+
+use chrono::{self, Datelike, Duration};
+use diesel::prelude::*;
 use tempfile::NamedTempFile;
 
-use db::{self, models};
+use core::{GenericResult, GenericError};
+use db::{self, schema::currency_rates, models};
+use types::{Date, Decimal};
+
+pub struct CurrencyRatesCache {
+    today: Date,
+    db: db::Connection,
+}
+
+impl CurrencyRatesCache {
+    pub fn new(connection: db::Connection) -> CurrencyRatesCache {
+        let today = chrono::Local::today();
+
+        CurrencyRatesCache {
+            today: Date::from_ymd(today.year(), today.month(), today.day()),
+            db: connection,
+        }
+    }
+
+    pub fn get_price(&self, currency: &str, date: Date) -> GenericResult<CurrencyRatesCacheResult> {
+        if date >= self.today {
+            return Err!("An attempt to get price for the future")
+        }
+
+        self.db.transaction::<_, GenericError, _>(|| {
+            let result = currency_rates::table
+                .select(currency_rates::price)
+                .filter(currency_rates::currency.eq(currency))
+                .filter(currency_rates::date.eq(&date))
+                .get_result::<Option<String>>(&self.db).optional()?;
+
+            if let Some(cached_price) = result {
+                return Ok(CurrencyRatesCacheResult::Exists(match cached_price {
+                    Some(price) => Some(Decimal::from_str(&price).map_err(|_| format!(
+                        "Got an invalid price from the database: {:?}", price))?),
+                    None => None,
+                }));
+            }
+
+            let year_start = Date::from_ymd(date.year(), 1, 1);
+            let year_end = Date::from_ymd(date.year(), 12, 31);
+
+            let last_date = currency_rates::table
+                .select(currency_rates::date)
+                .filter(currency_rates::currency.eq(currency))
+                .filter(currency_rates::date.ge(year_start))
+                .filter(currency_rates::date.le(year_end))
+                .order(currency_rates::date.desc())
+                .limit(1)
+                .get_result::<Date>(&self.db).optional()?;
+
+            let start_date = match last_date {
+                Some(last_date) => last_date + Duration::days(1),
+                None => year_start,
+            };
+
+            let end_date = if year_end >= self.today {
+                self.today - Duration::days(1)
+            } else {
+                year_end
+            };
+
+            assert!(start_date <= end_date);
+            assert!(end_date < self.today);
+
+            Ok(CurrencyRatesCacheResult::Missing(start_date, end_date))
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum CurrencyRatesCacheResult {
+    Exists(Option<Decimal>),
+    Missing(Date, Date),
+}
 
 #[cfg(test)]
 mod tests {
@@ -8,9 +86,22 @@ mod tests {
 
     #[test]
     fn rates_cache() {
+        let currency = "USD";
         let database = NamedTempFile::new().unwrap();
         let connection = db::connect(database.path().to_str().unwrap()).unwrap();
 
+        let mut cache = CurrencyRatesCache::new(connection);
+        cache.today = Date::from_ymd(2018, 2, 9);
+
+        let mut date = cache.today.with_day(4).unwrap();
+
+        assert_matches!(
+            cache.get_price(currency, date).unwrap(),
+            CurrencyRatesCacheResult::Missing(from, to) if (
+                from == Date::from_ymd(2018, 1, 1) && to == Date::from_ymd(2018, 2, 8))
+        );
+
+        // FIXME: prev year
         /*
         use std::str::FromStr;
         use diesel;

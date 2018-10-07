@@ -1,13 +1,16 @@
-use types::{Date, Decimal};
+// FIXME: https://github.com/diesel-rs/diesel/issues/1785
+#![allow(proc_macro_derive_resolution_fallback)]
 
-use super::schema::currency_rates;
+use db::schema::currency_rates;
+use types::Date;
 
-#[derive(Queryable)]
-pub struct CurrencyRate {
-    pub currency: String,
-    pub date: Date,
-    pub price: String,
-}
+// FIXME
+//#[derive(Queryable)]
+//pub struct CurrencyRate {
+//    pub currency: String,
+//    pub date: Date,
+//    pub price: String,
+//}
 
 #[derive(Insertable)]
 #[table_name="currency_rates"]
