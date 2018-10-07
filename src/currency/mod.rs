@@ -27,7 +27,7 @@ impl Cash {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct CurrencyRate {
     date: Date,
     price: Decimal,
