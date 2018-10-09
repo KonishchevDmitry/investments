@@ -4,7 +4,7 @@ extern crate csv;
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
 extern crate easy_logging;
-#[macro_use] extern crate indoc;
+#[cfg(test)] #[macro_use] extern crate indoc;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[cfg(test)] #[macro_use] extern crate matches;

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use chrono::{self, Datelike, Duration};
 use diesel::{self, prelude::*};
-use tempfile::NamedTempFile;
+#[cfg(test)] use tempfile::NamedTempFile;
 
 use core::{GenericResult, GenericError, EmptyResult};
 use currency::CurrencyRate;
@@ -22,6 +22,17 @@ impl CurrencyRateCache {
             today: Date::from_ymd(today.year(), today.month(), today.day()),
             db: connection,
         }
+    }
+
+    #[cfg(test)]
+    pub fn new_temporary() -> (NamedTempFile, CurrencyRateCache) {
+        let database = NamedTempFile::new().unwrap();
+        let connection = db::connect(database.path().to_str().unwrap()).unwrap();
+        (database, CurrencyRateCache::new(connection))
+    }
+
+    pub fn today(&self) -> Date {
+        self.today
     }
 
     pub fn get(&self, currency: &str, date: Date) -> GenericResult<CurrencyRateCacheResult> {
@@ -74,7 +85,7 @@ impl CurrencyRateCache {
         })
     }
 
-    fn save(&self, currency: &str, start_date: Date, end_date: Date, mut rates: Vec<CurrencyRate>) -> EmptyResult {
+    pub fn save(&self, currency: &str, start_date: Date, end_date: Date, mut rates: Vec<CurrencyRate>) -> EmptyResult {
         if start_date > end_date {
             return Err!("Invalid date range: {} - {}", start_date, end_date);
         } else if end_date >= self.today {
@@ -139,11 +150,10 @@ mod tests {
     #[test]
     fn rate_cache() {
         let currency = "USD";
-        let database = NamedTempFile::new().unwrap();
-        let connection = db::connect(database.path().to_str().unwrap()).unwrap();
+        let (_database, mut cache) = CurrencyRateCache::new_temporary();
 
-        let mut cache = CurrencyRateCache::new(connection);
-        cache.today = Date::from_ymd(2018, 2, 9);
+        let today = Date::from_ymd(2018, 2, 9);
+        cache.today = today;
 
         let currency_rates = vec![CurrencyRate {
             date: Date::from_ymd(2018, 2, 4),
@@ -154,6 +164,11 @@ mod tests {
         }];
 
         assert_matches!(
+            cache.get(currency, today),
+            Err(ref e) if e.to_string() == "An attempt to get price for the future"
+        );
+
+        assert_matches!(
             cache.get(currency, currency_rates.first().unwrap().date).unwrap(),
             CurrencyRateCacheResult::Missing(from, to) if (
                 from == Date::from_ymd(2018, 1, 1) && to == Date::from_ymd(2018, 2, 8))
@@ -161,12 +176,6 @@ mod tests {
 
         cache.save(currency, Date::from_ymd(2018, 1, 1), Date::from_ymd(2018, 2, 8),
                    currency_rates.clone()).unwrap();
-
-        assert_matches!(
-            cache.get(currency, Date::from_ymd(2017, 12, 31)).unwrap(),
-            CurrencyRateCacheResult::Missing(from, to) if (
-                from == Date::from_ymd(2017, 1, 1) && to == Date::from_ymd(2017, 12, 31))
-        );
 
         for currency_rate in &currency_rates {
             assert_matches!(
@@ -176,7 +185,6 @@ mod tests {
         }
 
         let mut date = Date::from_ymd(2018, 1, 1);
-
         while date < cache.today {
             let mut skip = false;
 
@@ -194,5 +202,19 @@ mod tests {
 
             date += Duration::days(1);
         }
+
+        assert_matches!(
+            cache.get(currency, Date::from_ymd(2017, 12, 31)).unwrap(),
+            CurrencyRateCacheResult::Missing(from, to) if (
+                from == Date::from_ymd(2017, 1, 1) && to == Date::from_ymd(2017, 12, 31))
+        );
+
+        cache.today = today + Duration::days(10);
+
+        assert_matches!(
+            cache.get(currency, today).unwrap(),
+            CurrencyRateCacheResult::Missing(from, to) if (
+                from == today && to == cache.today - Duration::days(1))
+        );
     }
 }

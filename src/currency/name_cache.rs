@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use std::ops::Deref;
-use std::ptr;
+#[cfg(test)] use std::ops::Deref;
+#[cfg(test)] use std::ptr;
 use std::sync::Mutex;
 
 lazy_static! {

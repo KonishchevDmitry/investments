@@ -4,6 +4,7 @@ use core::GenericResult;
 use types::{Date, Decimal};
 
 mod cbr;
+mod converter;
 mod name_cache;
 mod rate_cache;
 
@@ -28,7 +29,7 @@ impl Cash {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct CurrencyRate {
+pub struct CurrencyRate {
     date: Date,
     price: Decimal,
 }
