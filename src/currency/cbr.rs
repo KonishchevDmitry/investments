@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[cfg(test)] use mockito;
+#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::{self, Url};
 use serde_xml_rs;
 
@@ -97,7 +97,7 @@ fn parse_rates(start_date: Date, end_date: Date, data: &str) -> GenericResult<Ve
 
         rates.push(CurrencyRate {
             date: util::parse_date(&rate.date, date_format)?,
-            price: price / lot,
+            price: price / Decimal::from(lot),
         })
     }
 
@@ -106,8 +106,6 @@ fn parse_rates(start_date: Date, end_date: Date, data: &str) -> GenericResult<Ve
 
 #[cfg(test)]
 mod tests {
-    use mockito::{Mock, mock};
-
     use super::*;
 
     #[test]
@@ -121,10 +119,7 @@ mod tests {
             "#)
         );
 
-        assert_eq!(
-            get_rates("USD", Date::from_ymd(2018, 9, 2), Date::from_ymd(2018, 9, 3)).unwrap(),
-            vec![],
-        );
+        assert_eq!(get_rates("USD", date!(2, 9, 2018), date!(3, 9, 2018)).unwrap(), vec![]);
     }
 
     #[test]
@@ -147,13 +142,13 @@ mod tests {
         );
 
         assert_eq!(
-            get_rates("USD", Date::from_ymd(2018, 9, 1), Date::from_ymd(2018, 9, 4)).unwrap(),
+            get_rates("USD", date!(1, 9, 2018), date!(4, 9, 2018)).unwrap(),
             vec![CurrencyRate {
-                date: Date::from_ymd(2018, 9, 1),
-                price: Decimal::from_str("68.0447").unwrap(),
+                date: date!(1, 9, 2018),
+                price: decs!("68.0447"),
             }, CurrencyRate {
-                date: Date::from_ymd(2018, 9, 4),
-                price: Decimal::from_str("67.7443").unwrap(),
+                date: date!(4, 9, 2018),
+                price: decs!("67.7443"),
             }],
         );
     }

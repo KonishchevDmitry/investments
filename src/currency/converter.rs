@@ -100,66 +100,64 @@ fn get_currency_rates(currency: &str, _start_date: Date, _end_date: Date) -> Gen
 
     Ok(vec![
         CurrencyRate {
-            date: Date::from_ymd(2018, 9, 1),
-            price: Decimal::from_str("68.0447").unwrap(),
+            date: date!(1, 9, 2018),
+            price: decs!("68.0447"),
         },
         CurrencyRate {
-            date: Date::from_ymd(2018, 9, 4),
-            price: Decimal::from_str("67.7443").unwrap(),
+            date: date!(4, 9, 2018),
+            price: decs!("67.7443"),
         },
     ])
 }
 
-// FIXME: HERE
 #[cfg(test)]
 mod tests {
-    use bigdecimal::FromPrimitive;
     use super::*;
 
     #[test]
     fn convert() {
         let (_database, cache) = CurrencyRateCache::new_temporary();
 
+        let amount = deci!(3);
         let today = cache.today();
         let converter = CurrencyConverter::new("RUB", cache);
 
         for currency in ["RUB", "USD"].iter() {
-            let amount = Decimal::from_i64(123).unwrap();
-            assert_eq!(converter.convert(currency, currency, today, amount.clone()).unwrap(), amount);
+            assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);
         }
 
-        let precision = 3;
-        let amount = Decimal::from_i64(3).unwrap();
+        for (from, to, value, result) in [
+            ("USD", "RUB", amount, decs!("68.0447") * amount),
+            ("RUB", "USD", decs!("68.0447") * amount, amount),
+        ].iter() {
+            assert_matches!(
+                converter.convert(from, to, date!(31, 8, 2018), *value),
+                Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
+            );
 
-        for day in 1..4 {
-            for (from, to, value, result) in [
-                ("USD", "RUB", amount.clone(), Decimal::from_str("68.0447").unwrap() * amount.clone()),
-                ("RUB", "USD", Decimal::from_str("68.0447").unwrap() * amount.clone(), amount.clone()),
-            ].iter() {
+            for day in 1..4 {
                 assert_eq!(
-                    converter.convert(from, to, Date::from_ymd(2018, 9, day), value.clone()).unwrap(),
-                    result.clone()
+                    converter.convert(from, to, date!(day, 9, 2018), *value).unwrap(),
+                    *result
                 );
             }
         }
 
-        for day in 0..(precision + 1) {
-            assert_eq!(
-                converter.convert("USD", "RUB", Date::from_ymd(2018, 9, 4) + Duration::days(day), Decimal::from_i64(1).unwrap()).unwrap(),
-                Decimal::from_str("67.7443").unwrap(),
+        for (from, to, value, result) in [
+            ("USD", "RUB", amount, decs!("67.7443") * amount),
+            ("RUB", "USD", decs!("67.7443") * amount, amount),
+        ].iter() {
+            let mut date = date!(4, 9, 2018);
+
+            for _ in 0..4 {
+                assert_eq!(converter.convert(from, to, date, *value).unwrap(), *result);
+                date += Duration::days(1);
+            }
+
+            assert_matches!(
+                converter.convert(from, to, date, *value),
+                Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
             );
         }
-
-        assert_matches!(
-            converter.convert("USD", "RUB", Date::from_ymd(2018, 9, 4) + Duration::days(precision + 1), Decimal::from_i64(1).unwrap()),
-            Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
-        );
-//
-//        for day in 4..7 {
-//            assert_eq!(
-//                converter.convert("USD", "RUB", Date::from_ymd(2018, 9, day), Decimal::from_i64(1).unwrap()).unwrap(),
-//                Decimal::from_str("67.7443").unwrap(),
-//            );
-//        }
     }
 }

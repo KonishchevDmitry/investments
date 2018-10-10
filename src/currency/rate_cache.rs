@@ -144,7 +144,6 @@ pub enum CurrencyRateCacheResult {
 
 #[cfg(test)]
 mod tests {
-    use bigdecimal::FromPrimitive;
     use super::*;
 
     #[test]
@@ -152,15 +151,15 @@ mod tests {
         let currency = "USD";
         let (_database, mut cache) = CurrencyRateCache::new_temporary();
 
-        let today = Date::from_ymd(2018, 2, 9);
+        let today = date!(9, 2, 2018);
         cache.today = today;
 
         let currency_rates = vec![CurrencyRate {
-            date: Date::from_ymd(2018, 2, 4),
-            price: Decimal::from_i64(1).unwrap() / 3,
+            date: date!(4, 2, 2018),
+            price: deci!(1) / deci!(3),
         }, CurrencyRate {
-            date: Date::from_ymd(2018, 1, 10),
-            price: Decimal::from_i64(1).unwrap() / 7,
+            date: date!(10, 1, 2018),
+            price: deci!(1) / deci!(7),
         }];
 
         assert_matches!(
@@ -171,11 +170,10 @@ mod tests {
         assert_matches!(
             cache.get(currency, currency_rates.first().unwrap().date).unwrap(),
             CurrencyRateCacheResult::Missing(from, to) if (
-                from == Date::from_ymd(2018, 1, 1) && to == Date::from_ymd(2018, 2, 8))
+                from == date!(1, 1, 2018) && to == date!(8, 2, 2018))
         );
 
-        cache.save(currency, Date::from_ymd(2018, 1, 1), Date::from_ymd(2018, 2, 8),
-                   currency_rates.clone()).unwrap();
+        cache.save(currency, date!(1, 1, 2018), date!(8, 2, 2018), currency_rates.clone()).unwrap();
 
         for currency_rate in &currency_rates {
             assert_matches!(
@@ -184,7 +182,7 @@ mod tests {
             );
         }
 
-        let mut date = Date::from_ymd(2018, 1, 1);
+        let mut date = date!(1, 1, 2018);
         while date < cache.today {
             let mut skip = false;
 
@@ -204,9 +202,9 @@ mod tests {
         }
 
         assert_matches!(
-            cache.get(currency, Date::from_ymd(2017, 12, 31)).unwrap(),
+            cache.get(currency, date!(31, 12, 2017)).unwrap(),
             CurrencyRateCacheResult::Missing(from, to) if (
-                from == Date::from_ymd(2017, 1, 1) && to == Date::from_ymd(2017, 12, 31))
+                from == date!(1, 1, 2017) && to == date!(31, 12, 2017))
         );
 
         cache.today = today + Duration::days(10);

@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Dmitry Konishchev"]
 
 [dependencies]
-bigdecimal = "*"
 chrono = "*"
 csv = "*"
 diesel = { version = "*", features = ["sqlite", "chrono"] }
@@ -16,6 +15,7 @@ log = "*"
 matches = "*"
 mockito = "*"
 reqwest = "*"
+rust_decimal = "*"
 serde = "*"
 serde_derive = "*"
 serde-xml-rs = "*"
