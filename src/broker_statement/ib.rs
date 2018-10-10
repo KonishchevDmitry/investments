@@ -209,17 +209,17 @@ mod tests {
     #[test]
     fn period_parsing() {
         assert_eq!(parse_period("October 1, 2018").unwrap(),
-                   (Date::from_ymd(2018, 10, 1), Date::from_ymd(2018, 10, 2)));
+                   (date!(1, 10, 2018), date!(2, 10, 2018)));
 
         assert_eq!(parse_period("September 30, 2018").unwrap(),
-                   (Date::from_ymd(2018, 9, 30), Date::from_ymd(2018, 10, 1)));
+                   (date!(30, 9, 2018), date!(1, 10, 2018)));
 
         assert_eq!(parse_period("May 21, 2018 - September 28, 2018").unwrap(),
-                   (Date::from_ymd(2018, 5, 21), Date::from_ymd(2018, 9, 29)));
+                   (date!(21, 5, 2018), date!(29, 9, 2018)));
     }
 
     #[test]
     fn transaction_date_parsing() {
-        assert_eq!(parse_transaction_date("2018-06-22").unwrap(), Date::from_ymd(2018, 6, 22));
+        assert_eq!(parse_transaction_date("2018-06-22").unwrap(), date!(22, 6, 2018));
     }
 }
