@@ -156,10 +156,10 @@ mod tests {
 
         let currency_rates = vec![CurrencyRate {
             date: date!(4, 2, 2018),
-            price: deci!(1) / deci!(3),
+            price: dec!(1) / dec!(3),
         }, CurrencyRate {
             date: date!(10, 1, 2018),
-            price: deci!(1) / deci!(7),
+            price: dec!(1) / dec!(7),
         }];
 
         assert_matches!(

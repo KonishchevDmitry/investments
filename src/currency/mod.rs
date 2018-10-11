@@ -11,8 +11,8 @@ pub mod converter;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cash {
-    currency: &'static str,
-    amount: Decimal,
+    pub currency: &'static str,
+    pub amount: Decimal,
 }
 
 impl Cash {

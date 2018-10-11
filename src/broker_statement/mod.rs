@@ -1,5 +1,5 @@
 use core::{EmptyResult, GenericResult};
-use currency::{Cash, CacheAssets};
+use currency::CacheAssets;
 use types::Date;
 
 pub mod ib;

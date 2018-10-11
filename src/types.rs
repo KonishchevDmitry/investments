@@ -8,7 +8,7 @@ macro_rules! decs {
     }}
 }
 
-macro_rules! deci {
+macro_rules! dec {
     ($value:expr) => (::rust_decimal::Decimal::from($value))
 }
 

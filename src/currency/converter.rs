@@ -1,10 +1,7 @@
-#[cfg(test)] use std::str::FromStr;
-
 use chrono::{Duration, Datelike};
 
 use core::GenericResult;
 use currency::{Cash, CurrencyRate};
-use currency::name_cache;
 use currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use types::{Date, Decimal};
 
@@ -139,7 +136,7 @@ mod tests {
     fn convert() {
         let (_database, cache) = CurrencyRateCache::new_temporary();
 
-        let amount = deci!(3);
+        let amount = dec!(3);
         let today = cache.today();
         let converter = CurrencyConverter::new(CurrencyRateCacheBackend::new(cache));
 
