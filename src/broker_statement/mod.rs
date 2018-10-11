@@ -1,5 +1,5 @@
 use core::{EmptyResult, GenericResult};
-use currency::Cash;
+use currency::{Cash, CacheAssets};
 use types::Date;
 
 pub mod ib;
@@ -7,12 +7,12 @@ pub mod ib;
 #[derive(Debug)]
 pub struct BrokerStatement {
     period: (Date, Date),
-    deposits: Vec<Transaction>,
+    deposits: Vec<CacheAssets>,
 }
 
 struct BrokerStatementBuilder {
     period: Option<(Date, Date)>,
-    deposits: Vec<Transaction>,
+    deposits: Vec<CacheAssets>,
 }
 
 impl BrokerStatementBuilder {
@@ -48,16 +48,4 @@ fn set_option<T>(name: &str, option: &mut Option<T>, value: T) -> EmptyResult {
     }
     *option = Some(value);
     Ok(())
-}
-
-#[derive(Debug)]
-struct Transaction {
-    date: Date,
-    amount: Cash,
-}
-
-impl Transaction {
-    fn new(date: Date, amount: Cash) -> Transaction {
-        Transaction {date, amount}
-    }
 }

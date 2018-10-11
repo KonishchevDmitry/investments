@@ -4,11 +4,12 @@ use core::GenericResult;
 use types::{Date, Decimal};
 
 mod cbr;
-mod converter;
 mod name_cache;
 mod rate_cache;
 
-#[derive(Debug)]
+pub mod converter;
+
+#[derive(Debug, Clone, Copy)]
 pub struct Cash {
     currency: &'static str,
     amount: Decimal,
@@ -28,7 +29,23 @@ impl Cash {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone, Copy)]
+pub struct CacheAssets {
+    pub date: Date,
+    pub cash: Cash,
+}
+
+impl CacheAssets {
+    pub fn new(date: Date, currency: &str, amount: Decimal) -> CacheAssets {
+        CacheAssets {date, cash: Cash::new(currency, amount)}
+    }
+
+    pub fn new_from_cash(date: Date, cash: Cash) -> CacheAssets {
+        CacheAssets {date, cash}
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CurrencyRate {
     date: Date,
     price: Decimal,

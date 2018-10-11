@@ -3,24 +3,66 @@
 use chrono::{Duration, Datelike};
 
 use core::GenericResult;
-use currency::CurrencyRate;
+use currency::{Cash, CurrencyRate};
 use currency::name_cache;
 use currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use types::{Date, Decimal};
 
 pub struct CurrencyConverter {
-    base_currency: &'static str,
-    rate_cache: CurrencyRateCache,
+    backend: Box<CurrencyConverterBackend>,
 }
 
 impl CurrencyConverter {
-    pub fn new(base_currency: &str, rate_cache: CurrencyRateCache) -> CurrencyConverter {
-        return CurrencyConverter {
-            base_currency: name_cache::get(base_currency),
-            rate_cache: rate_cache,
-        }
+    pub fn new(source: Box<CurrencyConverterBackend>) -> CurrencyConverter {
+        return CurrencyConverter { backend: source }
     }
 
+    pub fn convert_to(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
+        self.convert(cash.currency, to, date, cash.amount)
+    }
+
+    fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
+        self.backend.convert(from, to, date, amount)
+    }
+}
+
+pub trait CurrencyConverterBackend {
+    fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal>;
+}
+
+struct CurrencyRateCacheBackend {
+    rate_cache: CurrencyRateCache,
+}
+
+impl CurrencyRateCacheBackend {
+    pub fn new(rate_cache: CurrencyRateCache) -> Box<CurrencyConverterBackend> {
+        return Box::new(CurrencyRateCacheBackend {rate_cache})
+    }
+
+    fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
+        let cache_result = self.rate_cache.get(currency, date).map_err(|e| format!(
+            "Failed to get currency rate from the currency rate cache: {}", e))?;
+
+        Ok(match cache_result {
+            CurrencyRateCacheResult::Exists(cached_value) => cached_value,
+            CurrencyRateCacheResult::Missing(start_date, end_date) => {
+                if from_cache_only {
+                    return Err!(concat!(
+                        "Failed to get {} currency rate for {}: ",
+                        "it's expected to be in the cache, but actually it's missing"),
+                        currency, date);
+                }
+
+                let currency_rates = get_currency_rates(currency, start_date, end_date)?;
+                self.rate_cache.save(currency, start_date, end_date, currency_rates)?;
+
+                self.get_price(currency, date, true)?
+            },
+        })
+    }
+}
+
+impl CurrencyConverterBackend for CurrencyRateCacheBackend {
     fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
         if from == to {
             return Ok(amount);
@@ -64,29 +106,8 @@ impl CurrencyConverter {
         Err!("Unable to find {} currency rate for {} with {} days precision",
              currency, date, (date - min_date).num_days())
     }
-
-    fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
-        let cache_result = self.rate_cache.get(currency, date).map_err(|e| format!(
-            "Failed to get currency rate from the currency rate cache: {}", e))?;
-
-        Ok(match cache_result {
-            CurrencyRateCacheResult::Exists(cached_value) => cached_value,
-            CurrencyRateCacheResult::Missing(start_date, end_date) => {
-                if from_cache_only {
-                    return Err!(concat!(
-                        "Failed to get {} currency rate for {}: ",
-                        "it's expected to be in the cache, but actually it's missing"),
-                        currency, date);
-                }
-
-                let currency_rates = get_currency_rates(currency, start_date, end_date)?;
-                self.rate_cache.save(currency, start_date, end_date, currency_rates)?;
-
-                self.get_price(currency, date, true)?
-            },
-        })
-    }
 }
+
 
 #[cfg(not(test))]
 fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
@@ -120,7 +141,7 @@ mod tests {
 
         let amount = deci!(3);
         let today = cache.today();
-        let converter = CurrencyConverter::new("RUB", cache);
+        let converter = CurrencyConverter::new(CurrencyRateCacheBackend::new(cache));
 
         for currency in ["RUB", "USD"].iter() {
             assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);

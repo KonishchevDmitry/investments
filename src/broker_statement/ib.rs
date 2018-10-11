@@ -6,8 +6,8 @@ use chrono::Duration;
 use csv::{self, StringRecord};
 
 use core::{EmptyResult, GenericResult};
-use currency::Cash;
-use broker_statement::{BrokerStatement, BrokerStatementBuilder, Transaction};
+use currency::{Cash, CacheAssets};
+use broker_statement::{BrokerStatement, BrokerStatementBuilder};
 use types::Date;
 use util;
 
@@ -151,7 +151,7 @@ impl RecordParser for DepositsInfoParser {
         let date = parse_transaction_date(record.get_value("Settle Date")?)?;
         let amount = Cash::new_from_string(currency, record.get_value("Amount")?)?;
 
-        parser.statement.deposits.push(Transaction::new(date, amount));
+        parser.statement.deposits.push(CacheAssets::new_from_cash(date, amount));
 
         Ok(())
     }

@@ -17,10 +17,11 @@ extern crate tempfile;
 
 #[macro_use] mod core;
 #[macro_use] mod types;
+mod util;
 mod db;
 mod broker_statement;
 mod currency;
-mod util;
+mod analyse;
 
 fn main() {
     easy_logging::init(module_path!(), log::Level::Trace).unwrap();
