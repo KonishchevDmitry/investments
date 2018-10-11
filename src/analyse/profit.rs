@@ -120,10 +120,71 @@ mod tests {
         assert_eq!(year_interest_with_capitalization, decs!("0.1248"));
 
         let current_assets = CacheAssets::new(date!(10, 1, 2015), currency, current_assets);
-        let profit_interest = get_average_profit(
+        let average_interest = get_average_profit(
             &deposits, current_assets, currency, &converter).unwrap();
 
-        assert!(year_interest < profit_interest);
-        assert!(profit_interest < year_interest_with_capitalization);
+        assert!(year_interest < average_interest);
+        assert!(average_interest < year_interest_with_capitalization);
+    }
+
+    macro_rules! currency_rate_change_tests {
+        ($($name:ident: $arg:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                currency_rate_change($arg);
+            }
+        )*
+        }
+    }
+
+    currency_rate_change_tests! {
+        currency_rate_change_rub: "RUB",
+        currency_rate_change_usd: "USD",
+    }
+
+    fn currency_rate_change(currency: &str) {
+        struct ConverterMock {}
+        impl CurrencyConverterBackend for ConverterMock {
+            fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
+                let price = Decimal::from(match date {
+                    date if date == date!(1, 4, 2018) => 100,
+                    date if date == date!(1, 5, 2018) => 200,
+                    date if date == date!(1, 6, 2018) => 400,
+                    date if date == date!(1, 7, 2018) => 800,
+                    _ => unreachable!(),
+                });
+
+                if from == to {
+                    return Ok(amount);
+                }
+
+                Ok(match (from, to) {
+                    ("USD", "RUB") => amount * price,
+                    ("RUB", "USD") => amount / price,
+                    _ => unreachable!(),
+                })
+            }
+        }
+
+        let converter = CurrencyConverter::new(Box::new(ConverterMock {}));
+
+        let deposits = vec![
+            CacheAssets::new(date!(1, 4, 2018), "RUB", dec!(100)),
+            CacheAssets::new(date!(1, 5, 2018), "RUB", dec!(200)),
+            CacheAssets::new(date!(1, 6, 2018), "USD", dec!(2)),
+        ];
+        let current_assets = CacheAssets::new(date!(1, 7, 2018), "USD", dec!(4));
+
+        let average_interest = get_average_profit(
+            &deposits, current_assets, currency, &converter).unwrap();
+
+        if currency == "RUB" {
+            assert!(average_interest > decs!("16.8") && average_interest < dec!(17));
+        } else if currency == "USD" {
+            assert_eq!(average_interest, dec!(0));
+        } else {
+            unreachable!();
+        }
     }
 }
