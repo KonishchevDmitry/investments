@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use rust_decimal::RoundingStrategy;
+
 use core::GenericResult;
 use types::{Date, Decimal};
 
@@ -49,4 +51,8 @@ impl CashAssets {
 pub struct CurrencyRate {
     date: Date,
     price: Decimal,
+}
+
+pub fn round(amount: Decimal) -> Decimal {
+    amount.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp)
 }

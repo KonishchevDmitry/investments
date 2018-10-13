@@ -1,7 +1,141 @@
-use core::GenericResult;
-use currency::CashAssets;
+use chrono::{Duration, Datelike};
+
+use core::{EmptyResult, GenericResult};
+use currency::{self, CashAssets};
 use currency::converter::{CurrencyConverter, CurrencyConverterBackend};
 use types::{Date, Decimal};
+
+struct DepositEmulator<'a> {
+    date: Date,
+    capitalization_day: u32,
+    next_capitalization_date: Date,
+
+    assets: Decimal,
+    accumulated_income: Decimal,
+
+    currency: &'a str,
+    daily_interest: Decimal,
+    converter: &'a CurrencyConverter,
+}
+
+impl<'a> DepositEmulator<'a> {
+    fn emulate(
+        start_date: Date, start_assets: Decimal, transactions: &Vec<CashAssets>, end_date: Date,
+        currency: &str, interest: Decimal, converter: &CurrencyConverter,
+    ) -> GenericResult<Decimal> {
+        let mut emulator = DepositEmulator {
+            date: start_date,
+            capitalization_day: start_date.day(),
+            next_capitalization_date: start_date,
+
+            assets: start_assets,
+            accumulated_income: dec!(0),
+
+            currency: currency,
+            daily_interest: interest / dec!(100) / dec!(365),
+            converter: converter,
+        };
+        emulator.set_next_capitalization_date();
+
+        for transaction in transactions {
+            emulator.process_transaction(transaction)?;
+        }
+
+        emulator.process_to(end_date)?;
+        emulator.capitalize()?;
+
+        Ok(emulator.assets)
+    }
+
+    fn process_transaction(&mut self, transaction: &CashAssets) -> EmptyResult {
+        self.process_to(transaction.date)?;
+        assert_eq!(self.date, transaction.date);
+
+        self.assets += self.converter.convert_to(
+            transaction.date, transaction.cash, self.currency)?;
+
+        if self.assets < dec!(0) {
+            return Err!("Portfolio got negative balance on {}", transaction.date);
+        }
+
+        Ok(())
+    }
+
+    fn process_to(&mut self, date: Date) -> EmptyResult {
+        while date >= self.next_capitalization_date {
+            let capitalization_date = self.next_capitalization_date;
+            self.accumulate_income(capitalization_date)?;
+            self.capitalize()?;
+            self.set_next_capitalization_date();
+        }
+
+        self.accumulate_income(date)?;
+
+        Ok(())
+    }
+
+    fn accumulate_income(&mut self, date: Date) -> EmptyResult {
+        assert!(self.date <= date);
+        assert!(date <= self.next_capitalization_date);
+
+        let days = (date - self.date).num_days();
+        self.accumulated_income += self.assets * self.daily_interest * Decimal::from(days);
+        self.date = date;
+
+        Ok(())
+    }
+
+    fn capitalize(&mut self) -> EmptyResult {
+        self.assets += self.accumulated_income;
+        self.accumulated_income = dec!(0);
+
+        if self.assets < dec!(0) {
+            return Err!("Portfolio got negative balance on {}", self.date);
+        }
+
+        Ok(())
+    }
+
+    fn set_next_capitalization_date(&mut self) {
+        assert_eq!(self.date, self.next_capitalization_date);
+        self.next_capitalization_date = get_next_capitalization_date(
+            self.next_capitalization_date, self.capitalization_day);
+    }
+}
+
+fn get_next_year_month(mut year: i32, mut month: u32) -> (i32, u32) {
+    if month == 12 {
+        year += 1;
+        month = 1;
+    } else {
+        month += 1;
+    }
+
+    (year, month)
+}
+
+fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Date {
+    let (year, month) = if current.day() == capitalization_day {
+        get_next_year_month(current.year(), current.month())
+    } else {
+        assert!(
+            current.day() == 1 &&
+            (current - Duration::days(1)).day() < capitalization_day
+        );
+        (current.year(), current.month())
+    };
+
+    match Date::from_ymd_opt(year, month, capitalization_day) {
+        Some(date) => date,
+        None => {
+            let (year, month) = get_next_year_month(year, month);
+            let date = Date::from_ymd(year, month, 1);
+            let days = (date - current).num_days();
+            assert!(days >= 29 && days <= 31);
+            date
+        }
+    }
+}
 
 // FIXME: Support:
 // * Withdrawals
@@ -66,6 +200,35 @@ pub fn get_average_profit(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn deposit_emulator() {
+        struct ConverterMock {}
+        impl CurrencyConverterBackend for ConverterMock {
+            fn convert(&self, from: &str, to: &str, _date: Date, amount: Decimal) -> GenericResult<Decimal> {
+                Ok(match (from, to) {
+                    ("RUB", "RUB") => amount,
+                    _ => unreachable!(),
+                })
+            }
+        }
+        let converter = CurrencyConverter::new_with_backend(Box::new(ConverterMock {}));
+
+        let result = DepositEmulator::emulate(
+            date!(28, 7, 2018), dec!(200000),
+            &vec![CashAssets::new(date!(28, 7, 2018), "RUB", dec!(400000))],
+            date!(28, 9, 2018), "RUB", dec!(7), &converter).unwrap();
+
+        assert_eq!(currency::round(result), decs!("607155.45"));
+    }
+
+    #[test]
+    fn next_capitalization_date() {
+        assert_eq!(get_next_capitalization_date(date!(1, 3, 2018), 1), date!(1, 4, 2018));
+        assert_eq!(get_next_capitalization_date(date!(1, 3, 2018), 29), date!(29, 3, 2018));
+        assert_eq!(get_next_capitalization_date(date!(1, 3, 2018), 31), date!(31, 3, 2018));
+        assert_eq!(get_next_capitalization_date(date!(31, 3, 2018), 31), date!(1, 5, 2018));
+    }
 
     macro_rules! basic_tests {
         ($($name:ident: $args:expr,)*) => {
