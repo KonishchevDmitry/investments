@@ -3,6 +3,7 @@ use chrono::{Duration, Datelike};
 use core::GenericResult;
 use currency::{Cash, CurrencyRate};
 use currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
+use db;
 use types::{Date, Decimal};
 
 pub struct CurrencyConverter {
@@ -10,7 +11,13 @@ pub struct CurrencyConverter {
 }
 
 impl CurrencyConverter {
-    pub fn new(source: Box<CurrencyConverterBackend>) -> CurrencyConverter {
+    pub fn new(connection: db::Connection) -> CurrencyConverter {
+        let rate_cache = CurrencyRateCache::new(connection);
+        let backend = CurrencyRateCacheBackend::new(rate_cache);
+        CurrencyConverter::new_with_backend(backend)
+    }
+
+    pub fn new_with_backend(source: Box<CurrencyConverterBackend>) -> CurrencyConverter {
         return CurrencyConverter { backend: source }
     }
 
@@ -138,7 +145,7 @@ mod tests {
 
         let amount = dec!(3);
         let today = cache.today();
-        let converter = CurrencyConverter::new(CurrencyRateCacheBackend::new(cache));
+        let converter = CurrencyConverter::new_with_backend(CurrencyRateCacheBackend::new(cache));
 
         for currency in ["RUB", "USD"].iter() {
             assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);

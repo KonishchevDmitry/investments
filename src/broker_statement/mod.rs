@@ -1,18 +1,20 @@
 use core::{EmptyResult, GenericResult};
-use currency::CacheAssets;
+use currency::{Cash, CashAssets};
 use types::Date;
 
 pub mod ib;
 
 #[derive(Debug)]
 pub struct BrokerStatement {
-    period: (Date, Date),
-    deposits: Vec<CacheAssets>,
+    pub period: (Date, Date),
+    pub deposits: Vec<CashAssets>,
+    pub total_value: Cash,
 }
 
 struct BrokerStatementBuilder {
     period: Option<(Date, Date)>,
-    deposits: Vec<CacheAssets>,
+    deposits: Vec<CashAssets>,
+    total_value: Option<Cash>,
 }
 
 impl BrokerStatementBuilder {
@@ -20,6 +22,7 @@ impl BrokerStatementBuilder {
         BrokerStatementBuilder {
             period: None,
             deposits: Vec::new(),
+            total_value: None,
         }
     }
 
@@ -31,6 +34,7 @@ impl BrokerStatementBuilder {
         return Ok(BrokerStatement {
             period: get_option("statement period", self.period)?,
             deposits: self.deposits,
+            total_value: get_option("total value", self.total_value)?,
         })
     }
 }

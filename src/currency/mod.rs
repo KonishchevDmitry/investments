@@ -30,18 +30,18 @@ impl Cash {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct CacheAssets {
+pub struct CashAssets {
     pub date: Date,
     pub cash: Cash,
 }
 
-impl CacheAssets {
-    pub fn new(date: Date, currency: &str, amount: Decimal) -> CacheAssets {
-        CacheAssets {date, cash: Cash::new(currency, amount)}
+impl CashAssets {
+    pub fn new(date: Date, currency: &str, amount: Decimal) -> CashAssets {
+        CashAssets {date, cash: Cash::new(currency, amount)}
     }
 
-    pub fn new_from_cash(date: Date, cash: Cash) -> CacheAssets {
-        CacheAssets {date, cash}
+    pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
+        CashAssets {date, cash}
     }
 }
 

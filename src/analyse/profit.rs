@@ -1,5 +1,5 @@
 use core::GenericResult;
-use currency::CacheAssets;
+use currency::CashAssets;
 use currency::converter::{CurrencyConverter, CurrencyConverterBackend};
 use types::{Date, Decimal};
 
@@ -9,7 +9,7 @@ use types::{Date, Decimal};
 // * Compare with complex interest
 // * Calculate taxes
 pub fn get_average_profit(
-    deposits: &Vec<CacheAssets>, current_assets: CacheAssets, currency: &str,
+    deposits: &Vec<CashAssets>, current_assets: CashAssets, currency: &str,
     converter: &CurrencyConverter
 ) -> GenericResult<Decimal> {
     // Calculates average profit from cash income. Splits the whole period into intervals, where
@@ -21,7 +21,7 @@ pub fn get_average_profit(
     let mut total_income = dec!(0);
     let mut relative_contributions = dec!(0);
 
-    let mut transactions = Vec::<CacheAssets>::new();
+    let mut transactions = Vec::<CashAssets>::new();
 
     for deposit in deposits {
         if deposit.date > current_assets.date {
@@ -41,7 +41,7 @@ pub fn get_average_profit(
         }
 
         let end_date = if index < deposits.len() - 1 {
-            deposits[index + 1].date
+            transactions[index + 1].date
         } else {
             current_assets.date
         };
@@ -97,11 +97,11 @@ mod tests {
         }
 
         let currency = "RUB";
-        let converter = CurrencyConverter::new(Box::new(ConverterMock {}));
+        let converter = CurrencyConverter::new_with_backend(Box::new(ConverterMock {}));
 
         let deposits = vec![
-            CacheAssets::new(date!(10, 1, 2013), currency, dec!(100)),
-            CacheAssets::new(date!(10, 5, 2014), other_currency, other_amount),
+            CashAssets::new(date!(10, 1, 2013), currency, dec!(100)),
+            CashAssets::new(date!(10, 5, 2014), other_currency, other_amount),
         ];
 
         let year_interest = decs!("0.12");
@@ -119,7 +119,7 @@ mod tests {
             (current_assets - dec!(200)) / Decimal::from(16 * 100 + 8 * 200) * dec!(12);
         assert_eq!(year_interest_with_capitalization, decs!("0.1248"));
 
-        let current_assets = CacheAssets::new(date!(10, 1, 2015), currency, current_assets);
+        let current_assets = CashAssets::new(date!(10, 1, 2015), currency, current_assets);
         let average_interest = get_average_profit(
             &deposits, current_assets, currency, &converter).unwrap();
 
@@ -167,14 +167,14 @@ mod tests {
             }
         }
 
-        let converter = CurrencyConverter::new(Box::new(ConverterMock {}));
+        let converter = CurrencyConverter::new_with_backend(Box::new(ConverterMock {}));
 
         let deposits = vec![
-            CacheAssets::new(date!(1, 4, 2018), "RUB", dec!(100)),
-            CacheAssets::new(date!(1, 5, 2018), "RUB", dec!(200)),
-            CacheAssets::new(date!(1, 6, 2018), "USD", dec!(2)),
+            CashAssets::new(date!(1, 4, 2018), "RUB", dec!(100)),
+            CashAssets::new(date!(1, 5, 2018), "RUB", dec!(200)),
+            CashAssets::new(date!(1, 6, 2018), "USD", dec!(2)),
         ];
-        let current_assets = CacheAssets::new(date!(1, 7, 2018), "USD", dec!(4));
+        let current_assets = CashAssets::new(date!(1, 7, 2018), "USD", dec!(4));
 
         let average_interest = get_average_profit(
             &deposits, current_assets, currency, &converter).unwrap();

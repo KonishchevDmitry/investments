@@ -6,7 +6,7 @@ use chrono::Duration;
 use csv::{self, StringRecord};
 
 use core::{EmptyResult, GenericResult};
-use currency::{Cash, CacheAssets};
+use currency::{Cash, CashAssets};
 use broker_statement::{BrokerStatement, BrokerStatementBuilder};
 use types::Date;
 use util;
@@ -49,7 +49,8 @@ impl IbStatementParser {
 
             let parser: Box<RecordParser> = match name {
                 "Statement" => Box::new(StatementInfoParser {}),
-                "Deposits & Withdrawals" => Box::new(DepositsInfoParser {}),
+                "Net Asset Value" => Box::new(NetAssetValueParser {}),
+                "Deposits & Withdrawals" => Box::new(DepositsParser {}),
                 _ => Box::new(UnknownRecordParser {}),
             };
 
@@ -138,9 +139,35 @@ impl RecordParser for StatementInfoParser {
     }
 }
 
-struct DepositsInfoParser {}
+struct NetAssetValueParser {}
 
-impl RecordParser for DepositsInfoParser {
+impl RecordParser for NetAssetValueParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        let asset_class = match record.get_value("Asset Class") {
+            // FIXME: We should be able to handle data with different headers somehow
+            Err(_) => return Ok(()),
+            Ok(asset_class) => asset_class,
+        };
+
+        if asset_class == "Cash" || asset_class == "Stock" {
+            let currency = "USD"; // FIXME: Get from statement
+            let amount = Cash::new_from_string(currency, record.get_value("Current Total")?)?;
+
+            // FIXME: Accumulate in parser?
+            // FIXME: Eliminate hacks with Cash type
+            parser.statement.total_value = Some(Cash::new(currency, match parser.statement.total_value {
+                Some(total_amount) => total_amount.amount + amount.amount,
+                None => amount.amount,
+            }));
+        }
+
+        Ok(())
+    }
+}
+
+struct DepositsParser {}
+
+impl RecordParser for DepositsParser {
     fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         if currency.starts_with("Total") {
@@ -151,7 +178,7 @@ impl RecordParser for DepositsInfoParser {
         let date = parse_transaction_date(record.get_value("Settle Date")?)?;
         let amount = Cash::new_from_string(currency, record.get_value("Amount")?)?;
 
-        parser.statement.deposits.push(CacheAssets::new_from_cash(date, amount));
+        parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
 
         Ok(())
     }
