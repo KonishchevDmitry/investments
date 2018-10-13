@@ -44,6 +44,12 @@ fn main() {
 
                 println!("{}: {}", currency, interest * dec!(100));
             }
+            for currency in ["USD", "RUB"].iter() {
+                let interest = analyse::profit::get_average_rate_of_return(
+                    &statement.deposits, total_value, *currency, &converter).unwrap();
+
+                println!("{}: {}", currency, interest);
+            }
         },
         Err(e) => println!("Error: {}.", e),
     }

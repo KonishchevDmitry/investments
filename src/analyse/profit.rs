@@ -5,6 +5,84 @@ use currency::{self, CashAssets};
 use currency::converter::{CurrencyConverter, CurrencyConverterBackend};
 use types::{Date, Decimal};
 
+// FIXME: Support:
+// * Withdrawals
+// * Take taxes into account
+/// Calculates average rate of return from cash investments by comparing portfolio performance to
+/// performance of bank deposit with the exactly same investments and monthly capitalization.
+pub fn get_average_rate_of_return(
+    deposits: &Vec<CashAssets>, current_assets: CashAssets, currency: &str,
+    converter: &CurrencyConverter
+) -> GenericResult<Decimal> {
+    let mut transactions = Vec::<CashAssets>::new();
+
+    for deposit in deposits {
+        if deposit.date > current_assets.date {
+            return Err!("Got a deposit from the future ({})", deposit.date);
+        }
+
+        assert!(deposit.cash.amount > dec!(0));
+        transactions.push(*deposit);
+    }
+
+    transactions.sort_by_key(|assets| assets.date);
+
+    // FIXME: Support custom starting point
+    assert_ne!(transactions.len(), 0);
+    let start_date = transactions[0].date;
+    let start_assets = dec!(0);
+
+    let result_assets = converter.convert_to(current_assets.date, current_assets.cash, currency)?;
+
+    // FIXME: DepositEmulator shouldn't know anything about currency conversion
+    let emulate = |interest: Decimal| -> GenericResult<Decimal> {
+        let assets = DepositEmulator::emulate(
+            start_date, start_assets, &transactions, current_assets.date, currency, interest,
+            converter)?;
+
+        let difference = (result_assets - assets).abs();
+
+        Ok(difference)
+    };
+
+    let mut interest = dec!(0);
+    let mut difference = emulate(interest)?;
+
+    for mut step in [decs!("1"), decs!("0.1"), decs!("0.01")].iter().cloned() {
+        let decreasing_difference = emulate(interest - step)?;
+        let increasing_difference = emulate(interest + step)?;
+
+        if decreasing_difference > difference && difference < increasing_difference {
+            return Ok(interest);
+        }
+
+        if decreasing_difference < increasing_difference {
+            assert!(decreasing_difference < difference);
+            step = -step;
+        } else if decreasing_difference > increasing_difference {
+            assert!(increasing_difference < difference);
+        } else {
+            unreachable!();
+        }
+
+        interest += step;
+
+        loop {
+            let next_interest = interest + step;
+            let next_difference = emulate(next_interest)?;
+
+            if next_difference > difference {
+                break;
+            }
+
+            difference = next_difference;
+            interest = next_interest;
+        }
+    }
+
+    Ok(interest)
+}
+
 struct DepositEmulator<'a> {
     date: Date,
     capitalization_day: u32,
@@ -137,6 +215,7 @@ fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Date 
     }
 }
 
+// FIXME: Deprecate
 // FIXME: Support:
 // * Withdrawals
 // * Non-zero starting point
@@ -201,25 +280,64 @@ pub fn get_average_profit(
 mod tests {
     use super::*;
 
-    #[test]
-    fn deposit_emulator() {
+    macro_rules! deposit_emulator_tests {
+        ($($name:ident: $args:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (transaction_currency, transaction_amount) = $args;
+                deposit_emulator(transaction_currency, transaction_amount);
+            }
+        )*
+        }
+    }
+
+    deposit_emulator_tests! {
+        deposit_emulator_rub: ("RUB", dec!(400000)),
+        deposit_emulator_usd: ("USD", dec!(4000)),
+    }
+
+    fn deposit_emulator(transaction_currency: &str, transaction_amount: Decimal) {
         struct ConverterMock {}
         impl CurrencyConverterBackend for ConverterMock {
             fn convert(&self, from: &str, to: &str, _date: Date, amount: Decimal) -> GenericResult<Decimal> {
                 Ok(match (from, to) {
                     ("RUB", "RUB") => amount,
+                    ("USD", "RUB") => amount * dec!(100),
                     _ => unreachable!(),
                 })
             }
         }
         let converter = CurrencyConverter::new_with_backend(Box::new(ConverterMock {}));
 
-        let result = DepositEmulator::emulate(
-            date!(28, 7, 2018), dec!(200000),
-            &vec![CashAssets::new(date!(28, 7, 2018), "RUB", dec!(400000))],
-            date!(28, 9, 2018), "RUB", dec!(7), &converter).unwrap();
+        let start_date = date!(28, 7, 2018);
+        let initial_assets = dec!(200000);
+        let currency = "RUB";
+        let interest = dec!(7);
 
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets,
+            &vec![CashAssets::new(date!(28, 7, 2018), transaction_currency, transaction_amount)],
+            date!(28, 9, 2018), currency, interest, &converter).unwrap();
         assert_eq!(currency::round(result), decs!("607155.45"));
+
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets,
+            &vec![CashAssets::new(date!(28, 8, 2018), transaction_currency, transaction_amount)],
+            date!(28, 9, 2018), currency, interest, &converter).unwrap();
+        assert_eq!(currency::round(result), decs!("604763.23"));
+
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets,
+            &vec![CashAssets::new(date!(14, 8, 2018), transaction_currency, transaction_amount)],
+            date!(28, 9, 2018), currency, interest, &converter).unwrap();
+        assert_eq!(currency::round(result), decs!("605843.59"));
+
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets,
+            &vec![CashAssets::new(date!(28, 7, 2018), transaction_currency, transaction_amount)],
+            date!(28, 1, 2019), currency, interest, &converter).unwrap();
+        assert_eq!(currency::round(result), decs!("621486.34"));
     }
 
     #[test]
