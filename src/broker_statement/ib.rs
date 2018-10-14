@@ -28,66 +28,85 @@ impl IbStatementParser {
             .from_path(path)?;
 
         let mut records = reader.records();
-        let mut next_header_record = {
-            if let Some(result) = records.next() {
-                let record = result?;
+        let mut state = Some(State::None);
 
-                if !is_header(&record) {
-                    return Err!("Invalid header record: {}", format_record(&record));
+        'state: loop {
+            match state.take().unwrap() {
+                State::None => {
+                    match records.next() {
+                        Some(result) => state = Some(State::Record(result?)),
+                        None => break,
+                    };
                 }
-
-                Some(record)
-            } else {
-                return Err!("The statement file is empty");
-            }
-        };
-
-        'header: loop {
-            let header_record = next_header_record.take().unwrap();
-            let (name, fields) = parse_header(&header_record)?;
-
-            let parser: Box<RecordParser> = match name {
-                "Statement" => Box::new(StatementInfoParser {}),
-                "Net Asset Value" => Box::new(NetAssetValueParser {}),
-                "Deposits & Withdrawals" => Box::new(DepositsParser {}),
-                _ => Box::new(UnknownRecordParser {}),
-            };
-
-            let data_types = parser.data_types();
-
-            while let Some(result) = records.next() {
-                let record = result?;
-
-                if is_header(&record) {
-                    next_header_record = Some(record);
-                    continue 'header;
-                }
-
-                if record.len() < 2 || record.get(0).unwrap() != name {
-                    return Err!("Invalid data record where {:?} data record is expected: {}",
-                                name, format_record(&record));
-                }
-
-                if let Some(data_types) = data_types {
-                    if !data_types.contains(&record.get(1).unwrap()) {
-                        return Err!("Invalid data record type: {}", format_record(&record));
+                State::Record(record) => {
+                    if record.len() < 2 {
+                        return Err!("Invalid record: {}", format_record(&record));
                     }
+
+                    if record.get(1).unwrap() == "Header" {
+                        state = Some(State::Header(record));
+                    } else if record.get(1).unwrap() == "" {
+                        trace!("Headerless record: {}.", format_record(&record));
+                        state = Some(State::None);
+                    } else {
+                        return Err!("Invalid record: {}", format_record(&record));
+                    }
+                },
+                State::Header(record) => {
+                    let (name, fields) = parse_header(&record)?;
+
+                    let parser: Box<RecordParser> = match name {
+                        "Statement" => Box::new(StatementInfoParser {}),
+                        "Net Asset Value" => Box::new(NetAssetValueParser {}),
+                        "Deposits & Withdrawals" => Box::new(DepositsParser {}),
+                        _ => Box::new(UnknownRecordParser {}),
+                    };
+
+                    let data_types = parser.data_types();
+
+                    while let Some(result) = records.next() {
+                        let record = result?;
+
+                        if record.len() < 2 {
+                            return Err!("Invalid record: {}", format_record(&record));
+                        }
+
+                        if record.get(0).unwrap() != name {
+                            state = Some(State::Record(record));
+                            continue 'state;
+                        } else if record.get(1).unwrap() == "Header" {
+                            state = Some(State::Header(record));
+                            continue 'state;
+                        }
+
+                        if let Some(data_types) = data_types {
+                            if !data_types.contains(&record.get(1).unwrap()) {
+                                return Err!("Invalid data record type: {}", format_record(&record));
+                            }
+                        }
+
+                        parser.parse(&mut self, &Record {
+                            name: name,
+                            fields: &fields,
+                            values: &record,
+                        }).map_err(|e| format!(
+                            "Failed to parse ({}) record: {}", format_record(&record), e
+                        ))?;
+                    }
+
+                    break;
                 }
-
-                parser.parse(&mut self, &Record {
-                    name: name,
-                    fields: &fields,
-                    values: &record,
-                }).map_err(|e| format!(
-                    "Failed to parse ({}) record: {}", format_record(&record), e
-                ))?;
             }
-
-            break;
         }
 
         Ok(self.statement.get().map_err(|e| format!("Invalid statement: {}", e))?)
     }
+}
+
+enum State {
+    None,
+    Record(StringRecord),
+    Header(StringRecord),
 }
 
 struct Record<'a> {
@@ -106,10 +125,6 @@ impl<'a> Record<'a> {
 
         Err!("{:?} record doesn't have {:?} field", self.name, field)
     }
-}
-
-fn is_header(record: &StringRecord) -> bool {
-    record.len() >= 2 && record.get(1).unwrap() == "Header"
 }
 
 fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
