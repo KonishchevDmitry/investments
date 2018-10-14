@@ -1,4 +1,3 @@
-use std::io;
 use std::iter::Iterator;
 
 use chrono::Duration;
@@ -22,11 +21,11 @@ impl IbStatementParser {
         }
     }
 
-    pub fn parse(mut self) -> GenericResult<BrokerStatement> {
+    pub fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)
-            .from_reader(io::stdin());
+            .from_path(path)?;
 
         let mut records = reader.records();
         let mut next_header_record = {

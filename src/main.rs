@@ -1,4 +1,5 @@
 extern crate chrono;
+extern crate clap;
 extern crate csv;
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
@@ -13,44 +14,39 @@ extern crate rust_decimal;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_xml_rs;
+extern crate serde_yaml;
+extern crate shellexpand;
 extern crate tempfile;
 
 #[macro_use] mod core;
 #[macro_use] mod types;
+mod config;
 mod util;
 mod db;
 mod broker_statement;
 mod currency;
 mod analyse;
 
-use currency::CashAssets;
-use currency::converter::CurrencyConverter;
+use std::process;
+
+use config::{Config, Action};
+use core::EmptyResult;
 
 fn main() {
-    easy_logging::init(module_path!(), log::Level::Trace).unwrap();
+    let (action, config) = config::load();
 
-    let connection = db::connect("db.sqlite").unwrap();
-    let converter = CurrencyConverter::new(connection);
-
-    match broker_statement::ib::IbStatementParser::new().parse() {
-        Ok(statement) => {
-            debug!("{:#?}", statement);
-
-            let total_value = CashAssets::new_from_cash(statement.period.1, statement.total_value);
-
-            for currency in ["USD", "RUB"].iter() {
-                let interest = analyse::profit::get_average_profit(
-                    &statement.deposits, total_value, *currency, &converter).unwrap();
-
-                println!("{}: {}", currency, interest * dec!(100));
-            }
-            for currency in ["USD", "RUB"].iter() {
-                let interest = analyse::profit::get_average_rate_of_return(
-                    &statement.deposits, total_value, *currency, &converter).unwrap();
-
-                println!("{}: {}", currency, interest);
-            }
-        },
-        Err(e) => println!("Error: {}.", e),
+    if let Err(e) = run(action, config) {
+        error!("{}.", e);
+        process::exit(1);
     }
+}
+
+fn run(action: Action, config: Config) -> EmptyResult {
+    let database = db::connect(&config.db_path)?;
+
+    match action {
+        Action::Analyse(broker_statement_path) => analyse::analyse(database, &broker_statement_path)?,
+    }
+
+    Ok(())
 }

@@ -1,10 +1,11 @@
 [package]
-name = "investment-analyzer"
+name = "investment-tools"
 version = "0.1.0"
 authors = ["Dmitry Konishchev"]
 
 [dependencies]
 chrono = "*"
+clap = "*"
 csv = "*"
 diesel = { version = "*", features = ["sqlite", "chrono"] }
 diesel_migrations = "*"
@@ -19,4 +20,6 @@ rust_decimal = "*"
 serde = "*"
 serde_derive = "*"
 serde-xml-rs = "*"
+serde_yaml = "*"
+shellexpand = "*"
 tempfile = "*"

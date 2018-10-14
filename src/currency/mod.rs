@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use rust_decimal::RoundingStrategy;
+#[cfg(test)] use rust_decimal::RoundingStrategy;
 
 use core::GenericResult;
 use types::{Date, Decimal};
@@ -38,6 +38,7 @@ pub struct CashAssets {
 }
 
 impl CashAssets {
+    #[cfg(test)]
     pub fn new(date: Date, currency: &str, amount: Decimal) -> CashAssets {
         CashAssets {date, cash: Cash::new(currency, amount)}
     }
@@ -53,6 +54,24 @@ pub struct CurrencyRate {
     price: Decimal,
 }
 
+#[cfg(test)]
 pub fn round(amount: Decimal) -> Decimal {
     amount.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rounding() {
+        assert_eq!(round(decs!("1")), decs!("1"));
+        assert_eq!(round(decs!("1.1")), decs!("1.1"));
+        assert_eq!(round(decs!("1.11")), decs!("1.11"));
+        assert_eq!(round(decs!("1.111")), decs!("1.11"));
+        assert_eq!(round(decs!("1.114")), decs!("1.11"));
+        assert_eq!(round(decs!("1.124")), decs!("1.12"));
+        assert_eq!(round(decs!("1.115")), decs!("1.12"));
+        assert_eq!(round(decs!("1.125")), decs!("1.13"));
+    }
 }

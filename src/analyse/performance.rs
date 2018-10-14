@@ -1,8 +1,10 @@
 use chrono::{Duration, Datelike};
 
 use core::{EmptyResult, GenericResult};
-use currency::{self, CashAssets};
-use currency::converter::{CurrencyConverter, CurrencyConverterBackend};
+#[cfg(test)] use currency;
+use currency::CashAssets;
+use currency::converter::CurrencyConverter;
+#[cfg(test)] use currency::converter::CurrencyConverterBackend;
 use types::{Date, Decimal};
 
 // FIXME: Support:

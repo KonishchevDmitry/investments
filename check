@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# Checks compile warnings for both test and non-test mode
+#
+
+set -x
+cargo check
+cargo check --tests

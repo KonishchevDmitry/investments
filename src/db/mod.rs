@@ -11,7 +11,7 @@ embed_migrations!();
 
 pub fn connect(url: &str) -> GenericResult<Connection> {
     let connection = Connection::establish(url).map_err(|e| format!(
-        "Unable to connect to {:?} database: {}", url, e))?;
+        "Unable to open {:?} database: {}", url, e))?;
 
     embedded_migrations::run(&connection).map_err(|e| format!(
         "Failed to prepare the database: {}", e))?;

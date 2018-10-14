@@ -11,8 +11,8 @@ pub struct CurrencyConverter {
 }
 
 impl CurrencyConverter {
-    pub fn new(connection: db::Connection) -> CurrencyConverter {
-        let rate_cache = CurrencyRateCache::new(connection);
+    pub fn new(database: db::Connection) -> CurrencyConverter {
+        let rate_cache = CurrencyRateCache::new(database);
         let backend = CurrencyRateCacheBackend::new(rate_cache);
         CurrencyConverter::new_with_backend(backend)
     }
