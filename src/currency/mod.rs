@@ -1,6 +1,7 @@
+use std::fmt;
 use std::str::FromStr;
 
-#[cfg(test)] use rust_decimal::RoundingStrategy;
+use rust_decimal::RoundingStrategy;
 
 use core::GenericResult;
 use types::{Date, Decimal};
@@ -41,6 +42,19 @@ impl Cash {
     }
 }
 
+impl Cash {
+    pub fn round(mut self) -> Cash {
+        self.amount = round(self.amount);
+        self
+    }
+}
+
+impl fmt::Display for Cash {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.amount, self.currency)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CashAssets {
     pub date: Date,
@@ -64,7 +78,6 @@ pub struct CurrencyRate {
     price: Decimal,
 }
 
-#[cfg(test)]
 pub fn round(amount: Decimal) -> Decimal {
     amount.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp)
 }

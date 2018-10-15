@@ -110,7 +110,40 @@ impl IbStatementParser {
             }
         }
 
+        self.parse_dividend_info()?;
+
         Ok(self.statement.get().map_err(|e| format!("Invalid statement: {}", e))?)
+    }
+
+    // FIXME: HERE
+    fn parse_dividend_info(&mut self) -> EmptyResult {
+        let tax_rate = decs!("0.1");
+
+        for dividend in self.dividends.drain(..) {
+            let (ticker, tax_description) = parse_dividend_description(&dividend.description)?;
+            let tax_id = (dividend.date, tax_description);
+
+            let paid_taxes = match self.taxes.remove(&tax_id) {
+                Some(paid_taxes) => paid_taxes,
+                None => {
+                    return Err!(
+                        "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
+                        dividend.date, dividend.description, tax_id.1);
+                },
+            };
+
+            let mut expected_paid_taxes = dividend.amount;
+            expected_paid_taxes.amount *= tax_rate;
+            expected_paid_taxes = expected_paid_taxes.round();
+
+            if paid_taxes != expected_paid_taxes {
+                return Err!(
+                    "Paid taxes for {} / {:?} don't equal to expected ones: {} vs {}",
+                    dividend.date, dividend.description, paid_taxes, expected_paid_taxes);
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -211,9 +244,8 @@ impl RecordParser for DepositsParser {
 
 struct DividendInfo {
     date: Date,
-    ticker: String,
+    description: String,
     amount: Cash,
-    tax_description: String,
 }
 
 struct DividendsParser {}
@@ -226,15 +258,13 @@ impl RecordParser for DividendsParser {
         }
 
         let date = parse_date(record.get_value("Date")?)?;
-        let description = record.get_value("Description")?;
+        let description = record.get_value("Description")?.to_owned();
         let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
-        let (ticker, tax_description) = parse_dividend_description(description)?;
 
         parser.dividends.push(DividendInfo {
             date: date,
-            ticker: ticker,
+            description: description,
             amount: amount,
-            tax_description: tax_description,
         });
 
         Ok(())
