@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::iter::Iterator;
+
+use num_traits::identities::Zero;
 
 use chrono::Duration;
 
@@ -12,12 +15,16 @@ use util;
 
 pub struct IbStatementParser {
     statement: BrokerStatementBuilder,
+    tickers: HashMap<String, String>,
+    taxes: HashMap<(Date, String), Cash>,
 }
 
 impl IbStatementParser {
     pub fn new() -> IbStatementParser {
         IbStatementParser {
             statement: BrokerStatementBuilder::new(),
+            tickers: HashMap::new(),
+            taxes: HashMap::new(),
         }
     }
 
@@ -58,7 +65,9 @@ impl IbStatementParser {
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(StatementInfoParser {}),
                         "Net Asset Value" => Box::new(NetAssetValueParser {}),
+                        "Withholding Tax" => Box::new(WithholdingTaxParser {}),
                         "Deposits & Withdrawals" => Box::new(DepositsParser {}),
+                        "Financial Instrument Information" => Box::new(FinancialInstrumentInformationParser {}),
                         _ => Box::new(UnknownRecordParser {}),
                     };
 
@@ -179,6 +188,43 @@ impl RecordParser for NetAssetValueParser {
     }
 }
 
+struct WithholdingTaxParser {}
+
+impl RecordParser for WithholdingTaxParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        let currency = record.get_value("Currency")?;
+        if currency == "Total" {
+            return Ok(());
+        }
+
+        let date = parse_date(record.get_value("Date")?)?;
+        let description = record.get_value("Description")?.to_owned();
+
+        let tax_id = (date, description.clone());
+        let mut tax = Cash::new_from_string(currency, record.get_value("Amount")?)?;
+
+        // Tax amount is represented as a negative number.
+        // Positive number is used to cancel a previous tax payment and usually followed by another
+        // negative number.
+        if tax.amount.is_zero() {
+            return Err!("Invalid withholding tax: {}", tax.amount);
+        } else if tax.amount.is_sign_positive() {
+            return match parser.taxes.remove(&tax_id) {
+                Some(cancelled_tax) if cancelled_tax == tax => Ok(()),
+                _ => Err!("Invalid withholding tax: {}", tax.amount),
+            }
+        }
+
+        tax.amount = -tax.amount;
+
+        if let Some(_) = parser.taxes.insert(tax_id, tax) {
+            return Err!("Got a duplicate withholding tax: {} / {:?}", date, description);
+        }
+
+        Ok(())
+    }
+}
+
 struct DepositsParser {}
 
 impl RecordParser for DepositsParser {
@@ -189,11 +235,24 @@ impl RecordParser for DepositsParser {
         }
 
         // FIXME: Distinguish withdrawals from deposits
-        let date = parse_transaction_date(record.get_value("Settle Date")?)?;
-        let amount = Cash::new_from_string(currency, record.get_value("Amount")?)?;
+        let date = parse_date(record.get_value("Settle Date")?)?;
+        let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
 
         parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
 
+        Ok(())
+    }
+}
+
+struct FinancialInstrumentInformationParser {
+}
+
+impl RecordParser for FinancialInstrumentInformationParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        parser.tickers.insert(
+            record.get_value("Symbol")?.to_owned(),
+            record.get_value("Description")?.to_owned(),
+        );
         Ok(())
     }
 }
@@ -222,6 +281,10 @@ fn format_record<'a, I>(iter: I) -> String
         .join(", ")
 }
 
+fn parse_date(date: &str) -> GenericResult<Date> {
+    util::parse_date(date, "%Y-%m-%d")
+}
+
 fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
     let dates = period.split(" - ").collect::<Vec<_>>();
 
@@ -230,7 +293,16 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
             let date = parse_period_date(dates[0])?;
             (date, date + Duration::days(1))
         },
-        2 => (parse_period_date(dates[0])?, parse_period_date(dates[1])? + Duration::days(1)),
+        2 => {
+            let start = parse_period_date(dates[0])?;
+            let end = parse_period_date(dates[1])?;
+
+            if start > end {
+                return Err!("Invalid period: {} - {}", start, end);
+            }
+
+            (start, end + Duration::days(1))
+        },
         _ => return Err!("Invalid date: {:?}", period),
     });
 }
@@ -239,13 +311,14 @@ fn parse_period_date(date: &str) -> GenericResult<Date> {
     util::parse_date(date, "%B %d, %Y")
 }
 
-fn parse_transaction_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%Y-%m-%d")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn date_parsing() {
+        assert_eq!(parse_date("2018-06-22").unwrap(), date!(22, 6, 2018));
+    }
 
     #[test]
     fn period_parsing() {
@@ -257,10 +330,5 @@ mod tests {
 
         assert_eq!(parse_period("May 21, 2018 - September 28, 2018").unwrap(),
                    (date!(21, 5, 2018), date!(29, 9, 2018)));
-    }
-
-    #[test]
-    fn transaction_date_parsing() {
-        assert_eq!(parse_transaction_date("2018-06-22").unwrap(), date!(22, 6, 2018));
     }
 }

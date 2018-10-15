@@ -9,6 +9,7 @@ extern crate easy_logging;
 #[macro_use] extern crate log;
 #[cfg(test)] #[macro_use] extern crate matches;
 #[cfg(test)] extern crate mockito;
+extern crate num_traits;
 extern crate reqwest;
 extern crate rust_decimal;
 extern crate serde;

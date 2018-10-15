@@ -11,7 +11,7 @@ mod rate_cache;
 
 pub mod converter;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cash {
     pub currency: &'static str,
     pub amount: Decimal,
@@ -28,6 +28,16 @@ impl Cash {
     pub fn new_from_string(currency: &str, amount: &str) -> GenericResult<Cash> {
         Ok(Cash::new(currency, Decimal::from_str(amount).map_err(|_| format!(
             "Invalid cash amount: {:?}", amount))?))
+    }
+
+    pub fn new_from_string_positive(currency: &str, amount: &str) -> GenericResult<Cash> {
+        let cash = Cash::new_from_string(currency, amount)?;
+
+        if cash.amount <= dec!(0) {
+            return Err!("Invalid cash amount: {:?}", amount);
+        }
+
+        Ok(cash)
     }
 }
 
