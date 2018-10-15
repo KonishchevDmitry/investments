@@ -22,12 +22,13 @@ extern crate tempfile;
 
 #[macro_use] mod core;
 #[macro_use] mod types;
-mod config;
-mod util;
-mod db;
-mod broker_statement;
-mod currency;
 mod analyse;
+mod broker_statement;
+mod config;
+mod currency;
+mod db;
+mod regulations;
+mod util;
 
 use std::process;
 

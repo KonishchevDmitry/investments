@@ -7,11 +7,11 @@ use core::GenericResult;
 use currency::Cash;
 use broker_statement::{BrokerStatement, BrokerStatementBuilder};
 use broker_statement::ib::common::{Record, RecordParser, format_record};
-use types::Date;
 
 mod common;
 mod dividends;
 mod parsers;
+mod taxes;
 
 enum State {
     None,
@@ -22,7 +22,7 @@ enum State {
 pub struct IbStatementParser {
     statement: BrokerStatementBuilder,
     tickers: HashMap<String, String>,
-    taxes: HashMap<(Date, String), Cash>,
+    taxes: HashMap<taxes::TaxId, Cash>,
     dividends: Vec<dividends::DividendInfo>,
 }
 
@@ -75,7 +75,7 @@ impl IbStatementParser {
                         "Net Asset Value" => Box::new(parsers::NetAssetValueParser {}),
                         "Deposits & Withdrawals" => Box::new(parsers::DepositsParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
-                        "Withholding Tax" => Box::new(parsers::WithholdingTaxParser {}),
+                        "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
                         "Financial Instrument Information" => Box::new(parsers::FinancialInstrumentInformationParser {}),
                         _ => Box::new(parsers::UnknownRecordParser {}),
                     };
@@ -117,7 +117,7 @@ impl IbStatementParser {
             }
         }
 
-        dividends::parse_dividends(self.dividends, &mut self.taxes)?;
+        self.statement.dividends = dividends::parse_dividends(self.dividends, &mut self.taxes)?;
 
         Ok(self.statement.get().map_err(|e| format!("Invalid statement: {}", e))?)
     }

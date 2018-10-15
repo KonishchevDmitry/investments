@@ -46,6 +46,7 @@ impl BrokerStatementBuilder {
 #[derive(Debug)]
 pub struct Dividend {
     pub date: Date,
+    pub issuer: String,
     pub amount: Cash,
     pub paid_tax: Cash,
 }
