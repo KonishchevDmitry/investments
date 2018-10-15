@@ -10,6 +10,7 @@ extern crate easy_logging;
 #[cfg(test)] #[macro_use] extern crate matches;
 #[cfg(test)] extern crate mockito;
 extern crate num_traits;
+extern crate prettytable;
 extern crate regex;
 extern crate reqwest;
 extern crate rust_decimal;
