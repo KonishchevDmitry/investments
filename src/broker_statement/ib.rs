@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::iter::Iterator;
 
-use num_traits::identities::Zero;
-
 use chrono::Duration;
-
 use csv::{self, StringRecord};
+use num_traits::identities::Zero;
+use regex::Regex;
 
 use core::{EmptyResult, GenericResult};
 use currency::{Cash, CashAssets};
@@ -17,6 +16,7 @@ pub struct IbStatementParser {
     statement: BrokerStatementBuilder,
     tickers: HashMap<String, String>,
     taxes: HashMap<(Date, String), Cash>,
+    dividends: Vec<DividendInfo>,
 }
 
 impl IbStatementParser {
@@ -25,6 +25,7 @@ impl IbStatementParser {
             statement: BrokerStatementBuilder::new(),
             tickers: HashMap::new(),
             taxes: HashMap::new(),
+            dividends: Vec::new(),
         }
     }
 
@@ -65,8 +66,9 @@ impl IbStatementParser {
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(StatementInfoParser {}),
                         "Net Asset Value" => Box::new(NetAssetValueParser {}),
-                        "Withholding Tax" => Box::new(WithholdingTaxParser {}),
                         "Deposits & Withdrawals" => Box::new(DepositsParser {}),
+                        "Dividends" => Box::new(DividendsParser {}),
+                        "Withholding Tax" => Box::new(WithholdingTaxParser {}),
                         "Financial Instrument Information" => Box::new(FinancialInstrumentInformationParser {}),
                         _ => Box::new(UnknownRecordParser {}),
                     };
@@ -188,6 +190,57 @@ impl RecordParser for NetAssetValueParser {
     }
 }
 
+struct DepositsParser {}
+
+impl RecordParser for DepositsParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        let currency = record.get_value("Currency")?;
+        if currency.starts_with("Total") {
+            return Ok(());
+        }
+
+        // FIXME: Distinguish withdrawals from deposits
+        let date = parse_date(record.get_value("Settle Date")?)?;
+        let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
+
+        parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
+
+        Ok(())
+    }
+}
+
+struct DividendInfo {
+    date: Date,
+    ticker: String,
+    amount: Cash,
+    tax_description: String,
+}
+
+struct DividendsParser {}
+
+impl RecordParser for DividendsParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        let currency = record.get_value("Currency")?;
+        if currency == "Total" {
+            return Ok(());
+        }
+
+        let date = parse_date(record.get_value("Date")?)?;
+        let description = record.get_value("Description")?;
+        let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
+        let (ticker, tax_description) = parse_dividend_description(description)?;
+
+        parser.dividends.push(DividendInfo {
+            date: date,
+            ticker: ticker,
+            amount: amount,
+            tax_description: tax_description,
+        });
+
+        Ok(())
+    }
+}
+
 struct WithholdingTaxParser {}
 
 impl RecordParser for WithholdingTaxParser {
@@ -220,25 +273,6 @@ impl RecordParser for WithholdingTaxParser {
         if let Some(_) = parser.taxes.insert(tax_id, tax) {
             return Err!("Got a duplicate withholding tax: {} / {:?}", date, description);
         }
-
-        Ok(())
-    }
-}
-
-struct DepositsParser {}
-
-impl RecordParser for DepositsParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
-        let currency = record.get_value("Currency")?;
-        if currency.starts_with("Total") {
-            return Ok(());
-        }
-
-        // FIXME: Distinguish withdrawals from deposits
-        let date = parse_date(record.get_value("Settle Date")?)?;
-        let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
-
-        parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
 
         Ok(())
     }
@@ -311,6 +345,22 @@ fn parse_period_date(date: &str) -> GenericResult<Date> {
     util::parse_date(date, "%B %d, %Y")
 }
 
+fn parse_dividend_description(description: &str) -> GenericResult<(String, String)> {
+    lazy_static! {
+        static ref description_regex: Regex = Regex::new(
+            r"^(?P<description>(?P<ticker>[A-Z]+)\b.+) \([^)]+\)$").unwrap();
+    }
+
+    let captures = description_regex.captures(description).ok_or_else(|| format!(
+        "Unexpected dividend description: {:?}", description))?;
+
+    let ticker = captures.name("ticker").unwrap().as_str().to_owned();
+    let short_description = captures.name("description").unwrap().as_str().to_owned();
+    let tax_description = short_description + " - US Tax";
+
+    Ok((ticker, tax_description))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +380,23 @@ mod tests {
 
         assert_eq!(parse_period("May 21, 2018 - September 28, 2018").unwrap(),
                    (date!(21, 5, 2018), date!(29, 9, 2018)));
+    }
+
+    #[test]
+    fn dividend_description_parsing() {
+        assert_eq!(parse_dividend_description(
+            "VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)").unwrap(),
+            (s!("VNQ"), s!("VNQ (US9229085538) Cash Dividend USD 0.7318 - US Tax")),
+        );
+
+        assert_eq!(parse_dividend_description(
+            "IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)").unwrap(),
+            (s!("IEMG"), s!("IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share - US Tax")),
+        );
+
+        assert_eq!(parse_dividend_description(
+            "BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)").unwrap(),
+            (s!("BND"), s!("BND(US9219378356) Cash Dividend 0.18685800 USD per Share - US Tax")),
+        );
     }
 }
