@@ -3,13 +3,14 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process;
 
-use clap::{App, Arg, AppSettings, SubCommand};
+use clap::{App, Arg, AppSettings, SubCommand, ArgMatches};
+use easy_logging;
 use log;
 use serde_yaml;
 use shellexpand;
 
 use core::GenericResult;
-use easy_logging;
+use types::Date;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -20,6 +21,11 @@ pub struct Config {
 
 pub enum Action {
     Analyse(String),
+    TaxStatement {
+        year: i32,
+        broker_statement_path: String,
+        tax_statement_path: Option<String>,
+    },
 }
 
 pub fn load() -> (Action, Config) {
@@ -43,6 +49,16 @@ pub fn load() -> (Action, Config) {
             .arg(Arg::with_name("BROKER_STATEMENT")
                 .help("Path to Interactive Brokers statement *.csv file")
                 .required(true)))
+        .subcommand(SubCommand::with_name("tax-statement")
+            .about("Generate tax statement")
+            .arg(Arg::with_name("YEAR")
+                .help("Year to generate the statement for")
+                .required(true))
+            .arg(Arg::with_name("BROKER_STATEMENT")
+                .help("Path to Interactive Brokers statement *.csv file")
+                .required(true))
+            .arg(Arg::with_name("TAX_STATEMENT")
+                .help("Path to tax statement *.dcX file")))
         .global_setting(AppSettings::DisableVersion)
         .setting(AppSettings::SubcommandRequired)
         .get_matches();
@@ -62,10 +78,12 @@ pub fn load() -> (Action, Config) {
         process::exit(1);
     }
 
-    let action = match matches.subcommand() {
-        ("analyse", Some(matches)) => Action::Analyse(
-            matches.value_of("BROKER_STATEMENT").unwrap().to_owned()),
-        _ => unreachable!(),
+    let action = match parse_arguments(&matches) {
+        Ok(action) => action,
+        Err(err) => {
+            error!("{}.", err);
+            process::exit(1);
+        },
     };
 
     let config_dir_path = matches.value_of("config").map(ToString::to_string).unwrap_or_else(||
@@ -84,6 +102,29 @@ pub fn load() -> (Action, Config) {
     config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
 
     (action, config)
+}
+
+fn parse_arguments(matches: &ArgMatches) -> GenericResult<Action> {
+    Ok(match matches.subcommand() {
+        ("analyse", Some(matches)) => Action::Analyse(
+            matches.value_of("BROKER_STATEMENT").unwrap().to_owned()),
+        ("tax-statement", Some(matches)) => {
+            let year = matches.value_of("YEAR").unwrap();
+            let year = year.trim().parse::<i32>().ok()
+                .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
+                .ok_or_else(|| format!("Invalid year: {}", year))?;
+
+            let broker_statement_path = matches.value_of("BROKER_STATEMENT").unwrap().to_owned();
+            let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
+
+            Action::TaxStatement {
+                year: year,
+                broker_statement_path: broker_statement_path,
+                tax_statement_path: tax_statement_path,
+            }
+        },
+        _ => unreachable!(),
+    })
 }
 
 fn load_config(path: &str) -> GenericResult<Config> {

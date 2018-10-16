@@ -29,6 +29,7 @@ mod config;
 mod currency;
 mod db;
 mod regulations;
+mod tax_statement;
 mod util;
 
 use std::process;
@@ -49,8 +50,13 @@ fn run(action: Action, config: Config) -> EmptyResult {
     let database = db::connect(&config.db_path)?;
 
     match action {
-        Action::Analyse(broker_statement_path) => analyse::analyse(database, &broker_statement_path)?,
-    }
+        Action::Analyse(broker_statement_path) =>
+            analyse::analyse(database, &broker_statement_path)?,
+
+        Action::TaxStatement { year, broker_statement_path, tax_statement_path } =>
+            tax_statement::generate_tax_statement(
+                year, &broker_statement_path, tax_statement_path.as_ref().map(String::as_str))?,
+    };
 
     Ok(())
 }
