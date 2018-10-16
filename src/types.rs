@@ -12,7 +12,6 @@ macro_rules! dec {
     ($value:expr) => (::rust_decimal::Decimal::from($value))
 }
 
-#[cfg(test)]
 macro_rules! date {
     ($day:expr, $month:expr, $year:expr) => (::chrono::NaiveDate::from_ymd($year, $month, $day))
 }

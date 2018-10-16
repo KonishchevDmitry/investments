@@ -28,16 +28,19 @@ pub struct IbStatementParser {
 }
 
 impl IbStatementParser {
-    pub fn new() -> IbStatementParser {
-        IbStatementParser {
+    pub fn parse(path: &str) -> GenericResult<BrokerStatement> {
+        let parser = IbStatementParser {
             statement: BrokerStatementBuilder::new(),
             tickers: HashMap::new(),
             taxes: HashMap::new(),
             dividends: Vec::new(),
-        }
+        };
+
+        Ok(parser.parse_impl(path).map_err(|e| format!(
+            "Error while reading {:?} broker statement: {}", path, e))?)
     }
 
-    pub fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
+    fn parse_impl(mut self, path: &str) -> GenericResult<BrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)
@@ -138,7 +141,7 @@ mod tests {
     #[test]
     fn parsing() {
         let path = Path::new(file!()).parent().unwrap().join("testdata/statement.csv");
-        let statement = IbStatementParser::new().parse(path.to_str().unwrap()).unwrap();
+        let statement = IbStatementParser::parse(path.to_str().unwrap()).unwrap();
 
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);

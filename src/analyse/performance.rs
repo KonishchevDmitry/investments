@@ -6,6 +6,7 @@ use currency::CashAssets;
 use currency::converter::CurrencyConverter;
 #[cfg(test)] use currency::converter::CurrencyConverterBackend;
 use types::{Date, Decimal};
+use util;
 
 // FIXME: Support:
 // * Withdrawals
@@ -20,7 +21,7 @@ pub fn get_average_rate_of_return(
 
     for deposit in deposits {
         if deposit.date > current_assets.date {
-            return Err!("Got a deposit from the future ({})", deposit.date);
+            return Err!("Got a deposit from the future ({})", util::format_date(deposit.date));
         }
 
         assert!(deposit.cash.amount > dec!(0));
@@ -135,7 +136,7 @@ impl<'a> DepositEmulator<'a> {
             transaction.date, transaction.cash, self.currency)?;
 
         if self.assets < dec!(0) {
-            return Err!("Portfolio got negative balance on {}", transaction.date);
+            return Err!("Portfolio got negative balance on {}", util::format_date(transaction.date));
         }
 
         Ok(())
@@ -170,7 +171,7 @@ impl<'a> DepositEmulator<'a> {
         self.accumulated_income = dec!(0);
 
         if self.assets < dec!(0) {
-            return Err!("Portfolio got negative balance on {}", self.date);
+            return Err!("Portfolio got negative balance on {}", util::format_date(self.date));
         }
 
         Ok(())
@@ -252,7 +253,7 @@ pub fn get_average_profit(
     for (index, assets) in transactions.iter().enumerate() {
         total_income += converter.convert_to(assets.date, assets.cash, currency)?;
         if total_income < dec!(0) {
-            return Err!("Portfolio got negative balance on {}", assets.date);
+            return Err!("Portfolio got negative balance on {}", util::format_date(assets.date));
         }
 
         let end_date = if index < deposits.len() - 1 {

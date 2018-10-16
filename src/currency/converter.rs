@@ -5,6 +5,7 @@ use currency::{Cash, CurrencyRate};
 use currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use db;
 use types::{Date, Decimal};
+use util;
 
 pub struct CurrencyConverter {
     backend: Box<CurrencyConverterBackend>,
@@ -54,7 +55,7 @@ impl CurrencyRateCacheBackend {
                     return Err!(concat!(
                         "Failed to get {} currency rate for {}: ",
                         "it's expected to be in the cache, but actually it's missing"),
-                        currency, date);
+                        currency, util::format_date(date));
                 }
 
                 let currency_rates = get_currency_rates(currency, start_date, end_date)?;
@@ -80,7 +81,8 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
 
         let today = self.rate_cache.today();
         if date > today {
-            return Err!("An attempt to make currency conversion for future date: {}", date);
+            return Err!("An attempt to make currency conversion for future date: {}",
+                util::format_date(date));
         }
 
         let mut cur_date = date;
@@ -108,7 +110,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         }
 
         Err!("Unable to find {} currency rate for {} with {} days precision",
-             currency, date, (date - min_date).num_days())
+             currency, util::format_date(date), (date - min_date).num_days())
     }
 }
 

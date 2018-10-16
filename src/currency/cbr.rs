@@ -35,7 +35,8 @@ pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericRes
     )?;
 
     let get = |url| -> GenericResult<Vec<CurrencyRate>> {
-        debug!("Getting {} currency rates for {} - {}...", currency, start_date, end_date);
+        debug!("Getting {} currency rates for {} - {}...", currency,
+               util::format_date(start_date), util::format_date(end_date));
 
         let mut response = reqwest::Client::new().get(url).send()?;
         if !response.status().is_success() {

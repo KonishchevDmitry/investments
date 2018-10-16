@@ -55,7 +55,8 @@ fn run(action: Action, config: Config) -> EmptyResult {
 
         Action::TaxStatement { year, broker_statement_path, tax_statement_path } =>
             tax_statement::generate_tax_statement(
-                year, &broker_statement_path, tax_statement_path.as_ref().map(String::as_str))?,
+                database, year, &broker_statement_path,
+                tax_statement_path.as_ref().map(String::as_str))?,
     };
 
     Ok(())

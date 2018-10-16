@@ -10,6 +10,7 @@ use broker_statement::ib::common::{Record, RecordParser, parse_date};
 use broker_statement::ib::taxes::TaxId;
 use regulations;
 use types::Date;
+use util;
 
 pub struct DividendInfo {
     date: Date,
@@ -52,7 +53,7 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
             None => {
                 return Err!(
                     "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
-                    dividend.date, dividend.description, tax_id.1);
+                    util::format_date(dividend.date), dividend.description, tax_id.1);
             },
         };
 
@@ -63,7 +64,7 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
         if paid_tax != expected_tax {
             return Err!(
                 "Paid tax for {} / {:?} is not equal to expected one: {} vs {}",
-                dividend.date, dividend.description, paid_tax, expected_tax);
+                util::format_date(dividend.date), dividend.description, paid_tax, expected_tax);
         }
 
         dividends.push(Dividend {

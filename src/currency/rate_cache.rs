@@ -8,6 +8,7 @@ use core::{GenericResult, GenericError, EmptyResult};
 use currency::CurrencyRate;
 use db::{self, schema::currency_rates, models};
 use types::{Date, Decimal};
+use util;
 
 pub struct CurrencyRateCache {
     today: Date,
@@ -87,7 +88,8 @@ impl CurrencyRateCache {
 
     pub fn save(&self, currency: &str, start_date: Date, end_date: Date, mut rates: Vec<CurrencyRate>) -> EmptyResult {
         if start_date > end_date {
-            return Err!("Invalid date range: {} - {}", start_date, end_date);
+            return Err!("Invalid date range: {} - {}",
+                util::format_date(start_date), util::format_date(end_date));
         } else if end_date >= self.today {
             return Err!("An attempt to save currency rates for the future");
         }

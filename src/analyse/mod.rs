@@ -7,10 +7,7 @@ use db;
 pub mod performance;
 
 pub fn analyse(database: db::Connection, broker_statement_path: &str) -> EmptyResult {
-    let statement = IbStatementParser::new().parse(broker_statement_path).map_err(|e| format!(
-        "Error while reading {:?} broker statement: {}", broker_statement_path, e))?;
-    debug!("{:#?}", statement);
-
+    let statement = IbStatementParser::parse(broker_statement_path)?;
     let converter = CurrencyConverter::new(database);
     let total_value = CashAssets::new_from_cash(statement.period.1, statement.total_value);
 

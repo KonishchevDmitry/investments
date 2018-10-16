@@ -5,6 +5,7 @@ use broker_statement::ib::common::{Record, RecordParser, parse_date};
 use core::EmptyResult;
 use currency::Cash;
 use types::Date;
+use util;
 
 pub type TaxId = (Date, String);
 
@@ -38,7 +39,8 @@ impl RecordParser for WithholdingTaxParser {
         tax.amount = -tax.amount;
 
         if let Some(_) = parser.taxes.insert(tax_id, tax) {
-            return Err!("Got a duplicate withholding tax: {} / {:?}", date, description);
+            return Err!("Got a duplicate withholding tax: {} / {:?}",
+                util::format_date(date), description);
         }
 
         Ok(())

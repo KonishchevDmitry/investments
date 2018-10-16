@@ -34,12 +34,14 @@ impl BrokerStatementBuilder {
     }
 
     fn get(self) -> GenericResult<BrokerStatement> {
-        return Ok(BrokerStatement {
+        let statement = BrokerStatement {
             period: get_option("statement period", self.period)?,
             deposits: self.deposits,
             dividends: self.dividends,
             total_value: get_option("total value", self.total_value)?,
-        })
+        };
+        debug!("{:#?}", statement);
+        return Ok(statement)
     }
 }
 
