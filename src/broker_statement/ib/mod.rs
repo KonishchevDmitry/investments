@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::iter::Iterator;
+#[cfg(test)] use std::path::Path;
 
 use csv::{self, StringRecord};
 
@@ -128,4 +129,18 @@ fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
     let fields = record.iter().skip(2).collect::<Vec<_>>();
     trace!("Header: {}: {}.", name, format_record(fields.iter().map(|field: &&str| *field)));
     Ok((name, fields))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parsing() {
+        let path = Path::new(file!()).parent().unwrap().join("testdata/statement.csv");
+        let statement = IbStatementParser::new().parse(path.to_str().unwrap()).unwrap();
+
+        assert!(statement.deposits.len() > 0);
+        assert!(statement.dividends.len() > 0);
+    }
 }
