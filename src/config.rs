@@ -29,9 +29,9 @@ pub enum Action {
 }
 
 pub fn load() -> (Action, Config) {
-    let default_config_dir_path = "~/.investment-tools";
+    let default_config_dir_path = "~/.investments";
 
-    let matches = App::new("Investment tools")
+    let matches = App::new("Investments")
         .about("\nHelp you with managing your investments")
         .arg(Arg::with_name("config")
             .short("c")

@@ -1,5 +1,5 @@
 [package]
-name = "investment-tools"
+name = "investments"
 version = "0.1.0"
 authors = ["Dmitry Konishchev"]
 
@@ -12,7 +12,7 @@ diesel_migrations = "*"
 easy-logging = "*"
 indoc = "*"
 lazy_static = "*"
-log = "*"
+log = "0.4"
 matches = "*"
 mockito = "*"
 num-traits = "*"
