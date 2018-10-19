@@ -6,13 +6,19 @@ use csv::{self, StringRecord};
 
 use core::GenericResult;
 use currency::Cash;
-use broker_statement::{BrokerStatement, BrokerStatementBuilder};
+use broker_statement::{BrokerInfo, BrokerStatement, BrokerStatementBuilder};
 use broker_statement::ib::common::{Record, RecordParser, format_record};
 
 mod common;
 mod dividends;
 mod parsers;
 mod taxes;
+
+pub fn broker_info() -> BrokerInfo {
+    BrokerInfo {
+        name: "Interactive Brokers",
+    }
+}
 
 enum State {
     None,
@@ -22,7 +28,6 @@ enum State {
 
 pub struct IbStatementParser {
     statement: BrokerStatementBuilder,
-    tickers: HashMap<String, String>,
     taxes: HashMap<taxes::TaxId, Cash>,
     dividends: Vec<dividends::DividendInfo>,
 }
@@ -30,8 +35,7 @@ pub struct IbStatementParser {
 impl IbStatementParser {
     pub fn parse(path: &str) -> GenericResult<BrokerStatement> {
         let parser = IbStatementParser {
-            statement: BrokerStatementBuilder::new(),
-            tickers: HashMap::new(),
+            statement: BrokerStatementBuilder::new(broker_info()),
             taxes: HashMap::new(),
             dividends: Vec::new(),
         };

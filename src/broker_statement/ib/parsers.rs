@@ -73,7 +73,7 @@ pub struct FinancialInstrumentInformationParser {
 
 impl RecordParser for FinancialInstrumentInformationParser {
     fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
-        parser.tickers.insert(
+        parser.statement.instrument_names.insert(
             record.get_value("Symbol")?.to_owned(),
             record.get_value("Description")?.to_owned(),
         );

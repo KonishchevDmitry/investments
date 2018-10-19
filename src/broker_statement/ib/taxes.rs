@@ -1,5 +1,3 @@
-use num_traits::identities::Zero;
-
 use broker_statement::ib::IbStatementParser;
 use broker_statement::ib::common::{Record, RecordParser, parse_date};
 use core::EmptyResult;
@@ -27,16 +25,16 @@ impl RecordParser for WithholdingTaxParser {
         // Tax amount is represented as a negative number.
         // Positive number is used to cancel a previous tax payment and usually followed by another
         // negative number.
-        if tax.amount.is_zero() {
+        if tax.is_zero() {
             return Err!("Invalid withholding tax: {}", tax.amount);
-        } else if tax.amount.is_sign_positive() {
+        } else if tax.is_positive() {
             return match parser.taxes.remove(&tax_id) {
                 Some(cancelled_tax) if cancelled_tax == tax => Ok(()),
                 _ => Err!("Invalid withholding tax: {}", tax.amount),
             }
         }
 
-        tax.amount = -tax.amount;
+        tax = -tax;
 
         if let Some(_) = parser.taxes.insert(tax_id, tax) {
             return Err!("Got a duplicate withholding tax: {} / {:?}",

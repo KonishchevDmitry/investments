@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
+use std::ops::{Mul, Neg};
 
+use num_traits::identities::Zero;
 use rust_decimal::RoundingStrategy;
 
 use core::GenericResult;
@@ -34,17 +36,41 @@ impl Cash {
     pub fn new_from_string_positive(currency: &str, amount: &str) -> GenericResult<Cash> {
         let cash = Cash::new_from_string(currency, amount)?;
 
-        if cash.amount <= dec!(0) {
+        if !cash.is_positive() {
             return Err!("Invalid cash amount: {:?}", amount);
         }
 
         Ok(cash)
     }
-}
 
-impl Cash {
+    pub fn is_zero(&self) -> bool {
+        self.amount.is_zero()
+    }
+
+    pub fn is_positive(&self) -> bool {
+        !self.amount.is_zero() && self.amount.is_sign_positive()
+    }
+
     pub fn round(mut self) -> Cash {
         self.amount = round(self.amount);
+        self
+    }
+}
+
+impl Neg for Cash {
+    type Output = Cash;
+
+    fn neg(mut self) -> Cash {
+        self.amount = -self.amount;
+        self
+    }
+}
+
+impl Mul<Decimal> for Cash {
+    type Output = Cash;
+
+    fn mul(mut self, rhs: Decimal) -> Cash {
+        self.amount *= rhs;
         self
     }
 }

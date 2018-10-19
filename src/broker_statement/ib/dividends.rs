@@ -48,6 +48,7 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
         let (issuer, tax_description) = parse_dividend_description(&dividend.description)?;
         let tax_id = (dividend.date, tax_description);
 
+        let expected_tax = (dividend.amount * regulations::us_tax_rate()).round();
         let paid_tax = match taxes.remove(&tax_id) {
             Some(paid_tax) => paid_tax,
             None => {
@@ -56,10 +57,6 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
                     util::format_date(dividend.date), dividend.description, tax_id.1);
             },
         };
-
-        let mut expected_tax = dividend.amount;
-        expected_tax.amount *= regulations::us_tax_rate();
-        expected_tax = expected_tax.round();
 
         if paid_tax != expected_tax {
             return Err!(

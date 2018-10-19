@@ -24,7 +24,7 @@ pub fn get_average_rate_of_return(
             return Err!("Got a deposit from the future ({})", util::format_date(deposit.date));
         }
 
-        assert!(deposit.cash.amount > dec!(0));
+        assert!(deposit.cash.is_positive());
         transactions.push(*deposit);
     }
 
@@ -244,7 +244,7 @@ pub fn get_average_profit(
             continue;
         }
 
-        assert!(deposit.cash.amount > dec!(0));
+        assert!(deposit.cash.is_positive());
         transactions.push(*deposit);
     }
 
