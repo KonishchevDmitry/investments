@@ -1,1 +1,1 @@
-A work in progress just for fun project to organize my investments.
+A work in progress project to organize my investments.
