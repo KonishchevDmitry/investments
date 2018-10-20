@@ -1,9 +1,11 @@
-pub trait Type {
-    fn decode(data: &str) -> Self;
+use core::GenericResult;
+
+pub trait Type: Sized {
+    fn decode(data: &str) -> GenericResult<Self>;
 }
 
 impl Type for String {
-    fn decode(data: &str) -> String {
-        data.to_owned()
+    fn decode(data: &str) -> GenericResult<String> {
+        Ok(data.to_owned())
     }
 }
