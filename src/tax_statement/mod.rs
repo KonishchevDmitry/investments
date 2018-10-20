@@ -1,14 +1,14 @@
 use chrono::{self, Datelike, Duration};
 use prettytable::{Table, Row, Cell};
-use prettytable::format::{Alignment, FormatBuilder};
+use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
 
 use broker_statement::BrokerStatement;
 use broker_statement::ib::IbStatementParser;
 use core::EmptyResult;
-use currency::CashAssets;
+use currency;
 use currency::converter::CurrencyConverter;
 use db;
-use types::Date;
+use regulations;
 use util;
 
 pub fn generate_tax_statement(
@@ -58,94 +58,115 @@ struct TaxStatementGenerator {
 
 impl TaxStatementGenerator {
     fn process_dividend_income(&self) -> EmptyResult {
-        let foreign_currency = "USD";
-        let local_currency = "RUB";
+        let country = regulations::russia();
+        let foreign_country = regulations::us();
 
         let mut table = Table::new();
 
-        table.set_format(FormatBuilder::new()
-            .padding(1, 1)
-            .build());
+        let mut total_foreign_amount = dec!(0);
+        let mut total_amount = dec!(0);
 
-        table.set_titles(Row::new([
-            "Дата", "Эмитент", "Валюта",
-            "Сумма (USD)", "Курс руб.", "Сумма (руб)",
-            "Уплачено (USD)", "Уплачено (руб)", "К доплате (руб)", "Реальный доход",
-        ].iter().map(|name| Cell::new_align(*name, Alignment::CENTER)).collect()));
+        let mut total_foreign_paid_tax = dec!(0);
+        let mut total_paid_tax = dec!(0);
+        let mut total_tax_to_pay = dec!(0);
+
+        let mut total_income = dec!(0);
 
         for dividend in &self.broker_statement.dividends {
-            if dividend.amount.currency != foreign_currency {
+            if dividend.amount.currency != foreign_country.currency {
                 return Err!("{} dividend currency is not supported", dividend.amount.currency);
             }
 
             let issuer = self.broker_statement.get_instrument_name(&dividend.issuer)?;
+
+            let foreign_amount = dividend.amount.round().amount;
+            total_foreign_amount += foreign_amount;
+
+            let currency_rate = currency::round(self.converter.currency_rate(
+                dividend.date, dividend.amount.currency, country.currency)?);
+
+            let amount = currency::round(self.converter.convert_to(
+                dividend.date, dividend.amount, country.currency)?);
+            total_amount += amount;
+
+            let foreign_paid_tax = dividend.paid_tax.amount;
+            total_foreign_paid_tax += foreign_paid_tax;
+
+            let paid_tax = currency::round(self.converter.convert_to(
+                dividend.date, dividend.paid_tax, country.currency)?);
+            total_paid_tax += paid_tax;
+
+            let tax_to_pay = dividend.tax_to_pay(&country, &self.converter)?;
+            total_tax_to_pay += tax_to_pay;
+
+            let income = amount - paid_tax - tax_to_pay;
+            total_income += income;
 
             table.add_row(Row::new(vec![
                 Cell::new_align(&util::format_date(dividend.date), Alignment::CENTER),
                 Cell::new_align(&issuer, Alignment::LEFT),
                 Cell::new_align(dividend.amount.currency, Alignment::CENTER),
 
-                Cell::new_align(&dividend.amount.amount.to_string(), Alignment::RIGHT)
+                Cell::new_align(&foreign_amount.to_string(), Alignment::RIGHT),
+                Cell::new_align(&currency_rate.to_string(), Alignment::RIGHT),
+                Cell::new_align(&amount.to_string(), Alignment::RIGHT),
+
+                Cell::new_align(&foreign_paid_tax.to_string(), Alignment::RIGHT),
+                Cell::new_align(&paid_tax.to_string(), Alignment::RIGHT),
+                Cell::new_align(&tax_to_pay.to_string(), Alignment::RIGHT),
+                Cell::new_align(&income.to_string(), Alignment::RIGHT),
             ]));
         }
 
         if !table.is_empty() {
-            let mut wrapper = Table::new();
-            wrapper.set_format(FormatBuilder::new().indent(1).build());
-            wrapper.add_row(Row::new(vec![Cell::new_align(
+            table.set_titles(Row::new([
+                "Дата", "Эмитент", "Валюта",
+                "Сумма (USD)", "Курс руб.", "Сумма (руб)",
+                "Уплачено (USD)", "Уплачено (руб)", "К доплате (руб)", "Реальный доход",
+            ].iter().map(|name| Cell::new_align(*name, Alignment::CENTER)).collect()));
+
+            table.add_row(Row::new(vec![
+                Cell::new(""),
+                Cell::new(""),
+                Cell::new(""),
+
+                Cell::new_align(&total_foreign_amount.to_string(), Alignment::RIGHT),
+                Cell::new(""),
+                Cell::new_align(&total_amount.to_string(), Alignment::RIGHT),
+
+                Cell::new_align(&total_foreign_paid_tax.to_string(), Alignment::RIGHT),
+                Cell::new_align(&total_paid_tax.to_string(), Alignment::RIGHT),
+                Cell::new_align(&total_tax_to_pay.to_string(), Alignment::RIGHT),
+                Cell::new_align(&total_income.to_string(), Alignment::RIGHT),
+            ]));
+
+            table.set_format(FormatBuilder::new().padding(1, 1).build());
+
+            print_statement(
                 &format!("Расчет дохода от дивидендов, полученных через {}",
-                        self.broker_statement.broker.name),
-                Alignment::CENTER,
-            )]));
-            wrapper.add_row(Row::new(vec![Cell::new_align(&table.to_string(), Alignment::CENTER)]));
-            wrapper.printstd();
+                         self.broker_statement.broker.name),
+                table,
+            );
         }
 
         Ok(())
     }
 }
 
-/*
-    def print(self):
+fn print_statement(name: &str, statement: Table) {
+    let mut table = Table::new();
 
-        table.align["Эмитент"] = "l"
-        for column_name in currency_columns:
-            table.align[column_name] = "r"
+    table.set_format(FormatBuilder::new()
+        .separator(LinePosition::Title, LineSeparator::new(' ', ' ', ' ', ' '))
+        .build());
 
-        total_value = Decimal()
-        total_value_in_local_currency = Decimal()
+    table.set_titles(Row::new(vec![
+        Cell::new_align(&("\n".to_owned() + name), Alignment::CENTER),
+    ]));
 
-        total_paid_taxes = Decimal()
-        total_paid_taxes_in_local_currency = Decimal()
+    table.add_row(Row::new(vec![
+        Cell::new_align(&statement.to_string(), Alignment::CENTER),
+    ]));
 
-        total_to_pay = Decimal()
-        total_real_income = Decimal()
-
-        for dividend in self.dividends:
-            expected_taxes_in_local_currency = _round_currency(dividend.value_in_local_currency * Decimal("0.13"))
-            to_pay = max(Decimal(), expected_taxes_in_local_currency - dividend.paid_taxes_in_local_currency)
-            real_income = dividend.value_in_local_currency - dividend.paid_taxes_in_local_currency - to_pay
-
-            total_value += dividend.value
-            total_value_in_local_currency += dividend.value_in_local_currency
-
-            total_paid_taxes += dividend.paid_taxes
-            total_paid_taxes_in_local_currency += dividend.paid_taxes_in_local_currency
-
-            total_to_pay += to_pay
-            total_real_income += real_income
-
-            table.add_row((
-                dividend.date.strftime("%d.%m.%Y"), dividend.issuer, "USD",
-                dividend.value, dividend.local_currency_rate, dividend.value_in_local_currency,
-                dividend.paid_taxes, dividend.paid_taxes_in_local_currency, to_pay, real_income,
-            ))
-
-        table.add_row((
-            "", "", "",
-            total_value, "", total_value_in_local_currency,
-            total_paid_taxes, total_paid_taxes_in_local_currency, total_to_pay, total_real_income,
-        ))
-
-        print(table.get_string())
-*/
+    table.printstd();
+}

@@ -42,13 +42,14 @@ impl RecordParser for DividendsParser {
 }
 
 pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Vec<Dividend>> {
+    let country = regulations::us();
     let mut dividends = Vec::with_capacity(dividends_info.len());
 
     for dividend in dividends_info.drain(..) {
         let (issuer, tax_description) = parse_dividend_description(&dividend.description)?;
         let tax_id = (dividend.date, tax_description);
 
-        let expected_tax = (dividend.amount * regulations::us_tax_rate()).round();
+        let expected_tax = (dividend.amount * country.tax_rate).round();
         let paid_tax = match taxes.remove(&tax_id) {
             Some(paid_tax) => paid_tax,
             None => {

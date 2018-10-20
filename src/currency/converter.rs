@@ -22,6 +22,10 @@ impl CurrencyConverter {
         return CurrencyConverter { backend: source }
     }
 
+    pub fn currency_rate(&self, date: Date, from: &str, to: &str) -> GenericResult<Decimal> {
+        self.convert(from, to, date, dec!(1))
+    }
+
     pub fn convert_to(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
         self.convert(cash.currency, to, date, cash.amount)
     }
