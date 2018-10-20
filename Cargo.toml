@@ -10,6 +10,7 @@ csv = "*"
 diesel = { version = "*", features = ["sqlite", "chrono"] }
 diesel_migrations = "*"
 easy-logging = "*"
+encoding_rs = "*"
 indoc = "*"
 lazy_static = "*"
 log = "0.4"
