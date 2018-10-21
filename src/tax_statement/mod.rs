@@ -11,11 +11,15 @@ use db;
 use regulations;
 use util;
 
+mod parser;
+
 pub fn generate_tax_statement(
     database: db::Connection, year: i32,
     broker_statement_path: &str, tax_statement_path: Option<&str>
 ) -> EmptyResult {
     let broker_statement = IbStatementParser::parse(broker_statement_path)?;
+    // FIXME: HERE
+    let tax_statement = parser::TaxStatementParser::parse(tax_statement_path.unwrap())?;
 
     if year > chrono::Local::today().year() {
         return Err!("An attempt to generate tax statement for the future");
