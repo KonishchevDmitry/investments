@@ -20,7 +20,7 @@ impl UnknownRecord {
         let mut fields = Vec::new();
 
         loop {
-            let data: String = parser.read_type()?;
+            let data: String = parser.read_value()?;
 
             if is_record_name(&data) {
                 let record = UnknownRecord {
@@ -36,6 +36,27 @@ impl UnknownRecord {
 }
 
 impl Record for UnknownRecord {
+}
+
+macro_rules! tax_statement_record {
+    (
+        $name:ident {
+            $($field_name:ident: $field_type:ty,)*
+        }
+    ) => {
+        #[derive(Debug)]
+        struct $name {
+            $($field_name: $field_type,)*
+        }
+
+        impl $name {
+            fn parse(parser: &mut TaxStatementParser) -> GenericResult<$name> {
+                Ok($name {
+                    $($field_name: parser.read_value()?,)*
+                })
+            }
+        }
+    }
 }
 
 pub fn is_record_name(data: &str) -> bool {
