@@ -62,7 +62,9 @@ pub struct ForeignIncome {
 }
 
 impl ForeignIncome {
-    pub fn parse(parser: &mut TaxStatementParser, name: String) -> ParseResult {
+    pub const RECORD_NAME: &'static str = "@DeclForeign";
+
+    pub fn parse(parser: &mut TaxStatementParser) -> ParseResult {
         let number: usize = parser.read_value()?;
         let mut incomes = Vec::with_capacity(number);
 

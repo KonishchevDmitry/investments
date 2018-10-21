@@ -1,23 +1,26 @@
-// FIXME: HERE: Mockup rewrite
-
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, BufReader};
 use std::ops::Deref;
-use std::path::Path;
+#[cfg(test)] use std::path::Path;
 
 use encoding_rs;
 use regex::Regex;
 
-use core::{GenericResult, EmptyResult};
-use self::record::{Record, UnknownRecord, is_record_name}; // FIXME
+use core::GenericResult;
+
+use self::record::{Record, UnknownRecord};
+use self::encoding::{TaxStatementType, Integer};
+use self::foreign_income::ForeignIncome;
 
 #[macro_use] mod record;
-mod foreign_income;
 mod encoding;
+mod foreign_income;
 
+#[derive(Debug)]
 pub struct TaxStatement {
-    year: i32,
+    pub year: i32,
+    records: Vec<Box<Record>>,
 }
 
 pub struct TaxStatementParser {
@@ -47,45 +50,58 @@ impl TaxStatementParser {
             buffer: Vec::new(),
         };
 
-        let expected_header = format!(
-            "DLSG            Decl{}0102FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year);
+        let header = get_header(year);
+        if parser.read(header.len())? != header {
+            return Err!("The file has an unexpected header");
+        }
 
-        parser.read(expected_header.len())?;
-
+        let mut records = Vec::new();
         let mut record_name = parser.read_data()?.deref().to_owned();
 
         loop {
-            let record_parser = match record_name.as_str() {
-                "@DeclForeign" => foreign_income::ForeignIncome::parse,
-                _ => UnknownRecord::parse,
+            let (record, next_record_name) = match record_name.as_str() {
+                ForeignIncome::RECORD_NAME => ForeignIncome::parse(&mut parser)?,
+                _ => UnknownRecord::parse(&mut parser, record_name)?,
             };
-            let (record, next_record_name) = record_parser(&mut parser, record_name)?;
-            debug!("{:?}", record);
 
+            records.push(record);
             record_name = match next_record_name {
                 Some(record_name) => record_name,
                 None => parser.read_data()?.deref().to_owned(),
             };
 
             if record_name == "@Nalog" {
+                let mut buffer = [0; 3];
+
+                if parser.read_value::<Integer>()? != 0 ||
+                    parser.file.read(&mut buffer[..])? != 2 ||
+                    buffer[0..2] != [0, 0] {
+                    return Err!("The file has an unexpected footer");
+                }
+
                 break;
             }
         }
 
-        Ok(TaxStatement {
+        let statement = TaxStatement {
             year: year,
-        })
+            records: records,
+        };
+        debug!("{:#?}", statement);
+
+        Ok(statement)
     }
 
-    // FIXME: HERE
-    fn read_value<T: encoding::TaxStatementType>(&mut self) -> GenericResult<T> {
+    fn read_value<T>(&mut self) -> GenericResult<T> where T: TaxStatementType {
         let data = self.read_data()?;
-        Ok(encoding::TaxStatementType::decode(data.deref())?)
+        let value = TaxStatementType::decode(data.deref())?;
+        Ok(value)
     }
 
     fn read_data(&mut self) -> GenericResult<Cow<str>> {
         let size = self.read_data_size()?;
-        Ok(self.read(size)?)
+        let data = self.read(size)?;
+        Ok(data)
     }
 
     fn read_data_size(&mut self) -> GenericResult<usize> {
@@ -95,7 +111,6 @@ impl TaxStatementParser {
         Ok(size)
     }
 
-    // FIXME: HERE
     fn read(&mut self, size: usize) -> GenericResult<Cow<str>> {
         let capacity = self.buffer.capacity();
         if capacity < size {
@@ -119,6 +134,10 @@ impl TaxStatementParser {
     }
 }
 
+fn get_header(year: i32) -> String {
+    format!(r"DLSG            Decl{}0102FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,6 +152,7 @@ mod tests {
     fn parse_filled() {
         let path = Path::new(file!()).parent().unwrap().join("testdata/filled.dc7");
         test_parsing(path.to_str().unwrap());
+        // FIXME: Check filled data
     }
 
     #[test]

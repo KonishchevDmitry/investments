@@ -1,5 +1,7 @@
 use core::GenericResult;
 
+pub type Integer = usize;
+
 pub trait TaxStatementType: Sized {
     fn decode(data: &str) -> GenericResult<Self>;
 }

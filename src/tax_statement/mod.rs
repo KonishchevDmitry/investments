@@ -19,7 +19,7 @@ pub fn generate_tax_statement(
 ) -> EmptyResult {
     let broker_statement = IbStatementParser::parse(broker_statement_path)?;
     // FIXME: HERE
-    let tax_statement = parser::TaxStatementParser::parse(tax_statement_path.unwrap())?;
+    let _tax_statement = parser::TaxStatementParser::parse(tax_statement_path.unwrap())?;
 
     if year > chrono::Local::today().year() {
         return Err!("An attempt to generate tax statement for the future");
