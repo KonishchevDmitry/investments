@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::iter::Iterator;
-#[cfg(test)] use std::path::Path;
 
 use csv::{self, StringRecord};
 
@@ -144,9 +143,7 @@ mod tests {
 
     #[test]
     fn parsing() {
-        let path = Path::new(file!()).parent().unwrap().join("testdata/statement.csv");
-        let statement = IbStatementParser::parse(path.to_str().unwrap()).unwrap();
-
+        let statement = IbStatementParser::parse("testdata/statement.csv").unwrap();
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);
     }

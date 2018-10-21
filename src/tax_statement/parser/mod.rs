@@ -124,9 +124,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parsing() {
-        let path = Path::new(file!()).parent().unwrap().join("testdata/statement.dc7");
-        let statement = TaxStatementParser::parse(path.to_str().unwrap()).unwrap();
+    fn parse_empty() {
+        let path = Path::new(file!()).parent().unwrap().join("testdata/empty.dc7");
+        test_parsing(path.to_str().unwrap());
+    }
+
+    #[test]
+    fn parse_filled() {
+        let path = Path::new(file!()).parent().unwrap().join("testdata/filled.dc7");
+        test_parsing(path.to_str().unwrap());
+    }
+
+    #[test]
+    fn parse_real() {
+        test_parsing("testdata/statement.dc7");
+    }
+
+    // FIXME: Test read + write
+    fn test_parsing(path: &str) -> TaxStatement {
+        let statement = TaxStatementParser::parse(path).unwrap();
         assert_eq!(statement.year, 2017);
+        statement
     }
 }
