@@ -11,7 +11,9 @@ use db;
 use regulations;
 use util;
 
-mod parser;
+use self::statement::TaxStatement;
+
+mod statement;
 
 pub fn generate_tax_statement(
     database: db::Connection, year: i32,
@@ -19,7 +21,7 @@ pub fn generate_tax_statement(
 ) -> EmptyResult {
     let broker_statement = IbStatementParser::parse(broker_statement_path)?;
     // FIXME: HERE
-    let _tax_statement = parser::TaxStatementParser::parse(tax_statement_path.unwrap())?;
+    let _tax_statement = TaxStatement::read(tax_statement_path.unwrap())?;
 
     if year > chrono::Local::today().year() {
         return Err!("An attempt to generate tax statement for the future");

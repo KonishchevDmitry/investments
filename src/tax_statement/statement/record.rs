@@ -2,12 +2,12 @@ use std::fmt::Debug;
 
 use core::GenericResult;
 
-use super::TaxStatementParser;
+use super::parser::TaxStatementReader;
 
 pub trait Record: Debug {
 }
 
-pub type ParseResult = GenericResult<(Box<Record>, Option<String>)>;
+pub type ReadResult = GenericResult<(Box<Record>, Option<String>)>;
 
 #[derive(Debug)]
 pub struct UnknownRecord {
@@ -16,11 +16,11 @@ pub struct UnknownRecord {
 }
 
 impl UnknownRecord {
-    pub fn parse(parser: &mut TaxStatementParser, name: String) -> ParseResult {
+    pub fn read(reader: &mut TaxStatementReader, name: String) -> ReadResult {
         let mut fields = Vec::new();
 
         loop {
-            let data: String = parser.read_value()?;
+            let data: String = reader.read_value()?;
 
             if is_record_name(&data) {
                 let record = UnknownRecord {
@@ -50,9 +50,9 @@ macro_rules! tax_statement_record {
         }
 
         impl $name {
-            fn parse(parser: &mut TaxStatementParser) -> GenericResult<$name> {
+            pub fn read(reader: &mut ::tax_statement::statement::parser::TaxStatementReader) -> ::core::GenericResult<$name> {
                 Ok($name {
-                    $($field_name: parser.read_value()?,)*
+                    $($field_name: reader.read_value()?,)*
                 })
             }
         }

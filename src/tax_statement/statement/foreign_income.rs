@@ -1,7 +1,5 @@
-use core::GenericResult;
-
-use super::TaxStatementParser;
-use super::record::{Record, ParseResult};
+use super::parser::TaxStatementReader;
+use super::record::{Record, ReadResult};
 
 tax_statement_record!(CurrencyIncome {
     /*
@@ -64,13 +62,13 @@ pub struct ForeignIncome {
 impl ForeignIncome {
     pub const RECORD_NAME: &'static str = "@DeclForeign";
 
-    pub fn parse(parser: &mut TaxStatementParser) -> ParseResult {
-        let number: usize = parser.read_value()?;
+    pub fn read(reader: &mut TaxStatementReader) -> ReadResult {
+        let number: usize = reader.read_value()?;
         let mut incomes = Vec::with_capacity(number);
 
         for index in 0..number {
             {
-                let name = parser.read_data()?;
+                let name = reader.read_data()?;
                 let expected_name = format!("@CurrencyIncome{:03}", index);
 
                 if name != expected_name {
@@ -78,7 +76,7 @@ impl ForeignIncome {
                 }
             }
 
-            incomes.push(CurrencyIncome::parse(parser)?);
+            incomes.push(CurrencyIncome::read(reader)?);
         }
 
         Ok((Box::new(ForeignIncome {incomes: incomes}), None))

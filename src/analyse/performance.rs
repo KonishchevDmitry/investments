@@ -11,6 +11,7 @@ use util;
 // FIXME: Support:
 // * Withdrawals
 // * Take taxes into account
+// * Deposit fees
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of bank deposit with the exactly same investments and monthly capitalization.
 pub fn get_average_rate_of_return(

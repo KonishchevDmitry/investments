@@ -9,27 +9,18 @@ use regex::Regex;
 
 use core::GenericResult;
 
-use self::record::{Record, UnknownRecord};
-use self::encoding::{TaxStatementType, Integer};
-use self::foreign_income::ForeignIncome;
+use super::TaxStatement;
+use super::record::UnknownRecord;
+use super::encoding::{TaxStatementType, Integer};
+use super::foreign_income::ForeignIncome;
 
-#[macro_use] mod record;
-mod encoding;
-mod foreign_income;
-
-#[derive(Debug)]
-pub struct TaxStatement {
-    pub year: i32,
-    records: Vec<Box<Record>>,
-}
-
-pub struct TaxStatementParser {
+pub struct TaxStatementReader {
     file: BufReader<File>,
     buffer: Vec<u8>,
 }
 
-impl TaxStatementParser {
-    pub fn parse(path: &str) -> GenericResult<TaxStatement> {
+impl TaxStatementReader {
+    pub fn read(path: &str) -> GenericResult<TaxStatement> {
         lazy_static! {
             static ref extension_regex: Regex = Regex::new(r"\.dc(\d)$").unwrap();
         }
@@ -39,42 +30,36 @@ impl TaxStatementParser {
             .ok_or_else(||"Invalid tax statement file extension: *.dcX is expected")?;
         let year = 2010 + (year as i32);
 
-        Ok(TaxStatementParser::parse_impl(year, path).map_err(|e| format!(
-            "Error while reading {:?}: {}", path, e))?)
-    }
-
-    // FIXME: HERE
-    fn parse_impl(year: i32, path: &str) -> GenericResult<TaxStatement> {
-        let mut parser = TaxStatementParser {
+        let mut reader = TaxStatementReader {
             file: BufReader::new(File::open(path)?),
             buffer: Vec::new(),
         };
 
         let header = get_header(year);
-        if parser.read(header.len())? != header {
+        if reader.read_raw(header.len())? != header {
             return Err!("The file has an unexpected header");
         }
 
         let mut records = Vec::new();
-        let mut record_name = parser.read_data()?.deref().to_owned();
+        let mut record_name = reader.read_data()?.deref().to_owned();
 
         loop {
             let (record, next_record_name) = match record_name.as_str() {
-                ForeignIncome::RECORD_NAME => ForeignIncome::parse(&mut parser)?,
-                _ => UnknownRecord::parse(&mut parser, record_name)?,
+                ForeignIncome::RECORD_NAME => ForeignIncome::read(&mut reader)?,
+                _ => UnknownRecord::read(&mut reader, record_name)?,
             };
 
             records.push(record);
             record_name = match next_record_name {
                 Some(record_name) => record_name,
-                None => parser.read_data()?.deref().to_owned(),
+                None => reader.read_data()?.deref().to_owned(),
             };
 
             if record_name == "@Nalog" {
                 let mut buffer = [0; 3];
 
-                if parser.read_value::<Integer>()? != 0 ||
-                    parser.file.read(&mut buffer[..])? != 2 ||
+                if reader.read_value::<Integer>()? != 0 ||
+                    reader.file.read(&mut buffer[..])? != 2 ||
                     buffer[0..2] != [0, 0] {
                     return Err!("The file has an unexpected footer");
                 }
@@ -92,26 +77,26 @@ impl TaxStatementParser {
         Ok(statement)
     }
 
-    fn read_value<T>(&mut self) -> GenericResult<T> where T: TaxStatementType {
+    pub fn read_value<T>(&mut self) -> GenericResult<T> where T: TaxStatementType {
         let data = self.read_data()?;
         let value = TaxStatementType::decode(data.deref())?;
         Ok(value)
     }
 
-    fn read_data(&mut self) -> GenericResult<Cow<str>> {
+    pub fn read_data(&mut self) -> GenericResult<Cow<str>> {
         let size = self.read_data_size()?;
-        let data = self.read(size)?;
+        let data = self.read_raw(size)?;
         Ok(data)
     }
 
     fn read_data_size(&mut self) -> GenericResult<usize> {
-        let data = self.read(4)?;
+        let data = self.read_raw(4)?;
         let size = data.parse::<usize>().map_err(|_| format!(
             "Got an invalid record data size: {:?}", data))?;
         Ok(size)
     }
 
-    fn read(&mut self, size: usize) -> GenericResult<Cow<str>> {
+    fn read_raw(&mut self, size: usize) -> GenericResult<Cow<str>> {
         let capacity = self.buffer.capacity();
         if capacity < size {
             self.buffer.reserve(size - capacity);
@@ -162,7 +147,7 @@ mod tests {
 
     // FIXME: Test read + write
     fn test_parsing(path: &str) -> TaxStatement {
-        let statement = TaxStatementParser::parse(path).unwrap();
+        let statement = TaxStatementReader::read(path).unwrap();
         assert_eq!(statement.year, 2017);
         statement
     }
