@@ -3,7 +3,7 @@ use core::{EmptyResult, GenericResult};
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
 
-tax_statement_record!(CurrencyIncome {
+tax_statement_array_record!(CurrencyIncome {
     /*
     class ForeignIncome(record_view("CurrencyIncome", (
     ("unknown1", Integer),
@@ -54,7 +54,7 @@ tax_statement_record!(CurrencyIncome {
     f21: String,
     f22: String,
     f23: String,
-});
+}, index_length=3);
 
 #[derive(Debug)]
 pub struct ForeignIncome {
@@ -69,16 +69,7 @@ impl ForeignIncome {
         let mut incomes = Vec::with_capacity(number);
 
         for index in 0..number {
-            {
-                let name = reader.read_data()?;
-                let expected_name = format!("@CurrencyIncome{:03}", index);
-
-                if name != expected_name {
-                    return Err!("Got {:?} where {:?} record is expected", name, expected_name);
-                }
-            }
-
-            incomes.push(CurrencyIncome::read(reader)?);
+            incomes.push(CurrencyIncome::read(reader, index)?);
         }
 
         Ok(ForeignIncome {incomes: incomes})
@@ -87,7 +78,13 @@ impl ForeignIncome {
 
 impl Record for ForeignIncome {
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
-        // FIXME
+        writer.write_data(ForeignIncome::RECORD_NAME)?;
+        writer.write_value(&self.incomes.len())?;
+
+        for (index, income) in self.incomes.iter().enumerate() {
+            income.write(writer, index)?;
+        }
+
         Ok(())
     }
 

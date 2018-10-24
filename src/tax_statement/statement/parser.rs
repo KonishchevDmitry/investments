@@ -53,8 +53,7 @@ impl TaxStatementReader {
             };
 
             let record: Box<Record> = match record_name.as_str() {
-                // FIXME
-                ForeignIncome::RECORD_NAME if false => Box::new(ForeignIncome::read(&mut reader)?),
+                ForeignIncome::RECORD_NAME => Box::new(ForeignIncome::read(&mut reader)?),
                 Nalog::RECORD_NAME => {
                     last_record = true;
                     Box::new(Nalog::read(&mut reader)?)
@@ -229,7 +228,7 @@ mod tests {
         let new_path = new_file.path().to_str().unwrap();
         TaxStatementWriter::write(&statement, new_path).unwrap();
         let new_data = get_contents(new_path);
-        assert_eq!(data, new_data);
+        assert_eq!(new_data, data);
 
         statement
     }
