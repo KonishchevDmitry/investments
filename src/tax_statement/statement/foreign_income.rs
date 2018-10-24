@@ -1,5 +1,7 @@
-use super::parser::TaxStatementReader;
-use super::record::{Record, ReadResult};
+use core::{EmptyResult, GenericResult};
+
+use super::parser::{TaxStatementReader, TaxStatementWriter};
+use super::record::Record;
 
 tax_statement_record!(CurrencyIncome {
     /*
@@ -62,7 +64,7 @@ pub struct ForeignIncome {
 impl ForeignIncome {
     pub const RECORD_NAME: &'static str = "@DeclForeign";
 
-    pub fn read(reader: &mut TaxStatementReader) -> ReadResult {
+    pub fn read(reader: &mut TaxStatementReader) -> GenericResult<ForeignIncome> {
         let number: usize = reader.read_value()?;
         let mut incomes = Vec::with_capacity(number);
 
@@ -79,9 +81,14 @@ impl ForeignIncome {
             incomes.push(CurrencyIncome::read(reader)?);
         }
 
-        Ok((Box::new(ForeignIncome {incomes: incomes}), None))
+        Ok(ForeignIncome {incomes: incomes})
     }
 }
 
 impl Record for ForeignIncome {
+    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
+        // FIXME
+        Ok(())
+    }
+
 }

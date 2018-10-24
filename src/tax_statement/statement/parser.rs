@@ -1,16 +1,17 @@
 use std::borrow::Cow;
 use std::fs::File;
-use std::io::{Read, BufReader};
+use std::io::{Read, BufReader, Write, BufWriter};
 use std::ops::Deref;
 #[cfg(test)] use std::path::Path;
 
 use encoding_rs;
 use regex::Regex;
+#[cfg(test)] use tempfile::NamedTempFile;
 
-use core::GenericResult;
+use core::{EmptyResult, GenericResult};
 
 use super::TaxStatement;
-use super::record::UnknownRecord;
+use super::record::{Record, UnknownRecord};
 use super::encoding::{TaxStatementType, Integer};
 use super::foreign_income::ForeignIncome;
 
@@ -41,31 +42,35 @@ impl TaxStatementReader {
         }
 
         let mut records = Vec::new();
-        let mut record_name = reader.read_data()?.deref().to_owned();
+        let mut last_record = false;
+        let mut next_record_name = None;
 
-        loop {
-            let (record, next_record_name) = match record_name.as_str() {
-                ForeignIncome::RECORD_NAME => ForeignIncome::read(&mut reader)?,
-                _ => UnknownRecord::read(&mut reader, record_name)?,
-            };
-
-            records.push(record);
-            record_name = match next_record_name {
+        while !last_record {
+            let record_name = match next_record_name.take() {
                 Some(record_name) => record_name,
                 None => reader.read_data()?.deref().to_owned(),
             };
 
-            if record_name == "@Nalog" {
-                let mut buffer = [0; 3];
+            let record: Box<Record> = match record_name.as_str() {
+                // FIXME
+                ForeignIncome::RECORD_NAME if false => Box::new(ForeignIncome::read(&mut reader)?),
+                Nalog::RECORD_NAME => {
+                    last_record = true;
+                    Box::new(Nalog::read(&mut reader)?)
+                },
+                _ => {
+                    let (record, read_next_record_name) = UnknownRecord::read(&mut reader, record_name)?;
+                    next_record_name = Some(read_next_record_name);
+                    Box::new(record)
+                },
+            };
 
-                if reader.read_value::<Integer>()? != 0 ||
-                    reader.file.read(&mut buffer[..])? != 2 ||
-                    buffer[0..2] != [0, 0] {
-                    return Err!("The file has an unexpected footer");
-                }
+            records.push(record);
+        }
 
-                break;
-            }
+        let mut footer_buffer = [0; 3];
+        if reader.file.read(&mut footer_buffer[..])? != 2 || footer_buffer[0..2] != [0, 0] {
+            return Err!("The file has an unexpected footer");
         }
 
         let statement = TaxStatement {
@@ -97,9 +102,9 @@ impl TaxStatementReader {
     }
 
     fn read_raw(&mut self, size: usize) -> GenericResult<Cow<str>> {
-        let capacity = self.buffer.capacity();
-        if capacity < size {
-            self.buffer.reserve(size - capacity);
+        if self.buffer.len() < size {
+            let additional_space = size - self.buffer.len();
+            self.buffer.reserve(additional_space);
         }
 
         unsafe {
@@ -108,9 +113,7 @@ impl TaxStatementReader {
 
         self.file.read_exact(&mut self.buffer)?;
 
-        let (data, _, errors) = encoding_rs::WINDOWS_1251.decode(
-            self.buffer.as_slice());
-
+        let (data, _, errors) = encoding_rs::WINDOWS_1251.decode(self.buffer.as_slice());
         if errors {
             return Err!("Got an invalid Windows-1251 encoded data");
         }
@@ -119,9 +122,72 @@ impl TaxStatementReader {
     }
 }
 
+pub struct TaxStatementWriter {
+    file: BufWriter<File>,
+}
+
+impl TaxStatementWriter {
+    pub fn write(statement: &TaxStatement, path: &str) -> EmptyResult {
+        let mut writer = TaxStatementWriter {
+            file: BufWriter::new(File::create(path)?),
+        };
+
+        writer.write_raw(&get_header(statement.year))?;
+
+        for record in &statement.records {
+            record.write(&mut writer)?;
+        }
+
+        let footer = [0, 0];
+        writer.write_bytes(&footer)?;
+
+        Ok(())
+    }
+
+    pub fn write_value<T>(&mut self, value: &T) -> EmptyResult where T: TaxStatementType {
+        let data = TaxStatementType::encode(value)?;
+        Ok(self.write_data(&data)?)
+    }
+
+    pub fn write_data(&mut self, data: &str) -> EmptyResult {
+        let encoded_data = encode(data)?;
+        if encoded_data.len() > 9999 {
+            return Err!("Unable to encode {:?}: Too big data size", data);
+        }
+
+        let size = format!("{:04}", encoded_data.len());
+        assert_eq!(size.len(), 4);
+
+        self.write_raw(&size)?;
+        self.write_bytes(encoded_data.deref())?;
+
+        Ok(())
+    }
+
+    fn write_raw(&mut self, data: &str) -> EmptyResult {
+        self.write_bytes(&encode(data)?)
+    }
+
+    fn write_bytes(&mut self, data: &[u8]) -> EmptyResult {
+        Ok(self.file.write_all(data)?)
+    }
+}
+
 fn get_header(year: i32) -> String {
     format!(r"DLSG            Decl{}0102FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year)
 }
+
+fn encode(data: &str) -> GenericResult<Cow<[u8]>> {
+    let (encoded_data, _, errors) = encoding_rs::WINDOWS_1251.encode(data);
+    if errors {
+        return Err!("Unable to encode {:?} with Windows-1251 character encoding", data);
+    }
+    Ok(encoded_data)
+}
+
+tax_statement_record!(Nalog {
+    unknown: Integer,
+});
 
 #[cfg(test)]
 mod tests {
@@ -145,10 +211,28 @@ mod tests {
         test_parsing("testdata/statement.dc7");
     }
 
-    // FIXME: Test read + write
     fn test_parsing(path: &str) -> TaxStatement {
+        let data = get_contents(path);
         let statement = TaxStatementReader::read(path).unwrap();
         assert_eq!(statement.year, 2017);
+
+        let new_file = NamedTempFile::new().unwrap();
+        let new_path = new_file.path().to_str().unwrap();
+        TaxStatementWriter::write(&statement, new_path).unwrap();
+        let new_data = get_contents(new_path);
+        assert_eq!(data, new_data);
+
         statement
+    }
+
+    fn get_contents(path: &str) -> String {
+        let mut data = vec![];
+
+        File::open(path).unwrap().read_to_end(&mut data).unwrap();
+
+        let (contents, _, errors) = encoding_rs::WINDOWS_1251.decode(data.as_slice());
+        assert_eq!(errors, false);
+
+        contents.deref().to_owned()
     }
 }

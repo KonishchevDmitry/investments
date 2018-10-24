@@ -1,13 +1,12 @@
 use std::fmt::Debug;
 
-use core::GenericResult;
+use core::{EmptyResult, GenericResult};
 
-use super::parser::TaxStatementReader;
+use super::parser::{TaxStatementReader, TaxStatementWriter};
 
 pub trait Record: Debug {
+    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult;
 }
-
-pub type ReadResult = GenericResult<(Box<Record>, Option<String>)>;
 
 #[derive(Debug)]
 pub struct UnknownRecord {
@@ -16,7 +15,7 @@ pub struct UnknownRecord {
 }
 
 impl UnknownRecord {
-    pub fn read(reader: &mut TaxStatementReader, name: String) -> ReadResult {
+    pub fn read(reader: &mut TaxStatementReader, name: String) -> GenericResult<(UnknownRecord, String)> {
         let mut fields = Vec::new();
 
         loop {
@@ -27,7 +26,7 @@ impl UnknownRecord {
                     name: name,
                     fields: fields,
                 };
-                return Ok((Box::new(record), Some(data)));
+                return Ok((record, data));
             }
 
             fields.push(data);
@@ -36,6 +35,15 @@ impl UnknownRecord {
 }
 
 impl Record for UnknownRecord {
+    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
+        writer.write_data(&self.name)?;
+
+        for field in &self.fields {
+            writer.write_data(field)?;
+        }
+
+        Ok(())
+    }
 }
 
 macro_rules! tax_statement_record {
@@ -50,10 +58,20 @@ macro_rules! tax_statement_record {
         }
 
         impl $name {
-            pub fn read(reader: &mut ::tax_statement::statement::parser::TaxStatementReader) -> ::core::GenericResult<$name> {
+            pub const RECORD_NAME: &'static str = concat!("@", stringify!($name));
+
+            pub fn read(reader: &mut $crate::tax_statement::statement::parser::TaxStatementReader) -> $crate::core::GenericResult<$name> {
                 Ok($name {
                     $($field_name: reader.read_value()?,)*
                 })
+            }
+        }
+
+        impl $crate::tax_statement::statement::record::Record for $name {
+            fn write(&self, writer: &mut $crate::tax_statement::statement::parser::TaxStatementWriter) -> $crate::core::EmptyResult {
+                writer.write_data($name::RECORD_NAME)?;
+                $(writer.write_value(&self.$field_name)?;)*
+                Ok(())
             }
         }
     }
