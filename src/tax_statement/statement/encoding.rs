@@ -1,10 +1,12 @@
-use core::GenericResult;
+use std::fmt::Write;
+
+use core::{EmptyResult, GenericResult};
 
 pub type Integer = usize;
 
 pub trait TaxStatementType: Sized {
     fn decode(data: &str) -> GenericResult<Self>;
-    fn encode(value: &Self) -> GenericResult<String>;
+    fn encode(value: &Self, buffer: &mut String) -> EmptyResult;
 }
 
 impl TaxStatementType for String {
@@ -12,8 +14,8 @@ impl TaxStatementType for String {
         Ok(data.to_owned())
     }
 
-    fn encode(value: &String) -> GenericResult<String> {
-        Ok(value.clone())
+    fn encode(value: &String, buffer: &mut String) -> EmptyResult {
+        Ok(buffer.push_str(&value))
     }
 }
 
@@ -22,7 +24,7 @@ impl TaxStatementType for usize {
         Ok(data.parse().map_err(|_| format!("Invalid usize value: {:?}", data))?)
     }
 
-    fn encode(value: &usize) -> GenericResult<String> {
-        Ok(value.to_string())
+    fn encode(value: &usize, buffer: &mut String) -> EmptyResult {
+        Ok(write!(buffer, "{}", value)?)
     }
 }

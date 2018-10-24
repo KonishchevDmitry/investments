@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Read, BufReader, Write, BufWriter};
 use std::ops::Deref;
 #[cfg(test)] use std::path::Path;
+use std::rc::Rc;
 
 use encoding_rs;
 use regex::Regex;
@@ -124,12 +125,14 @@ impl TaxStatementReader {
 
 pub struct TaxStatementWriter {
     file: BufWriter<File>,
+    buffer: Rc<String>,
 }
 
 impl TaxStatementWriter {
     pub fn write(statement: &TaxStatement, path: &str) -> EmptyResult {
         let mut writer = TaxStatementWriter {
             file: BufWriter::new(File::create(path)?),
+            buffer: Rc::default(),
         };
 
         writer.write_raw(&get_header(statement.year))?;
@@ -145,8 +148,14 @@ impl TaxStatementWriter {
     }
 
     pub fn write_value<T>(&mut self, value: &T) -> EmptyResult where T: TaxStatementType {
-        let data = TaxStatementType::encode(value)?;
-        Ok(self.write_data(&data)?)
+        {
+            let buffer = Rc::get_mut(&mut self.buffer).unwrap();
+            buffer.clear();
+            TaxStatementType::encode(value, buffer)?;
+        }
+
+        let buffer = Rc::clone(&self.buffer);
+        Ok(self.write_data(&buffer)?)
     }
 
     pub fn write_data(&mut self, data: &str) -> EmptyResult {
