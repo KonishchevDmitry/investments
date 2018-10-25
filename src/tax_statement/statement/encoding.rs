@@ -5,49 +5,74 @@ use chrono::Duration;
 use core::{EmptyResult, GenericResult};
 use types::{Date, Decimal};
 
+use super::parser::{TaxStatementReader, TaxStatementWriter};
+
 pub trait TaxStatementType: Sized {
+    fn read(reader: &mut TaxStatementReader) -> GenericResult<Self>;
+    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult;
+}
+
+pub trait TaxStatementPrimitiveType: Sized {
     fn decode(data: &str) -> GenericResult<Self>;
-    fn encode(value: &Self, buffer: &mut String) -> EmptyResult;
+    fn encode(&self, buffer: &mut String) -> EmptyResult;
 }
 
-impl TaxStatementType for usize {
+macro_rules! impl_tax_statement_type {
+    ($name:ident) => {
+        impl TaxStatementType for $name {
+            fn read(reader: &mut TaxStatementReader) -> GenericResult<$name> {
+                reader.read_primitive()
+            }
+
+            fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
+                writer.write_primitive(self)
+            }
+        }
+    }
+}
+
+impl_tax_statement_type!(usize);
+impl TaxStatementPrimitiveType for usize {
     fn decode(data: &str) -> GenericResult<usize> {
-        Ok(data.parse().map_err(|_| format!("Invalid usize value: {:?}", data))?)
+        Ok(data.parse().map_err(|_| format!("Invalid integer value: {:?}", data))?)
     }
 
-    fn encode(value: &usize, buffer: &mut String) -> EmptyResult {
-        Ok(write!(buffer, "{}", value)?)
+    fn encode(&self, buffer: &mut String) -> EmptyResult {
+        Ok(write!(buffer, "{}", self)?)
     }
 }
 
-impl TaxStatementType for bool {
+impl_tax_statement_type!(bool);
+impl TaxStatementPrimitiveType for bool {
     fn decode(data: &str) -> GenericResult<bool> {
         Ok(match data {
             "0" => false,
             "1" => true,
-            _ => return Err!("Invalid bool value: {:?}", data),
+            _ => return Err!("Invalid boolean value: {:?}", data),
         })
     }
 
-    fn encode(value: &bool, buffer: &mut String) -> EmptyResult {
-        Ok(buffer.push(match value {
+    fn encode(&self, buffer: &mut String) -> EmptyResult {
+        Ok(buffer.push(match self {
             false => '0',
             true => '1',
         }))
     }
 }
 
-impl TaxStatementType for String {
+impl_tax_statement_type!(String);
+impl TaxStatementPrimitiveType for String {
     fn decode(data: &str) -> GenericResult<String> {
         Ok(data.to_owned())
     }
 
-    fn encode(value: &String, buffer: &mut String) -> EmptyResult {
-        Ok(buffer.push_str(&value))
+    fn encode(&self, buffer: &mut String) -> EmptyResult {
+        Ok(buffer.push_str(self))
     }
 }
 
-impl TaxStatementType for Date {
+impl_tax_statement_type!(Date);
+impl TaxStatementPrimitiveType for Date {
     fn decode(data: &str) -> GenericResult<Date> {
         let days = Duration::days(data.parse().map_err(|_| format!(
             "Invalid integer value: {:?}", data))?);
@@ -55,8 +80,8 @@ impl TaxStatementType for Date {
         Ok(get_base_date() + days)
     }
 
-    fn encode(value: &Date, buffer: &mut String) -> EmptyResult {
-        let days = (*value - get_base_date()).num_days();
+    fn encode(&self, buffer: &mut String) -> EmptyResult {
+        let days = (*self - get_base_date()).num_days();
         Ok(write!(buffer, "{}", days)?)
     }
 }

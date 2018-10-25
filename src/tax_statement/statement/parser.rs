@@ -13,7 +13,7 @@ use core::{EmptyResult, GenericResult};
 
 use super::TaxStatement;
 use super::record::{Record, UnknownRecord};
-use super::encoding::TaxStatementType;
+use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
 use super::types::Integer;
 
@@ -84,8 +84,12 @@ impl TaxStatementReader {
     }
 
     pub fn read_value<T>(&mut self) -> GenericResult<T> where T: TaxStatementType {
+        TaxStatementType::read(self)
+    }
+
+    pub fn read_primitive<T>(&mut self) -> GenericResult<T> where T: TaxStatementPrimitiveType {
         let data = self.read_data()?;
-        let value = TaxStatementType::decode(data.deref())?;
+        let value = TaxStatementPrimitiveType::decode(data.deref())?;
         Ok(value)
     }
 
@@ -148,10 +152,14 @@ impl TaxStatementWriter {
     }
 
     pub fn write_value<T>(&mut self, value: &T) -> EmptyResult where T: TaxStatementType {
+        TaxStatementType::write(value, self)
+    }
+
+    pub fn write_primitive<T>(&mut self, value: &T) -> EmptyResult where T: TaxStatementPrimitiveType {
         {
             let buffer = Rc::get_mut(&mut self.buffer).unwrap();
             buffer.clear();
-            TaxStatementType::encode(value, buffer)?;
+            TaxStatementPrimitiveType::encode(value, buffer)?;
         }
 
         let buffer = Rc::clone(&self.buffer);

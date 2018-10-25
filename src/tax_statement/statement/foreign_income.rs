@@ -1,7 +1,7 @@
 use core::{EmptyResult, GenericResult};
 use types::Date;
 
-use super::encoding::TaxStatementType;
+use super::encoding::TaxStatementPrimitiveType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
 use super::types::Integer;
