@@ -1,6 +1,7 @@
 use core::{EmptyResult, GenericResult};
 use types::Date;
 
+use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
 use super::types::Integer;
@@ -65,3 +66,30 @@ impl Record for ForeignIncome {
     }
 
 }
+
+/*
+enum IncomeType {
+    Dividend,
+    Other(Integer, String),
+}
+
+impl TaxStatementType for IncomeType {
+    fn decode(data: &str) -> GenericResult<bool> {
+        Ok(match data {
+            "0" => false,
+            "1" => true,
+            _ => return Err!("Invalid bool value: {:?}", data),
+        })
+    }
+
+    fn encode(value: &bool, buffer: &mut String) -> EmptyResult {
+        Ok(buffer.push(match value {
+            false => '0',
+            true => '1',
+        }))
+    }
+}
+
+//                    income_type: 1010,
+//                    income_type_name: "Дивиденды",
+*/
