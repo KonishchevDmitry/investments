@@ -13,6 +13,7 @@ pub struct BrokerInfo {
     pub name: &'static str,
 }
 
+// FIXME: Take care of stock splitting
 #[derive(Debug)]
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
