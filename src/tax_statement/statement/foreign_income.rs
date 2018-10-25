@@ -1,16 +1,14 @@
 use core::{EmptyResult, GenericResult};
 use types::Date;
 
-use super::encoding::TaxStatementPrimitiveType;
+use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
 use super::types::Integer;
 
 tax_statement_array_record!(CurrencyIncome {
     // FIXME: HERE
-    unknown1: Integer,
-    income_type: Integer,
-    income_type_name: String,
+    income_type: IncomeType,
     income_name: String,
     county_code: Integer,
     income_date: Date,
@@ -67,29 +65,48 @@ impl Record for ForeignIncome {
 
 }
 
-/*
+#[derive(Debug, Clone)]
 enum IncomeType {
     Dividend,
-    Other(Integer, String),
+    Unknown {unknown: Integer, code: Integer, name: String},
+}
+
+impl IncomeType {
+    fn decouple(&self) -> (Integer, Integer, String) {
+        let (unknown, code, name) = match self {
+            IncomeType::Dividend => (14, 1010, "Дивиденды"),
+            IncomeType::Unknown {unknown, code, name} => return (*unknown, *code, name.clone()),
+        };
+
+        (unknown, code, name.to_owned())
+    }
 }
 
 impl TaxStatementType for IncomeType {
-    fn decode(data: &str) -> GenericResult<bool> {
-        Ok(match data {
-            "0" => false,
-            "1" => true,
-            _ => return Err!("Invalid bool value: {:?}", data),
+    fn read(reader: &mut TaxStatementReader) -> GenericResult<IncomeType> {
+        let unknown = reader.read_value()?;
+        let code = reader.read_value()?;
+        let name = reader.read_value()?;
+
+        for income_type in [IncomeType::Dividend].iter() {
+            let (other_unknown, other_code, other_name) = income_type.decouple();
+            if unknown == other_unknown && code == other_code && name == other_name {
+                return Ok(income_type.clone());
+            }
+        }
+
+        Ok(IncomeType::Unknown {
+            unknown: unknown,
+            code: code,
+            name: name,
         })
     }
 
-    fn encode(value: &bool, buffer: &mut String) -> EmptyResult {
-        Ok(buffer.push(match value {
-            false => '0',
-            true => '1',
-        }))
+    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
+        let (unknown, code, name) = self.decouple();
+        writer.write_value(&unknown)?;
+        writer.write_value(&code)?;
+        writer.write_value(&name)?;
+        Ok(())
     }
 }
-
-//                    income_type: 1010,
-//                    income_type_name: "Дивиденды",
-*/
