@@ -13,8 +13,9 @@ use core::{EmptyResult, GenericResult};
 
 use super::TaxStatement;
 use super::record::{Record, UnknownRecord};
-use super::encoding::{TaxStatementType, Integer};
+use super::encoding::TaxStatementType;
 use super::foreign_income::ForeignIncome;
+use super::types::Integer;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,

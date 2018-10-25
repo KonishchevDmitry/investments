@@ -1,59 +1,35 @@
 use core::{EmptyResult, GenericResult};
+use types::Date;
 
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
+use super::types::Integer;
 
 tax_statement_array_record!(CurrencyIncome {
-    /*
-    class ForeignIncome(record_view("CurrencyIncome", (
-    ("unknown1", Integer),
-    ("income_type", Integer),
-    ("income_type_name", String),
-    ("income_name", String),
-    ("county_code", Integer),
-    ("income_date", Date),
-    ("tax_payment_date", Date),
-    ("automatic_currency_converting", Bool),
-    ("currency_code", Integer),
-    ("currency_rate_for_income_date", Currency),
-    ("currency_rate_units_for_income_date", Integer),
-    ("currency_rate_for_tax_payment_date", Currency),
-    ("currency_rate_units_for_tax_payment_date", Integer),
-    ("currency_name", String),
-    ("income_value", Currency),
-    ("income_value_in_local_currency", Currency),
-    ("paid_tax_value", Currency),
-    ("paid_tax_value_in_local_currency", Currency),
-    ("deduction_code", Integer),
-    ("deduction_value", Currency),
-    ("unknown2", String),
-    ("company_type", String),
-    ("unknown3", String),
-    */
-
-    f01: String,
-    f02: String,
-    f03: String,
-    f04: String,
-    f05: String,
-    f06: String,
-    f07: String,
-    f08: String,
-    f09: String,
-    f10: String,
-    f11: String,
-    f12: String,
-    f13: String,
-    f14: String,
-    f15: String,
-    f16: String,
-    f17: String,
-    f18: String,
-    f19: String,
-    f20: String,
-    f21: String,
-    f22: String,
-    f23: String,
+    // FIXME: HERE
+    unknown1: Integer,
+    income_type: Integer,
+    income_type_name: String,
+    income_name: String,
+    county_code: Integer,
+    income_date: Date,
+    tax_payment_date: Date,
+    automatic_currency_converting: bool,
+    currency_code: Integer,
+    currency_rate_for_income_date: String,  // FIXME: Decimal
+    currency_rate_units_for_income_date: Integer,
+    currency_rate_for_tax_payment_date: String,  // FIXME: Decimal
+    currency_rate_units_for_tax_payment_date: Integer,
+    currency_name: String,
+    income_value: String,  // FIXME: Decimal
+    income_value_in_local_currency: String,  // FIXME: Decimal
+    paid_tax_value: String,  // FIXME: Decimal
+    paid_tax_value_in_local_currency: String,  // FIXME: Decimal
+    deduction_code: Integer,
+    deduction_value: String,  // FIXME: Decimal
+    unknown2: String,
+    company_type: String,
+    unknown3: String,
 }, index_length=3);
 
 #[derive(Debug)]

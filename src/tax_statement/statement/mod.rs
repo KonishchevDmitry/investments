@@ -7,6 +7,7 @@ use self::parser::TaxStatementReader;
 mod encoding;
 mod foreign_income;
 mod parser;
+mod types;
 
 #[derive(Debug)]
 pub struct TaxStatement {
