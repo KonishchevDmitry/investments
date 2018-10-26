@@ -105,7 +105,7 @@ pub struct CurrencyRate {
 }
 
 pub fn round(amount: Decimal) -> Decimal {
-    amount.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp)
+    amount.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp).normalize()
 }
 
 #[cfg(test)]
@@ -114,13 +114,29 @@ mod tests {
 
     #[test]
     fn rounding() {
-        assert_eq!(round(decs!("1")), decs!("1"));
-        assert_eq!(round(decs!("1.1")), decs!("1.1"));
-        assert_eq!(round(decs!("1.11")), decs!("1.11"));
-        assert_eq!(round(decs!("1.111")), decs!("1.11"));
-        assert_eq!(round(decs!("1.114")), decs!("1.11"));
-        assert_eq!(round(decs!("1.124")), decs!("1.12"));
-        assert_eq!(round(decs!("1.115")), decs!("1.12"));
-        assert_eq!(round(decs!("1.125")), decs!("1.13"));
+        for (from_string, to_string) in [
+            ("1",     "1"),
+            ("1.0",   "1"),
+            ("1.1",   "1.1"),
+            ("1.00",  "1"),
+            ("1.01",  "1.01"),
+            ("1.11",  "1.11"),
+            ("1.004", "1"),
+            ("1.005", "1.01"),
+            ("1.111", "1.11"),
+            ("1.114", "1.11"),
+            ("1.124", "1.12"),
+            ("1.115", "1.12"),
+            ("1.125", "1.13"),
+        ].iter() {
+            let from = Decimal::from_str(from_string).unwrap();
+            let to = Decimal::from_str(to_string).unwrap();
+
+            let rounded = round(from);
+            assert_eq!(rounded, to);
+
+            assert_eq!(&from.to_string(), from_string);
+            assert_eq!(&rounded.to_string(), to_string);
+        }
     }
 }

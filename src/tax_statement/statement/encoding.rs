@@ -1,9 +1,11 @@
 use std::fmt::Write;
+use std::str::FromStr;
 
 use chrono::Duration;
 
 use core::{EmptyResult, GenericResult};
-use types::{Date/*, Decimal*/};
+use currency;
+use types::{Date, Decimal};
 
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 
@@ -88,4 +90,21 @@ impl TaxStatementPrimitiveType for Date {
 
 fn get_base_date() -> Date {
     date!(30, 12, 1899)
+}
+
+impl_tax_statement_type!(Decimal);
+impl TaxStatementPrimitiveType for Decimal {
+    fn decode(data: &str) -> GenericResult<Decimal> {
+        Ok(Decimal::from_str(data).map_err(|_| format!("Invalid decimal value: {:?}", data))?)
+    }
+
+    fn encode(&self, buffer: &mut String) -> EmptyResult {
+        let value = currency::round(*self);
+
+        if value != *self {
+            return Err!("An attempt to write a non-rounded decimal value: {:?}", self);
+        }
+
+        Ok(write!(buffer, "{}", value)?)
+    }
 }

@@ -223,18 +223,28 @@ mod tests {
 
         let data = get_contents(&path);
         let mut statement = test_parsing(&path);
-        // FIXME: Check filled data
+        let year = statement.year;
 
         let mut incomes = Vec::new();
-        if false {
-            incomes.extend(statement.get_foreign_incomes().unwrap().unwrap().drain(..));
+        incomes.extend(statement.get_foreign_incomes().unwrap().unwrap().drain(..));
+        assert_eq!(incomes.len(), 1);
+
+        {
+            let description = "Дивиденд";
+            let date = date!(1, 1, year);
+            let currency = "USD";
+            let currency_rate = decs!("60.6569");
+            let amount = dec!(100);
+            let local_amount = decs!("6065.69");
+            let paid_tax = dec!(10);
+            let tax_to_pay = decs!("606.57");
+
+            statement.add_dividend(
+                description, date, currency, currency_rate,
+                amount, local_amount, paid_tax, tax_to_pay).unwrap();
         }
 
-        if false {
-            statement.add_dividend().unwrap();
-            assert_eq!(*statement.get_foreign_incomes().unwrap().unwrap(), incomes);
-        }
-
+        assert_eq!(*statement.get_foreign_incomes().unwrap().unwrap(), incomes);
         compare_to(&statement, &data);
     }
 

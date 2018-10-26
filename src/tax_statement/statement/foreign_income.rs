@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use core::{EmptyResult, GenericResult};
-use types::Date;
+use types::{Date, Decimal};
 
 use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
@@ -9,28 +9,33 @@ use super::record::Record;
 use super::types::Integer;
 
 tax_statement_array_record!(CurrencyIncome {
-    // FIXME: HERE
-    income_type: IncomeType,
-    income_name: String,
+    type_: IncomeType,
+    description: String,
     county_code: Integer,
-    income_date: Date,
+
+    date: Date,
     tax_payment_date: Date,
-    automatic_currency_converting: bool,
+
+    automatic_currency_convertion: bool,
     currency_code: Integer,
-    currency_rate_for_income_date: String,  // FIXME: Decimal
+    currency_rate_for_income_date: Decimal,
     currency_rate_units_for_income_date: Integer,
-    currency_rate_for_tax_payment_date: String,  // FIXME: Decimal
+    currency_rate_for_tax_payment_date: Decimal,
     currency_rate_units_for_tax_payment_date: Integer,
     currency_name: String,
-    income_value: String,  // FIXME: Decimal
-    income_value_in_local_currency: String,  // FIXME: Decimal
-    paid_tax_value: String,  // FIXME: Decimal
-    paid_tax_value_in_local_currency: String,  // FIXME: Decimal
+
+    amount: Decimal,
+    local_amount: Decimal,
+
+    paid_tax: Decimal,
+    tax_to_pay: Decimal,
+
     deduction_code: Integer,
-    deduction_value: String,  // FIXME: Decimal
+    deduction_value: Decimal,
+
+    unknown1: Integer,
+    company_type: Integer,
     unknown2: String,
-    company_type: String,
-    unknown3: String,
 }, index_length=3);
 
 #[derive(Debug)]
