@@ -75,6 +75,7 @@ impl TaxStatementReader {
         }
 
         let statement = TaxStatement {
+            path: path.to_owned(),
             year: year,
             records: records,
         };
@@ -235,13 +236,13 @@ mod tests {
             let currency = "USD";
             let currency_rate = decs!("60.6569");
             let amount = dec!(100);
-            let local_amount = decs!("6065.69");
             let paid_tax = dec!(10);
-            let tax_to_pay = decs!("606.57");
+            let local_amount = decs!("6065.69");
+            let local_paid_tax = decs!("606.57");
 
             statement.add_dividend(
                 description, date, currency, currency_rate,
-                amount, local_amount, paid_tax, tax_to_pay).unwrap();
+                amount, paid_tax, local_amount, local_paid_tax).unwrap();
         }
 
         assert_eq!(*statement.get_foreign_incomes().unwrap().unwrap(), incomes);

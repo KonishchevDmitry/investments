@@ -1,9 +1,11 @@
+use std::fs;
+
 use core::{EmptyResult, GenericResult};
 use types::{Date, Decimal};
 
 use self::foreign_income::{ForeignIncome, CurrencyIncome, IncomeType};
 use self::record::Record;
-use self::parser::TaxStatementReader;
+use self::parser::{TaxStatementReader, TaxStatementWriter};
 
 #[macro_use] mod record;
 mod encoding;
@@ -13,6 +15,7 @@ mod types;
 
 #[derive(Debug)]
 pub struct TaxStatement {
+    path: String,
     pub year: i32,
     records: Vec<Box<Record>>,
 }
@@ -20,12 +23,28 @@ pub struct TaxStatement {
 impl TaxStatement {
     pub fn read(path: &str) -> GenericResult<TaxStatement> {
         Ok(TaxStatementReader::read(path).map_err(|e| format!(
-            "Error while reading {:?}: {}", path, e))?)
+            "Error while reading {:?} tax statement: {}", path, e))?)
+    }
+
+    pub fn save(&self) -> EmptyResult {
+        let temp_path = format!("{}.new", self.path);
+
+        TaxStatementWriter::write(self, &temp_path).map_err(|e| {
+            let _ = fs::remove_file(&temp_path);
+            format!("Failed to save the tax statement to {:?}: {}", temp_path, e)
+        })?;
+
+        fs::rename(&temp_path, &self.path).map_err(|e| {
+            let _ = fs::remove_file(&temp_path);
+            format!("Failed to rename {:?} to {:?}: {}", temp_path, self.path, e)
+        })?;
+
+        Ok(())
     }
 
     pub fn add_dividend(
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
-        amount: Decimal, local_amount: Decimal, paid_tax: Decimal, tax_to_pay: Decimal,
+        amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
         let (country_code, currency_code, currency_name) = match currency {
             "USD" => (840, 840, "Доллар сша"),
@@ -59,7 +78,7 @@ impl TaxStatement {
             local_amount: local_amount,
 
             paid_tax: paid_tax,
-            tax_to_pay: tax_to_pay,
+            local_paid_tax: local_paid_tax,
 
             deduction_code: 0,
             deduction_value: dec!(0),

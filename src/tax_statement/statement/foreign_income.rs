@@ -28,7 +28,7 @@ tax_statement_array_record!(CurrencyIncome {
     local_amount: Decimal,
 
     paid_tax: Decimal,
-    tax_to_pay: Decimal,
+    local_paid_tax: Decimal,
 
     deduction_code: Integer,
     deduction_value: Decimal,

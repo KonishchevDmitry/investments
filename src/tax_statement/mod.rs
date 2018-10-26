@@ -19,13 +19,11 @@ pub fn generate_tax_statement(
     database: db::Connection, year: i32,
     broker_statement_path: &str, tax_statement_path: Option<&str>
 ) -> EmptyResult {
-    let broker_statement = IbStatementParser::parse(broker_statement_path)?;
-    // FIXME: HERE
-    let _tax_statement = TaxStatement::read(tax_statement_path.unwrap())?;
-
     if year > chrono::Local::today().year() {
         return Err!("An attempt to generate tax statement for the future");
     }
+
+    let broker_statement = IbStatementParser::parse(broker_statement_path)?;
 
     let tax_period_start = date!(1, 1, year);
     let tax_period_end = date!(1, 1, year + 1);
@@ -46,24 +44,47 @@ pub fn generate_tax_statement(
             util::format_date(broker_statement.period.1 - Duration::days(1)), year);
     }
 
-    let generator = TaxStatementGenerator {
-        broker_statement: broker_statement,
-        converter: CurrencyConverter::new(database),
+    let mut tax_statement = match tax_statement_path {
+        Some(path) => {
+            let statement = TaxStatement::read(path)?;
+
+            // FIXME
+//            if statement.year != year {
+//                return Err!("Tax statement year ({}) doesn't match the requested year {}",
+//                    statement.year, year);
+//            }
+
+            Some(statement)
+        },
+        None => None,
     };
 
-    generator.process_dividend_income().map_err(|e| format!(
-        "Failed to process dividend income: {}", e))?;
+    {
+        let mut generator = TaxStatementGenerator {
+            broker_statement: broker_statement,
+            tax_statement: tax_statement.as_mut(),
+            converter: CurrencyConverter::new(database),
+        };
+
+        generator.process_dividend_income().map_err(|e| format!(
+            "Failed to process dividend income: {}", e))?;
+    }
+
+    if let Some(ref tax_statement) = tax_statement {
+        tax_statement.save()?;
+    }
 
     Ok(())
 }
 
-struct TaxStatementGenerator {
+struct TaxStatementGenerator<'a> {
     broker_statement: BrokerStatement,
+    tax_statement: Option<&'a mut TaxStatement>,
     converter: CurrencyConverter,
 }
 
-impl TaxStatementGenerator {
-    fn process_dividend_income(&self) -> EmptyResult {
+impl<'a> TaxStatementGenerator<'a> {
+    fn process_dividend_income(&mut self) -> EmptyResult {
         let country = regulations::russia();
         let foreign_country = regulations::us();
 
@@ -79,8 +100,9 @@ impl TaxStatementGenerator {
         let mut total_income = dec!(0);
 
         for dividend in &self.broker_statement.dividends {
-            if dividend.amount.currency != foreign_country.currency {
-                return Err!("{} dividend currency is not supported", dividend.amount.currency);
+            let currency = dividend.amount.currency;
+            if currency != foreign_country.currency {
+                return Err!("{} dividend currency is not supported", currency);
             }
 
             let issuer = self.broker_statement.get_instrument_name(&dividend.issuer)?;
@@ -89,7 +111,7 @@ impl TaxStatementGenerator {
             total_foreign_amount += foreign_amount;
 
             let currency_rate = currency::round(self.converter.currency_rate(
-                dividend.date, dividend.amount.currency, country.currency)?);
+                dividend.date, currency, country.currency)?);
 
             let amount = currency::round(self.converter.convert_to(
                 dividend.date, dividend.amount, country.currency)?);
@@ -111,7 +133,7 @@ impl TaxStatementGenerator {
             table.add_row(Row::new(vec![
                 Cell::new_align(&util::format_date(dividend.date), Alignment::CENTER),
                 Cell::new_align(&issuer, Alignment::LEFT),
-                Cell::new_align(dividend.amount.currency, Alignment::CENTER),
+                Cell::new_align(currency, Alignment::CENTER),
 
                 Cell::new_align(&foreign_amount.to_string(), Alignment::RIGHT),
                 Cell::new_align(&currency_rate.to_string(), Alignment::RIGHT),
@@ -122,6 +144,18 @@ impl TaxStatementGenerator {
                 Cell::new_align(&tax_to_pay.to_string(), Alignment::RIGHT),
                 Cell::new_align(&income.to_string(), Alignment::RIGHT),
             ]));
+
+            if let Some(ref mut tax_statement) = self.tax_statement {
+                let description = format!(
+                    "{}: Дивиденд от {}", self.broker_statement.broker.name, issuer);
+
+                tax_statement.add_dividend(
+                    &description, dividend.date, currency, currency_rate,
+                    foreign_amount, foreign_paid_tax, amount, paid_tax
+                ).map_err(|e| format!(
+                    "Unable to add {:?} dividend to the tax statement: {}", issuer, e
+                ))?;
+            }
         }
 
         if !table.is_empty() {
