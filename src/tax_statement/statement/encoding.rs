@@ -3,7 +3,7 @@ use std::fmt::Write;
 use chrono::Duration;
 
 use core::{EmptyResult, GenericResult};
-use types::{Date, Decimal};
+use types::{Date/*, Decimal*/};
 
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 

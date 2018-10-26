@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Debug;
 
 use core::{EmptyResult, GenericResult};
@@ -5,6 +6,9 @@ use core::{EmptyResult, GenericResult};
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 
 pub trait Record: Debug {
+    // FIXME: Do we really need it?
+    fn name(&self) -> &str;
+    fn as_mut_any(&mut self) -> &mut Any;
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult;
 }
 
@@ -35,6 +39,14 @@ impl UnknownRecord {
 }
 
 impl Record for UnknownRecord {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_mut_any(&mut self) -> &mut Any {
+        self
+    }
+
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
         writer.write_data(&self.name)?;
 
@@ -71,6 +83,14 @@ macro_rules! tax_statement_record {
         }
 
         impl $crate::tax_statement::statement::record::Record for $name {
+            fn name(&self) -> &str {
+                $name::RECORD_NAME
+            }
+
+            fn as_mut_any(&mut self) -> &mut ::std::any::Any {
+                self
+            }
+
             fn write(
                 &self, writer: &mut $crate::tax_statement::statement::parser::TaxStatementWriter,
             ) -> $crate::core::EmptyResult {
@@ -147,9 +167,9 @@ macro_rules! declare_tax_statement_record {
             $($field_name:ident: $field_type:ty,)*
         }
     ) => {
-        #[derive(Debug)]
-        struct $name {
-            $($field_name: $field_type,)*
+        #[derive(Debug, PartialEq)]
+        pub struct $name {
+            $(pub $field_name: $field_type,)*
         }
 
         impl $name {

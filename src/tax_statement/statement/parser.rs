@@ -218,9 +218,24 @@ mod tests {
 
     #[test]
     fn parse_filled() {
-        let path = Path::new(file!()).parent().unwrap().join("testdata/filled.dc7");
-        test_parsing(path.to_str().unwrap());
+        let path = Path::new(file!()).parent().unwrap().join("testdata/filled.dc7")
+            .to_str().unwrap().to_owned();
+
+        let data = get_contents(&path);
+        let mut statement = test_parsing(&path);
         // FIXME: Check filled data
+
+        let mut incomes = Vec::new();
+        if false {
+            incomes.extend(statement.get_foreign_incomes().unwrap().unwrap().drain(..));
+        }
+
+        if false {
+            statement.add_dividend().unwrap();
+            assert_eq!(*statement.get_foreign_incomes().unwrap().unwrap(), incomes);
+        }
+
+        compare_to(&statement, &data);
     }
 
     #[test]
@@ -230,16 +245,20 @@ mod tests {
 
     fn test_parsing(path: &str) -> TaxStatement {
         let data = get_contents(path);
+
         let statement = TaxStatementReader::read(path).unwrap();
         assert_eq!(statement.year, 2017);
-
-        let new_file = NamedTempFile::new().unwrap();
-        let new_path = new_file.path().to_str().unwrap();
-        TaxStatementWriter::write(&statement, new_path).unwrap();
-        let new_data = get_contents(new_path);
-        assert_eq!(new_data, data);
+        compare_to(&statement, &data);
 
         statement
+    }
+
+    fn compare_to(statement: &TaxStatement, data: &str) {
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path().to_str().unwrap();
+
+        TaxStatementWriter::write(&statement, path).unwrap();
+        assert_eq!(&get_contents(path), data);
     }
 
     fn get_contents(path: &str) -> String {

@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use core::{EmptyResult, GenericResult};
 use types::Date;
 
@@ -33,7 +35,8 @@ tax_statement_array_record!(CurrencyIncome {
 
 #[derive(Debug)]
 pub struct ForeignIncome {
-    incomes: Vec<CurrencyIncome>,
+    // FIXME: pub?
+    pub incomes: Vec<CurrencyIncome>,
 }
 
 impl ForeignIncome {
@@ -52,6 +55,14 @@ impl ForeignIncome {
 }
 
 impl Record for ForeignIncome {
+    fn name(&self) -> &str {
+        ForeignIncome::RECORD_NAME
+    }
+
+    fn as_mut_any(&mut self) -> &mut Any {
+        self
+    }
+
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
         writer.write_data(ForeignIncome::RECORD_NAME)?;
         writer.write_value(&self.incomes.len())?;
@@ -65,8 +76,8 @@ impl Record for ForeignIncome {
 
 }
 
-#[derive(Debug, Clone)]
-enum IncomeType {
+#[derive(Debug, PartialEq, Clone)]
+pub enum IncomeType {
     Dividend,
     Unknown {unknown: Integer, code: Integer, name: String},
 }
