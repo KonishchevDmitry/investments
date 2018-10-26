@@ -60,7 +60,7 @@ impl TaxStatement {
             .map(|record: &mut ForeignIncome| &mut record.incomes))
     }
 
-    fn get_mut_record<T: 'static>(&mut self, name: &str) -> GenericResult<Option<&mut T>> {
+    fn get_mut_record<T: 'static + Record>(&mut self, name: &str) -> GenericResult<Option<&mut T>> {
         let mut found_record = None;
 
         for record in &mut self.records {
