@@ -12,14 +12,6 @@ pub fn analyse(database: db::Connection, broker_statement_path: &str) -> EmptyRe
     let converter = CurrencyConverter::new(database, false);
     let total_value = CashAssets::new_from_cash(statement.period.1, statement.total_value);
 
-    // FIXME: Deprecate
-    for currency in ["USD", "RUB"].iter() {
-        let interest = performance::get_average_profit(
-            &statement.deposits, total_value, *currency, &converter)?;
-
-        println!("{}: {}", currency, interest * dec!(100));
-    }
-
     println!("Average rate of return from cash investments:");
 
     for currency in ["USD", "RUB"].iter() {
