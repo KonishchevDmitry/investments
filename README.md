@@ -4,7 +4,7 @@ A work in progress project to organize my investments.
 
 ### Installation
 
-Install Rust:
+Install [Rust](https://www.rust-lang.org/):
 
 `curl https://sh.rustup.rs -sSf | sh`
 
