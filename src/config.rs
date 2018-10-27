@@ -51,6 +51,12 @@ pub fn load() -> (Action, Config) {
                 .required(true)))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
+            .long_about(concat!(
+                "\nReads Interactive Brokers statement and alters *.dcX file (Russian tax program ",
+                "named Декларация) by adding all required information about income from paid ",
+                "dividends.\n",
+                "\nIf tax statement file is not specified only outputs the data which is going to ",
+                "be declared."))
             .arg(Arg::with_name("YEAR")
                 .help("Year to generate the statement for")
                 .required(true))
@@ -60,7 +66,9 @@ pub fn load() -> (Action, Config) {
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
         .global_setting(AppSettings::DisableVersion)
-        .setting(AppSettings::SubcommandRequired)
+        .global_setting(AppSettings::DisableHelpSubcommand)
+        .global_setting(AppSettings::DeriveDisplayOrder)
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
     let log_level = match matches.occurrences_of("verbose") {
