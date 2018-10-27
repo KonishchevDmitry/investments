@@ -46,6 +46,10 @@ pub fn load() -> (Action, Config) {
             .help("Sets the level of verbosity"))
         .subcommand(SubCommand::with_name("analyse")
             .about("Analyze portfolio performance")
+            .long_about(concat!(
+                "\nCalculates average rate of return from cash investments by comparing portfolio ",
+                "performance to performance of a bank deposit with exactly the same investments ",
+                "and monthly capitalization."))
             .arg(Arg::with_name("BROKER_STATEMENT")
                 .help("Path to Interactive Brokers statement *.csv file")
                 .required(true)))

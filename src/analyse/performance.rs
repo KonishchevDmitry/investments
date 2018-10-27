@@ -1,8 +1,7 @@
 use core::GenericResult;
 use currency::CashAssets;
 use currency::converter::CurrencyConverter;
-#[cfg(test)] use currency::converter::CurrencyConverterBackend;
-use types::{Date, Decimal};
+use types::Decimal;
 use util;
 
 use super::deposit_emulator::DepositEmulator;
@@ -12,7 +11,7 @@ use super::deposit_emulator::DepositEmulator;
 // * Take taxes into account
 // * Deposit fees
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
-/// performance of bank deposit with the exactly same investments and monthly capitalization.
+/// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub fn get_average_rate_of_return(
     deposits: &Vec<CashAssets>, current_assets: CashAssets, currency: &str,
     converter: &CurrencyConverter

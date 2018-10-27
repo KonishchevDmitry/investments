@@ -19,6 +19,20 @@ Compile and install:
 ### Available functionality
 
 ```
+$ investments analyse --help
+
+Calculates average rate of return from cash investments by comparing portfolio performance
+to performance of a bank deposit with exactly the same investments and monthly capitalization.
+
+USAGE:
+    investments analyse <BROKER_STATEMENT>
+
+ARGS:
+    <BROKER_STATEMENT>
+            Path to Interactive Brokers statement *.csv file
+```
+
+```
 $ investments tax-statement --help
 
 Reads Interactive Brokers statement and alters *.dcX file (Russian tax program named Декларация)
