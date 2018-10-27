@@ -2,6 +2,20 @@
 
 A work in progress project to organize my investments.
 
+### Installation
+
+Install [Rust](https://www.rust-lang.org/):
+
+`curl https://sh.rustup.rs -sSf | sh`
+
+Clone the repository:
+
+`git clone https://github.com/KonishchevDmitry/investments`
+
+Compile and install:
+
+`cargo install --path investments`
+
 ### Available functionality
 
 ```
