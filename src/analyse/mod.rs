@@ -4,6 +4,7 @@ use currency::CashAssets;
 use currency::converter::CurrencyConverter;
 use db;
 
+mod deposit_emulator;
 pub mod performance;
 
 pub fn analyse(database: db::Connection, broker_statement_path: &str) -> EmptyResult {
