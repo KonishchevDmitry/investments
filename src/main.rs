@@ -29,17 +29,19 @@ mod broker_statement;
 mod config;
 mod currency;
 mod db;
+mod init;
 mod regulations;
 mod tax_statement;
 mod util;
 
 use std::process;
 
-use config::{Config, Action};
+use config::Config;
 use core::EmptyResult;
+use init::{Action, initialize};
 
 fn main() {
-    let (action, config) = config::load();
+    let (action, config) = initialize();
 
     if let Err(e) = run(action, config) {
         error!("{}.", e);
