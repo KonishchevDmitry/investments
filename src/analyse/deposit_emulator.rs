@@ -2,29 +2,23 @@ use chrono::{Duration, Datelike};
 
 use core::{EmptyResult, GenericResult};
 #[cfg(test)] use currency;
-use currency::CashAssets;
-use currency::converter::CurrencyConverter;
-#[cfg(test)] use currency::converter::CurrencyConverterBackend;
 use types::{Date, Decimal};
 use util;
 
-pub struct DepositEmulator<'a> {
+pub struct DepositEmulator {
     date: Date,
     capitalization_day: u32,
     next_capitalization_date: Date,
 
     assets: Decimal,
-    accumulated_income: Decimal,
-
-    currency: &'a str,
     daily_interest: Decimal,
-    converter: &'a CurrencyConverter,
+    accumulated_income: Decimal,
 }
 
-impl<'a> DepositEmulator<'a> {
+impl DepositEmulator {
     pub fn emulate(
-        start_date: Date, start_assets: Decimal, transactions: &Vec<CashAssets>, end_date: Date,
-        currency: &str, interest: Decimal, converter: &CurrencyConverter,
+        start_date: Date, start_assets: Decimal, transactions: &Vec<Transaction>, end_date: Date,
+        interest: Decimal,
     ) -> GenericResult<Decimal> {
         let mut emulator = DepositEmulator {
             date: start_date,
@@ -32,11 +26,8 @@ impl<'a> DepositEmulator<'a> {
             next_capitalization_date: start_date,
 
             assets: start_assets,
-            accumulated_income: dec!(0),
-
-            currency: currency,
             daily_interest: interest / dec!(100) / dec!(365),
-            converter: converter,
+            accumulated_income: dec!(0),
         };
         emulator.set_next_capitalization_date();
 
@@ -50,13 +41,11 @@ impl<'a> DepositEmulator<'a> {
         Ok(emulator.assets)
     }
 
-    fn process_transaction(&mut self, transaction: &CashAssets) -> EmptyResult {
+    fn process_transaction(&mut self, transaction: &Transaction) -> EmptyResult {
         self.process_to(transaction.date)?;
         assert_eq!(self.date, transaction.date);
 
-        self.assets += self.converter.convert_to(
-            transaction.date, transaction.cash, self.currency)?;
-
+        self.assets += transaction.amount;
         if self.assets < dec!(0) {
             return Err!("Portfolio got negative balance on {}", util::format_date(transaction.date));
         }
@@ -106,6 +95,20 @@ impl<'a> DepositEmulator<'a> {
     }
 }
 
+pub struct Transaction {
+    pub date: Date,
+    pub amount: Decimal,
+}
+
+impl Transaction {
+    pub fn new(date: Date, amount: Decimal) -> Transaction {
+        Transaction {
+            date: date,
+            amount: amount,
+        }
+    }
+}
+
 fn get_next_year_month(mut year: i32, mut month: u32) -> (i32, u32) {
     if month == 12 {
         year += 1;
@@ -144,63 +147,35 @@ fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Date 
 mod tests {
     use super::*;
 
-    macro_rules! deposit_emulator_tests {
-        ($($name:ident: $args:expr,)*) => {
-        $(
-            #[test]
-            fn $name() {
-                let (transaction_currency, transaction_amount) = $args;
-                deposit_emulator(transaction_currency, transaction_amount);
-            }
-        )*
-        }
-    }
-
-    deposit_emulator_tests! {
-        deposit_emulator_rub: ("RUB", dec!(400000)),
-        deposit_emulator_usd: ("USD", dec!(4000)),
-    }
-
-    fn deposit_emulator(transaction_currency: &str, transaction_amount: Decimal) {
-        struct ConverterMock {}
-        impl CurrencyConverterBackend for ConverterMock {
-            fn convert(&self, from: &str, to: &str, _date: Date, amount: Decimal) -> GenericResult<Decimal> {
-                Ok(match (from, to) {
-                    ("RUB", "RUB") => amount,
-                    ("USD", "RUB") => amount * dec!(100),
-                    _ => unreachable!(),
-                })
-            }
-        }
-        let converter = CurrencyConverter::new_with_backend(Box::new(ConverterMock {}));
-
+    #[test]
+    fn deposit_emulator() {
         let start_date = date!(28, 7, 2018);
         let initial_assets = dec!(200000);
-        let currency = "RUB";
+        let transaction_amount = dec!(400000);
         let interest = dec!(7);
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
-            &vec![CashAssets::new(date!(28, 7, 2018), transaction_currency, transaction_amount)],
-            date!(28, 9, 2018), currency, interest, &converter).unwrap();
+            &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
+            date!(28, 9, 2018), interest).unwrap();
         assert_eq!(currency::round(result), decs!("607155.45"));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
-            &vec![CashAssets::new(date!(28, 8, 2018), transaction_currency, transaction_amount)],
-            date!(28, 9, 2018), currency, interest, &converter).unwrap();
+            &vec![Transaction::new(date!(28, 8, 2018), transaction_amount)],
+            date!(28, 9, 2018), interest).unwrap();
         assert_eq!(currency::round(result), decs!("604763.23"));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
-            &vec![CashAssets::new(date!(14, 8, 2018), transaction_currency, transaction_amount)],
-            date!(28, 9, 2018), currency, interest, &converter).unwrap();
+            &vec![Transaction::new(date!(14, 8, 2018), transaction_amount)],
+            date!(28, 9, 2018), interest).unwrap();
         assert_eq!(currency::round(result), decs!("605843.59"));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
-            &vec![CashAssets::new(date!(28, 7, 2018), transaction_currency, transaction_amount)],
-            date!(28, 1, 2019), currency, interest, &converter).unwrap();
+            &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
+            date!(28, 1, 2019), interest).unwrap();
         assert_eq!(currency::round(result), decs!("621486.34"));
     }
 

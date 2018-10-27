@@ -4,7 +4,7 @@ use currency::converter::CurrencyConverter;
 use types::Decimal;
 use util;
 
-use super::deposit_emulator::DepositEmulator;
+use super::deposit_emulator::{DepositEmulator, Transaction};
 
 // FIXME: Support:
 // * Withdrawals
@@ -16,7 +16,7 @@ pub fn get_average_rate_of_return(
     deposits: &Vec<CashAssets>, current_assets: CashAssets, currency: &str,
     converter: &CurrencyConverter
 ) -> GenericResult<Decimal> {
-    let mut transactions = Vec::<CashAssets>::new();
+    let mut transactions = Vec::<Transaction>::new();
 
     for deposit in deposits {
         if deposit.date > current_assets.date {
@@ -24,7 +24,9 @@ pub fn get_average_rate_of_return(
         }
 
         assert!(deposit.cash.is_positive());
-        transactions.push(*deposit);
+        let amount = converter.convert_to(deposit.date, deposit.cash, currency)?;
+
+        transactions.push(Transaction::new(deposit.date, amount));
     }
 
     transactions.sort_by_key(|assets| assets.date);
@@ -36,11 +38,9 @@ pub fn get_average_rate_of_return(
 
     let result_assets = converter.convert_to(current_assets.date, current_assets.cash, currency)?;
 
-    // FIXME: DepositEmulator shouldn't know anything about currency conversion
     let emulate = |interest: Decimal| -> GenericResult<Decimal> {
         let assets = DepositEmulator::emulate(
-            start_date, start_assets, &transactions, current_assets.date, currency, interest,
-            converter)?;
+            start_date, start_assets, &transactions, current_assets.date, interest)?;
 
         let difference = (result_assets - assets).abs();
 
