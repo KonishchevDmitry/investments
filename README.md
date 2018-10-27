@@ -7,8 +7,8 @@ A work in progress project to organize my investments.
 ```
 $ investments tax-statement --help
 
-Reads Interactive Brokers statement and alters *.dcX file (Russian tax program named Декларация) by adding all required
-information about income from paid dividends.
+Reads Interactive Brokers statement and alters *.dcX file (Russian tax program named Декларация)
+by adding all required information about income from paid dividends.
 
 If tax statement file is not specified only outputs the data which is going to be declared.
 
