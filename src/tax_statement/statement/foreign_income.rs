@@ -40,7 +40,6 @@ tax_statement_array_record!(CurrencyIncome {
 
 #[derive(Debug)]
 pub struct ForeignIncome {
-    // FIXME: pub?
     pub incomes: Vec<CurrencyIncome>,
 }
 

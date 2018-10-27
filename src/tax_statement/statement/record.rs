@@ -6,7 +6,6 @@ use core::{EmptyResult, GenericResult};
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 
 pub trait Record: Debug {
-    // FIXME: Do we really need it?
     fn name(&self) -> &str;
     fn as_mut_any(&mut self) -> &mut Any;
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult;

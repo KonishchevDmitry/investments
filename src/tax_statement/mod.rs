@@ -48,11 +48,10 @@ pub fn generate_tax_statement(
         Some(path) => {
             let statement = TaxStatement::read(path)?;
 
-            // FIXME
-//            if statement.year != year {
-//                return Err!("Tax statement year ({}) doesn't match the requested year {}",
-//                    statement.year, year);
-//            }
+            if statement.year != year {
+                return Err!("Tax statement year ({}) doesn't match the requested year {}",
+                    statement.year, year);
+            }
 
             Some(statement)
         },
@@ -63,7 +62,7 @@ pub fn generate_tax_statement(
         let mut generator = TaxStatementGenerator {
             broker_statement: broker_statement,
             tax_statement: tax_statement.as_mut(),
-            converter: CurrencyConverter::new(database),
+            converter: CurrencyConverter::new(database, true),
         };
 
         generator.process_dividend_income().map_err(|e| format!(

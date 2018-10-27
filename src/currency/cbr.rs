@@ -16,10 +16,10 @@ const CBR_URL: &'static str = "http://www.cbr.ru";
 const CBR_URL: &'static str = mockito::SERVER_URL;
 
 pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    let currency_code = "R01235"; // HACK: Don't hardcode
-    if currency != "USD" {
-        return Err!("{} currency is not supported yet.", currency);
-    }
+    let currency_code = match currency {
+        "USD" => "R01235",
+        _ => return Err!("{} currency is not supported yet.", currency),
+    };
 
     let date_format = "%d/%m/%Y";
     let start_date_string = start_date.format(date_format).to_string();

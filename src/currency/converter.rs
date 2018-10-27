@@ -12,9 +12,9 @@ pub struct CurrencyConverter {
 }
 
 impl CurrencyConverter {
-    pub fn new(database: db::Connection) -> CurrencyConverter {
+    pub fn new(database: db::Connection, strict_mode: bool) -> CurrencyConverter {
         let rate_cache = CurrencyRateCache::new(database);
-        let backend = CurrencyRateCacheBackend::new(rate_cache);
+        let backend = CurrencyRateCacheBackend::new(rate_cache, strict_mode);
         CurrencyConverter::new_with_backend(backend)
     }
 
@@ -41,11 +41,15 @@ pub trait CurrencyConverterBackend {
 
 struct CurrencyRateCacheBackend {
     rate_cache: CurrencyRateCache,
+    strict_mode: bool,
 }
 
 impl CurrencyRateCacheBackend {
-    pub fn new(rate_cache: CurrencyRateCache) -> Box<CurrencyConverterBackend> {
-        return Box::new(CurrencyRateCacheBackend {rate_cache})
+    pub fn new(rate_cache: CurrencyRateCache, strict_mode: bool) -> Box<CurrencyConverterBackend> {
+        return Box::new(CurrencyRateCacheBackend {
+            rate_cache: rate_cache,
+            strict_mode: strict_mode,
+        })
     }
 
     fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
@@ -84,14 +88,13 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         };
 
         let today = self.rate_cache.today();
-        if date > today {
+        if date > today || self.strict_mode && date == today {
             return Err!("An attempt to make currency conversion for future date: {}",
                 util::format_date(date));
         }
 
         let mut cur_date = date;
         if cur_date == today {
-            // FIXME: Should we return a error in this case by default?
             cur_date -= Duration::days(1);
         }
 
@@ -151,7 +154,8 @@ mod tests {
 
         let amount = dec!(3);
         let today = cache.today();
-        let converter = CurrencyConverter::new_with_backend(CurrencyRateCacheBackend::new(cache));
+        let converter = CurrencyConverter::new_with_backend(
+            CurrencyRateCacheBackend::new(cache, true));
 
         for currency in ["RUB", "USD"].iter() {
             assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);

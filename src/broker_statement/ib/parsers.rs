@@ -58,7 +58,7 @@ impl RecordParser for DepositsParser {
             return Ok(());
         }
 
-        // FIXME: Distinguish withdrawals from deposits
+        // TODO: Distinguish withdrawals from deposits
         let date = parse_date(record.get_value("Settle Date")?)?;
         let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
 
