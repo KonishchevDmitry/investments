@@ -4,7 +4,7 @@ A work in progress project to organize my investments.
 
 ### Available functionality
 
-```console
+```
 $ investments tax-statement --help
 
 Reads Interactive Brokers statement and alters *.dcX file (Russian tax program named Декларация) by adding all required
