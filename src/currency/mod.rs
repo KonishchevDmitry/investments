@@ -3,10 +3,10 @@ use std::str::FromStr;
 use std::ops::{Mul, Neg};
 
 use num_traits::identities::Zero;
-use rust_decimal::RoundingStrategy;
 
 use core::GenericResult;
 use types::{Date, Decimal};
+use util;
 
 mod cbr;
 mod name_cache;
@@ -105,7 +105,7 @@ pub struct CurrencyRate {
 }
 
 pub fn round(amount: Decimal) -> Decimal {
-    amount.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp).normalize()
+    util::round_to(amount, 2)
 }
 
 #[cfg(test)]

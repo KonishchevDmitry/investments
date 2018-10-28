@@ -1,10 +1,12 @@
 use chrono::Duration;
 
 use broker_statement::BrokerStatement;
-use core::GenericResult;
-use currency::CashAssets;
+use core::{EmptyResult, GenericResult};
+use currency::Cash;
 use currency::converter::CurrencyConverter;
+use regulations::{self, Country};
 use types::{Date, Decimal};
+use util;
 
 use super::deposit_emulator::{DepositEmulator, Transaction};
 
@@ -14,72 +16,96 @@ pub struct AverageRateOfReturnCalculator<'a> {
     statement: &'a BrokerStatement,
     currency: &'a str,
     converter: &'a CurrencyConverter,
-    result_date: Date,
+
+    date: Date,
+    country: Country,
+    transactions: Vec<Transaction>,
 }
 
 impl <'a>AverageRateOfReturnCalculator<'a> {
     pub fn calculate(
         statement: &BrokerStatement, currency: &str, converter: &CurrencyConverter
     ) -> GenericResult<Decimal> {
-        let calculator = AverageRateOfReturnCalculator {
+        let mut calculator = AverageRateOfReturnCalculator {
             statement: statement,
             currency: currency,
             converter: converter,
-            result_date: statement.period.1 - Duration::days(1),
+
+            date: statement.period.1 - Duration::days(1),
+            country: regulations::russia(),
+            transactions: Vec::new(),
         };
 
-        let transactions = calculator.get_transactions()?;
-        let result_assets = calculator.get_result_assets()?;
-        let interest = calculator.compare_to_bank_deposit(&transactions, result_assets)?;
+        // TODO: Withdrawals support
+        calculator.process_deposits()?;
+        calculator.process_dividends()?;
+        calculator.transactions.sort_by_key(|assets| assets.date);
 
+        let result_assets = calculator.get_result_assets()?;
+        let (interest, precision) = calculator.compare_to_bank_deposit(result_assets)?;
+
+        debug!(concat!(
+            "Got a result of comparing portfolio performance to bank deposit ",
+            "for {} currency with {}% precision."),
+            currency, util::round_to(precision * dec!(100), 4));
+
+        // FIXME: Total profit
         Ok(interest)
     }
 
-    fn get_transactions(&self) -> GenericResult<Vec<Transaction>> {
+    fn process_deposits(&mut self) -> EmptyResult {
         if self.statement.deposits.is_empty() {
             return Err!("Broker statement contains no deposits");
         }
-
-        // TODO: Withdrawals support
-        let mut transactions = Vec::<Transaction>::new();
 
         for mut deposit in self.statement.deposits.iter().cloned() {
             assert!(deposit.cash.is_positive());
             deposit.cash.amount += self.statement.broker.get_deposit_commission(deposit)?;
             let amount = self.converter.convert_to(deposit.date, deposit.cash, self.currency)?;
 
-            transactions.push(Transaction::new(deposit.date, amount));
+            self.transactions.push(Transaction::new(deposit.date, amount));
         }
 
-        transactions.sort_by_key(|assets| assets.date);
+        Ok(())
+    }
 
-        Ok(transactions)
+    fn process_dividends(&mut self) -> EmptyResult {
+        // Treat tax from dividends as an ordinary deposit which we transfer to the account at tax
+        // payment day.
+
+        for dividend in &self.statement.dividends {
+            let tax_to_pay = Cash::new(
+                self.country.currency, dividend.tax_to_pay(&self.country, self.converter)?);
+
+            let mut tax_payment_date = self.country.get_tax_payment_date(dividend.date);
+            if tax_payment_date > self.date {
+                tax_payment_date = self.date;
+            }
+
+            let deposit_amount = self.converter.convert_to(
+                tax_payment_date, tax_to_pay, self.currency)?;
+
+            self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+        }
+
+        Ok(())
     }
 
     fn get_result_assets(&self) -> GenericResult<Decimal> {
-        // FIXME: Calculate manually, take taxes into account
-        let total_value = CashAssets::new_from_cash(
-            // FIXME: HERE
-            self.statement.period.1 /*- Duration::days(1)*/, self.statement.total_value);
-
-        // FIXME: Take taxes into account
-        let result_assets = self.converter.convert_to(
-            total_value.date, total_value.cash, self.currency)?;
-
-        Ok(result_assets)
+        // FIXME: Calculate manually, take taxes from positions selling into account
+        Ok(self.converter.convert_to(
+            self.date, self.statement.total_value, self.currency)?)
     }
 
-    fn compare_to_bank_deposit(
-        &self, transactions: &Vec<Transaction>, result_assets: Decimal
-    ) -> GenericResult<Decimal> {
+    fn compare_to_bank_deposit(&self, current_assets: Decimal) -> GenericResult<(Decimal, Decimal)> {
         let start_date = self.statement.period.0;
         let start_assets = dec!(0);
 
         let emulate = |interest: Decimal| -> GenericResult<Decimal> {
-            let assets = DepositEmulator::emulate(
-                start_date, start_assets, &transactions, self.result_date, interest)?;
+            let result_assets = DepositEmulator::emulate(
+                start_date, start_assets, &self.transactions, self.date, interest)?;
 
-            let difference = (result_assets - assets).abs();
+            let difference = (current_assets - result_assets).abs();
 
             Ok(difference)
         };
@@ -92,7 +118,7 @@ impl <'a>AverageRateOfReturnCalculator<'a> {
             let increasing_difference = emulate(interest + step)?;
 
             if decreasing_difference > difference && difference < increasing_difference {
-                return Ok(interest);
+                break;
             }
 
             if decreasing_difference < increasing_difference {
@@ -119,6 +145,13 @@ impl <'a>AverageRateOfReturnCalculator<'a> {
             }
         }
 
-        Ok(interest)
+        let precision = difference / current_assets;
+        if precision >= decs!("0.01") {
+            return Err!(concat!(
+                "Failed to compare portfolio performance to bank deposit: ",
+                "got a result with too low precision ({})"), util::round_to(precision, 3));
+        }
+
+        Ok((interest, precision))
     }
 }
