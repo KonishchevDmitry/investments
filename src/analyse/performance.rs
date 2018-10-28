@@ -1,3 +1,4 @@
+use broker_statement::BrokerStatement;
 use core::GenericResult;
 use currency::CashAssets;
 use currency::converter::CurrencyConverter;
@@ -13,17 +14,18 @@ use super::deposit_emulator::{DepositEmulator, Transaction};
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub fn get_average_rate_of_return(
-    deposits: &Vec<CashAssets>, current_assets: CashAssets, currency: &str,
+    statement: &BrokerStatement, current_assets: CashAssets, currency: &str,
     converter: &CurrencyConverter
 ) -> GenericResult<Decimal> {
     let mut transactions = Vec::<Transaction>::new();
 
-    for deposit in deposits {
+    for mut deposit in statement.deposits.iter().cloned() {
         if deposit.date > current_assets.date {
             return Err!("Got a deposit from the future ({})", util::format_date(deposit.date));
         }
 
         assert!(deposit.cash.is_positive());
+        deposit.cash.amount += statement.broker.get_deposit_commission(deposit)?;
         let amount = converter.convert_to(deposit.date, deposit.cash, currency)?;
 
         transactions.push(Transaction::new(deposit.date, amount));

@@ -3,6 +3,7 @@ use std::iter::Iterator;
 
 use csv::{self, StringRecord};
 
+use config::Config;
 use core::GenericResult;
 use currency::Cash;
 use broker_statement::{BrokerInfo, BrokerStatement, BrokerStatementBuilder};
@@ -12,12 +13,6 @@ mod common;
 mod dividends;
 mod parsers;
 mod taxes;
-
-pub fn broker_info() -> BrokerInfo {
-    BrokerInfo {
-        name: "Interactive Brokers",
-    }
-}
 
 enum State {
     None,
@@ -32,9 +27,12 @@ pub struct IbStatementParser {
 }
 
 impl IbStatementParser {
-    pub fn parse(path: &str) -> GenericResult<BrokerStatement> {
+    pub fn parse(config: &Config, path: &str) -> GenericResult<BrokerStatement> {
         let parser = IbStatementParser {
-            statement: BrokerStatementBuilder::new(broker_info()),
+            statement: BrokerStatementBuilder::new(BrokerInfo {
+                name: "Interactive Brokers",
+                config: config.interactive_brokers.clone(),
+            }),
             taxes: HashMap::new(),
             dividends: Vec::new(),
         };
@@ -143,7 +141,8 @@ mod tests {
 
     #[test]
     fn parsing() {
-        let statement = IbStatementParser::parse("testdata/statement.csv").unwrap();
+        let config = Config::mock();
+        let statement = IbStatementParser::parse(&config, "testdata/statement.csv").unwrap();
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);
     }

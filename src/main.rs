@@ -50,15 +50,13 @@ fn main() {
 }
 
 fn run(action: Action, config: Config) -> EmptyResult {
-    let database = db::connect(&config.db_path)?;
-
     match action {
         Action::Analyse(broker_statement_path) =>
-            analyse::analyse(database, &broker_statement_path)?,
+            analyse::analyse(&config, &broker_statement_path)?,
 
         Action::TaxStatement { year, broker_statement_path, tax_statement_path } =>
             tax_statement::generate_tax_statement(
-                database, year, &broker_statement_path,
+                &config, year, &broker_statement_path,
                 tax_statement_path.as_ref().map(String::as_str))?,
     };
 

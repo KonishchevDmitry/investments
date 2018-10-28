@@ -1,17 +1,13 @@
 use std::collections::HashMap;
 
 use core::{EmptyResult, GenericResult};
+use config::BrokerConfig;
 use currency::{self, Cash, CashAssets};
 use currency::converter::CurrencyConverter;
 use regulations::Country;
 use types::{Date, Decimal};
 
 pub mod ib;
-
-#[derive(Debug)]
-pub struct BrokerInfo {
-    pub name: &'static str,
-}
 
 // TODO: Take care of stock splitting
 #[derive(Debug)]
@@ -68,6 +64,27 @@ impl BrokerStatementBuilder {
         };
         debug!("{:#?}", statement);
         return Ok(statement)
+    }
+}
+
+#[derive(Debug)]
+pub struct BrokerInfo {
+    pub name: &'static str,
+    config: BrokerConfig,
+}
+
+impl BrokerInfo {
+    pub fn get_deposit_commission(&self, assets: CashAssets) -> GenericResult<Decimal> {
+        let currency = assets.cash.currency;
+
+        let commission_spec = match self.config.deposit_commissions.get(currency) {
+            Some(commission_spec) => commission_spec,
+            None => return Err!(concat!(
+                "Unable to calculate commission for {} deposit to {}: there is no commission ",
+                "specification in the configuration file"), currency, self.name),
+        };
+
+        Ok(commission_spec.fixed_amount)
     }
 }
 

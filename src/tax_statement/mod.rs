@@ -4,6 +4,7 @@ use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator}
 
 use broker_statement::BrokerStatement;
 use broker_statement::ib::IbStatementParser;
+use config::Config;
 use core::EmptyResult;
 use currency;
 use currency::converter::CurrencyConverter;
@@ -16,14 +17,13 @@ use self::statement::TaxStatement;
 mod statement;
 
 pub fn generate_tax_statement(
-    database: db::Connection, year: i32,
-    broker_statement_path: &str, tax_statement_path: Option<&str>
+    config: &Config, year: i32, broker_statement_path: &str, tax_statement_path: Option<&str>
 ) -> EmptyResult {
     if year > chrono::Local::today().year() {
         return Err!("An attempt to generate tax statement for the future");
     }
 
-    let broker_statement = IbStatementParser::parse(broker_statement_path)?;
+    let broker_statement = IbStatementParser::parse(config, broker_statement_path)?;
 
     let tax_period_start = date!(1, 1, year);
     let tax_period_end = date!(1, 1, year + 1);
@@ -59,6 +59,8 @@ pub fn generate_tax_statement(
     };
 
     {
+        let database = db::connect(&config.db_path)?;
+
         let mut generator = TaxStatementGenerator {
             broker_statement: broker_statement,
             tax_statement: tax_statement.as_mut(),
