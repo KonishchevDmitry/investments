@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
+use chrono::Duration;
+
 use core::{EmptyResult, GenericResult};
 use config::BrokerConfig;
 use currency::{self, Cash, CashAssets};
 use currency::converter::CurrencyConverter;
 use regulations::Country;
 use types::{Date, Decimal};
+use util;
 
 pub mod ib;
 
@@ -21,6 +24,12 @@ pub struct BrokerStatement {
 }
 
 impl BrokerStatement {
+    pub fn format_period(&self) -> String {
+        format!("{} - {}",
+                util::format_date(self.period.0),
+                util::format_date(self.period.1 - Duration::days(1)))
+    }
+
     pub fn get_instrument_name(&self, ticker: &str) -> GenericResult<String> {
         let name = self.instrument_names.get(ticker).ok_or_else(|| format!(
             "Unable to find {:?} instrument name in the broker statement", ticker))?;
@@ -63,22 +72,37 @@ impl BrokerStatementBuilder {
         set_option("starting value", &mut self.starting_value, starting_value)
     }
 
-    fn get(self) -> GenericResult<BrokerStatement> {
-        let starting_value = get_option("starting value", self.starting_value)?;
+    fn get(mut self) -> GenericResult<BrokerStatement> {
+        let period = get_option("statement period", self.period)?;
 
+        let min_date = period.0;
+        let max_date = period.1 - Duration::days(1);
+
+        let starting_value = get_option("starting value", self.starting_value)?;
         if !self.allow_partial && !starting_value.is_zero() {
             return Err!(
                 "Invalid broker statement period: it must start before any activity on the account");
         }
 
+        for deposit in &self.deposits {
+            if deposit.date < min_date || deposit.date > max_date {
+                return Err!("Got a deposit outside of statement period: {}",
+                    util::format_date(deposit.date));
+            }
+        }
+
+        self.deposits.sort_by_key(|deposit| deposit.date);
+        self.dividends.sort_by_key(|dividend| dividend.date);
+
         let statement = BrokerStatement {
             broker: self.broker,
-            period: get_option("statement period", self.period)?,
+            period: period,
             deposits: self.deposits,
             dividends: self.dividends,
             instrument_names: self.instrument_names,
             total_value: get_option("total value", self.total_value)?,
         };
+
         debug!("{:#?}", statement);
         return Ok(statement)
     }

@@ -1,4 +1,4 @@
-use chrono::{self, Datelike, Duration};
+use chrono::{self, Datelike};
 use prettytable::{Table, Row, Cell};
 use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
 
@@ -32,16 +32,14 @@ pub fn generate_tax_statement(
         // Broker statement period more or equal to the tax year period
     } else if tax_period_end > broker_statement.period.0 && tax_period_start < broker_statement.period.1 {
         warn!(concat!(
-            "Period of the specified broker statement ({} - {}) ",
+            "Period of the specified broker statement ({}) ",
             "doesn't fully overlap with the requested tax year ({})."),
-            util::format_date(broker_statement.period.0),
-            util::format_date(broker_statement.period.1 - Duration::days(1)), year);
+            broker_statement.format_period(), year);
     } else {
         return Err!(concat!(
-            "Period of the specified broker statement ({} - {}) ",
+            "Period of the specified broker statement ({}) ",
             "doesn't overlap with the requested tax year ({})"),
-            util::format_date(broker_statement.period.0),
-            util::format_date(broker_statement.period.1 - Duration::days(1)), year);
+            broker_statement.format_period(), year);
     }
 
     let mut tax_statement = match tax_statement_path {
