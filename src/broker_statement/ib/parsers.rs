@@ -34,15 +34,30 @@ impl RecordParser for NetAssetValueParser {
         };
 
         if asset_class == "Cash" || asset_class == "Stock" {
-            let currency = "USD"; // FIXME: Get from statement
-            let amount = Cash::new_from_string(currency, record.get_value("Current Total")?)?;
+            let amount = Cash::new_from_string(
+                parser.currency, record.get_value("Current Total")?)?;
 
             // FIXME: Accumulate in parser?
             // FIXME: Eliminate hacks with Cash type
-            parser.statement.total_value = Some(Cash::new(currency, match parser.statement.total_value {
+            parser.statement.total_value = Some(Cash::new(parser.currency, match parser.statement.total_value {
                 Some(total_amount) => total_amount.amount + amount.amount,
                 None => amount.amount,
             }));
+        }
+
+        Ok(())
+    }
+}
+
+pub struct ChangeInNavParser {}
+
+impl RecordParser for ChangeInNavParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        if record.get_value("Field Name")? == "Starting Value" {
+            let amount = Cash::new_from_string(
+                parser.currency, record.get_value("Field Value")?)?;
+
+            parser.statement.set_starting_value(amount)?;
         }
 
         Ok(())

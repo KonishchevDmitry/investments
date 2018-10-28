@@ -22,17 +22,19 @@ enum State {
 
 pub struct IbStatementParser {
     statement: BrokerStatementBuilder,
+    currency: &'static str,
     taxes: HashMap<taxes::TaxId, Cash>,
     dividends: Vec<dividends::DividendInfo>,
 }
 
 impl IbStatementParser {
-    pub fn parse(config: &Config, path: &str) -> GenericResult<BrokerStatement> {
+    pub fn parse(config: &Config, path: &str, allow_partial: bool) -> GenericResult<BrokerStatement> {
         let parser = IbStatementParser {
             statement: BrokerStatementBuilder::new(BrokerInfo {
                 name: "Interactive Brokers",
                 config: config.interactive_brokers.clone(),
-            }),
+            }, allow_partial),
+            currency: "USD", // TODO: Get from statement
             taxes: HashMap::new(),
             dividends: Vec::new(),
         };
@@ -78,6 +80,7 @@ impl IbStatementParser {
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Net Asset Value" => Box::new(parsers::NetAssetValueParser {}),
+                        "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
                         "Deposits & Withdrawals" => Box::new(parsers::DepositsParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
@@ -142,7 +145,7 @@ mod tests {
     #[test]
     fn parsing() {
         let config = Config::mock();
-        let statement = IbStatementParser::parse(&config, "testdata/statement.csv").unwrap();
+        let statement = IbStatementParser::parse(&config, "testdata/statement.csv", false).unwrap();
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);
     }

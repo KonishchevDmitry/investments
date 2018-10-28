@@ -10,13 +10,17 @@ use super::deposit_emulator::{DepositEmulator, Transaction};
 // FIXME: Support:
 // * Withdrawals
 // * Take taxes into account
-// * Deposit fees
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub fn get_average_rate_of_return(
     statement: &BrokerStatement, current_assets: CashAssets, currency: &str,
     converter: &CurrencyConverter
 ) -> GenericResult<Decimal> {
+    if statement.deposits.is_empty() {
+        return Err!("There are no deposits for broker statement period ({} - {})",
+            util::format_date(statement.period.0), util::format_date(statement.period.1));
+    }
+
     let mut transactions = Vec::<Transaction>::new();
 
     for mut deposit in statement.deposits.iter().cloned() {
@@ -33,8 +37,6 @@ pub fn get_average_rate_of_return(
 
     transactions.sort_by_key(|assets| assets.date);
 
-    // FIXME: Support custom starting point
-    assert_ne!(transactions.len(), 0);
     let start_date = transactions[0].date;
     let start_assets = dec!(0);
 

@@ -10,7 +10,7 @@ pub mod performance;
 
 pub fn analyse(config: &Config, broker_statement_path: &str) -> EmptyResult {
     let database = db::connect(&config.db_path)?;
-    let statement = IbStatementParser::parse(&config, broker_statement_path)?;
+    let statement = IbStatementParser::parse(&config, broker_statement_path, false)?;
     let converter = CurrencyConverter::new(database, false);
     let total_value = CashAssets::new_from_cash(statement.period.1, statement.total_value);
 

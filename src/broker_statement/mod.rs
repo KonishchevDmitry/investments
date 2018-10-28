@@ -30,7 +30,10 @@ impl BrokerStatement {
 
 struct BrokerStatementBuilder {
     broker: BrokerInfo,
+    allow_partial: bool,
+
     period: Option<(Date, Date)>,
+    starting_value: Option<Cash>,
     deposits: Vec<CashAssets>,
     dividends: Vec<Dividend>,
     instrument_names: HashMap<String, String>,
@@ -38,10 +41,13 @@ struct BrokerStatementBuilder {
 }
 
 impl BrokerStatementBuilder {
-    fn new(broker: BrokerInfo) -> BrokerStatementBuilder {
+    fn new(broker: BrokerInfo, allow_partial: bool) -> BrokerStatementBuilder {
         BrokerStatementBuilder {
             broker: broker,
+            allow_partial: allow_partial,
+
             period: None,
+            starting_value: None,
             deposits: Vec::new(),
             dividends: Vec::new(),
             instrument_names: HashMap::new(),
@@ -53,7 +59,18 @@ impl BrokerStatementBuilder {
         set_option("statement period", &mut self.period, period)
     }
 
+    fn set_starting_value(&mut self, starting_value: Cash) -> EmptyResult {
+        set_option("starting value", &mut self.starting_value, starting_value)
+    }
+
     fn get(self) -> GenericResult<BrokerStatement> {
+        let starting_value = get_option("starting value", self.starting_value)?;
+
+        if !self.allow_partial && !starting_value.is_zero() {
+            return Err!(
+                "Invalid broker statement period: it must start before any activity on the account");
+        }
+
         let statement = BrokerStatement {
             broker: self.broker,
             period: get_option("statement period", self.period)?,

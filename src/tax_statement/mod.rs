@@ -23,7 +23,7 @@ pub fn generate_tax_statement(
         return Err!("An attempt to generate tax statement for the future");
     }
 
-    let broker_statement = IbStatementParser::parse(config, broker_statement_path)?;
+    let broker_statement = IbStatementParser::parse(config, broker_statement_path, true)?;
 
     let tax_period_start = date!(1, 1, year);
     let tax_period_end = date!(1, 1, year + 1);
