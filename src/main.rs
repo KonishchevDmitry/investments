@@ -15,6 +15,7 @@ extern crate prettytable;
 extern crate regex;
 extern crate reqwest;
 extern crate rust_decimal;
+extern crate separator;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_xml_rs;
