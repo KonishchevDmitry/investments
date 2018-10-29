@@ -12,7 +12,7 @@ use super::deposit_emulator::{DepositEmulator, Transaction};
 
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
-pub struct AverageRateOfReturnCalculator<'a> {
+pub struct PortfolioPerformanceAnalyser<'a> {
     statement: &'a BrokerStatement,
     currency: &'a str,
     converter: &'a CurrencyConverter,
@@ -22,11 +22,11 @@ pub struct AverageRateOfReturnCalculator<'a> {
     transactions: Vec<Transaction>,
 }
 
-impl <'a>AverageRateOfReturnCalculator<'a> {
-    pub fn calculate(
+impl <'a> PortfolioPerformanceAnalyser<'a> {
+    pub fn analyse(
         statement: &BrokerStatement, currency: &str, converter: &CurrencyConverter
-    ) -> GenericResult<Decimal> {
-        let mut calculator = AverageRateOfReturnCalculator {
+    ) -> GenericResult<(Decimal, Decimal, Decimal)> {
+        let mut analyser = PortfolioPerformanceAnalyser {
             statement: statement,
             currency: currency,
             converter: converter,
@@ -37,20 +37,24 @@ impl <'a>AverageRateOfReturnCalculator<'a> {
         };
 
         // TODO: Withdrawals support
-        calculator.process_deposits()?;
-        calculator.process_dividends()?;
-        calculator.transactions.sort_by_key(|assets| assets.date);
+        analyser.process_deposits()?;
+        analyser.process_dividends()?;
+        analyser.transactions.sort_by_key(|assets| assets.date);
 
-        let result_assets = calculator.get_result_assets()?;
-        let (interest, precision) = calculator.compare_to_bank_deposit(result_assets)?;
+        let mut deposits = dec!(0);
+        for transaction in &analyser.transactions {
+            deposits += transaction.amount;
+        }
+
+        let current_assets = analyser.get_current_assets()?;
+        let (interest, precision) = analyser.compare_to_bank_deposit(current_assets)?;
 
         debug!(concat!(
             "Got a result of comparing portfolio performance to bank deposit ",
             "for {} currency with {}% precision."),
             currency, util::round_to(precision * dec!(100), 4));
 
-        // FIXME: Total profit
-        Ok(interest)
+        Ok((deposits, current_assets, interest))
     }
 
     fn process_deposits(&mut self) -> EmptyResult {
@@ -91,7 +95,7 @@ impl <'a>AverageRateOfReturnCalculator<'a> {
         Ok(())
     }
 
-    fn get_result_assets(&self) -> GenericResult<Decimal> {
+    fn get_current_assets(&self) -> GenericResult<Decimal> {
         // FIXME: Calculate manually, take taxes from positions selling into account
         Ok(self.converter.convert_to(
             self.date, self.statement.total_value, self.currency)?)
