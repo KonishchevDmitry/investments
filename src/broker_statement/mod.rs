@@ -45,6 +45,7 @@ struct BrokerStatementBuilder {
     starting_value: Option<Cash>,
     deposits: Vec<CashAssets>,
     dividends: Vec<Dividend>,
+    open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
     total_value: Option<Cash>,
 }
@@ -59,6 +60,7 @@ impl BrokerStatementBuilder {
             starting_value: None,
             deposits: Vec::new(),
             dividends: Vec::new(),
+            open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
             total_value: None,
         }

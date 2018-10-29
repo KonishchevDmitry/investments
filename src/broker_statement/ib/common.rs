@@ -1,4 +1,5 @@
 use std::iter::Iterator;
+use std::str::FromStr;
 
 use csv::StringRecord;
 
@@ -23,10 +24,17 @@ impl<'a> Record<'a> {
 
         Err!("{:?} record doesn't have {:?} field", self.name, field)
     }
+
+    pub fn parse_value<T: FromStr>(&self, field: &str) -> GenericResult<T> {
+        let value = self.get_value(field)?;
+        Ok(value.parse().map_err(|_| format!(
+            "{:?} field has an invalid value: {:?}", field, value))?)
+    }
 }
 
 pub trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
+    fn skip_data_types(&self) -> Option<&'static [&'static str]> { None }
     fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult;
 }
 

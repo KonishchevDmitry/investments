@@ -13,6 +13,7 @@ mod common;
 mod dividends;
 mod parsers;
 mod taxes;
+mod trades;
 
 enum State {
     None,
@@ -81,6 +82,7 @@ impl IbStatementParser {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Net Asset Value" => Box::new(parsers::NetAssetValueParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
+                        "Open Positions" => Box::new(trades::OpenPositionsParser {}),
                         "Deposits & Withdrawals" => Box::new(parsers::DepositsParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
@@ -89,6 +91,7 @@ impl IbStatementParser {
                     };
 
                     let data_types = parser.data_types();
+                    let skip_data_types = parser.skip_data_types();
 
                     while let Some(result) = records.next() {
                         let record = result?;
@@ -103,6 +106,12 @@ impl IbStatementParser {
                         } else if record.get(1).unwrap() == "Header" {
                             state = Some(State::Header(record));
                             continue 'state;
+                        }
+
+                        if let Some(skip_data_types) = skip_data_types {
+                            if skip_data_types.contains(&record.get(1).unwrap()) {
+                                continue;
+                            }
                         }
 
                         if let Some(data_types) = data_types {
