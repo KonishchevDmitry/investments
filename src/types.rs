@@ -8,6 +8,7 @@ macro_rules! decs {
     }}
 }
 
+// FIXME: Switch to macro provided by the crate
 macro_rules! dec {
     ($value:expr) => (::rust_decimal::Decimal::from($value))
 }

@@ -5,12 +5,13 @@ use regex::Regex;
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use broker_statement::Dividend;
-use broker_statement::ib::IbStatementParser;
-use broker_statement::ib::common::{Record, RecordParser, parse_date};
-use broker_statement::ib::taxes::TaxId;
 use regulations;
 use types::Date;
 use util;
+
+use super::IbStatementParser;
+use super::common::{Record, RecordParser, CashType, parse_date};
+use super::taxes::TaxId;
 
 pub struct DividendInfo {
     date: Date,
@@ -29,7 +30,7 @@ impl RecordParser for DividendsParser {
 
         let date = parse_date(record.get_value("Date")?)?;
         let description = record.get_value("Description")?.to_owned();
-        let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
+        let amount = Cash::new(currency, record.parse_cash("Amount", CashType::StrictlyPositive)?);
 
         parser.dividends.push(DividendInfo {
             date: date,

@@ -78,11 +78,13 @@ impl IbStatementParser {
                 State::Header(record) => {
                     let (name, fields) = parse_header(&record)?;
 
+                    // TODO: Remember seen records and check?
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Net Asset Value" => Box::new(parsers::NetAssetValueParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
                         "Open Positions" => Box::new(trades::OpenPositionsParser {}),
+                        "Trades" => Box::new(trades::TradesParser {}),
                         "Deposits & Withdrawals" => Box::new(parsers::DepositsParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),

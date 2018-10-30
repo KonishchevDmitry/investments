@@ -2,12 +2,13 @@ use std::iter::Iterator;
 
 use chrono::Duration;
 
-use broker_statement::ib::IbStatementParser;
-use broker_statement::ib::common::{Record, RecordParser, parse_date, format_record};
 use core::{EmptyResult, GenericResult};
 use currency::{Cash, CashAssets};
 use types::Date;
 use util;
+
+use super::IbStatementParser;
+use super::common::{Record, RecordParser, CashType, parse_date, format_record};
 
 pub struct StatementInfoParser {}
 
@@ -75,7 +76,7 @@ impl RecordParser for DepositsParser {
 
         // TODO: Distinguish withdrawals from deposits
         let date = parse_date(record.get_value("Settle Date")?)?;
-        let amount = Cash::new_from_string_positive(currency, record.get_value("Amount")?)?;
+        let amount = Cash::new(currency, record.parse_cash("Amount", CashType::StrictlyPositive)?);
 
         parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
 
