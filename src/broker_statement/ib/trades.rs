@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
+use broker_statement::StockBuy;
 use core::EmptyResult;
 use currency::Cash;
-use types::Decimal;
 
 use super::IbStatementParser;
 use super::common::{Record, RecordParser, CashType, parse_time};
@@ -47,26 +45,30 @@ impl RecordParser for TradesParser {
             return Ok(());
         }
 
-        let quantity = record.get_value("Quantity")?.replace(',', "");
-        let quantity = Decimal::from_str(&quantity).map_err(|_| "Invalid quantity")?;
-        if quantity.is_sign_negative() {
+        record.check_value("Asset Category", "Stocks")?;
+
+        let currency = record.get_value("Currency")?;
+        let symbol = record.get_value("Symbol")?;
+        let date = parse_time(record.get_value("Date/Time")?)?.date();
+
+        let quantity: i32 = record.parse_value("Quantity")?;
+        if quantity == 0 {
+            return Err!("Invalid quantity: {}", quantity)
+        } else if quantity < 0 {
             // TODO: Support selling
             return Err!("Position closing is not supported yet");
         }
 
-        record.check_value("Asset Category", "Stocks")?;
+        let price = Cash::new(currency, record.parse_cash("T. Price", CashType::StrictlyPositive)?);
+        let commission = Cash::new(currency, record.parse_cash("Comm/Fee", CashType::NegativeOrZero)?);
 
-        let currency = record.get_value("Currency")?;
-        let ticker = record.get_value("Symbol")?;
-        let date = parse_time(record.get_value("Date/Time")?)?.date();
-        let quantity: u32 = record.parse_value("Quantity")?;
-        let price = Cash::new_from_string_positive(currency, record.get_value("T. Price")?)?;
-
-//        let commission = record.parse_value("Comm/Fee")?;
-//        if commission.is_sign_positive() {
-//            return Err!("Invalid commission: {:?}", commission);
-//        }
-//        let commission = Cash::new(currency, commission);
+        parser.statement.stock_buys.push(StockBuy {
+            date: date,
+            symbol: symbol.to_owned(),
+            quantity: quantity as u32,
+            price: price,
+            commission: commission,
+        });
 
         return Ok(());
     }

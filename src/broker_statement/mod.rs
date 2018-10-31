@@ -30,10 +30,10 @@ impl BrokerStatement {
                 util::format_date(self.period.1 - Duration::days(1)))
     }
 
-    pub fn get_instrument_name(&self, ticker: &str) -> GenericResult<String> {
-        let name = self.instrument_names.get(ticker).ok_or_else(|| format!(
-            "Unable to find {:?} instrument name in the broker statement", ticker))?;
-        Ok(format!("{} ({})", name, ticker))
+    pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
+        let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
+            "Unable to find {:?} instrument name in the broker statement", symbol))?;
+        Ok(format!("{} ({})", name, symbol))
     }
 }
 
@@ -44,6 +44,7 @@ struct BrokerStatementBuilder {
     period: Option<(Date, Date)>,
     starting_value: Option<Cash>,
     deposits: Vec<CashAssets>,
+    stock_buys: Vec<StockBuy>,
     dividends: Vec<Dividend>,
     open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
@@ -59,6 +60,7 @@ impl BrokerStatementBuilder {
             period: None,
             starting_value: None,
             deposits: Vec::new(),
+            stock_buys: Vec::new(),
             dividends: Vec::new(),
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
@@ -86,15 +88,31 @@ impl BrokerStatementBuilder {
                 "Invalid broker statement period: it must start before any activity on the account");
         }
 
+        self.deposits.sort_by_key(|deposit| deposit.date);
+        self.stock_buys.sort_by_key(|transaction| transaction.date);
+        self.dividends.sort_by_key(|dividend| dividend.date);
+
+        let mut open_positions = HashMap::new();
+
+        for stock_buy in &self.stock_buys {
+            if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
+                *position += stock_buy.quantity;
+                continue;
+            }
+
+            open_positions.insert(stock_buy.symbol.clone(), stock_buy.quantity);
+        }
+
+        if open_positions != self.open_positions {
+            return Err!("The calculated open positions don't match the specified in the statement");
+        }
+
         for deposit in &self.deposits {
             if deposit.date < min_date || deposit.date > max_date {
                 return Err!("Got a deposit outside of statement period: {}",
                     util::format_date(deposit.date));
             }
         }
-
-        self.deposits.sort_by_key(|deposit| deposit.date);
-        self.dividends.sort_by_key(|dividend| dividend.date);
 
         let statement = BrokerStatement {
             broker: self.broker,
@@ -129,6 +147,15 @@ impl BrokerInfo {
 
         Ok(commission_spec.fixed_amount)
     }
+}
+
+#[derive(Debug)]
+pub struct StockBuy {
+    pub date: Date,
+    pub symbol: String,
+    pub quantity: u32,
+    pub price: Cash,
+    pub commission: Cash,
 }
 
 #[derive(Debug)]

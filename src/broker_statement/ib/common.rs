@@ -48,12 +48,13 @@ impl<'a> Record<'a> {
     }
 
     pub fn parse_cash(&self, field: &str, cash_type: CashType) -> GenericResult<Decimal> {
-        let value = self.get_value(field)?.replace(',', "");
-        let amount = Decimal::from_str(&value).map_err(|_| format!(
+        let value = self.get_value(field)?;
+        let amount = Decimal::from_str(&value.replace(',', "")).map_err(|_| format!(
             "Invalid amount: {:?}", value))?;
 
         if !match cash_type {
             CashType::NonZero => !amount.is_zero(),
+            CashType::NegativeOrZero => amount.is_sign_negative() || amount.is_zero(),
             CashType::StrictlyPositive => amount.is_sign_positive() && !amount.is_zero(),
         } {
             return Err!("Invalid amount: {:?}", value);
@@ -71,6 +72,7 @@ pub trait RecordParser {
 
 pub enum CashType {
     NonZero,
+    NegativeOrZero,
     StrictlyPositive,
 }
 
