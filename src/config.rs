@@ -13,7 +13,13 @@ pub struct Config {
     #[serde(skip)]
     pub db_path: String,
 
+    pub alphavantage: AlphaVantageConfig,
     pub interactive_brokers: BrokerConfig,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AlphaVantageConfig {
+    pub api_key: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -31,6 +37,9 @@ impl Config {
     pub fn mock() -> Config {
         Config {
             db_path: "/mock".to_owned(),
+            alphavantage: AlphaVantageConfig {
+                api_key: s!("mock"),
+            },
             interactive_brokers: BrokerConfig {
                 deposit_commissions: HashMap::new(),
             },

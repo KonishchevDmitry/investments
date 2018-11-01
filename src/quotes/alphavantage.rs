@@ -11,6 +11,8 @@ use core::GenericResult;
 use currency::Cash;
 use util::{self, DecimalRestrictions};
 
+use super::{QuotesMap, QuotesProvider};
+
 #[cfg(not(test))]
 const BASE_URL: &'static str = "https://www.alphavantage.co";
 
@@ -27,8 +29,10 @@ impl AlphaVantage {
             api_key: token.to_owned(),
         }
     }
+}
 
-    pub fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<HashMap<String, Cash>> {
+impl QuotesProvider for AlphaVantage {
+    fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
         let url = Url::parse_with_params(
             &(BASE_URL.to_owned() + "/query"),
             &[
