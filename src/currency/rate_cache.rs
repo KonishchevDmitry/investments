@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use chrono::{self, Datelike, Duration};
 use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
@@ -8,7 +6,7 @@ use core::{GenericResult, GenericError, EmptyResult};
 use currency::CurrencyRate;
 use db::{self, schema::currency_rates, models};
 use types::{Date, Decimal};
-use util;
+use util::{self, DecimalRestrictions};
 
 pub struct CurrencyRateCache {
     today: Date,
@@ -27,8 +25,7 @@ impl CurrencyRateCache {
 
     #[cfg(test)]
     pub fn new_temporary() -> (NamedTempFile, CurrencyRateCache) {
-        let database = NamedTempFile::new().unwrap();
-        let connection = db::connect(database.path().to_str().unwrap()).unwrap();
+        let (database, connection) = db::new_temporary();
         (database, CurrencyRateCache::new(connection))
     }
 
@@ -50,8 +47,9 @@ impl CurrencyRateCache {
 
             if let Some(cached_price) = result {
                 return Ok(CurrencyRateCacheResult::Exists(match cached_price {
-                    Some(price) => Some(Decimal::from_str(&price).map_err(|_| format!(
-                        "Got an invalid price from the database: {:?}", price))?),
+                    Some(price) => Some(
+                        util::parse_decimal(&price, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
+                            "Got an invalid price from the database: {:?}", price))?),
                     None => None,
                 }));
             }

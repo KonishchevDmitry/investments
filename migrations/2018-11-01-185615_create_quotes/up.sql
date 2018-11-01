@@ -1,0 +1,7 @@
+CREATE TABLE quotes (
+  symbol TEXT NOT NULL,
+  time DATETIME NOT NULL,
+  currency TEXT NOT NULL,
+  price TEXT NOT NULL,
+  PRIMARY KEY (symbol)
+) WITHOUT ROWID

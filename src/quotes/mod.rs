@@ -7,6 +7,7 @@ use currency::Cash;
 use self::alphavantage::AlphaVantage;
 
 mod alphavantage;
+mod cache;
 
 pub struct Quotes {
     providers: Vec<Box<QuotesProvider>>,

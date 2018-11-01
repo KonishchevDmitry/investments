@@ -8,3 +8,12 @@ table! {
         price -> Nullable<Text>,
     }
 }
+
+table! {
+    quotes (symbol) {
+        symbol -> Text,
+        time -> Timestamp,
+        currency -> Text,
+        price -> Text,
+    }
+}
