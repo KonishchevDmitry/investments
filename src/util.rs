@@ -4,7 +4,7 @@ use num_traits::Zero;
 use rust_decimal::RoundingStrategy;
 
 use core::GenericResult;
-use types::{Date, Decimal};
+use types::{Date, DateTime, Decimal};
 
 pub enum DecimalRestrictions {
     NonZero,
@@ -37,4 +37,9 @@ pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
 
 pub fn format_date(date: Date) -> String {
     date.format("%d.%m.%Y").to_string()
+}
+
+pub fn parse_date_time(date_time: &str, format: &str) -> GenericResult<DateTime> {
+    Ok(DateTime::parse_from_str(date_time, format).map_err(|_| format!(
+        "Invalid time: {:?}", date_time))?)
 }

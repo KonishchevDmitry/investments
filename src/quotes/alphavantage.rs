@@ -1,0 +1,202 @@
+use std::collections::HashMap;
+
+#[cfg(not(test))] use chrono;
+use chrono::{DateTime, NaiveDate, TimeZone};
+use chrono_tz::Tz;
+
+#[cfg(test)] use mockito::{self, Mock, mock};
+use reqwest::{Client, Url, Response};
+
+use core::GenericResult;
+use currency::Cash;
+use util::{self, DecimalRestrictions};
+
+#[cfg(not(test))]
+const BASE_URL: &'static str = "https://www.alphavantage.co";
+
+#[cfg(test)]
+const BASE_URL: &'static str = mockito::SERVER_URL;
+
+pub struct AlphaVantage {
+    api_key: String,
+}
+
+impl AlphaVantage {
+    pub fn new(token: &str) -> AlphaVantage {
+        AlphaVantage {
+            api_key: token.to_owned(),
+        }
+    }
+
+    pub fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<HashMap<String, Cash>> {
+        let url = Url::parse_with_params(
+            &(BASE_URL.to_owned() + "/query"),
+            &[
+                ("function", "BATCH_STOCK_QUOTES"),
+                ("symbols", symbols.join(",").as_ref()),
+                ("apikey", self.api_key.as_ref()),
+            ],
+        )?;
+
+        let get = |url| -> GenericResult<HashMap<String, Cash>> {
+            debug!("Getting quotes for the following symbols: {}...", symbols.join(", "));
+
+            let mut response = Client::new().get(url).send()?;
+            if !response.status().is_success() {
+                return Err!("The server returned an error: {}", response.status());
+            }
+
+            Ok(parse_quotes(&mut response).map_err(|e| format!(
+                "Quotes info parsing error: {}", e))?)
+        };
+
+        Ok(get(url.as_str()).map_err(|e| format!(
+            "Failed to get quotes from {}: {}", url, e))?)
+    }
+}
+
+fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>> {
+    #[derive(Deserialize)]
+    struct Response {
+        #[serde(rename = "Meta Data")]
+        metadata: Metadata,
+
+        #[serde(rename = "Stock Quotes")]
+        quotes: Vec<Quote>,
+    }
+
+    #[derive(Deserialize)]
+    struct Metadata {
+        #[serde(rename = "3. Time Zone")]
+        timezone: String,
+    }
+
+    #[derive(Deserialize)]
+    struct Quote {
+        #[serde(rename = "1. symbol")]
+        symbol: String,
+
+        #[serde(rename = "2. price")]
+        price: String,
+
+        #[serde(rename = "4. timestamp")]
+        time: String,
+    }
+
+    let response: Response = response.json()?;
+    let timezone: Tz = response.metadata.timezone.parse().map_err(|_| format!(
+        "Invalid time zone: {:?}", response.metadata.timezone))?;
+
+    let mut quotes = HashMap::new();
+    let mut outdated = Vec::new();
+
+    for quote in response.quotes {
+        let date_time = timezone.datetime_from_str(&quote.time, "%Y-%m-%d %H:%M:%S").map_err(|_| format!(
+            "Invalid time: {:?}", quote.time))?;
+
+        if is_outdated(date_time) {
+            outdated.push(quote.symbol);
+            continue;
+        }
+
+        let price = util::parse_decimal(&quote.price, DecimalRestrictions::StrictlyPositive)
+            .map_err(|_| format!("Invalid price: {:?}", quote.price))?;
+
+        quotes.insert(quote.symbol, Cash::new("USD", price));
+    };
+
+    if !outdated.is_empty() {
+        error!("Got outdated quotes for the following symbols: {}.", outdated.join(", "));
+    }
+
+    Ok(quotes)
+}
+
+#[cfg(not(test))]
+fn is_outdated<T: TimeZone>(date_time: DateTime<T>) -> bool {
+    (chrono::Local::now().naive_utc() - date_time.naive_utc()).num_days() >= 4
+}
+
+#[cfg(test)]
+fn is_outdated<T: TimeZone>(date_time: DateTime<T>) -> bool {
+    date_time.naive_utc() <= NaiveDate::from_ymd(2018, 10, 31).and_hms(16 + 4, 0, 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_quotes() {
+        let _mock = mock_response(
+            "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX&apikey=mock",
+            indoc!(r#"
+                {
+                    "Meta Data": {
+                        "1. Information": "Batch Stock Market Quotes",
+                        "2. Notes": "IEX Real-Time",
+                        "3. Time Zone": "US/Eastern"
+                    },
+                    "Stock Quotes": []
+                }
+            "#)
+        );
+
+        let client = AlphaVantage::new("mock");
+        assert_eq!(client.get_quotes(&vec![s!("BND"), s!("BNDX")]).unwrap(), HashMap::new());
+    }
+
+    #[test]
+    fn quotes() {
+        let _mock = mock_response(
+            "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX%2COUTDATED%2CINVALID&apikey=mock",
+            indoc!(r#"
+                {
+                    "Meta Data": {
+                        "1. Information": "Batch Stock Market Quotes",
+                        "2. Notes": "IEX Real-Time",
+                        "3. Time Zone": "US/Eastern"
+                    },
+                    "Stock Quotes": [
+                        {
+                            "1. symbol": "BND",
+                            "2. price": "77.8650",
+                            "3. volume": "6044682",
+                            "4. timestamp": "2018-10-31 16:00:05"
+                        },
+                        {
+                            "1. symbol": "BNDX",
+                            "2. price": "54.5450",
+                            "3. volume": "977142",
+                            "4. timestamp": "2018-10-31 16:00:08"
+                        },
+                        {
+                            "1. symbol": "OUTDATED",
+                            "2. price": "138.5000",
+                            "3. volume": "4034572",
+                            "4. timestamp": "2018-10-31 16:00:00"
+                        }
+                    ]
+                }
+            "#)
+        );
+
+        let client = AlphaVantage::new("mock");
+
+        let mut quotes = HashMap::new();
+        quotes.insert(s!("BND"), Cash::new("USD", decs!("77.8650")));
+        quotes.insert(s!("BNDX"), Cash::new("USD", decs!("54.5450")));
+
+        assert_eq!(client.get_quotes(&vec![
+            s!("BND"), s!("BNDX"), s!("OUTDATED"), s!("INVALID")
+        ]).unwrap(), quotes);
+    }
+
+    fn mock_response(path: &str, data: &str) -> Mock {
+        return mock("GET", path)
+            .with_status(200)
+            .with_header("Content-Type", "application/json")
+            .with_body(data)
+            .create();
+    }
+}

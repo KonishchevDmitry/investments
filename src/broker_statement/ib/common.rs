@@ -1,12 +1,11 @@
 use std::iter::Iterator;
 use std::str::FromStr;
 
-use chrono::NaiveDateTime;
 use csv::StringRecord;
 
 use broker_statement::ib::IbStatementParser;
 use core::{EmptyResult, GenericResult};
-use types::{Date, Decimal};
+use types::{Date, DateTime, Decimal};
 use util::{self, DecimalRestrictions};
 
 pub struct Record<'a> {
@@ -72,9 +71,8 @@ pub fn parse_date(date: &str) -> GenericResult<Date> {
     util::parse_date(date, "%Y-%m-%d")
 }
 
-pub fn parse_time(time: &str) -> GenericResult<NaiveDateTime> {
-    Ok(NaiveDateTime::parse_from_str(time, "%Y-%m-%d, %H:%M:%S").map_err(|_| format!(
-        "Invalid time: {:?}", time))?)
+pub fn parse_date_time(date_time: &str) -> GenericResult<DateTime> {
+    util::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S")
 }
 
 #[cfg(test)]
@@ -88,6 +86,6 @@ mod tests {
 
     #[test]
     fn time_parsing() {
-        assert_eq!(parse_time("2018-07-31, 13:09:47").unwrap(), date!(31, 7, 2018).and_hms(13, 9, 47));
+        assert_eq!(parse_date_time("2018-07-31, 13:09:47").unwrap(), date!(31, 7, 2018).and_hms(13, 9, 47));
     }
 }

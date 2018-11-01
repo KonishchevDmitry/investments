@@ -5,6 +5,7 @@ authors = ["Dmitry Konishchev"]
 
 [dependencies]
 chrono = "*"
+chrono-tz = "*"
 clap = "*"
 csv = "*"
 diesel = { version = "*", features = ["sqlite", "chrono"] }
@@ -24,7 +25,6 @@ rust_decimal = "*"
 separator = "*"
 serde = "*"
 serde_derive = "*"
-serde_json = "*"
 serde-xml-rs = "*"
 serde_yaml = "*"
 shellexpand = "*"

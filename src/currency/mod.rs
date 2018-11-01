@@ -33,16 +33,6 @@ impl Cash {
             "Invalid cash amount: {:?}", amount))?))
     }
 
-    pub fn new_from_string_positive(currency: &str, amount: &str) -> GenericResult<Cash> {
-        let cash = Cash::new_from_string(currency, amount)?;
-
-        if !cash.is_positive() {
-            return Err!("Invalid cash amount: {:?}", amount);
-        }
-
-        Ok(cash)
-    }
-
     pub fn is_zero(&self) -> bool {
         self.amount.is_zero()
     }
@@ -88,11 +78,6 @@ pub struct CashAssets {
 }
 
 impl CashAssets {
-    #[cfg(test)]
-    pub fn new(date: Date, currency: &str, amount: Decimal) -> CashAssets {
-        CashAssets {date, cash: Cash::new(currency, amount)}
-    }
-
     pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
         CashAssets {date, cash}
     }

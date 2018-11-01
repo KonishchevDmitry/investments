@@ -4,7 +4,7 @@ use currency::Cash;
 use util::DecimalRestrictions;
 
 use super::IbStatementParser;
-use super::common::{Record, RecordParser, parse_time};
+use super::common::{Record, RecordParser, parse_date_time};
 
 pub struct OpenPositionsParser {}
 
@@ -50,7 +50,7 @@ impl RecordParser for TradesParser {
 
         let currency = record.get_value("Currency")?;
         let symbol = record.get_value("Symbol")?;
-        let date = parse_time(record.get_value("Date/Time")?)?.date();
+        let date = parse_date_time(record.get_value("Date/Time")?)?.date();
 
         let quantity: i32 = record.parse_value("Quantity")?;
         if quantity == 0 {

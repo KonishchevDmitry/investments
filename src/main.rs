@@ -1,4 +1,5 @@
 extern crate chrono;
+extern crate chrono_tz;
 extern crate clap;
 extern crate csv;
 #[macro_use] extern crate diesel;
@@ -31,6 +32,7 @@ mod config;
 mod currency;
 mod db;
 mod init;
+mod quotes;
 mod regulations;
 mod tax_statement;
 mod util;
