@@ -1,10 +1,10 @@
 use core::EmptyResult;
 use currency::Cash;
 use types::Date;
-use util;
+use util::{self, DecimalRestrictions};
 
 use super::IbStatementParser;
-use super::common::{Record, RecordParser, CashType, parse_date};
+use super::common::{Record, RecordParser, parse_date};
 
 pub type TaxId = (Date, String);
 
@@ -21,7 +21,8 @@ impl RecordParser for WithholdingTaxParser {
         let description = record.get_value("Description")?.to_owned();
 
         let tax_id = (date, description.clone());
-        let mut tax = Cash::new(currency, record.parse_cash("Amount", CashType::NonZero)?);
+        let mut tax = Cash::new(
+            currency, record.parse_cash("Amount", DecimalRestrictions::NonZero)?);
 
         // Tax amount is represented as a negative number.
         // Positive number is used to cancel a previous tax payment and usually followed by another

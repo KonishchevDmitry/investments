@@ -3,12 +3,11 @@ use std::str::FromStr;
 
 use chrono::NaiveDateTime;
 use csv::StringRecord;
-use num_traits::Zero;
 
 use broker_statement::ib::IbStatementParser;
 use core::{EmptyResult, GenericResult};
 use types::{Date, Decimal};
-use util;
+use util::{self, DecimalRestrictions};
 
 pub struct Record<'a> {
     pub name: &'a str,
@@ -47,20 +46,10 @@ impl<'a> Record<'a> {
             "{:?} field has an invalid value: {:?}", field, value))?)
     }
 
-    pub fn parse_cash(&self, field: &str, cash_type: CashType) -> GenericResult<Decimal> {
+    pub fn parse_cash(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let value = self.get_value(field)?;
-        let amount = Decimal::from_str(&value.replace(',', "")).map_err(|_| format!(
-            "Invalid amount: {:?}", value))?;
-
-        if !match cash_type {
-            CashType::NonZero => !amount.is_zero(),
-            CashType::NegativeOrZero => amount.is_sign_negative() || amount.is_zero(),
-            CashType::StrictlyPositive => amount.is_sign_positive() && !amount.is_zero(),
-        } {
-            return Err!("Invalid amount: {:?}", value);
-        }
-
-        Ok(amount)
+        Ok(util::parse_decimal(&value.replace(',', ""), restrictions).map_err(|_| format!(
+            "Invalid amount: {:?}", value))?)
     }
 }
 
@@ -68,12 +57,6 @@ pub trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
     fn skip_data_types(&self) -> Option<&'static [&'static str]> { None }
     fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult;
-}
-
-pub enum CashType {
-    NonZero,
-    NegativeOrZero,
-    StrictlyPositive,
 }
 
 pub fn format_record<'a, I>(iter: I) -> String

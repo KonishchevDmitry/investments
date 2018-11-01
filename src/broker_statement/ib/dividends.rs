@@ -7,10 +7,10 @@ use currency::Cash;
 use broker_statement::Dividend;
 use regulations;
 use types::Date;
-use util;
+use util::{self, DecimalRestrictions};
 
 use super::IbStatementParser;
-use super::common::{Record, RecordParser, CashType, parse_date};
+use super::common::{Record, RecordParser, parse_date};
 use super::taxes::TaxId;
 
 pub struct DividendInfo {
@@ -30,7 +30,8 @@ impl RecordParser for DividendsParser {
 
         let date = parse_date(record.get_value("Date")?)?;
         let description = record.get_value("Description")?.to_owned();
-        let amount = Cash::new(currency, record.parse_cash("Amount", CashType::StrictlyPositive)?);
+        let amount = Cash::new(
+            currency, record.parse_cash("Amount", DecimalRestrictions::StrictlyPositive)?);
 
         parser.dividends.push(DividendInfo {
             date: date,

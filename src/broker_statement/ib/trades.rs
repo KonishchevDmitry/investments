@@ -1,9 +1,10 @@
 use broker_statement::StockBuy;
 use core::EmptyResult;
 use currency::Cash;
+use util::DecimalRestrictions;
 
 use super::IbStatementParser;
-use super::common::{Record, RecordParser, CashType, parse_time};
+use super::common::{Record, RecordParser, parse_time};
 
 pub struct OpenPositionsParser {}
 
@@ -59,8 +60,10 @@ impl RecordParser for TradesParser {
             return Err!("Position closing is not supported yet");
         }
 
-        let price = Cash::new(currency, record.parse_cash("T. Price", CashType::StrictlyPositive)?);
-        let commission = Cash::new(currency, record.parse_cash("Comm/Fee", CashType::NegativeOrZero)?);
+        let price = Cash::new(
+            currency, record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?);
+        let commission = Cash::new(
+            currency, record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?);
 
         parser.statement.stock_buys.push(StockBuy {
             date: date,

@@ -5,10 +5,10 @@ use chrono::Duration;
 use core::{EmptyResult, GenericResult};
 use currency::{Cash, CashAssets};
 use types::Date;
-use util;
+use util::{self, DecimalRestrictions};
 
 use super::IbStatementParser;
-use super::common::{Record, RecordParser, CashType, parse_date, format_record};
+use super::common::{Record, RecordParser, parse_date, format_record};
 
 pub struct StatementInfoParser {}
 
@@ -76,7 +76,8 @@ impl RecordParser for DepositsParser {
 
         // TODO: Distinguish withdrawals from deposits
         let date = parse_date(record.get_value("Settle Date")?)?;
-        let amount = Cash::new(currency, record.parse_cash("Amount", CashType::StrictlyPositive)?);
+        let amount = Cash::new(
+            currency, record.parse_cash("Amount", DecimalRestrictions::StrictlyPositive)?);
 
         parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
 
