@@ -43,7 +43,7 @@ impl CurrencyRateCache {
                 .select(currency_rates::price)
                 .filter(currency_rates::currency.eq(currency))
                 .filter(currency_rates::date.eq(&date))
-                .get_result::<Option<String>>(&self.db).optional()?;
+                .get_result::<Option<String>>(&*self.db).optional()?;
 
             if let Some(cached_price) = result {
                 return Ok(CurrencyRateCacheResult::Exists(match cached_price {
@@ -64,7 +64,7 @@ impl CurrencyRateCache {
                 .filter(currency_rates::date.le(year_end))
                 .order(currency_rates::date.desc())
                 .limit(1)
-                .get_result::<Date>(&self.db).optional()?;
+                .get_result::<Date>(&*self.db).optional()?;
 
             let start_date = match last_date {
                 Some(last_date) => last_date + Duration::days(1),
@@ -130,7 +130,7 @@ impl CurrencyRateCache {
 
         diesel::replace_into(currency_rates::table)
             .values(&values)
-            .execute(&self.db)?;
+            .execute(&*self.db)?;
 
         Ok(())
     }

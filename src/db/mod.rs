@@ -1,4 +1,6 @@
-use diesel::{Connection as ConnectionTrait};
+use std::rc::Rc;
+
+use diesel::{Connection as ConnectionTrait, SqliteConnection};
 #[cfg(test)] use tempfile::NamedTempFile;
 
 use core::GenericResult;
@@ -6,18 +8,18 @@ use core::GenericResult;
 pub mod models;
 pub mod schema;
 
-pub use diesel::SqliteConnection as Connection;
+pub type Connection = Rc<SqliteConnection>;
 
 embed_migrations!();
 
 pub fn connect(url: &str) -> GenericResult<Connection> {
-    let connection = Connection::establish(url).map_err(|e| format!(
+    let connection = SqliteConnection::establish(url).map_err(|e| format!(
         "Unable to open {:?} database: {}", url, e))?;
 
     embedded_migrations::run(&connection).map_err(|e| format!(
         "Failed to prepare the database: {}", e))?;
 
-    Ok(connection)
+    Ok(Rc::new(connection))
 }
 
 #[cfg(test)]
