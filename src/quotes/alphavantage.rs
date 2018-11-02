@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 #[cfg(not(test))] use chrono;
-use chrono::{DateTime, NaiveDate, TimeZone};
+#[cfg(test)] use chrono::NaiveDate;
+use chrono::{DateTime, TimeZone};
 use chrono_tz::Tz;
 
 #[cfg(test)] use mockito::{self, Mock, mock};

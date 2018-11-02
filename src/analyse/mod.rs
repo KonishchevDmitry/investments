@@ -6,6 +6,7 @@ use config::Config;
 use core::EmptyResult;
 use currency::converter::CurrencyConverter;
 use db;
+use quotes::Quotes;
 use util;
 
 use self::performance::PortfolioPerformanceAnalyser;
@@ -15,8 +16,11 @@ mod performance;
 
 pub fn analyse(config: &Config, broker_statement_path: &str) -> EmptyResult {
     let database = db::connect(&config.db_path)?;
+    let converter = CurrencyConverter::new(database.clone(), false);
+
     let statement = IbStatementParser::parse(&config, broker_statement_path, false)?;
-    let converter = CurrencyConverter::new(database, false);
+
+    let mut quotes = Quotes::new(&config, database.clone());
 
     println!("Portfolio performance:");
 

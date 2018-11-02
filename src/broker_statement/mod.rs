@@ -30,6 +30,11 @@ impl BrokerStatement {
                 util::format_date(self.period.1 - Duration::days(1)))
     }
 
+    // FIXME
+    pub fn symbols(&self) -> Vec<String> {
+        self.instrument_names.iter().map(|item| item.0.to_owned()).collect()
+    }
+
     pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
         let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
             "Unable to find {:?} instrument name in the broker statement", symbol))?;

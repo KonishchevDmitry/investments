@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::cell::RefCell;
+#[cfg(test)] use std::cell::RefCell;
 
 use config::Config;
 use core::GenericResult;
