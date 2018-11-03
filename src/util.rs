@@ -10,6 +10,7 @@ use types::{Date, DateTime, Decimal};
 pub enum DecimalRestrictions {
     NonZero,
     NegativeOrZero,
+    PositiveOrZero,
     StrictlyPositive,
 }
 
@@ -19,6 +20,7 @@ pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> Generic
     if !match restrictions {
         DecimalRestrictions::NonZero => !value.is_zero(),
         DecimalRestrictions::NegativeOrZero => value.is_sign_negative() || value.is_zero(),
+        DecimalRestrictions::PositiveOrZero => value.is_sign_positive() || value.is_zero(),
         DecimalRestrictions::StrictlyPositive => value.is_sign_positive() && !value.is_zero(),
     } {
         return Err!("The value doesn't comply to the specified restrictions");

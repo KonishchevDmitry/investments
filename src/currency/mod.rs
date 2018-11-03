@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use std::ops::{Mul, Div, Neg};
@@ -96,6 +97,40 @@ impl CashAssets {
 pub struct CurrencyRate {
     date: Date,
     price: Decimal,
+}
+
+#[derive(Debug)]
+pub struct MultiCurrencyCashAccount {
+    assets: HashMap<&'static str, Decimal>,
+}
+
+impl MultiCurrencyCashAccount {
+    pub fn new() -> MultiCurrencyCashAccount {
+        MultiCurrencyCashAccount {
+            assets: HashMap::new(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.assets.is_empty()
+    }
+
+    pub fn has_assets(&self, currency: &str) -> bool {
+        self.assets.get(currency).is_some()
+    }
+
+    pub fn deposit(&mut self, amount: Cash) {
+        if let Some(assets) = self.assets.get_mut(amount.currency) {
+            *assets += amount.amount;
+            return;
+        }
+
+        self.assets.insert(amount.currency, amount.amount);
+    }
+
+    pub fn withdraw(&mut self, amount: Cash) {
+        self.deposit(-amount)
+    }
 }
 
 pub fn round(amount: Decimal) -> Decimal {

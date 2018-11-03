@@ -5,7 +5,7 @@ use chrono::Duration;
 
 use core::{EmptyResult, GenericResult};
 use config::BrokerConfig;
-use currency::{self, Cash, CashAssets};
+use currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
 use currency::converter::CurrencyConverter;
 use quotes::Quotes;
 use regulations::Country;
@@ -19,13 +19,18 @@ pub mod ib;
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
+
     pub deposits: Vec<CashAssets>,
+    cash_assets: MultiCurrencyCashAccount,
+
     stock_buys: Vec<StockBuy>,
     stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
+
     open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
-    pub total_value: Cash,
+
+    pub total_value: Cash, // FIXME: Deprecate
 }
 
 impl BrokerStatement {
@@ -123,13 +128,18 @@ struct BrokerStatementBuilder {
     allow_partial: bool,
 
     period: Option<(Date, Date)>,
+
     starting_value: Option<Cash>,
     deposits: Vec<CashAssets>,
+    cash_assets: MultiCurrencyCashAccount,
+
     stock_buys: Vec<StockBuy>,
     stock_sells: Vec<StockSell>,
     dividends: Vec<Dividend>,
+
     open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
+
     total_value: Option<Cash>,
 }
 
@@ -140,13 +150,18 @@ impl BrokerStatementBuilder {
             allow_partial: allow_partial,
 
             period: None,
+
             starting_value: None,
             deposits: Vec::new(),
+            cash_assets: MultiCurrencyCashAccount::new(),
+
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
             dividends: Vec::new(),
+
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
+
             total_value: None,
         }
     }
@@ -169,6 +184,10 @@ impl BrokerStatementBuilder {
         if !self.allow_partial && !starting_value.is_zero() {
             return Err!(
                 "Invalid broker statement period: it must start before any activity on the account");
+        }
+
+        if self.cash_assets.is_empty() {
+            return Err!("Unable to find any information about current cash assets");
         }
 
         self.deposits.sort_by_key(|deposit| deposit.date);
@@ -201,12 +220,17 @@ impl BrokerStatementBuilder {
         let statement = BrokerStatement {
             broker: self.broker,
             period: period,
+
             deposits: self.deposits,
+            cash_assets: self.cash_assets,
+
             stock_buys: self.stock_buys,
             stock_sells: self.stock_sells,
             dividends: self.dividends,
+
             open_positions: self.open_positions,
             instrument_names: self.instrument_names,
+
             total_value: get_option("total value", self.total_value)?,
         };
 

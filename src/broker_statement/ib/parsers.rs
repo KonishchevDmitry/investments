@@ -65,6 +65,30 @@ impl RecordParser for ChangeInNavParser {
     }
 }
 
+pub struct CashReportParser {}
+
+impl RecordParser for CashReportParser {
+    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+        let currency = record.get_value("Currency")?;
+        if currency == "Base Currency Summary" ||
+            record.get_value("Currency Summary")? != "Ending Cash" {
+            return Ok(());
+        }
+
+        if parser.statement.cash_assets.has_assets(currency) {
+            return Err!("Got duplicated {} assets", currency);
+        }
+
+        record.check_value("Futures", "0")?;
+        record.check_value("Total", record.get_value("Securities")?)?;
+
+        let amount = record.parse_cash("Total", DecimalRestrictions::PositiveOrZero)?;
+        parser.statement.cash_assets.deposit(Cash::new(currency, amount));
+
+        Ok(())
+    }
+}
+
 pub struct DepositsParser {}
 
 impl RecordParser for DepositsParser {
