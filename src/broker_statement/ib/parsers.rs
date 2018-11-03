@@ -24,32 +24,6 @@ impl RecordParser for StatementInfoParser {
     }
 }
 
-pub struct NetAssetValueParser {}
-
-impl RecordParser for NetAssetValueParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
-        let asset_class = match record.get_value("Asset Class") {
-            // FIXME: We should be able to handle data with different headers somehow
-            Err(_) => return Ok(()),
-            Ok(asset_class) => asset_class,
-        };
-
-        if asset_class == "Cash" || asset_class == "Stock" {
-            let amount = Cash::new_from_string(
-                parser.currency, record.get_value("Current Total")?)?;
-
-            // FIXME: Accumulate in parser?
-            // FIXME: Eliminate hacks with Cash type
-            parser.statement.total_value = Some(Cash::new(parser.currency, match parser.statement.total_value {
-                Some(total_amount) => total_amount.amount + amount.amount,
-                None => amount.amount,
-            }));
-        }
-
-        Ok(())
-    }
-}
-
 pub struct ChangeInNavParser {}
 
 impl RecordParser for ChangeInNavParser {

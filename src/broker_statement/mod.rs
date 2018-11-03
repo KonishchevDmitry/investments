@@ -21,16 +21,14 @@ pub struct BrokerStatement {
     pub period: (Date, Date),
 
     pub deposits: Vec<CashAssets>,
-    cash_assets: MultiCurrencyCashAccount,
+    pub cash_assets: MultiCurrencyCashAccount,
 
     stock_buys: Vec<StockBuy>,
     stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
-    open_positions: HashMap<String, u32>,
+    pub open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
-
-    pub total_value: Cash, // FIXME: Deprecate
 }
 
 impl BrokerStatement {
@@ -47,7 +45,7 @@ impl BrokerStatement {
     }
 
     pub fn batch_quotes(&self, quotes: &mut Quotes) {
-        for (symbol, _) in self.instrument_names.iter() {
+        for (symbol, _) in &self.instrument_names {
             quotes.batch(&symbol);
         }
     }
@@ -99,6 +97,8 @@ impl BrokerStatement {
                 continue;
             }
 
+            self.cash_assets.deposit(stock_sell.price * stock_sell.quantity);
+            self.cash_assets.withdraw(stock_sell.commission);
             self.stock_sells.push(stock_sell);
         }
 
@@ -139,8 +139,6 @@ struct BrokerStatementBuilder {
 
     open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
-
-    total_value: Option<Cash>,
 }
 
 impl BrokerStatementBuilder {
@@ -161,8 +159,6 @@ impl BrokerStatementBuilder {
 
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
-
-            total_value: None,
         }
     }
 
@@ -230,8 +226,6 @@ impl BrokerStatementBuilder {
 
             open_positions: self.open_positions,
             instrument_names: self.instrument_names,
-
-            total_value: get_option("total value", self.total_value)?,
         };
 
         debug!("{:#?}", statement);

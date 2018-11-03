@@ -9,6 +9,8 @@ use core::GenericResult;
 use types::{Date, Decimal};
 use util;
 
+use self::converter::CurrencyConverter;
+
 mod cbr;
 mod name_cache;
 mod rate_cache;
@@ -130,6 +132,17 @@ impl MultiCurrencyCashAccount {
 
     pub fn withdraw(&mut self, amount: Cash) {
         self.deposit(-amount)
+    }
+
+    pub fn total_assets(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+        let mut total_assets = dec!(0);
+
+        for (other_currency, amount) in &self.assets {
+            let assets = Cash::new(other_currency, *amount);
+            total_assets += converter.convert_to(util::today(), assets, currency)?;
+        }
+
+        Ok(total_assets)
     }
 }
 

@@ -21,6 +21,7 @@ pub fn analyse(config: &Config, broker_statement_path: &str) -> EmptyResult {
 
     let mut statement = IbStatementParser::parse(&config, broker_statement_path, false)?;
     statement.batch_quotes(&mut quotes);
+    // FIXME: Take taxes into account
     statement.emulate_sellout(&mut quotes)?;
 
     println!("Portfolio performance:");

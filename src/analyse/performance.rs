@@ -46,7 +46,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             deposits += transaction.amount;
         }
 
-        let current_assets = analyser.get_current_assets()?;
+        // FIXME: Take taxes from positions selling into account
+        // Assume that the caller has simulated sellout and just check it here
+        if !statement.open_positions.is_empty() {
+            return Err!("Unable to calculate current assets: The broker statement has open positions");
+        }
+
+        // FIXME: date
+        let current_assets = statement.cash_assets.total_assets(currency, converter)?;
         let (interest, precision) = analyser.compare_to_bank_deposit(current_assets)?;
 
         debug!(concat!(
@@ -93,12 +100,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         Ok(())
-    }
-
-    fn get_current_assets(&self) -> GenericResult<Decimal> {
-        // FIXME: Calculate manually, take taxes from positions selling into account
-        Ok(self.converter.convert_to(
-            self.date, self.statement.total_value, self.currency)?)
     }
 
     fn compare_to_bank_deposit(&self, current_assets: Decimal) -> GenericResult<(Decimal, Decimal)> {

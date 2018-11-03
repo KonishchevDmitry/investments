@@ -81,7 +81,6 @@ impl IbStatementParser {
                     // TODO: Remember seen records and check?
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
-                        "Net Asset Value" => Box::new(parsers::NetAssetValueParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
                         "Cash Report" => Box::new(parsers::CashReportParser {}),
                         "Open Positions" => Box::new(trades::OpenPositionsParser {}),
