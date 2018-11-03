@@ -1,4 +1,4 @@
-use chrono::{self, Datelike, Duration};
+use chrono::{Datelike, Duration};
 use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
 
@@ -15,10 +15,8 @@ pub struct CurrencyRateCache {
 
 impl CurrencyRateCache {
     pub fn new(connection: db::Connection) -> CurrencyRateCache {
-        let today = chrono::Local::today();
-
         CurrencyRateCache {
-            today: Date::from_ymd(today.year(), today.month(), today.day()),
+            today: util::today(),
             db: connection,
         }
     }

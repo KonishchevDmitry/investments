@@ -17,10 +17,11 @@ mod performance;
 pub fn analyse(config: &Config, broker_statement_path: &str) -> EmptyResult {
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database.clone(), false);
-
-    let statement = IbStatementParser::parse(&config, broker_statement_path, false)?;
-
     let mut quotes = Quotes::new(&config, database.clone());
+
+    let mut statement = IbStatementParser::parse(&config, broker_statement_path, false)?;
+    statement.batch_quotes(&mut quotes);
+    statement.emulate_sellout(&mut quotes)?;
 
     println!("Portfolio performance:");
 

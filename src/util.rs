@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use chrono;
 use num_traits::Zero;
 use rust_decimal::RoundingStrategy;
 
@@ -28,6 +29,10 @@ pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> Generic
 
 pub fn round_to(value: Decimal, points: u32) -> Decimal {
     value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp).normalize()
+}
+
+pub fn today() -> Date {
+    chrono::Local::today().naive_local()
 }
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {

@@ -1,4 +1,4 @@
-use chrono::{self, Datelike};
+use chrono::Datelike;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
 
@@ -19,7 +19,7 @@ mod statement;
 pub fn generate_tax_statement(
     config: &Config, year: i32, broker_statement_path: &str, tax_statement_path: Option<&str>
 ) -> EmptyResult {
-    if year > chrono::Local::today().year() {
+    if year > util::today().year() {
         return Err!("An attempt to generate tax statement for the future");
     }
 

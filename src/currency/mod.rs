@@ -1,6 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
-use std::ops::{Mul, Neg};
+use std::ops::{Mul, Div, Neg};
 
 use num_traits::identities::Zero;
 
@@ -56,11 +56,20 @@ impl Neg for Cash {
     }
 }
 
-impl Mul<Decimal> for Cash {
+impl<T> Mul<T> for Cash where T: Into<Decimal> {
     type Output = Cash;
 
-    fn mul(mut self, rhs: Decimal) -> Cash {
-        self.amount *= rhs;
+    fn mul(mut self, rhs: T) -> Cash {
+        self.amount *= rhs.into();
+        self
+    }
+}
+
+impl<T> Div<T> for Cash where T: Into<Decimal> {
+    type Output = Cash;
+
+    fn div(mut self, rhs: T) -> Cash {
+        self.amount /= rhs.into();
         self
     }
 }

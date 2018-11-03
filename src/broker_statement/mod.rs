@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std;
+use std::collections::{HashMap, HashSet};
 
 use chrono::Duration;
 
@@ -6,6 +7,7 @@ use core::{EmptyResult, GenericResult};
 use config::BrokerConfig;
 use currency::{self, Cash, CashAssets};
 use currency::converter::CurrencyConverter;
+use quotes::Quotes;
 use regulations::Country;
 use types::{Date, Decimal};
 use util;
@@ -18,8 +20,11 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
     pub deposits: Vec<CashAssets>,
+    stock_buys: Vec<StockBuy>,
+    stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
-    pub instrument_names: HashMap<String, String>,
+    open_positions: HashMap<String, u32>,
+    instrument_names: HashMap<String, String>,
     pub total_value: Cash,
 }
 
@@ -30,15 +35,86 @@ impl BrokerStatement {
                 util::format_date(self.period.1 - Duration::days(1)))
     }
 
-    // FIXME
-    pub fn symbols(&self) -> Vec<String> {
-        self.instrument_names.iter().map(|item| item.0.to_owned()).collect()
-    }
-
     pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
         let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
             "Unable to find {:?} instrument name in the broker statement", symbol))?;
         Ok(format!("{} ({})", name, symbol))
+    }
+
+    pub fn batch_quotes(&self, quotes: &mut Quotes) {
+        for (symbol, _) in self.instrument_names.iter() {
+            quotes.batch(&symbol);
+        }
+    }
+
+    pub fn emulate_sellout(&mut self, quotes: &mut Quotes) -> EmptyResult {
+        let today = util::today();
+        let mut unsold_stocks = HashSet::new();
+
+        for (symbol, mut quantity) in self.open_positions.drain() {
+            let price = quotes.get(&symbol)?;
+            let mut stock_sell = StockSell {
+                date: today,
+                symbol: symbol,
+                quantity: quantity,
+                price: price,
+                commission: Cash::new("USD", dec!(1)),  // FIXME: Get from broker info
+                sources: Vec::new(),
+            };
+
+            for stock_buy in self.stock_buys.iter_mut() {
+                if stock_buy.symbol != stock_sell.symbol {
+                    continue;
+                }
+
+                let available = stock_buy.quantity - stock_buy.sold;
+                if available <= 0 {
+                    continue;
+                }
+
+                let sell_quantity = std::cmp::min(quantity, available);
+
+                stock_sell.sources.push(StockSellSource {
+                    date: stock_buy.date,
+                    quantity: sell_quantity,
+                    price: stock_buy.price,
+                    commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
+                });
+
+                quantity -= sell_quantity;
+                stock_buy.sold += sell_quantity;
+
+                if quantity <= 0 {
+                    break;
+                }
+            }
+
+            if quantity > 0 {
+                unsold_stocks.insert(stock_sell.symbol);
+                continue;
+            }
+
+            self.stock_sells.push(stock_sell);
+        }
+
+        if !unsold_stocks.is_empty() {
+            return Err!(
+                "Failed to emulate sellout: Unable to sell {}: Not enough buy transactions.",
+                unsold_stocks.drain().map(|symbol| symbol.to_owned()).collect::<Vec<_>>().join(", "));
+        }
+
+        for stock_buy in &self.stock_buys {
+            if stock_buy.sold != stock_buy.quantity {
+                unsold_stocks.insert(stock_buy.symbol.clone());
+            }
+        }
+
+        if !unsold_stocks.is_empty() {
+            return Err!("Failed to emulate sellout: The following stocks remain unsold: {}.",
+                unsold_stocks.drain().map(|symbol| symbol.to_owned()).collect::<Vec<_>>().join(", "));
+        }
+
+        Ok(())
     }
 }
 
@@ -50,6 +126,7 @@ struct BrokerStatementBuilder {
     starting_value: Option<Cash>,
     deposits: Vec<CashAssets>,
     stock_buys: Vec<StockBuy>,
+    stock_sells: Vec<StockSell>,
     dividends: Vec<Dividend>,
     open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
@@ -66,6 +143,7 @@ impl BrokerStatementBuilder {
             starting_value: None,
             deposits: Vec::new(),
             stock_buys: Vec::new(),
+            stock_sells: Vec::new(),
             dividends: Vec::new(),
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
@@ -95,6 +173,7 @@ impl BrokerStatementBuilder {
 
         self.deposits.sort_by_key(|deposit| deposit.date);
         self.stock_buys.sort_by_key(|transaction| transaction.date);
+        self.stock_sells.sort_by_key(|transaction| transaction.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
 
         let mut open_positions = HashMap::new();
@@ -123,7 +202,10 @@ impl BrokerStatementBuilder {
             broker: self.broker,
             period: period,
             deposits: self.deposits,
+            stock_buys: self.stock_buys,
+            stock_sells: self.stock_sells,
             dividends: self.dividends,
+            open_positions: self.open_positions,
             instrument_names: self.instrument_names,
             total_value: get_option("total value", self.total_value)?,
         };
@@ -156,11 +238,31 @@ impl BrokerInfo {
 
 #[derive(Debug)]
 pub struct StockBuy {
-    pub date: Date,
-    pub symbol: String,
-    pub quantity: u32,
-    pub price: Cash,
-    pub commission: Cash,
+    date: Date,
+    symbol: String,
+    quantity: u32,
+    price: Cash,
+    commission: Cash,
+
+    sold: u32,
+}
+
+#[derive(Debug)]
+pub struct StockSell {
+    date: Date,
+    symbol: String,
+    quantity: u32,
+    price: Cash,
+    commission: Cash,
+    sources: Vec<StockSellSource>,
+}
+
+#[derive(Debug)]
+pub struct StockSellSource {
+    date: Date,
+    quantity: u32,
+    price: Cash,
+    commission: Cash,
 }
 
 #[derive(Debug)]

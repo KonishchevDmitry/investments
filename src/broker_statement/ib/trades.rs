@@ -71,6 +71,7 @@ impl RecordParser for TradesParser {
             quantity: quantity as u32,
             price: price,
             commission: commission,
+            sold: 0,
         });
 
         return Ok(());
