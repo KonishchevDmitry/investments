@@ -1,7 +1,8 @@
 use core::EmptyResult;
 use currency::Cash;
+use formatting;
 use types::Date;
-use util::{self, DecimalRestrictions};
+use util::DecimalRestrictions;
 
 use super::IbStatementParser;
 use super::common::{Record, RecordParser, parse_date};
@@ -38,7 +39,7 @@ impl RecordParser for WithholdingTaxParser {
 
         if let Some(_) = parser.taxes.insert(tax_id, tax) {
             return Err!("Got a duplicate withholding tax: {} / {:?}",
-                util::format_date(date), description);
+                formatting::format_date(date), description);
         }
 
         Ok(())

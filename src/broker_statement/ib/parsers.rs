@@ -4,6 +4,7 @@ use chrono::Duration;
 
 use core::{EmptyResult, GenericResult};
 use currency::{Cash, CashAssets};
+use formatting;
 use types::Date;
 use util::{self, DecimalRestrictions};
 
@@ -125,7 +126,7 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
 
             if start > end {
                 return Err!("Invalid period: {} - {}",
-                    util::format_date(start), util::format_date(end));
+                    formatting::format_date(start), formatting::format_date(end));
             }
 
             (start, end + Duration::days(1))

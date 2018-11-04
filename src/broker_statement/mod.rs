@@ -7,6 +7,7 @@ use brokers::BrokerInfo;
 use core::{EmptyResult, GenericResult};
 use currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
 use currency::converter::CurrencyConverter;
+use formatting;
 use quotes::Quotes;
 use regulations::Country;
 use types::{Date, Decimal};
@@ -34,8 +35,8 @@ pub struct BrokerStatement {
 impl BrokerStatement {
     pub fn format_period(&self) -> String {
         format!("{} - {}",
-                util::format_date(self.period.0),
-                util::format_date(self.period.1 - Duration::days(1)))
+                formatting::format_date(self.period.0),
+                formatting::format_date(self.period.1 - Duration::days(1)))
     }
 
     pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
@@ -209,7 +210,7 @@ impl BrokerStatementBuilder {
         for deposit in &self.deposits {
             if deposit.date < min_date || deposit.date > max_date {
                 return Err!("Got a deposit outside of statement period: {}",
-                    util::format_date(deposit.date));
+                    formatting::format_date(deposit.date));
             }
         }
 

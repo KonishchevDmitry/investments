@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use prettytable::{Table, Row, Cell};
-use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
+use prettytable::format::{Alignment, FormatBuilder};
 
 use broker_statement::BrokerStatement;
 use broker_statement::ib::IbStatementParser;
@@ -9,6 +9,7 @@ use core::EmptyResult;
 use currency;
 use currency::converter::CurrencyConverter;
 use db;
+use formatting;
 use regulations;
 use util;
 
@@ -130,7 +131,7 @@ impl<'a> TaxStatementGenerator<'a> {
             total_income += income;
 
             table.add_row(Row::new(vec![
-                Cell::new_align(&util::format_date(dividend.date), Alignment::CENTER),
+                Cell::new_align(&formatting::format_date(dividend.date), Alignment::CENTER),
                 Cell::new_align(&issuer, Alignment::LEFT),
                 Cell::new_align(currency, Alignment::CENTER),
 
@@ -181,7 +182,7 @@ impl<'a> TaxStatementGenerator<'a> {
 
             table.set_format(FormatBuilder::new().padding(1, 1).build());
 
-            print_statement(
+            formatting::print_statement(
                 &format!("Расчет дохода от дивидендов, полученных через {}",
                          self.broker_statement.broker.name),
                 table,
@@ -190,22 +191,4 @@ impl<'a> TaxStatementGenerator<'a> {
 
         Ok(())
     }
-}
-
-fn print_statement(name: &str, statement: Table) {
-    let mut table = Table::new();
-
-    table.set_format(FormatBuilder::new()
-        .separator(LinePosition::Title, LineSeparator::new(' ', ' ', ' ', ' '))
-        .build());
-
-    table.set_titles(Row::new(vec![
-        Cell::new_align(&("\n".to_owned() + name), Alignment::CENTER),
-    ]));
-
-    table.add_row(Row::new(vec![
-        Cell::new_align(&statement.to_string(), Alignment::CENTER),
-    ]));
-
-    table.printstd();
 }

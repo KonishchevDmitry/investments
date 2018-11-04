@@ -5,9 +5,10 @@ use regex::Regex;
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use broker_statement::Dividend;
+use formatting;
 use regulations;
 use types::Date;
-use util::{self, DecimalRestrictions};
+use util::DecimalRestrictions;
 
 use super::IbStatementParser;
 use super::common::{Record, RecordParser, parse_date};
@@ -57,14 +58,15 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
             None => {
                 return Err!(
                     "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
-                    util::format_date(dividend.date), dividend.description, tax_id.1);
+                    formatting::format_date(dividend.date), dividend.description, tax_id.1);
             },
         };
 
         if paid_tax != expected_tax {
             return Err!(
                 "Paid tax for {} / {:?} is not equal to expected one: {} vs {}",
-                util::format_date(dividend.date), dividend.description, paid_tax, expected_tax);
+                formatting::format_date(dividend.date), dividend.description, paid_tax,
+                expected_tax);
         }
 
         dividends.push(Dividend {

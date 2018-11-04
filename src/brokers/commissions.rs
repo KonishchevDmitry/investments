@@ -1,5 +1,5 @@
 #[cfg(test)] use brokers;
-use config::Config;
+#[cfg(test)] use config::Config;
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use types::Decimal;
@@ -81,6 +81,7 @@ impl CommissionSpecBuilder {
         self
     }
 
+    #[cfg(test)]
     pub fn percent(mut self, percent: Decimal) -> CommissionSpecBuilder {
         self.spec.percent = Some(percent);
         self

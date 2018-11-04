@@ -6,6 +6,7 @@ use serde_xml_rs;
 
 use core::GenericResult;
 use currency::CurrencyRate;
+use formatting;
 use types::{Date, Decimal};
 use util;
 
@@ -36,7 +37,7 @@ pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericRes
 
     let get = |url| -> GenericResult<Vec<CurrencyRate>> {
         debug!("Getting {} currency rates for {} - {}...", currency,
-               util::format_date(start_date), util::format_date(end_date));
+               formatting::format_date(start_date), formatting::format_date(end_date));
 
         let mut response = reqwest::Client::new().get(url).send()?;
         if !response.status().is_success() {

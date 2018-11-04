@@ -2,8 +2,8 @@ use chrono::{Duration, Datelike};
 
 use core::{EmptyResult, GenericResult};
 #[cfg(test)] use currency;
+use formatting;
 use types::{Date, Decimal};
-use util;
 
 pub struct DepositEmulator {
     date: Date,
@@ -47,7 +47,8 @@ impl DepositEmulator {
 
         self.assets += transaction.amount;
         if self.assets < dec!(0) {
-            return Err!("Portfolio got negative balance on {}", util::format_date(transaction.date));
+            return Err!("Portfolio got negative balance on {}",
+                formatting::format_date(transaction.date));
         }
 
         Ok(())
@@ -82,7 +83,7 @@ impl DepositEmulator {
         self.accumulated_income = dec!(0);
 
         if self.assets < dec!(0) {
-            return Err!("Portfolio got negative balance on {}", util::format_date(self.date));
+            return Err!("Portfolio got negative balance on {}", formatting::format_date(self.date));
         }
 
         Ok(())

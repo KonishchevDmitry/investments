@@ -32,6 +32,7 @@ mod brokers;
 mod config;
 mod currency;
 mod db;
+mod formatting;
 mod init;
 mod quotes;
 mod regulations;
