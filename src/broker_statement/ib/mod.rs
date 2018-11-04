@@ -3,10 +3,11 @@ use std::iter::Iterator;
 
 use csv::{self, StringRecord};
 
+use brokers;
 use config::Config;
 use core::GenericResult;
 use currency::Cash;
-use broker_statement::{BrokerInfo, BrokerStatement, BrokerStatementBuilder};
+use broker_statement::{BrokerStatement, BrokerStatementBuilder};
 use broker_statement::ib::common::{Record, RecordParser, format_record};
 
 mod common;
@@ -31,10 +32,7 @@ pub struct IbStatementParser {
 impl IbStatementParser {
     pub fn parse(config: &Config, path: &str, allow_partial: bool) -> GenericResult<BrokerStatement> {
         let parser = IbStatementParser {
-            statement: BrokerStatementBuilder::new(BrokerInfo {
-                name: "Interactive Brokers",
-                config: config.interactive_brokers.clone(),
-            }, allow_partial),
+            statement: BrokerStatementBuilder::new(brokers::interactive_brokers(config), allow_partial),
             currency: "USD", // TODO: Get from statement
             taxes: HashMap::new(),
             dividends: Vec::new(),

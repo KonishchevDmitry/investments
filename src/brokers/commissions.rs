@@ -1,7 +1,10 @@
+#[cfg(test)] use brokers;
+use config::Config;
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use types::Decimal;
 
+#[derive(Debug)]
 pub struct CommissionSpec {
     minimum: Option<Cash>,
     per_share: Option<Cash>,
@@ -14,8 +17,8 @@ impl CommissionSpec {
         let validate_currency = |a: Cash, b: Cash| -> EmptyResult {
             if a.currency != b.currency {
                 return Err!(concat!(
-                    "Unable to calculate transaction commission: ",
-                    "Commission currency doesn't match transaction currency: {} vs {}"),
+                    "Unable to calculate trade commission: ",
+                    "Commission currency doesn't match trade currency: {} vs {}"),
                     a.currency, b.currency);
             }
 
@@ -104,46 +107,42 @@ mod tests {
 
     #[test]
     fn interactive_brokers_commission() {
-        let commission = CommissionSpecBuilder::new()
-            .minimum(Cash::new("USD", dec!(1)))
-            .per_share(Cash::new("USD", decs!("0.005")))
-            .maximum_percent(dec!(1))
-            .build().unwrap();
+        let commission_spec = brokers::interactive_brokers(&Config::mock()).commission_spec;
 
         // Minimum commission > per share commission
-        assert_eq!(commission.calculate(199, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(199, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", dec!(1)));
 
         // Minimum commission == per share commission
-        assert_eq!(commission.calculate(200, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(200, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", dec!(1)));
 
         // Per share commission > minimum commission
-        assert_eq!(commission.calculate(201, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(201, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", decs!("1.01")));
 
         // Per share commission > minimum commission
-        assert_eq!(commission.calculate(300, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(300, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", decs!("1.5")));
 
         // Per share commission > maximum commission
-        assert_eq!(commission.calculate(300, Cash::new("USD", decs!("0.4"))).unwrap(),
+        assert_eq!(commission_spec.calculate(300, Cash::new("USD", decs!("0.4"))).unwrap(),
                    Cash::new("USD", decs!("1.2")));
     }
 
     #[test]
     fn open_broker_commission() {
-        let commission = CommissionSpecBuilder::new()
+        let commission_spec = CommissionSpecBuilder::new()
             .minimum(Cash::new("RUB", decs!("0.04")))
             .percent(decs!("0.057"))
             .build().unwrap();
 
         // Percent commission > minimum commission
-        assert_eq!(commission.calculate(73, Cash::new("RUB", dec!(2758))).unwrap(),
+        assert_eq!(commission_spec.calculate(73, Cash::new("RUB", dec!(2758))).unwrap(),
                    Cash::new("RUB", decs!("114.76")));
 
         // Percent commission < minimum commission
-        assert_eq!(commission.calculate(1, Cash::new("RUB", dec!(1))).unwrap(),
+        assert_eq!(commission_spec.calculate(1, Cash::new("RUB", dec!(1))).unwrap(),
                    Cash::new("RUB", decs!("0.04")));
     }
 }

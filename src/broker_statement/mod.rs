@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::Duration;
 
+use brokers::BrokerInfo;
 use core::{EmptyResult, GenericResult};
-use config::BrokerConfig;
 use currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
 use currency::converter::CurrencyConverter;
 use quotes::Quotes;
@@ -61,7 +61,7 @@ impl BrokerStatement {
                 symbol: symbol,
                 quantity: quantity,
                 price: price,
-                commission: Cash::new("USD", dec!(1)),  // FIXME: Get from broker info
+                commission: self.broker.get_trade_commission(quantity, price)?,
                 sources: Vec::new(),
             };
 
@@ -230,27 +230,6 @@ impl BrokerStatementBuilder {
 
         debug!("{:#?}", statement);
         return Ok(statement)
-    }
-}
-
-#[derive(Debug)]
-pub struct BrokerInfo {
-    pub name: &'static str,
-    config: BrokerConfig,
-}
-
-impl BrokerInfo {
-    pub fn get_deposit_commission(&self, assets: CashAssets) -> GenericResult<Decimal> {
-        let currency = assets.cash.currency;
-
-        let commission_spec = match self.config.deposit_commissions.get(currency) {
-            Some(commission_spec) => commission_spec,
-            None => return Err!(concat!(
-                "Unable to calculate commission for {} deposit to {}: there is no commission ",
-                "specification in the configuration file"), currency, self.name),
-        };
-
-        Ok(commission_spec.fixed_amount)
     }
 }
 
