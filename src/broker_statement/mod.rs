@@ -24,7 +24,7 @@ pub struct BrokerStatement {
     pub cash_assets: MultiCurrencyCashAccount,
 
     stock_buys: Vec<StockBuy>,
-    stock_sells: Vec<StockSell>,
+    pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
     pub open_positions: HashMap<String, u32>,
@@ -267,11 +267,11 @@ pub struct StockBuy {
 
 #[derive(Debug)]
 pub struct StockSell {
-    date: Date,
-    symbol: String,
-    quantity: u32,
-    price: Cash,
-    commission: Cash,
+    pub date: Date,
+    pub symbol: String,
+    pub quantity: u32,
+    pub price: Cash,
+    pub commission: Cash,
     sources: Vec<StockSellSource>,
 }
 
@@ -281,6 +281,35 @@ pub struct StockSellSource {
     quantity: u32,
     price: Cash,
     commission: Cash,
+}
+
+impl StockSell {
+    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+        let mut purchase_cost = dec!(0);
+
+        for source in &self.sources {
+            purchase_cost += converter.convert_to(
+                source.date, source.price * source.quantity, country.currency)?;
+
+            purchase_cost += converter.convert_to(
+                source.date, source.commission, country.currency)?;
+        }
+
+        let mut sell_revenue = converter.convert_to(
+            self.date, self.price * self.quantity, country.currency)?;
+
+        sell_revenue -= converter.convert_to(
+            self.date, self.commission, country.currency)?;
+
+        let income = sell_revenue - purchase_cost;
+
+        // TODO: Declare loss?
+        if income.is_sign_negative() {
+            return Ok(dec!(0));
+        }
+
+        Ok(currency::round(income * country.tax_rate))
+    }
 }
 
 #[derive(Debug)]

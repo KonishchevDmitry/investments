@@ -1,4 +1,4 @@
-use chrono::Duration;
+use num_traits::Zero;
 
 use broker_statement::BrokerStatement;
 use core::{EmptyResult, GenericResult};
@@ -31,14 +31,21 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             currency: currency,
             converter: converter,
 
-            date: statement.period.1 - Duration::days(1),
+            date: util::today(),
             country: regulations::russia(),
             transactions: Vec::new(),
         };
 
+        // Assume that the caller has simulated sellout and just check it here
+        if !statement.open_positions.is_empty() {
+            return Err!(
+                "Unable to calculate current assets: The broker statement has open positions");
+        }
+
         // TODO: Withdrawals support
         analyser.process_deposits()?;
         analyser.process_dividends()?;
+        analyser.process_positions()?;
         analyser.transactions.sort_by_key(|assets| assets.date);
 
         let mut deposits = dec!(0);
@@ -46,13 +53,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             deposits += transaction.amount;
         }
 
-        // FIXME: Take taxes from positions selling into account
-        // Assume that the caller has simulated sellout and just check it here
-        if !statement.open_positions.is_empty() {
-            return Err!("Unable to calculate current assets: The broker statement has open positions");
-        }
-
-        // FIXME: date
         let current_assets = statement.cash_assets.total_assets(currency, converter)?;
         let (interest, precision) = analyser.compare_to_bank_deposit(current_assets)?;
 
@@ -81,23 +81,43 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_dividends(&mut self) -> EmptyResult {
-        // Treat tax from dividends as an ordinary deposit which we transfer to the account at tax
-        // payment day.
-
         for dividend in &self.statement.dividends {
-            let tax_to_pay = Cash::new(
-                self.country.currency, dividend.tax_to_pay(&self.country, self.converter)?);
-
-            let mut tax_payment_date = self.country.get_tax_payment_date(dividend.date);
-            if tax_payment_date > self.date {
-                tax_payment_date = self.date;
-            }
-
-            let deposit_amount = self.converter.convert_to(
-                tax_payment_date, tax_to_pay, self.currency)?;
-
-            self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+            let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
+            self.process_tax(dividend.date, tax_to_pay)?;
         }
+
+        Ok(())
+    }
+
+    fn process_positions(&mut self) -> EmptyResult {
+        for stock_sell in &self.statement.stock_sells {
+            let tax_to_pay = stock_sell.tax_to_pay(&self.country, self.converter)?;
+            self.process_tax(stock_sell.date, tax_to_pay)?;
+        }
+
+        Ok(())
+    }
+
+    fn process_tax(&mut self, income_date: Date, tax_to_pay: Decimal) -> EmptyResult {
+        // Treat tax payment as an ordinary deposit which we transfer to the account at tax payment
+        // day.
+
+        if tax_to_pay.is_zero() {
+            return Ok(());
+        }
+        assert!(tax_to_pay.is_sign_positive());
+
+        let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
+
+        let mut tax_payment_date = self.country.get_tax_payment_date(income_date);
+        if tax_payment_date > self.date {
+            tax_payment_date = self.date;
+        }
+
+        let deposit_amount = self.converter.convert_to(
+            tax_payment_date, tax_to_pay, self.currency)?;
+
+        self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
 
         Ok(())
     }
