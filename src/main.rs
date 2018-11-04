@@ -28,6 +28,7 @@ extern crate tempfile;
 #[macro_use] mod types;
 mod analyse;
 mod broker_statement;
+mod brokers;
 mod config;
 mod currency;
 mod db;
