@@ -54,7 +54,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         let current_assets = statement.cash_assets.total_assets(currency, converter)?;
-        let (interest, precision) = analyser.compare_to_bank_deposit(current_assets)?;
+        let (interest, precision) = compare_to_bank_deposit(
+            &analyser.transactions, current_assets, analyser.date)?;
 
         debug!(concat!(
             "Got a result of comparing portfolio performance to bank deposit ",
@@ -121,62 +122,64 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         Ok(())
     }
+}
 
-    fn compare_to_bank_deposit(&self, current_assets: Decimal) -> GenericResult<(Decimal, Decimal)> {
-        let start_date = self.statement.period.0;
-        let start_assets = dec!(0);
+fn compare_to_bank_deposit(
+    transactions: &Vec<Transaction>, current_assets: Decimal, end_date: Date
+) -> GenericResult<(Decimal, Decimal)> {
+    let start_date = transactions.first().unwrap().date;
+    let start_assets = dec!(0);
 
-        let emulate = |interest: Decimal| -> GenericResult<Decimal> {
-            let result_assets = DepositEmulator::emulate(
-                start_date, start_assets, &self.transactions, self.date, interest)?;
+    let emulate = |interest: Decimal| -> GenericResult<Decimal> {
+        let result_assets = DepositEmulator::emulate(
+            start_date, start_assets, transactions, end_date, interest)?;
 
-            let difference = (current_assets - result_assets).abs();
+        let difference = (current_assets - result_assets).abs();
 
-            Ok(difference)
-        };
+        Ok(difference)
+    };
 
-        let mut interest = dec!(0);
-        let mut difference = emulate(interest)?;
+    let mut interest = dec!(0);
+    let mut difference = emulate(interest)?;
 
-        for mut step in [decs!("1"), decs!("0.1"), decs!("0.01")].iter().cloned() {
-            let decreasing_difference = emulate(interest - step)?;
-            let increasing_difference = emulate(interest + step)?;
+    for mut step in [decs!("1"), decs!("0.1"), decs!("0.01")].iter().cloned() {
+        let decreasing_difference = emulate(interest - step)?;
+        let increasing_difference = emulate(interest + step)?;
 
-            if decreasing_difference > difference && difference < increasing_difference {
+        if decreasing_difference > difference && difference < increasing_difference {
+            break;
+        }
+
+        if decreasing_difference < increasing_difference {
+            assert!(decreasing_difference < difference);
+            step = -step;
+        } else if decreasing_difference > increasing_difference {
+            assert!(increasing_difference < difference);
+        } else {
+            unreachable!();
+        }
+
+        interest += step;
+
+        loop {
+            let next_interest = interest + step;
+            let next_difference = emulate(next_interest)?;
+
+            if next_difference > difference {
                 break;
             }
 
-            if decreasing_difference < increasing_difference {
-                assert!(decreasing_difference < difference);
-                step = -step;
-            } else if decreasing_difference > increasing_difference {
-                assert!(increasing_difference < difference);
-            } else {
-                unreachable!();
-            }
-
-            interest += step;
-
-            loop {
-                let next_interest = interest + step;
-                let next_difference = emulate(next_interest)?;
-
-                if next_difference > difference {
-                    break;
-                }
-
-                difference = next_difference;
-                interest = next_interest;
-            }
+            difference = next_difference;
+            interest = next_interest;
         }
-
-        let precision = difference / current_assets;
-        if precision >= decs!("0.01") {
-            return Err!(concat!(
-                "Failed to compare portfolio performance to bank deposit: ",
-                "got a result with too low precision ({})"), util::round_to(precision, 3));
-        }
-
-        Ok((interest, precision))
     }
+
+    let precision = difference / current_assets;
+    if precision >= decs!("0.01") {
+        return Err!(concat!(
+            "Failed to compare portfolio performance to bank deposit: ",
+            "got a result with too low precision ({})"), util::round_to(precision, 3));
+    }
+
+    Ok((interest, precision))
 }
