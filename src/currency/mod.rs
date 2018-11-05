@@ -44,6 +44,11 @@ impl Cash {
         !self.amount.is_zero() && self.amount.is_sign_positive()
     }
 
+    pub fn sub(&mut self, amount: Cash) {
+        assert_eq!(self.currency, amount.currency);
+        self.amount -= amount.amount;
+    }
+
     pub fn round(mut self) -> Cash {
         self.amount = round(self.amount);
         self

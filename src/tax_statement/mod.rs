@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use prettytable::{Table, Row, Cell};
-use prettytable::format::{Alignment, FormatBuilder};
+use prettytable::format::Alignment;
 
 use broker_statement::BrokerStatement;
 use broker_statement::ib::IbStatementParser;
@@ -159,12 +159,6 @@ impl<'a> TaxStatementGenerator<'a> {
         }
 
         if !table.is_empty() {
-            table.set_titles(Row::new([
-                "Дата", "Эмитент", "Валюта",
-                "Сумма (USD)", "Курс руб.", "Сумма (руб)",
-                "Уплачено (USD)", "Уплачено (руб)", "К доплате (руб)", "Реальный доход",
-            ].iter().map(|name| Cell::new_align(*name, Alignment::CENTER)).collect()));
-
             table.add_row(Row::new(vec![
                 Cell::new(""),
                 Cell::new(""),
@@ -180,11 +174,14 @@ impl<'a> TaxStatementGenerator<'a> {
                 Cell::new_align(&total_income.to_string(), Alignment::RIGHT),
             ]));
 
-            table.set_format(FormatBuilder::new().padding(1, 1).build());
-
             formatting::print_statement(
                 &format!("Расчет дохода от дивидендов, полученных через {}",
                          self.broker_statement.broker.name),
+                vec![
+                    "Дата", "Эмитент", "Валюта",
+                    "Сумма (USD)", "Курс руб.", "Сумма (руб)",
+                    "Уплачено (USD)", "Уплачено (руб)", "К доплате (руб)", "Реальный доход",
+                ],
                 table,
             );
         }

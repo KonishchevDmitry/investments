@@ -1,9 +1,15 @@
-use num_traits::Zero;
+use std::collections::HashMap;
+
+use num_traits::{ToPrimitive, Zero};
+use prettytable::{Table, Row, Cell};
+use prettytable::format::Alignment;
+use separator::Separatable;
 
 use broker_statement::BrokerStatement;
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use currency::converter::CurrencyConverter;
+use formatting;
 use regulations::{self, Country};
 use types::{Date, Decimal};
 use util;
@@ -20,12 +26,14 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     date: Date,
     country: Country,
     transactions: Vec<Transaction>,
+    instruments: Option<HashMap<String, StockDepositView>>,
+    table: Table,
 }
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn analyse(
         statement: &BrokerStatement, currency: &str, converter: &CurrencyConverter
-    ) -> GenericResult<(Decimal, Decimal, Decimal)> {
+    ) -> EmptyResult {
         let mut analyser = PortfolioPerformanceAnalyser {
             statement: statement,
             currency: currency,
@@ -34,6 +42,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             date: util::today(),
             country: regulations::russia(),
             transactions: Vec::new(),
+            instruments: Some(HashMap::new()),
+            table: Table::new(),
         };
 
         // Assume that the caller has simulated sellout and just check it here
@@ -44,25 +54,98 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         // TODO: Withdrawals support
         analyser.process_deposits()?;
-        analyser.process_dividends()?;
         analyser.process_positions()?;
-        analyser.transactions.sort_by_key(|assets| assets.date);
+        analyser.process_dividends()?;
 
-        let mut deposits = dec!(0);
-        for transaction in &analyser.transactions {
-            deposits += transaction.amount;
+        for (symbol, deposit_view) in analyser.instruments.take().unwrap() {
+            analyser.analyse_instrument_performance(&symbol, deposit_view)?;
+        }
+        analyser.analyse_portfolio_performance()?;
+
+        formatting::print_statement(
+            &format!("Average rate of return from cash investments in {}", currency),
+            vec!["Instrument", "Investments", "Profit", "Result", "Interest"],  // FIXME: Duration
+            analyser.table,
+        );
+
+        Ok(())
+    }
+
+    fn add_results(&mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal) {
+        let investments = util::round_to(investments, 0);
+        let result = util::round_to(result, 0);
+        let profit = result - investments;
+
+        let cash_cell = |amount: Decimal| Cell::new_align(
+            &amount.to_i64().unwrap().separated_string(), Alignment::RIGHT);
+
+        self.table.add_row(Row::new(vec![
+            Cell::new(name), cash_cell(investments), cash_cell(profit), cash_cell(result),
+            Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
+        ]));
+    }
+
+    fn analyse_instrument_performance(&mut self, symbol: &str, mut deposit_view: StockDepositView) -> EmptyResult {
+        deposit_view.transactions.sort_by_key(|transaction| transaction.date);
+
+        let (sell_date, sell_volume) = match deposit_view.sell_transaction {
+            Some(transaction) => transaction,
+            None => return Err!(concat!(
+                "Inconsistent broker statement: ",
+                "It has income/expenses for {} but doesn't have any buy/sell transactions for it"),
+                symbol),
+        };
+
+        let (interest, difference) = compare_to_bank_deposit(
+            &deposit_view.transactions, sell_date, dec!(0))?;
+
+        check_emulation_precision(
+            &format!("{} {}", symbol, self.currency), sell_volume, difference)?;
+
+        let mut investments = dec!(0);
+        let mut result = dec!(0);
+
+        for transaction in &deposit_view.transactions {
+            if transaction.amount.is_sign_positive() {
+                investments += transaction.amount;
+            } else {
+                result += -transaction.amount;
+            }
         }
 
-        let current_assets = statement.cash_assets.total_assets(currency, converter)?;
-        let (interest, precision) = compare_to_bank_deposit(
-            &analyser.transactions, current_assets, analyser.date)?;
+        let name = self.statement.get_instrument_name(symbol)?;
+        self.add_results(&name, investments, result, interest);
 
-        debug!(concat!(
-            "Got a result of comparing portfolio performance to bank deposit ",
-            "for {} currency with {}% precision."),
-            currency, util::round_to(precision * dec!(100), 4));
+        Ok(())
+    }
 
-        Ok((deposits, current_assets, interest))
+    fn analyse_portfolio_performance(&mut self) -> EmptyResult {
+        self.transactions.sort_by_key(|transaction| transaction.date);
+
+        let mut investments = dec!(0);
+        for transaction in &self.transactions {
+            investments += transaction.amount;
+        }
+
+        let current_assets = self.statement.cash_assets.total_assets(
+            self.currency, self.converter)?;
+
+        let (interest, difference) = compare_to_bank_deposit(
+            &self.transactions, self.date, current_assets)?;
+
+        check_emulation_precision(
+            &format!("portfolio {}", self.currency), current_assets, difference)?;
+
+        self.add_results("", investments, current_assets, interest);
+
+        Ok(())
+    }
+
+    fn get_deposit_view(&mut self, symbol: &String) -> &mut StockDepositView {
+        if !self.instruments.as_ref().unwrap().contains_key(symbol) {
+            self.instruments.as_mut().unwrap().insert(symbol.clone(), StockDepositView::new());
+        }
+        self.instruments.as_mut().unwrap().get_mut(symbol).unwrap()
     }
 
     fn process_deposits(&mut self) -> EmptyResult {
@@ -81,25 +164,66 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
+    fn process_positions(&mut self) -> EmptyResult {
+        for stock_buy in &self.statement.stock_buys {
+            let mut assets = self.converter.convert_to(
+                stock_buy.date, stock_buy.price * stock_buy.quantity, self.currency)?;
+
+            assets += self.converter.convert_to(
+                stock_buy.date, stock_buy.commission, self.currency)?;
+
+            self.get_deposit_view(&stock_buy.symbol).transactions.push(
+                Transaction::new(stock_buy.date, assets));
+        }
+
+        for stock_sell in &self.statement.stock_sells {
+            {
+                let deposit_view = self.get_deposit_view(&stock_sell.symbol);
+
+                let assets = self.converter.convert_to(
+                    stock_sell.date, stock_sell.price * stock_sell.quantity, self.currency)?;
+                deposit_view.transactions.push(Transaction::new(stock_sell.date, -assets));
+
+                let commission = self.converter.convert_to(
+                    stock_sell.date, stock_sell.commission, self.currency)?;
+                deposit_view.transactions.push(Transaction::new(stock_sell.date, commission));
+
+                // TODO: Consider to send a marker to deposit emulator when for some period we have no
+                // open positions.
+                deposit_view.sell_transaction = Some((stock_sell.date, assets));
+            }
+
+            let tax_to_pay = stock_sell.tax_to_pay(&self.country, self.converter)?;
+            self.process_tax(stock_sell.date, &stock_sell.symbol, tax_to_pay)?;
+        }
+
+        Ok(())
+    }
+
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
+            if dividend.paid_tax.currency != dividend.amount.currency {
+                return Err!(
+                    "Dividend from {} at {}: The tax is paid in currency different from the dividend currency: {} vs {}",
+                    dividend.issuer, formatting::format_date(dividend.date), dividend.paid_tax.currency,
+                    dividend.amount.currency);
+            }
+
+            let mut amount = dividend.amount;
+            amount.sub(dividend.paid_tax);
+            let amount = self.converter.convert_to(dividend.date, amount, self.currency)?;
+
+            self.get_deposit_view(&dividend.issuer).transactions.push(
+                Transaction::new(dividend.date, -amount));
+
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
-            self.process_tax(dividend.date, tax_to_pay)?;
+            self.process_tax(dividend.date, &dividend.issuer, tax_to_pay)?;
         }
 
         Ok(())
     }
 
-    fn process_positions(&mut self) -> EmptyResult {
-        for stock_sell in &self.statement.stock_sells {
-            let tax_to_pay = stock_sell.tax_to_pay(&self.country, self.converter)?;
-            self.process_tax(stock_sell.date, tax_to_pay)?;
-        }
-
-        Ok(())
-    }
-
-    fn process_tax(&mut self, income_date: Date, tax_to_pay: Decimal) -> EmptyResult {
+    fn process_tax(&mut self, income_date: Date, symbol: &String, tax_to_pay: Decimal) -> EmptyResult {
         // Treat tax payment as an ordinary deposit which we transfer to the account at tax payment
         // day.
 
@@ -118,33 +242,51 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let deposit_amount = self.converter.convert_to(
             tax_payment_date, tax_to_pay, self.currency)?;
 
-        self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+        self.get_deposit_view(symbol).transactions.push(
+            Transaction::new(tax_payment_date, deposit_amount));
+
+        self.transactions.push(
+            Transaction::new(tax_payment_date, deposit_amount));
 
         Ok(())
     }
 }
 
+struct StockDepositView {
+    transactions: Vec<Transaction>,
+    sell_transaction: Option<(Date, Decimal)>,
+}
+
+impl StockDepositView {
+    fn new() -> StockDepositView {
+        StockDepositView {
+            transactions: Vec::new(),
+            sell_transaction: None,
+        }
+    }
+}
+
 fn compare_to_bank_deposit(
-    transactions: &Vec<Transaction>, current_assets: Decimal, end_date: Date
+    transactions: &Vec<Transaction>, current_date: Date, current_assets: Decimal
 ) -> GenericResult<(Decimal, Decimal)> {
     let start_date = transactions.first().unwrap().date;
     let start_assets = dec!(0);
 
-    let emulate = |interest: Decimal| -> GenericResult<Decimal> {
+    let emulate = |interest: Decimal| -> Decimal {
         let result_assets = DepositEmulator::emulate(
-            start_date, start_assets, transactions, end_date, interest)?;
+            start_date, start_assets, transactions, current_date, interest);
 
         let difference = (current_assets - result_assets).abs();
 
-        Ok(difference)
+        difference
     };
 
     let mut interest = dec!(0);
-    let mut difference = emulate(interest)?;
+    let mut difference = emulate(interest);
 
     for mut step in [decs!("1"), decs!("0.1"), decs!("0.01")].iter().cloned() {
-        let decreasing_difference = emulate(interest - step)?;
-        let increasing_difference = emulate(interest + step)?;
+        let decreasing_difference = emulate(interest - step);
+        let increasing_difference = emulate(interest + step);
 
         if decreasing_difference > difference && difference < increasing_difference {
             break;
@@ -163,7 +305,7 @@ fn compare_to_bank_deposit(
 
         loop {
             let next_interest = interest + step;
-            let next_difference = emulate(next_interest)?;
+            let next_difference = emulate(next_interest);
 
             if next_difference > difference {
                 break;
@@ -174,12 +316,36 @@ fn compare_to_bank_deposit(
         }
     }
 
-    let precision = difference / current_assets;
+    Ok((interest, difference))
+}
+
+fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
+    let precision = (difference / assets).abs();
+
     if precision >= decs!("0.01") {
         return Err!(concat!(
-            "Failed to compare portfolio performance to bank deposit: ",
-            "got a result with too low precision ({})"), util::round_to(precision, 3));
+            "Failed to compare {} performance to bank deposit: ",
+            "got a result with too low precision ({})"), name, util::round_to(precision, 3));
     }
 
-    Ok((interest, precision))
+    debug!("Got a result of comparing {} performance to bank deposit: {}% precision.",
+           name, util::round_to(precision * dec!(100), 4));
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn comparing_to_bank_deposit() {
+        let (interest, difference) = compare_to_bank_deposit(
+            &vec![Transaction::new(date!(28, 7, 2018), dec!(600000))],
+            date!(28, 1, 2019), decs!("621486.34"),
+        ).unwrap();
+
+        assert_eq!(interest, dec!(7));
+        assert!(difference < decs!("0.01"));
+    }
 }
