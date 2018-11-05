@@ -1,8 +1,6 @@
 use chrono::{Duration, Datelike};
 
-use core::{EmptyResult, GenericResult};
 #[cfg(test)] use currency;
-use formatting;
 use types::{Date, Decimal};
 
 pub struct DepositEmulator {
@@ -19,7 +17,7 @@ impl DepositEmulator {
     pub fn emulate(
         start_date: Date, start_assets: Decimal, transactions: &Vec<Transaction>, end_date: Date,
         interest: Decimal,
-    ) -> GenericResult<Decimal> {
+    ) -> Decimal {
         let mut emulator = DepositEmulator {
             date: start_date,
             capitalization_day: start_date.day(),
@@ -32,61 +30,47 @@ impl DepositEmulator {
         emulator.set_next_capitalization_date();
 
         for transaction in transactions {
-            emulator.process_transaction(transaction)?;
+            emulator.process_transaction(transaction);
         }
 
-        emulator.process_to(end_date)?;
-        emulator.capitalize()?;
+        emulator.process_to(end_date);
+        emulator.capitalize();
 
-        Ok(emulator.assets)
+        emulator.assets
     }
 
-    fn process_transaction(&mut self, transaction: &Transaction) -> EmptyResult {
-        self.process_to(transaction.date)?;
+    fn process_transaction(&mut self, transaction: &Transaction) {
+        self.process_to(transaction.date);
         assert_eq!(self.date, transaction.date);
-
         self.assets += transaction.amount;
-        if self.assets < dec!(0) {
-            return Err!("Portfolio got negative balance on {}",
-                formatting::format_date(transaction.date));
-        }
-
-        Ok(())
     }
 
-    fn process_to(&mut self, date: Date) -> EmptyResult {
+    fn process_to(&mut self, date: Date) {
         while date >= self.next_capitalization_date {
             let capitalization_date = self.next_capitalization_date;
-            self.accumulate_income(capitalization_date)?;
-            self.capitalize()?;
+            self.accumulate_income(capitalization_date);
+            self.capitalize();
             self.set_next_capitalization_date();
         }
 
-        self.accumulate_income(date)?;
-
-        Ok(())
+        self.accumulate_income(date);
     }
 
-    fn accumulate_income(&mut self, date: Date) -> EmptyResult {
+    fn accumulate_income(&mut self, date: Date) {
         assert!(self.date <= date);
         assert!(date <= self.next_capitalization_date);
 
-        let days = (date - self.date).num_days();
-        self.accumulated_income += self.assets * self.daily_interest * Decimal::from(days);
-        self.date = date;
-
-        Ok(())
-    }
-
-    fn capitalize(&mut self) -> EmptyResult {
-        self.assets += self.accumulated_income;
-        self.accumulated_income = dec!(0);
-
-        if self.assets < dec!(0) {
-            return Err!("Portfolio got negative balance on {}", formatting::format_date(self.date));
+        if self.assets.is_sign_positive() {
+            let days = (date - self.date).num_days();
+            self.accumulated_income += self.assets * self.daily_interest * Decimal::from(days);
         }
 
-        Ok(())
+        self.date = date;
+    }
+
+    fn capitalize(&mut self) {
+        self.assets += self.accumulated_income;
+        self.accumulated_income = dec!(0);
     }
 
     fn set_next_capitalization_date(&mut self) {
@@ -158,25 +142,25 @@ mod tests {
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest).unwrap();
+            date!(28, 9, 2018), interest);
         assert_eq!(currency::round(result), decs!("607155.45"));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 8, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest).unwrap();
+            date!(28, 9, 2018), interest);
         assert_eq!(currency::round(result), decs!("604763.23"));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(14, 8, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest).unwrap();
+            date!(28, 9, 2018), interest);
         assert_eq!(currency::round(result), decs!("605843.59"));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
-            date!(28, 1, 2019), interest).unwrap();
+            date!(28, 1, 2019), interest);
         assert_eq!(currency::round(result), decs!("621486.34"));
     }
 
