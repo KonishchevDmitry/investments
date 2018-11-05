@@ -57,9 +57,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         analyser.process_positions()?;
         analyser.process_dividends()?;
 
-        for (symbol, deposit_view) in analyser.instruments.take().unwrap() {
+        let mut instruments = analyser.instruments.take().unwrap();
+        let mut instruments = instruments.drain().collect::<Vec<_>>();
+        instruments.sort_by(|a, b| a.0.cmp(&b.0));
+
+        for (symbol, deposit_view) in instruments {
             analyser.analyse_instrument_performance(&symbol, deposit_view)?;
         }
+
         analyser.analyse_portfolio_performance()?;
 
         formatting::print_statement(
