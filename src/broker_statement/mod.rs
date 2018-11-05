@@ -24,7 +24,7 @@ pub struct BrokerStatement {
     pub deposits: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
 
-    stock_buys: Vec<StockBuy>,
+    pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
@@ -236,11 +236,11 @@ impl BrokerStatementBuilder {
 
 #[derive(Debug)]
 pub struct StockBuy {
-    date: Date,
-    symbol: String,
-    quantity: u32,
-    price: Cash,
-    commission: Cash,
+    pub date: Date,
+    pub symbol: String,
+    pub quantity: u32,
+    pub price: Cash,
+    pub commission: Cash,
 
     sold: u32,
 }
