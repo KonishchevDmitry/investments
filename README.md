@@ -2,6 +2,8 @@
 
 A work in progress project to organize my investments.
 
+Targeted for russian investors who use Interactive Brokers. Considers taxes and dividends when calculates portfolio performance.
+
 ### Installation
 
 Install [Rust](https://www.rust-lang.org/):
