@@ -69,23 +69,35 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         formatting::print_statement(
             &format!("Average rate of return from cash investments in {}", currency),
-            vec!["Instrument", "Investments", "Profit", "Result", "Interest"],  // FIXME: Duration
+            vec!["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
             analyser.table,
         );
 
         Ok(())
     }
 
-    fn add_results(&mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal) {
+    fn add_results(&mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal, days: i64) {
         let investments = util::round_to(investments, 0);
         let result = util::round_to(result, 0);
         let profit = result - investments;
+
+        let (duration_name, duration_days) = if days >= 365 {
+            ("y", 365)
+        } else if days >= 30 {
+            ("m", 30)
+        } else {
+            ("d", 1)
+        };
+        let duration = format!(
+            "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
+            duration_name);
 
         let cash_cell = |amount: Decimal| Cell::new_align(
             &amount.to_i64().unwrap().separated_string(), Alignment::RIGHT);
 
         self.table.add_row(Row::new(vec![
             Cell::new(name), cash_cell(investments), cash_cell(profit), cash_cell(result),
+            Cell::new_align(&duration, Alignment::RIGHT),
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ]));
     }
@@ -119,7 +131,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         let name = self.statement.get_instrument_name(symbol)?;
-        self.add_results(&name, investments, result, interest);
+        // TODO: Zero assets pauses
+        let days = (sell_date - deposit_view.transactions.first().unwrap().date).num_days();
+
+        self.add_results(&name, investments, result, interest, days);
 
         Ok(())
     }
@@ -141,7 +156,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         check_emulation_precision(
             &format!("portfolio {}", self.currency), current_assets, difference)?;
 
-        self.add_results("", investments, current_assets, interest);
+        // TODO: Zero assets pauses
+        let start_date = self.transactions.first()
+            .map(|transaction| transaction.date)
+            .unwrap_or(self.statement.period.0);
+        let days = (self.date - start_date).num_days();
+
+        self.add_results("", investments, current_assets, interest, days);
 
         Ok(())
     }
