@@ -1,6 +1,6 @@
 use chrono::Duration;
 
-use broker_statement::{BrokerStatement, ib::IbStatementParser};
+use broker_statement::BrokerStatement;
 use config::Config;
 use core::EmptyResult;
 use currency::converter::CurrencyConverter;
@@ -14,12 +14,12 @@ use self::performance::PortfolioPerformanceAnalyser;
 mod deposit_emulator;
 mod performance;
 
-pub fn analyse(config: &Config, broker_statement_path: &str) -> EmptyResult {
+pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database.clone(), false);
     let mut quotes = Quotes::new(&config, database.clone());
 
-    let mut statement = IbStatementParser::parse(&config, broker_statement_path, false)?;
+    let mut statement = BrokerStatement::read(config, config.get_portfolio(portfolio_name)?)?;
     check_statement_date(&statement);
     statement.batch_quotes(&mut quotes);
     statement.emulate_sellout(&mut quotes)?;

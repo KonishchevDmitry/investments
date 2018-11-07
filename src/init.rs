@@ -15,7 +15,7 @@ pub enum Action {
     Analyse(String),
     TaxStatement {
         year: i32,
-        broker_statement_path: String,
+        portfolio_name: String,
         tax_statement_path: Option<String>,
     },
 }
@@ -42,8 +42,8 @@ pub fn initialize() -> (Action, Config) {
                 "\nCalculates average rate of return from cash investments by comparing portfolio ",
                 "performance to performance of a bank deposit with exactly the same investments ",
                 "and monthly capitalization."))
-            .arg(Arg::with_name("BROKER_STATEMENT")
-                .help("Path to Interactive Brokers statement *.csv file")
+            .arg(Arg::with_name("PORTFOLIO")
+                .help("Portfolio name")
                 .required(true)))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
@@ -56,8 +56,8 @@ pub fn initialize() -> (Action, Config) {
             .arg(Arg::with_name("YEAR")
                 .help("Year to generate the statement for")
                 .required(true))
-            .arg(Arg::with_name("BROKER_STATEMENT")
-                .help("Path to Interactive Brokers statement *.csv file")
+            .arg(Arg::with_name("PORTFOLIO")
+                .help("Portfolio name")
                 .required(true))
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
@@ -111,19 +111,19 @@ pub fn initialize() -> (Action, Config) {
 fn parse_arguments(matches: &ArgMatches) -> GenericResult<Action> {
     Ok(match matches.subcommand() {
         ("analyse", Some(matches)) => Action::Analyse(
-            matches.value_of("BROKER_STATEMENT").unwrap().to_owned()),
+            matches.value_of("PORTFOLIO").unwrap().to_owned()),
         ("tax-statement", Some(matches)) => {
             let year = matches.value_of("YEAR").unwrap();
             let year = year.trim().parse::<i32>().ok()
                 .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
                 .ok_or_else(|| format!("Invalid year: {}", year))?;
 
-            let broker_statement_path = matches.value_of("BROKER_STATEMENT").unwrap().to_owned();
+            let portfolio_name = matches.value_of("PORTFOLIO").unwrap().to_owned();
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
                 year: year,
-                broker_statement_path: broker_statement_path,
+                portfolio_name: portfolio_name,
                 tax_statement_path: tax_statement_path,
             }
         },

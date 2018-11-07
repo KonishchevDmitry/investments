@@ -3,7 +3,6 @@ use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
 
 use broker_statement::BrokerStatement;
-use broker_statement::ib::IbStatementParser;
 use config::Config;
 use core::EmptyResult;
 use currency;
@@ -18,13 +17,13 @@ use self::statement::TaxStatement;
 mod statement;
 
 pub fn generate_tax_statement(
-    config: &Config, year: i32, broker_statement_path: &str, tax_statement_path: Option<&str>
+    config: &Config, year: i32, portfolio_name: &str, tax_statement_path: Option<&str>
 ) -> EmptyResult {
     if year > util::today().year() {
         return Err!("An attempt to generate tax statement for the future");
     }
 
-    let broker_statement = IbStatementParser::parse(config, broker_statement_path, true)?;
+    let broker_statement = BrokerStatement::read(config, config.get_portfolio(portfolio_name)?)?;
 
     let tax_period_start = date!(1, 1, year);
     let tax_period_end = date!(1, 1, year + 1);
