@@ -3,18 +3,49 @@ use std::iter::Iterator;
 
 use csv::{self, StringRecord};
 
-use brokers;
-use config::Config;
+use brokers::{self, BrokerInfo};
+use config::BrokerConfig;
 use core::GenericResult;
 use currency::Cash;
-use broker_statement::{BrokerStatement, BrokerStatementBuilder};
-use broker_statement::ib::common::{Record, RecordParser, format_record};
+
+use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
+
+use self::common::{Record, RecordParser, format_record};
 
 mod common;
 mod dividends;
 mod parsers;
 mod taxes;
 mod trades;
+
+pub struct IbStatementReader {
+    broker_info: BrokerInfo,
+}
+
+impl IbStatementReader {
+    pub fn new(config: &BrokerConfig) -> Box<BrokerStatementReader> {
+        Box::new(IbStatementReader {
+            broker_info: brokers::interactive_brokers(config),
+        })
+    }
+}
+
+impl BrokerStatementReader for IbStatementReader {
+    fn is_statement(&self, file_name: &str) -> bool {
+        file_name.ends_with(".csv")
+    }
+
+    fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
+        let parser = IbStatementParser {
+            statement: BrokerStatementBuilder::new(self.broker_info.clone()),
+            currency: "USD", // TODO: Get from statement
+            taxes: HashMap::new(),
+            dividends: Vec::new(),
+        };
+
+        parser.parse(path)
+    }
+}
 
 enum State {
     None,
@@ -30,19 +61,7 @@ pub struct IbStatementParser {
 }
 
 impl IbStatementParser {
-    pub fn parse(config: &Config, path: &str, allow_partial: bool) -> GenericResult<BrokerStatement> {
-        let parser = IbStatementParser {
-            statement: BrokerStatementBuilder::new(brokers::interactive_brokers(config), allow_partial),
-            currency: "USD", // TODO: Get from statement
-            taxes: HashMap::new(),
-            dividends: Vec::new(),
-        };
-
-        Ok(parser.parse_impl(path).map_err(|e| format!(
-            "Error while reading {:?} broker statement: {}", path, e))?)
-    }
-
-    fn parse_impl(mut self, path: &str) -> GenericResult<BrokerStatement> {
+    fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)
@@ -153,8 +172,10 @@ mod tests {
 
     #[test]
     fn parsing() {
-        let config = Config::mock();
-        let statement = IbStatementParser::parse(&config, "testdata/statement.csv", false).unwrap();
+        let statement = IbStatementReader::new(&BrokerConfig::mock())
+            .read("testdata/statement.csv").unwrap();
+
+        // FIXME: More checks
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);
     }
