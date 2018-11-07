@@ -16,8 +16,32 @@ pub struct Config {
     pub db_path: String,
 
     pub portfolios: Vec<PortfolioConfig>,
-    pub alphavantage: AlphaVantageConfig,
     pub interactive_brokers: BrokerConfig,
+    pub alphavantage: AlphaVantageConfig,
+}
+
+impl Config {
+    #[cfg(test)]
+    pub fn mock() -> Config {
+        Config {
+            db_path: "/mock".to_owned(),
+            portfolios: Vec::new(),
+            interactive_brokers: BrokerConfig::mock(),
+            alphavantage: AlphaVantageConfig {
+                api_key: s!("mock"),
+            },
+        }
+    }
+
+    pub fn get_portfolio(&self, name: &str) -> GenericResult<&PortfolioConfig> {
+        for portfolio in &self.portfolios {
+            if portfolio.name == name {
+                return Ok(portfolio)
+            }
+        }
+
+        Err!("{:?} portfolio is not defined in the configuration file", name)
+    }
 }
 
 #[derive(Deserialize)]
@@ -26,6 +50,27 @@ pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
     pub statement: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct BrokerConfig {
+    pub deposit_commissions: HashMap<String, TransactionCommissionSpec>,
+}
+
+impl BrokerConfig {
+    #[cfg(test)]
+    pub fn mock() -> BrokerConfig {
+        BrokerConfig {
+            deposit_commissions: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct TransactionCommissionSpec {
+    pub fixed_amount: Decimal,
 }
 
 pub enum Broker {
@@ -47,34 +92,6 @@ impl<'de> Deserialize<'de> for Broker {
 #[serde(deny_unknown_fields)]
 pub struct AlphaVantageConfig {
     pub api_key: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct BrokerConfig {
-    pub deposit_commissions: HashMap<String, TransactionCommissionSpec>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct TransactionCommissionSpec {
-    pub fixed_amount: Decimal,
-}
-
-impl Config {
-    #[cfg(test)]
-    pub fn mock() -> Config {
-        Config {
-            db_path: "/mock".to_owned(),
-            portfolios: Vec::new(),
-            alphavantage: AlphaVantageConfig {
-                api_key: s!("mock"),
-            },
-            interactive_brokers: BrokerConfig {
-                deposit_commissions: HashMap::new(),
-            },
-        }
-    }
 }
 
 pub fn load_config(path: &str) -> GenericResult<Config> {
