@@ -1,4 +1,4 @@
-use config::{Config, BrokerConfig};
+use config::BrokerConfig;
 use core::GenericResult;
 use currency::{Cash, CashAssets};
 use types::Decimal;
@@ -7,7 +7,7 @@ use self::commissions::{CommissionSpec, CommissionSpecBuilder};
 
 mod commissions;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BrokerInfo {
     pub name: &'static str,
     config: BrokerConfig,
@@ -33,10 +33,10 @@ impl BrokerInfo {
     }
 }
 
-pub fn interactive_brokers(config: &Config) -> BrokerInfo {
+pub fn interactive_brokers(config: &BrokerConfig) -> BrokerInfo {
     BrokerInfo {
         name: "Interactive Brokers",
-        config: config.interactive_brokers.clone(),
+        config: config.clone(),
         commission_spec: CommissionSpecBuilder::new()
             .minimum(Cash::new("USD", dec!(1)))
             .per_share(Cash::new("USD", decs!("0.005")))
