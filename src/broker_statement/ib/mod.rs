@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn parsing() {
         let statement = IbStatementReader::new(&BrokerConfig::mock())
-            .read("testdata/statement.csv").unwrap();
+            .read("testdata/ib/statement.csv").unwrap();
 
         // FIXME: More checks
         assert!(statement.deposits.len() > 0);
