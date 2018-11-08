@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use csv::StringRecord;
 
-use broker_statement::ib::IbStatementParser;
+use broker_statement::ib::StatementParser;
 use core::{EmptyResult, GenericResult};
 use types::{Date, DateTime, Decimal};
 use util::{self, DecimalRestrictions};
@@ -55,7 +55,7 @@ impl<'a> Record<'a> {
 pub trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
     fn skip_data_types(&self) -> Option<&'static [&'static str]> { None }
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult;
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult;
 }
 
 pub fn format_record<'a, I>(iter: I) -> String

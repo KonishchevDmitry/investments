@@ -81,7 +81,6 @@ impl CommissionSpecBuilder {
         self
     }
 
-    #[cfg(test)]
     pub fn percent(mut self, percent: Decimal) -> CommissionSpecBuilder {
         self.spec.percent = Some(percent);
         self

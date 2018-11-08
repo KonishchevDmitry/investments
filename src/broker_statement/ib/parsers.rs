@@ -8,13 +8,13 @@ use formatting;
 use types::Date;
 use util::{self, DecimalRestrictions};
 
-use super::IbStatementParser;
+use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date, format_record};
 
 pub struct StatementInfoParser {}
 
 impl RecordParser for StatementInfoParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Period" {
             let period = record.get_value("Field Value")?;
             let period = parse_period(period)?;
@@ -28,7 +28,7 @@ impl RecordParser for StatementInfoParser {
 pub struct ChangeInNavParser {}
 
 impl RecordParser for ChangeInNavParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Starting Value" {
             let amount = Cash::new_from_string(
                 parser.currency, record.get_value("Field Value")?)?;
@@ -43,7 +43,7 @@ impl RecordParser for ChangeInNavParser {
 pub struct CashReportParser {}
 
 impl RecordParser for CashReportParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         if currency == "Base Currency Summary" ||
             record.get_value("Currency Summary")? != "Ending Cash" {
@@ -67,7 +67,7 @@ impl RecordParser for CashReportParser {
 pub struct DepositsParser {}
 
 impl RecordParser for DepositsParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         if currency.starts_with("Total") {
             return Ok(());
@@ -88,7 +88,7 @@ pub struct FinancialInstrumentInformationParser {
 }
 
 impl RecordParser for FinancialInstrumentInformationParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         parser.statement.instrument_names.insert(
             record.get_value("Symbol")?.to_owned(),
             record.get_value("Description")?.to_owned(),
@@ -104,7 +104,7 @@ impl RecordParser for UnknownRecordParser {
         None
     }
 
-    fn parse(&self, _parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, _parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if false {
             trace!("Data: {}.", format_record(record.values.iter().skip(1)));
         }

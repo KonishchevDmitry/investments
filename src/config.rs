@@ -16,7 +16,8 @@ pub struct Config {
     pub db_path: String,
 
     pub portfolios: Vec<PortfolioConfig>,
-    pub interactive_brokers: BrokerConfig,
+    pub brokers: BrokersConfig,
+
     pub alphavantage: AlphaVantageConfig,
 }
 
@@ -26,7 +27,7 @@ impl Config {
         Config {
             db_path: "/mock".to_owned(),
             portfolios: Vec::new(),
-            interactive_brokers: BrokerConfig::mock(),
+            brokers: BrokersConfig::mock(),
             alphavantage: AlphaVantageConfig {
                 api_key: s!("mock"),
             },
@@ -50,6 +51,23 @@ pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
     pub statement: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BrokersConfig {
+    pub interactive_brokers: Option<BrokerConfig>,
+    pub open_broker: Option<BrokerConfig>,
+}
+
+impl BrokersConfig {
+    #[cfg(test)]
+    pub fn mock() -> BrokersConfig {
+        BrokersConfig {
+            interactive_brokers: Some(BrokerConfig::mock()),
+            open_broker: Some(BrokerConfig::mock()),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -76,6 +94,7 @@ pub struct TransactionCommissionSpec {
 #[derive(Clone, Copy)]
 pub enum Broker {
     InteractiveBrokers,
+    OpenBroker,
 }
 
 impl<'de> Deserialize<'de> for Broker {
@@ -84,7 +103,11 @@ impl<'de> Deserialize<'de> for Broker {
 
         Ok(match value.as_str() {
             "interactive-brokers" => Broker::InteractiveBrokers,
-            _ => return Err(D::Error::unknown_variant(&value, &["interactive-brokers"])),
+            "open-broker" => Broker::OpenBroker,
+
+            _ => return Err(D::Error::unknown_variant(&value, &[
+                "interactive-brokers", "open-broker",
+            ])),
         })
     }
 }

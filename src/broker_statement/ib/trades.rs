@@ -3,7 +3,7 @@ use core::EmptyResult;
 use currency::Cash;
 use util::DecimalRestrictions;
 
-use super::IbStatementParser;
+use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date_time};
 
 pub struct OpenPositionsParser {}
@@ -13,7 +13,7 @@ impl RecordParser for OpenPositionsParser {
         Some(&["Total"])
     }
 
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_values(&[
             ("DataDiscriminator", "Summary"),
             ("Asset Category", "Stocks"),
@@ -38,7 +38,7 @@ impl RecordParser for TradesParser {
         Some(&["SubTotal", "Total"])
     }
 
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_value("DataDiscriminator", "Order")?;
 
         // TODO: Taxes from selling?

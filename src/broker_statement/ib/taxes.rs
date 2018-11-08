@@ -4,7 +4,7 @@ use formatting;
 use types::Date;
 use util::DecimalRestrictions;
 
-use super::IbStatementParser;
+use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date};
 
 pub type TaxId = (Date, String);
@@ -12,7 +12,7 @@ pub type TaxId = (Date, String);
 pub struct WithholdingTaxParser {}
 
 impl RecordParser for WithholdingTaxParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         if currency == "Total" {
             return Ok(());

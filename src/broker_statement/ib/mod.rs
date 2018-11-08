@@ -19,25 +19,25 @@ mod parsers;
 mod taxes;
 mod trades;
 
-pub struct IbStatementReader {
+pub struct StatementReader {
     broker_info: BrokerInfo,
 }
 
-impl IbStatementReader {
+impl StatementReader {
     pub fn new(config: &BrokerConfig) -> Box<BrokerStatementReader> {
-        Box::new(IbStatementReader {
+        Box::new(StatementReader {
             broker_info: brokers::interactive_brokers(config),
         })
     }
 }
 
-impl BrokerStatementReader for IbStatementReader {
+impl BrokerStatementReader for StatementReader {
     fn is_statement(&self, file_name: &str) -> bool {
         file_name.ends_with(".csv")
     }
 
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
-        let parser = IbStatementParser {
+        let parser = StatementParser {
             statement: BrokerStatementBuilder::new(self.broker_info.clone()),
             currency: "USD", // TODO: Get from statement
             taxes: HashMap::new(),
@@ -54,14 +54,14 @@ enum State {
     Header(StringRecord),
 }
 
-pub struct IbStatementParser {
+pub struct StatementParser {
     statement: BrokerStatementBuilder,
     currency: &'static str,
     taxes: HashMap<taxes::TaxId, Cash>,
     dividends: Vec<dividends::DividendInfo>,
 }
 
-impl IbStatementParser {
+impl StatementParser {
     fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)

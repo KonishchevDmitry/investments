@@ -10,7 +10,7 @@ use regulations;
 use types::Date;
 use util::DecimalRestrictions;
 
-use super::IbStatementParser;
+use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date};
 use super::taxes::TaxId;
 
@@ -23,7 +23,7 @@ pub struct DividendInfo {
 pub struct DividendsParser {}
 
 impl RecordParser for DividendsParser {
-    fn parse(&self, parser: &mut IbStatementParser, record: &Record) -> EmptyResult {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         if currency == "Total" {
             return Ok(());
