@@ -1,9 +1,11 @@
-use std;
+use std::{self, fs};
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use chrono::Duration;
 
 use brokers::BrokerInfo;
+use config::{Config, Broker};
 use core::{EmptyResult, GenericResult};
 use currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
 use currency::converter::CurrencyConverter;
@@ -13,7 +15,9 @@ use regulations::Country;
 use types::{Date, Decimal};
 use util;
 
-pub mod ib;
+use self::ib::IbStatementReader;
+
+mod ib;
 
 // TODO: Take care of stock splitting
 #[derive(Debug)]
@@ -21,6 +25,7 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
 
+    starting_value: Cash,
     pub deposits: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
 
@@ -33,6 +38,47 @@ pub struct BrokerStatement {
 }
 
 impl BrokerStatement {
+    pub fn read(config: &Config, broker: Broker, statement_dir_path: &str) -> GenericResult<BrokerStatement> {
+        let statement_reader = match broker {
+            Broker::InteractiveBrokers => IbStatementReader::new(&config.interactive_brokers),
+        };
+
+        let mut file_names = get_statement_files(statement_dir_path, &statement_reader).map_err(|e| format!(
+            "Error while reading {:?}: {}", statement_dir_path, e))?;
+
+        file_names.sort();
+        let mut joint_statement = None;
+
+        for file_name in &file_names {
+            let path = Path::new(statement_dir_path).join(file_name);
+            let path = path.to_str().unwrap();
+
+            let statement = statement_reader.read(path).map_err(|e| format!(
+                "Error while reading {:?} broker statement: {}", path, e))?;
+
+            if joint_statement.is_none() {
+                joint_statement = Some(statement);
+                continue
+            }
+
+            // TODO: Support
+            return Err!("Multiple statements aren't supported yet");
+        }
+
+        let statement = match joint_statement {
+            Some(statement) => statement,
+            None => return Err!("{:?} doesn't contain any broker statement", statement_dir_path),
+        };
+
+        if !statement.starting_value.is_zero() {
+            return Err!("Invalid broker statement period: It has a non-zero starting value: {}",
+                statement.starting_value);
+        }
+
+        debug!("{:#?}", statement);
+        Ok(statement)
+    }
+
     pub fn format_period(&self) -> String {
         format!("{} - {}",
                 formatting::format_date(self.period.0),
@@ -124,10 +170,30 @@ impl BrokerStatement {
     }
 }
 
+fn get_statement_files(
+    statement_dir_path: &str, statement_reader: &Box<BrokerStatementReader>
+) -> GenericResult<Vec<String>> {
+    let mut file_names = Vec::new();
+
+    for entry in fs::read_dir(statement_dir_path)? {
+        let file_name = entry?.file_name().into_string().map_err(|file_name| format!(
+            "Got an invalid file name: {:?}", file_name.to_string_lossy()))?;
+
+        if statement_reader.is_statement(&file_name) {
+            file_names.push(file_name);
+        }
+    }
+
+    Ok(file_names)
+}
+
+pub trait BrokerStatementReader {
+    fn is_statement(&self, file_name: &str) -> bool;
+    fn read(&self, path: &str) -> GenericResult<BrokerStatement>;
+}
+
 struct BrokerStatementBuilder {
     broker: BrokerInfo,
-    allow_partial: bool,
-
     period: Option<(Date, Date)>,
 
     starting_value: Option<Cash>,
@@ -143,11 +209,9 @@ struct BrokerStatementBuilder {
 }
 
 impl BrokerStatementBuilder {
-    fn new(broker: BrokerInfo, allow_partial: bool) -> BrokerStatementBuilder {
+    fn new(broker: BrokerInfo) -> BrokerStatementBuilder {
         BrokerStatementBuilder {
             broker: broker,
-            allow_partial: allow_partial,
-
             period: None,
 
             starting_value: None,
@@ -176,12 +240,6 @@ impl BrokerStatementBuilder {
 
         let min_date = period.0;
         let max_date = period.1 - Duration::days(1);
-
-        let starting_value = get_option("starting value", self.starting_value)?;
-        if !self.allow_partial && !starting_value.is_zero() {
-            return Err!(
-                "Invalid broker statement period: it must start before any activity on the account");
-        }
 
         if self.cash_assets.is_empty() {
             return Err!("Unable to find any information about current cash assets");
@@ -214,10 +272,11 @@ impl BrokerStatementBuilder {
             }
         }
 
-        let statement = BrokerStatement {
+        Ok(BrokerStatement {
             broker: self.broker,
             period: period,
 
+            starting_value: get_option("starting value", self.starting_value)?,
             deposits: self.deposits,
             cash_assets: self.cash_assets,
 
@@ -227,10 +286,7 @@ impl BrokerStatementBuilder {
 
             open_positions: self.open_positions,
             instrument_names: self.instrument_names,
-        };
-
-        debug!("{:#?}", statement);
-        return Ok(statement)
+        })
     }
 }
 

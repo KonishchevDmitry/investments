@@ -14,8 +14,8 @@ use types::Date;
 pub enum Action {
     Analyse(String),
     TaxStatement {
-        year: i32,
         portfolio_name: String,
+        year: i32,
         tax_statement_path: Option<String>,
     },
 }
@@ -53,11 +53,11 @@ pub fn initialize() -> (Action, Config) {
                 "dividends.\n",
                 "\nIf tax statement file is not specified only outputs the data which is going to ",
                 "be declared."))
-            .arg(Arg::with_name("YEAR")
-                .help("Year to generate the statement for")
-                .required(true))
             .arg(Arg::with_name("PORTFOLIO")
                 .help("Portfolio name")
+                .required(true))
+            .arg(Arg::with_name("YEAR")
+                .help("Year to generate the statement for")
                 .required(true))
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
@@ -122,8 +122,8 @@ fn parse_arguments(matches: &ArgMatches) -> GenericResult<Action> {
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
-                year: year,
                 portfolio_name: portfolio_name,
+                year: year,
                 tax_statement_path: tax_statement_path,
             }
         },

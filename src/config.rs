@@ -73,6 +73,7 @@ pub struct TransactionCommissionSpec {
     pub fixed_amount: Decimal,
 }
 
+#[derive(Clone, Copy)]
 pub enum Broker {
     InteractiveBrokers,
 }

@@ -15,11 +15,13 @@ mod deposit_emulator;
 mod performance;
 
 pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
+    let portfolio = config.get_portfolio(portfolio_name)?;
+
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database.clone(), false);
     let mut quotes = Quotes::new(&config, database.clone());
 
-    let mut statement = BrokerStatement::read(config, config.get_portfolio(portfolio_name)?)?;
+    let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statement)?;
     check_statement_date(&statement);
     statement.batch_quotes(&mut quotes);
     statement.emulate_sellout(&mut quotes)?;

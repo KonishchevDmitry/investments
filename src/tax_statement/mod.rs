@@ -17,13 +17,14 @@ use self::statement::TaxStatement;
 mod statement;
 
 pub fn generate_tax_statement(
-    config: &Config, year: i32, portfolio_name: &str, tax_statement_path: Option<&str>
+    config: &Config, portfolio_name: &str, year: i32, tax_statement_path: Option<&str>
 ) -> EmptyResult {
     if year > util::today().year() {
         return Err!("An attempt to generate tax statement for the future");
     }
 
-    let broker_statement = BrokerStatement::read(config, config.get_portfolio(portfolio_name)?)?;
+    let portfolio = config.get_portfolio(portfolio_name)?;
+    let broker_statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statement)?;
 
     let tax_period_start = date!(1, 1, year);
     let tax_period_end = date!(1, 1, year + 1);

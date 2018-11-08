@@ -59,9 +59,9 @@ fn run(action: Action, config: Config) -> EmptyResult {
         Action::Analyse(portfolio_name) =>
             analyse::analyse(&config, &portfolio_name)?,
 
-        Action::TaxStatement { year, portfolio_name, tax_statement_path } =>
+        Action::TaxStatement { portfolio_name, year, tax_statement_path } =>
             tax_statement::generate_tax_statement(
-                &config, year, &portfolio_name, tax_statement_path.as_ref().map(String::as_str))?,
+                &config, &portfolio_name, year, tax_statement_path.as_ref().map(String::as_str))?,
     };
 
     Ok(())

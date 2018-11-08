@@ -4,6 +4,7 @@ use std::iter::Iterator;
 use csv::{self, StringRecord};
 
 use brokers::{self, BrokerInfo};
+#[cfg(test)] use config::{Config, Broker};
 use config::BrokerConfig;
 use core::GenericResult;
 use currency::Cash;
@@ -172,10 +173,10 @@ mod tests {
 
     #[test]
     fn parsing() {
-        let statement = IbStatementReader::new(&BrokerConfig::mock())
-            .read("testdata/ib/statement.csv").unwrap();
+        let statement = BrokerStatement::read(
+            &Config::mock(), Broker::InteractiveBrokers, "testdata/ib").unwrap();
 
-        // FIXME: More checks
+        // TODO: More checks
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);
     }
