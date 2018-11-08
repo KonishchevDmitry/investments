@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn parsing() {
         let statement = BrokerStatement::read(
-            &Config::mock(), Broker::InteractiveBrokers, "testdata/ib").unwrap();
+            &Config::mock(), Broker::InteractiveBrokers, "testdata/interactive-brokers").unwrap();
 
         // TODO: More checks
         assert!(statement.deposits.len() > 0);
