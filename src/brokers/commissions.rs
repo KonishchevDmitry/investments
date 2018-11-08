@@ -133,10 +133,7 @@ mod tests {
 
     #[test]
     fn open_broker_commission() {
-        let commission_spec = CommissionSpecBuilder::new()
-            .minimum(Cash::new("RUB", decs!("0.04")))
-            .percent(decs!("0.057"))
-            .build().unwrap();
+        let commission_spec = brokers::open_broker(&BrokerConfig::mock()).commission_spec;
 
         // Percent commission > minimum commission
         assert_eq!(commission_spec.calculate(73, Cash::new("RUB", dec!(2758))).unwrap(),

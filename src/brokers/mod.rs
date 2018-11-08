@@ -44,3 +44,14 @@ pub fn interactive_brokers(config: &BrokerConfig) -> BrokerInfo {
             .build().unwrap(),
     }
 }
+
+pub fn open_broker(config: &BrokerConfig) -> BrokerInfo {
+    BrokerInfo {
+        name: "Open Broker",
+        config: config.clone(),
+        commission_spec: CommissionSpecBuilder::new()
+            .minimum(Cash::new("RUB", decs!("0.04")))
+            .percent(decs!("0.057"))
+            .build().unwrap(),
+    }
+}
