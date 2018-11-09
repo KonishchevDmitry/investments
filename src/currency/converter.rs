@@ -99,7 +99,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         }
 
         let min_date = match date {
-            date if date.month() == 1 && date.day() < 10 => Date::from_ymd(date.year(), 12, 30),
+            date if date.month() == 1 && date.day() < 10 => Date::from_ymd(date.year() - 1, 12, 30),
             date if (date.month() == 3 || date.month() == 5) && date.day() < 13 => date - Duration::days(5),
             date => date - Duration::days(3),
         };
