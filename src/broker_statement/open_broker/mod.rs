@@ -46,6 +46,7 @@ impl BrokerStatementReader for StatementReader {
     }
 }
 
+// FIXME: Deprecate
 pub struct StatementParser {
     statement: BrokerStatementBuilder,
     currency: &'static str,
@@ -54,12 +55,9 @@ pub struct StatementParser {
 impl StatementParser {
     fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
         let statement = read_statement(path)?;
-
-        self.statement.period = Some((statement.date_from, statement.date_to + Duration::days(1)));
+        statement.parse(&mut self.statement)?;
 
         // FIXME: HERE
-        self.statement.cash_assets.deposit(Cash::new(self.currency, dec!(1)));
-        self.statement.starting_value = Some(Cash::new("RUB", dec!(0)));
         self.statement.deposits.push(CashAssets::new_from_cash(date!(1, 1, 2017), Cash::new("RUB", dec!(1))));
 
         self.statement.get()
