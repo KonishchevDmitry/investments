@@ -52,27 +52,34 @@ pub struct StatementParser {
 }
 
 impl StatementParser {
-    // FIXME: HERE
     fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
-        let mut data = Vec::new();
+        let statement = read_statement(path)?;
 
-        let mut reader = BufReader::new(File::open(path)?);
-        reader.read_to_end(&mut data)?;
-
-        let (data, _, errors) = encoding_rs::WINDOWS_1251.decode(data.as_slice());
-        if errors {
-            return Err!("Got an invalid Windows-1251 encoded data");
-        }
-
-        let statement: BrokerReport = serde_xml_rs::deserialize(data.as_bytes())?;
         self.statement.period = Some((statement.date_from, statement.date_to + Duration::days(1)));
+
+        // FIXME: HERE
         self.statement.cash_assets.deposit(Cash::new(self.currency, dec!(1)));
         self.statement.starting_value = Some(Cash::new("RUB", dec!(0)));
         self.statement.deposits.push(CashAssets::new_from_cash(date!(1, 1, 2017), Cash::new("RUB", dec!(1))));
+
         self.statement.get()
     }
+
 }
 
+fn read_statement(path: &str) -> GenericResult<BrokerReport> {
+    let mut data = Vec::new();
+
+    let mut reader = BufReader::new(File::open(path)?);
+    reader.read_to_end(&mut data)?;
+
+    let (data, _, errors) = encoding_rs::WINDOWS_1251.decode(data.as_slice());
+    if errors {
+        return Err!("Got an invalid Windows-1251 encoded data");
+    }
+
+    Ok(serde_xml_rs::deserialize(data.as_bytes())?)
+}
 
 #[cfg(test)]
 mod tests {

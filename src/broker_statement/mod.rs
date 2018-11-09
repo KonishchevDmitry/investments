@@ -84,12 +84,6 @@ impl BrokerStatement {
         Ok(statement)
     }
 
-    pub fn format_period(&self) -> String {
-        format!("{} - {}",
-                formatting::format_date(self.period.0),
-                formatting::format_date(self.period.1 - Duration::days(1)))
-    }
-
     pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
         let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
             "Unable to find {:?} instrument name in the broker statement", symbol))?;
@@ -243,6 +237,10 @@ impl BrokerStatementBuilder {
     // FIXME: Wrap error?
     fn get(mut self) -> GenericResult<BrokerStatement> {
         let period = get_option("statement period", self.period)?;
+        if period.0 >= period.1 {
+            return Err!("Invalid statement period: {}",
+                formatting::format_period(period.0, period.1));
+        }
 
         let min_date = period.0;
         let max_date = period.1 - Duration::days(1);

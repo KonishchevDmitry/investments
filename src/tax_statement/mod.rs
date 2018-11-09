@@ -35,12 +35,12 @@ pub fn generate_tax_statement(
         warn!(concat!(
             "Period of the specified broker statement ({}) ",
             "doesn't fully overlap with the requested tax year ({})."),
-            broker_statement.format_period(), year);
+            formatting::format_period(broker_statement.period.0, broker_statement.period.1), year);
     } else {
         return Err!(concat!(
             "Period of the specified broker statement ({}) ",
             "doesn't overlap with the requested tax year ({})"),
-            broker_statement.format_period(), year);
+            formatting::format_period(broker_statement.period.0, broker_statement.period.1), year);
     }
 
     let mut tax_statement = match tax_statement_path {

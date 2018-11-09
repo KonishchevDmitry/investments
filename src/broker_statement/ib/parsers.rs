@@ -122,14 +122,15 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
         },
         2 => {
             let start = parse_period_date(dates[0])?;
-            let end = parse_period_date(dates[1])?;
 
-            if start > end {
-                return Err!("Invalid period: {} - {}",
-                    formatting::format_date(start), formatting::format_date(end));
+            let mut end = parse_period_date(dates[1])?;
+            end += Duration::days(1);
+
+            if start >= end {
+                return Err!("Invalid period: {}", formatting::format_period(start, end));
             }
 
-            (start, end + Duration::days(1))
+            (start, end)
         },
         _ => return Err!("Invalid date: {:?}", period),
     });
