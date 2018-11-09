@@ -240,6 +240,7 @@ impl BrokerStatementBuilder {
         set_option("starting value", &mut self.starting_value, starting_value)
     }
 
+    // FIXME: Wrap error?
     fn get(mut self) -> GenericResult<BrokerStatement> {
         let period = get_option("statement period", self.period)?;
 

@@ -155,8 +155,7 @@ impl StatementParser {
         }
 
         self.statement.dividends = dividends::parse_dividends(self.dividends, &mut self.taxes)?;
-
-        Ok(self.statement.get().map_err(|e| format!("Invalid statement: {}", e))?)
+        self.statement.get()
     }
 }
 
