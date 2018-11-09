@@ -78,7 +78,7 @@ fn parse_rates(start_date: Date, end_date: Date, data: &str) -> GenericResult<Ve
     }
 
     let date_format = "%d.%m.%Y";
-    let result: Rates = serde_xml_rs::deserialize(data.as_bytes())?;
+    let result: Rates = serde_xml_rs::from_str(data).map_err(|e| e.to_string())?;
 
     if util::parse_date(&result.start_date, date_format)? != start_date ||
         util::parse_date(&result.end_date, date_format)? != end_date {

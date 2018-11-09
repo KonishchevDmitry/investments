@@ -76,7 +76,7 @@ fn read_statement(path: &str) -> GenericResult<BrokerReport> {
         return Err!("Got an invalid Windows-1251 encoded data");
     }
 
-    Ok(serde_xml_rs::deserialize(data.as_bytes())?)
+    Ok(serde_xml_rs::from_str(&data).map_err(|e| e.to_string())?)
 }
 
 #[cfg(test)]
