@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document>
+    <data id="securities">
+        <metadata>
+            <columns>
+                <column name="SECID" type="string" bytes="36" max_size="0" />
+                <column name="BOARDID" type="string" bytes="12" max_size="0" />
+                <column name="SHORTNAME" type="string" bytes="30" max_size="0" />
+                <column name="PREVPRICE" type="double" />
+                <column name="LOTSIZE" type="int32" />
+                <column name="FACEVALUE" type="double" />
+                <column name="STATUS" type="string" bytes="3" max_size="0" />
+                <column name="BOARDNAME" type="string" bytes="381" max_size="0" />
+                <column name="DECIMALS" type="int32" />
+                <column name="SECNAME" type="string" bytes="90" max_size="0" />
+                <column name="REMARKS" type="string" bytes="24" max_size="0" />
+                <column name="MARKETCODE" type="string" bytes="12" max_size="0" />
+                <column name="INSTRID" type="string" bytes="12" max_size="0" />
+                <column name="SECTORID" type="string" bytes="12" max_size="0" />
+                <column name="MINSTEP" type="double" />
+                <column name="PREVWAPRICE" type="double" />
+                <column name="FACEUNIT" type="string" bytes="12" max_size="0" />
+                <column name="PREVDATE" type="date" bytes="10" max_size="0" />
+                <column name="ISSUESIZE" type="int64" />
+                <column name="ISIN" type="string" bytes="36" max_size="0" />
+                <column name="LATNAME" type="string" bytes="90" max_size="0" />
+                <column name="REGNUMBER" type="string" bytes="90" max_size="0" />
+                <column name="PREVLEGALCLOSEPRICE" type="double" />
+                <column name="PREVADMITTEDQUOTE" type="double" />
+                <column name="CURRENCYID" type="string" bytes="12" max_size="0" />
+                <column name="SECTYPE" type="string" bytes="3" max_size="0" />
+                <column name="LISTLEVEL" type="int32" />
+                <column name="SETTLEDATE" type="date" bytes="10" max_size="0" />
+            </columns>
+        </metadata>
+        <rows>
+        </rows>
+    </data>
+    <data id="marketdata">
+        <metadata>
+            <columns>
+                <column name="SECID" type="string" bytes="36" max_size="0" />
+                <column name="BOARDID" type="string" bytes="12" max_size="0" />
+                <column name="BID" type="double" />
+                <column name="BIDDEPTH" type="undefined" bytes="0" max_size="0" />
+                <column name="OFFER" type="double" />
+                <column name="OFFERDEPTH" type="undefined" bytes="0" max_size="0" />
+                <column name="SPREAD" type="double" />
+                <column name="BIDDEPTHT" type="undefined" bytes="0" max_size="0" />
+                <column name="OFFERDEPTHT" type="undefined" bytes="0" max_size="0" />
+                <column name="OPEN" type="double" />
+                <column name="LOW" type="double" />
+                <column name="HIGH" type="double" />
+                <column name="LAST" type="double" />
+                <column name="LASTCHANGE" type="double" />
+                <column name="LASTCHANGEPRCNT" type="double" />
+                <column name="QTY" type="int32" />
+                <column name="VALUE" type="double" />
+                <column name="VALUE_USD" type="double" />
+                <column name="WAPRICE" type="double" />
+                <column name="LASTCNGTOLASTWAPRICE" type="double" />
+                <column name="WAPTOPREVWAPRICEPRCNT" type="double" />
+                <column name="WAPTOPREVWAPRICE" type="double" />
+                <column name="CLOSEPRICE" type="double" />
+                <column name="MARKETPRICETODAY" type="double" />
+                <column name="MARKETPRICE" type="double" />
+                <column name="LASTTOPREVPRICE" type="double" />
+                <column name="NUMTRADES" type="int32" />
+                <column name="VOLTODAY" type="int64" />
+                <column name="VALTODAY" type="int64" />
+                <column name="VALTODAY_USD" type="int64" />
+                <column name="ETFSETTLEPRICE" type="double" />
+                <column name="TRADINGSTATUS" type="string" bytes="3" max_size="0" />
+                <column name="UPDATETIME" type="time" bytes="10" max_size="0" />
+                <column name="ADMITTEDQUOTE" type="double" />
+                <column name="LASTBID" type="undefined" bytes="0" max_size="0" />
+                <column name="LASTOFFER" type="undefined" bytes="0" max_size="0" />
+                <column name="LCLOSEPRICE" type="double" />
+                <column name="LCURRENTPRICE" type="double" />
+                <column name="MARKETPRICE2" type="double" />
+                <column name="NUMBIDS" type="undefined" bytes="0" max_size="0" />
+                <column name="NUMOFFERS" type="undefined" bytes="0" max_size="0" />
+                <column name="CHANGE" type="double" />
+                <column name="TIME" type="time" bytes="10" max_size="0" />
+                <column name="HIGHBID" type="undefined" bytes="0" max_size="0" />
+                <column name="LOWOFFER" type="undefined" bytes="0" max_size="0" />
+                <column name="PRICEMINUSPREVWAPRICE" type="double" />
+                <column name="OPENPERIODPRICE" type="double" />
+                <column name="SEQNUM" type="int32" />
+                <column name="SYSTIME" type="datetime" bytes="19" max_size="0" />
+                <column name="CLOSINGAUCTIONPRICE" type="double" />
+                <column name="CLOSINGAUCTIONVOLUME" type="double" />
+                <column name="ISSUECAPITALIZATION" type="double" />
+                <column name="ISSUECAPITALIZATION_UPDATETIME" type="time" bytes="10" max_size="0" />
+                <column name="ETFSETTLECURRENCY" type="string" bytes="18" max_size="0" />
+                <column name="VALTODAY_RUR" type="int64" />
+            </columns>
+        </metadata>
+        <rows>
+        </rows>
+    </data>
+    <data id="dataversion">
+        <metadata>
+            <columns>
+                <column name="version" type="int32" />
+                <column name="seqnum" type="int32" />
+            </columns>
+        </metadata>
+        <rows>
+            <row version="5437" seqnum="359953" />
+        </rows>
+    </data>
+</document>

@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{Read, BufReader};
 
-use chrono::Duration;
 use encoding_rs;
 use serde_xml_rs;
 
@@ -58,7 +57,7 @@ impl StatementParser {
         statement.parse(&mut self.statement)?;
 
         // FIXME: HERE
-        self.statement.deposits.push(CashAssets::new_from_cash(date!(1, 1, 2017), Cash::new("RUB", dec!(1))));
+        self.statement.deposits.push(CashAssets::new_from_cash(date!(1, 1, 2017), Cash::new(self.currency, dec!(1))));
 
         self.statement.get()
     }

@@ -33,6 +33,10 @@ impl AlphaVantage {
 }
 
 impl QuotesProvider for AlphaVantage {
+    fn name(&self) -> &'static str {
+        BASE_URL
+    }
+
     fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
         let url = Url::parse_with_params(
             &(BASE_URL.to_owned() + "/query"),
@@ -44,8 +48,6 @@ impl QuotesProvider for AlphaVantage {
         )?;
 
         let get = |url| -> GenericResult<HashMap<String, Cash>> {
-            debug!("Getting quotes for the following symbols: {}...", symbols.join(", "));
-
             let mut response = Client::new().get(url).send()?;
             if !response.status().is_success() {
                 return Err!("The server returned an error: {}", response.status());

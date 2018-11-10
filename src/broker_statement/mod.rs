@@ -191,7 +191,7 @@ pub trait BrokerStatementReader {
     fn read(&self, path: &str) -> GenericResult<BrokerStatement>;
 }
 
-struct BrokerStatementBuilder {
+pub struct BrokerStatementBuilder {
     broker: BrokerInfo,
     period: Option<(Date, Date)>,
 

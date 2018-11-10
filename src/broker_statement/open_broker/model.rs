@@ -4,16 +4,15 @@ use broker_statement::BrokerStatementBuilder;
 use core::EmptyResult;
 use currency::Cash;
 use types::Date;
-use util::{self, parse_decimal, DecimalRestrictions};
 
 use super::parsers::deserialize_date;
 
 #[derive(Deserialize)]
 pub struct BrokerReport {
     #[serde(deserialize_with = "deserialize_date")]
-    pub date_from: Date,
+    date_from: Date,
     #[serde(deserialize_with = "deserialize_date")]
-    pub date_to: Date,
+    date_to: Date,
 
     #[serde(rename = "spot_account_totally")]
     account_summary: AccountSummary,
@@ -28,13 +27,13 @@ impl BrokerReport {
 }
 
 #[derive(Deserialize)]
-pub struct AccountSummary {
+struct AccountSummary {
     #[serde(rename = "item")]
     items: Vec<AccountSummaryItem>,
 }
 
 impl AccountSummary {
-    pub fn parse(&self, statement: &mut BrokerStatementBuilder) -> EmptyResult {
+    fn parse(&self, statement: &mut BrokerStatementBuilder) -> EmptyResult {
         for item in &self.items {
             let amount = Cash::new_from_string(&item.currency, &item.amount)?;
 
@@ -50,7 +49,7 @@ impl AccountSummary {
 }
 
 #[derive(Deserialize)]
-pub struct AccountSummaryItem {
+struct AccountSummaryItem {
     #[serde(rename = "row_name")]
     name: String,
     #[serde(rename = "value")]

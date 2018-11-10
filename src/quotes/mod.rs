@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 #[cfg(test)] use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 
 use config::Config;
 use core::GenericResult;
@@ -8,9 +8,11 @@ use db;
 
 use self::alphavantage::AlphaVantage;
 use self::cache::Cache;
+use self::moex::Moex;
 
 mod alphavantage;
 mod cache;
+mod moex;
 
 pub struct Quotes {
     cache: Cache,
@@ -22,6 +24,7 @@ impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> Quotes {
         Quotes::new_with(Cache::new(database), vec![
             Box::new(AlphaVantage::new(&config.alphavantage.api_key)),
+            Box::new(Moex::new()),
         ])
     }
 
@@ -46,7 +49,11 @@ impl Quotes {
         let mut price = None;
 
         for provider in &self.providers {
-            let symbols = self.batched_symbols.iter().map(|symbol| symbol.to_owned()).collect();
+            let symbols: Vec<String> = self.batched_symbols.iter()
+                .map(|symbol| symbol.to_owned()).collect();
+
+            debug!("Getting quotes from {} for the following symbols: {}...",
+                   provider.name(), symbols.join(", "));
             let quotes = provider.get_quotes(&symbols)?;
 
             for (other_symbol, other_price) in quotes.iter() {
@@ -76,6 +83,7 @@ impl Quotes {
 type QuotesMap = HashMap<String, Cash>;
 
 trait QuotesProvider {
+    fn name(&self) -> &'static str;
     fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap>;
 }
 
@@ -90,6 +98,10 @@ mod tests {
         }
 
         impl QuotesProvider for FirstProvider {
+            fn name(&self) -> &'static str {
+                "first-provider"
+            }
+
             fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
                 let mut symbols = symbols.clone();
                 symbols.sort();
@@ -110,6 +122,10 @@ mod tests {
         }
 
         impl QuotesProvider for SecondProvider {
+            fn name(&self) -> &'static str {
+                "second-provider"
+            }
+
             fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
                 assert_eq!(*self.request_id.borrow(), 0);
                 assert_eq!(*symbols, vec![s!("BNDX")]);
