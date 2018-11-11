@@ -8,7 +8,6 @@ use brokers::{self, BrokerInfo};
 #[cfg(test)] use config::{Config, Broker};
 use config::BrokerConfig;
 use core::GenericResult;
-use currency::{Cash, CashAssets};
 
 use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
 
@@ -35,33 +34,12 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
-        let parser = StatementParser {
-            statement: BrokerStatementBuilder::new(self.broker_info.clone()),
-            currency: "RUB", // TODO: Get from statement
-            // FIXME: Taxes, dividends
-        };
-
-        parser.parse(path)
+        // FIXME: Taxes, dividends
+        // FIXME: tax deductions
+        let mut statement = BrokerStatementBuilder::new(self.broker_info.clone());
+        read_statement(path)?.parse(&mut statement)?;
+        statement.get()
     }
-}
-
-// FIXME: Deprecate
-pub struct StatementParser {
-    statement: BrokerStatementBuilder,
-    currency: &'static str,
-}
-
-impl StatementParser {
-    fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
-        let statement = read_statement(path)?;
-        statement.parse(&mut self.statement)?;
-
-        // FIXME: HERE
-        self.statement.deposits.push(CashAssets::new_from_cash(date!(1, 1, 2017), Cash::new(self.currency, dec!(1))));
-
-        self.statement.get()
-    }
-
 }
 
 fn read_statement(path: &str) -> GenericResult<BrokerReport> {

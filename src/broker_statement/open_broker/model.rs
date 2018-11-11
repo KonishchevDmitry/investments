@@ -5,11 +5,11 @@ use num_traits::Zero;
 
 use broker_statement::{BrokerStatementBuilder, StockBuy};
 use core::{EmptyResult, GenericResult};
-use currency::Cash;
+use currency::{Cash, CashAssets};
 use types::{Date, Decimal};
 use util::{self, DecimalRestrictions};
 
-use super::parsers::{deserialize_date, parse_security_description, parse_quantity};
+use super::parsers::{CashFlowType, deserialize_date, parse_security_description, parse_quantity};
 
 #[derive(Deserialize)]
 pub struct BrokerReport {
@@ -27,6 +27,9 @@ pub struct BrokerReport {
     #[serde(rename = "spot_main_deals_conclusion")]
     trades: Trades,
 
+    #[serde(rename = "spot_non_trade_money_operations")]
+    cash_flow: CashFlows,
+
     #[serde(rename = "spot_portfolio_security_params")]
     securities: Securities,
 }
@@ -39,6 +42,7 @@ impl BrokerReport {
         let securities = self.securities.parse(statement)?;
         self.assets.parse(statement, &securities)?;
         self.trades.parse(statement, &securities)?;
+        self.cash_flow.parse(statement)?;
 
         Ok(())
     }
@@ -195,6 +199,49 @@ impl Trades {
                 },
                 // TODO: Selling support
                 _ => return Err!("Stock selling is not supported yet")
+            };
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+struct CashFlows {
+    #[serde(rename = "item")]
+    cash_flows: Vec<CashFlow>,
+}
+
+#[derive(Deserialize)]
+struct CashFlow {
+    #[serde(rename = "operation_date", deserialize_with = "deserialize_date")]
+    date: Date,
+
+    #[serde(rename = "currency_code")]
+    currency: String,
+
+    amount: Decimal,
+
+    #[serde(rename = "comment")]
+    description: String,
+}
+
+impl CashFlows {
+    fn parse(&self, statement: &mut BrokerStatementBuilder) -> EmptyResult {
+        for cash_flow in &self.cash_flows {
+            let date = cash_flow.date;
+            let currency = &cash_flow.currency;
+            let amount = cash_flow.amount;
+
+            match CashFlowType::parse(&cash_flow.description)? {
+                CashFlowType::Deposit => {
+                    let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyPositive)
+                        .map_err(|_| format!("Invalid deposit amount: {}", amount))?;
+
+                    statement.deposits.push(
+                        CashAssets::new_from_cash(date, Cash::new(currency, amount)));
+                },
+                CashFlowType::Commission => (),
             };
         }
 
