@@ -1,8 +1,9 @@
+use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Deserializer};
 use serde::de::Error;
 
 use core::GenericResult;
-use types::Date;
+use types::{Date, Decimal};
 use util;
 
 fn parse_date(date: &str) -> GenericResult<Date> {
@@ -26,6 +27,16 @@ pub fn parse_security_description(mut issuer: &str) -> &str {
     }
 
     issuer.trim()
+}
+
+pub fn parse_quantity(decimal_quantity: Decimal) -> GenericResult<u32> {
+    Ok(decimal_quantity.to_u32().and_then(|quantity| {
+        if Decimal::from_u32(quantity).unwrap() == decimal_quantity {
+            Some(quantity)
+        } else {
+            None
+        }
+    }).ok_or_else(|| format!("Invalid quantity: {}", decimal_quantity))?)
 }
 
 #[cfg(test)]

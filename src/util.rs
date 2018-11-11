@@ -16,7 +16,10 @@ pub enum DecimalRestrictions {
 
 pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
     let value = Decimal::from_str(string).map_err(|_| "Invalid decimal value")?;
+    validate_decimal(value, restrictions)
+}
 
+pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
     if !match restrictions {
         DecimalRestrictions::NonZero => !value.is_zero(),
         DecimalRestrictions::NegativeOrZero => value.is_sign_negative() || value.is_zero(),
