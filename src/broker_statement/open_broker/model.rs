@@ -25,10 +25,10 @@ pub struct BrokerReport {
     assets: Assets,
 
     #[serde(rename = "spot_main_deals_conclusion")]
-    trades: Trades,
+    trades: Option<Trades>,
 
     #[serde(rename = "spot_non_trade_money_operations")]
-    cash_flow: CashFlows,
+    cash_flow: Option<CashFlows>,
 
     #[serde(rename = "spot_portfolio_security_params")]
     securities: Securities,
@@ -41,8 +41,14 @@ impl BrokerReport {
 
         let securities = self.securities.parse(statement)?;
         self.assets.parse(statement, &securities)?;
-        self.trades.parse(statement, &securities)?;
-        self.cash_flow.parse(statement)?;
+
+        if let Some(ref trades) = self.trades {
+            trades.parse(statement, &securities)?;
+        }
+
+        if let Some(ref cash_flow) = self.cash_flow {
+            cash_flow.parse(statement)?;
+        }
 
         Ok(())
     }

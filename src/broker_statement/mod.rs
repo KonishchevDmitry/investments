@@ -50,37 +50,134 @@ impl BrokerStatement {
 
         let mut file_names = get_statement_files(statement_dir_path, &statement_reader).map_err(|e| format!(
             "Error while reading {:?}: {}", statement_dir_path, e))?;
-
         file_names.sort();
-        let mut joint_statement = None;
+
+        let mut statements = Vec::new();
 
         for file_name in &file_names {
             let path = Path::new(statement_dir_path).join(file_name);
             let path = path.to_str().unwrap();
-
             let statement = statement_reader.read(path).map_err(|e| format!(
                 "Error while reading {:?} broker statement: {}", path, e))?;
-
-            if joint_statement.is_none() {
-                joint_statement = Some(statement);
-                continue
-            }
-
-            // TODO: Support
-            return Err!("Multiple statements aren't supported yet");
+            statements.push(statement);
         }
 
-        let statement = match joint_statement {
-            Some(statement) => statement,
-            None => return Err!("{:?} doesn't contain any broker statement", statement_dir_path),
-        };
+        if statements.is_empty() {
+            return Err!("{:?} doesn't contain any broker statement", statement_dir_path);
+        }
+        statements.sort_by(|a, b| b.period.0.cmp(&a.period.0));
 
-        if statement.starting_assets {
+        let mut joint_statement = statements.pop().unwrap();
+        if joint_statement.starting_assets {
             return Err!("Invalid broker statement period: It has a non-zero starting assets");
         }
 
-        debug!("{:#?}", statement);
-        Ok(statement)
+        for statement in statements.drain(..).rev() {
+            joint_statement.merge(statement).map_err(|e| format!(
+                "Failed to merge broker statements: {}", e))?;
+        }
+
+        debug!("{:#?}", joint_statement);
+        Ok(joint_statement)
+    }
+
+    fn merge(&mut self, mut statement: BrokerStatement) -> EmptyResult {
+        if statement.period.0 != self.period.1 {
+            return Err!("Non-continuous periods: {}, {}",
+                formatting::format_period(self.period.0, self.period.1),
+                formatting::format_period(statement.period.0, statement.period.1));
+        }
+
+        self.period.1 = statement.period.1;
+
+        self.deposits.extend(statement.deposits.drain(..));
+        self.cash_assets = statement.cash_assets;
+
+        self.stock_buys.extend(statement.stock_buys.drain(..));
+        self.stock_sells.extend(statement.stock_sells.drain(..));
+        self.dividends.extend(statement.dividends.drain(..));
+
+        self.open_positions = statement.open_positions;
+        self.instrument_names.extend(statement.instrument_names.drain());
+
+        self.validate()?;
+
+        Ok(())
+    }
+
+    fn validate(&mut self) -> EmptyResult {
+        if self.period.0 >= self.period.1 {
+            return Err!("Invalid statement period: {}",
+                formatting::format_period(self.period.0, self.period.1));
+        }
+
+        if self.cash_assets.is_empty() {
+            return Err!("Unable to find any information about current cash assets");
+        }
+
+        self.deposits.sort_by_key(|deposit| deposit.date);
+        self.stock_buys.sort_by_key(|transaction| transaction.date);
+        self.stock_sells.sort_by_key(|transaction| transaction.date);
+        self.dividends.sort_by_key(|dividend| dividend.date);
+
+        if !self.starting_assets {
+            let mut open_positions = HashMap::new();
+
+            for stock_buy in &self.stock_buys {
+                if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
+                    *position += stock_buy.quantity;
+                    continue;
+                }
+
+                open_positions.insert(stock_buy.symbol.clone(), stock_buy.quantity);
+            }
+
+            if open_positions != self.open_positions {
+                return Err!("The calculated open positions don't match declared ones in the statement");
+            }
+        }
+
+        let min_date = self.period.0;
+        let max_date = self.period.1 - Duration::days(1);
+        let validate_date = |name, first_date, last_date| -> EmptyResult {
+            if first_date < min_date {
+                return Err!("Got a {} outside of statement period: {}",
+                    name, formatting::format_date(first_date));
+            }
+
+            if last_date > max_date {
+                return Err!("Got a {} outside of statement period: {}",
+                    name, formatting::format_date(first_date));
+            }
+
+            Ok(())
+        };
+
+        if !self.deposits.is_empty() {
+            let first_date = self.deposits.first().unwrap().date;
+            let last_date = self.deposits.last().unwrap().date;
+            validate_date("deposit", first_date, last_date)?;
+        }
+
+        if !self.stock_buys.is_empty() {
+            let first_date = self.stock_buys.first().unwrap().date;
+            let last_date = self.stock_buys.last().unwrap().date;
+            validate_date("stock buy", first_date, last_date)?;
+        }
+
+        if !self.stock_sells.is_empty() {
+            let first_date = self.stock_sells.first().unwrap().date;
+            let last_date = self.stock_sells.last().unwrap().date;
+            validate_date("stock sell", first_date, last_date)?;
+        }
+
+        if !self.dividends.is_empty() {
+            let first_date = self.dividends.first().unwrap().date;
+            let last_date = self.dividends.last().unwrap().date;
+            validate_date("dividend", first_date, last_date)?;
+        }
+
+        Ok(())
     }
 
     pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
@@ -233,51 +330,10 @@ impl BrokerStatementBuilder {
         set_option("starting assets", &mut self.starting_assets, exists)
     }
 
-    // FIXME: Wrap error?
-    fn get(mut self) -> GenericResult<BrokerStatement> {
-        let period = get_option("statement period", self.period)?;
-        if period.0 >= period.1 {
-            return Err!("Invalid statement period: {}",
-                formatting::format_period(period.0, period.1));
-        }
-
-        let min_date = period.0;
-        let max_date = period.1 - Duration::days(1);
-
-        if self.cash_assets.is_empty() {
-            return Err!("Unable to find any information about current cash assets");
-        }
-
-        self.deposits.sort_by_key(|deposit| deposit.date);
-        self.stock_buys.sort_by_key(|transaction| transaction.date);
-        self.stock_sells.sort_by_key(|transaction| transaction.date);
-        self.dividends.sort_by_key(|dividend| dividend.date);
-
-        let mut open_positions = HashMap::new();
-
-        for stock_buy in &self.stock_buys {
-            if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
-                *position += stock_buy.quantity;
-                continue;
-            }
-
-            open_positions.insert(stock_buy.symbol.clone(), stock_buy.quantity);
-        }
-
-        if open_positions != self.open_positions {
-            return Err!("The calculated open positions don't match the specified in the statement");
-        }
-
-        for deposit in &self.deposits {
-            if deposit.date < min_date || deposit.date > max_date {
-                return Err!("Got a deposit outside of statement period: {}",
-                    formatting::format_date(deposit.date));
-            }
-        }
-
-        Ok(BrokerStatement {
+    fn get(self) -> GenericResult<BrokerStatement> {
+        let mut statement = BrokerStatement {
             broker: self.broker,
-            period: period,
+            period: get_option("statement period", self.period)?,
 
             starting_assets: get_option("starting assets", self.starting_assets)?,
             deposits: self.deposits,
@@ -289,7 +345,9 @@ impl BrokerStatementBuilder {
 
             open_positions: self.open_positions,
             instrument_names: self.instrument_names,
-        })
+        };
+        statement.validate()?;
+        Ok(statement)
     }
 }
 

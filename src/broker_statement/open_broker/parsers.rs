@@ -48,9 +48,9 @@ pub enum CashFlowType {
 
 impl CashFlowType {
     pub fn parse(description: &str) -> GenericResult<CashFlowType> {
-        Ok(if description.starts_with("Комиссия Брокера") || description.starts_with("Ежегодная комиссия") {
+        Ok(if description.starts_with("Комиссия ") || description.starts_with("Ежегодная комиссия ") {
             CashFlowType::Commission
-        } else if description.starts_with("Поставлены на торги средства клиента") {
+        } else if description.starts_with("Поставлены на торги средства клиента ") {
             CashFlowType::Deposit
         } else {
             return Err!("Unable to determine cash flow type by its description: {:?}", description);
