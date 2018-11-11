@@ -32,8 +32,7 @@ impl RecordParser for ChangeInNavParser {
         if record.get_value("Field Name")? == "Starting Value" {
             let amount = Cash::new_from_string(
                 parser.currency, record.get_value("Field Value")?)?;
-
-            parser.statement.set_starting_value(amount)?;
+            parser.statement.set_starting_assets(!amount.is_zero())?;
         }
 
         Ok(())
@@ -89,10 +88,13 @@ pub struct FinancialInstrumentInformationParser {
 
 impl RecordParser for FinancialInstrumentInformationParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        parser.statement.instrument_names.insert(
-            record.get_value("Symbol")?.to_owned(),
-            record.get_value("Description")?.to_owned(),
-        );
+        let symbol = record.get_value("Symbol")?;
+
+        if parser.statement.instrument_names.insert(
+            symbol.to_owned(), record.get_value("Description")?.to_owned()).is_some() {
+            return Err!("Duplicated symbol: {}", symbol);
+        }
+
         Ok(())
     }
 }

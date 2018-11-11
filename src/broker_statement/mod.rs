@@ -24,7 +24,7 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
 
-    starting_value: Cash,
+    starting_assets: bool,
     pub deposits: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
 
@@ -75,9 +75,8 @@ impl BrokerStatement {
             None => return Err!("{:?} doesn't contain any broker statement", statement_dir_path),
         };
 
-        if !statement.starting_value.is_zero() {
-            return Err!("Invalid broker statement period: It has a non-zero starting value: {}",
-                statement.starting_value);
+        if statement.starting_assets {
+            return Err!("Invalid broker statement period: It has a non-zero starting assets");
         }
 
         debug!("{:#?}", statement);
@@ -195,7 +194,7 @@ pub struct BrokerStatementBuilder {
     broker: BrokerInfo,
     period: Option<(Date, Date)>,
 
-    starting_value: Option<Cash>,
+    starting_assets: Option<bool>,
     deposits: Vec<CashAssets>,
     cash_assets: MultiCurrencyCashAccount,
 
@@ -213,7 +212,7 @@ impl BrokerStatementBuilder {
             broker: broker,
             period: None,
 
-            starting_value: None,
+            starting_assets: None,
             deposits: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
 
@@ -230,8 +229,8 @@ impl BrokerStatementBuilder {
         set_option("statement period", &mut self.period, period)
     }
 
-    fn set_starting_value(&mut self, starting_value: Cash) -> EmptyResult {
-        set_option("starting value", &mut self.starting_value, starting_value)
+    fn set_starting_assets(&mut self, exists: bool) -> EmptyResult {
+        set_option("starting assets", &mut self.starting_assets, exists)
     }
 
     // FIXME: Wrap error?
@@ -280,7 +279,7 @@ impl BrokerStatementBuilder {
             broker: self.broker,
             period: period,
 
-            starting_value: get_option("starting value", self.starting_value)?,
+            starting_assets: get_option("starting assets", self.starting_assets)?,
             deposits: self.deposits,
             cash_assets: self.cash_assets,
 
