@@ -76,14 +76,14 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     #[derive(Deserialize)]
     struct Row {
         // TODO: Check time?
-
+        // 10.11.2018 closed session: UPDATETIME="19:18:26" TIME="18:41:07" SYSTIME="2018-11-09 19:33:27"
+        // 13.11.2018 open session: UPDATETIME="13:00:50" TIME="13:00:30" SYSTIME="2018-11-13 13:15:50"
         #[serde(rename = "SECID")]
         symbol: Option<String>,
 
         #[serde(rename = "LOTSIZE")]
         lot_size: Option<u32>,
 
-        // FIXME: LAST="4612" MARKETPRICE="4612" LCURRENTPRICE="4611"
         #[serde(rename = "LAST")]
         price: Option<Decimal>,
 
