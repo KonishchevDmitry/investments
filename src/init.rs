@@ -111,6 +111,7 @@ pub fn initialize() -> (Action, Config) {
         },
     };
 
+    debug!("{:#?}", config);
     (action, config)
 }
 

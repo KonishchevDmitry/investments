@@ -2,7 +2,9 @@
 
 A work in progress project to organize my investments.
 
-Targeted for russian investors who use Interactive Brokers. Considers taxes and dividends when calculates portfolio performance.
+Targeted for russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
+[Open Broker](https://open-broker.ru). Considers taxes, commissions, dividends and tax deductions when calculates
+portfolio performance.
 
 ### Installation
 
@@ -27,11 +29,11 @@ Calculates average rate of return from cash investments by comparing portfolio p
 to performance of a bank deposit with exactly the same investments and monthly capitalization.
 
 USAGE:
-    investments analyse <BROKER_STATEMENT>
+    investments analyse <PORTFOLIO>
 
 ARGS:
-    <BROKER_STATEMENT>
-            Path to Interactive Brokers statement *.csv file
+    <PORTFOLIO>
+            Portfolio name
 ```
 
 ```
@@ -43,14 +45,14 @@ by adding all required information about income from paid dividends.
 If tax statement file is not specified only outputs the data which is going to be declared.
 
 USAGE:
-    investments tax-statement <YEAR> <BROKER_STATEMENT> [TAX_STATEMENT]
+    investments tax-statement <PORTFOLIO> <YEAR> [TAX_STATEMENT]
 
 ARGS:
+    <PORTFOLIO>
+            Portfolio name
+
     <YEAR>
             Year to generate the statement for
-
-    <BROKER_STATEMENT>
-            Path to Interactive Brokers statement *.csv file
 
     <TAX_STATEMENT>
             Path to tax statement *.dcX file

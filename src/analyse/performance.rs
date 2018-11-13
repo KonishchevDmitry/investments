@@ -7,7 +7,7 @@ use separator::Separatable;
 
 use broker_statement::BrokerStatement;
 use core::{EmptyResult, GenericResult};
-use currency::Cash;
+use currency::{Cash, CashAssets};
 use currency::converter::CurrencyConverter;
 use formatting;
 use regulations::{self, Country};
@@ -32,7 +32,8 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn analyse(
-        statement: &BrokerStatement, currency: &str, converter: &CurrencyConverter
+        statement: &BrokerStatement, tax_deductions: &Vec<CashAssets>, currency: &str,
+        converter: &CurrencyConverter
     ) -> EmptyResult {
         let mut analyser = PortfolioPerformanceAnalyser {
             statement: statement,
@@ -56,6 +57,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         analyser.process_deposits()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
+        analyser.process_tax_deductions(tax_deductions)?;
 
         let mut instruments = analyser.instruments.take().unwrap();
         let mut instruments = instruments.drain().collect::<Vec<_>>();
@@ -244,6 +246,17 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
             self.process_tax(dividend.date, &dividend.issuer, tax_to_pay)?;
+        }
+
+        Ok(())
+    }
+
+    fn process_tax_deductions(&mut self, tax_deductions: &Vec<CashAssets>) -> EmptyResult {
+        for tax_deduction in tax_deductions {
+            let amount = self.converter.convert_to(
+                tax_deduction.date, tax_deduction.cash, self.currency)?;
+
+            self.transactions.push(Transaction::new(tax_deduction.date, -amount));
         }
 
         Ok(())

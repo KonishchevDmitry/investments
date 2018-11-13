@@ -8,9 +8,11 @@ use serde_yaml;
 use shellexpand;
 
 use core::GenericResult;
+use currency::{Cash, CashAssets};
 use types::Decimal;
+use util::{self, DecimalRestrictions};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(skip)]
@@ -51,19 +53,18 @@ impl Config {
     }
 }
 
-fn default_expire_time() -> Duration {
-    Duration::minutes(1)
-}
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
     pub statements: String,
+
+    #[serde(default, deserialize_with = "deserialize_tax_deductions")]
+    pub tax_deductions: Vec<CashAssets>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct BrokersConfig {
     pub interactive_brokers: Option<BrokerConfig>,
@@ -101,7 +102,7 @@ pub struct TransactionCommissionSpec {
     pub fixed_amount: Decimal,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Broker {
     InteractiveBrokers,
     OpenBroker,
@@ -122,7 +123,7 @@ impl<'de> Deserialize<'de> for Broker {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AlphaVantageConfig {
     pub api_key: String,
@@ -149,4 +150,27 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
     }
 
     Ok(config)
+}
+
+fn default_expire_time() -> Duration {
+    Duration::minutes(1)
+}
+
+fn deserialize_tax_deductions<'de, D>(deserializer: D) -> Result<Vec<CashAssets>, D::Error>
+    where D: Deserializer<'de>
+{
+    let deserialized: HashMap<String, String> = Deserialize::deserialize(deserializer)?;
+    let mut tax_deductions = Vec::new();
+
+    for (date, amount) in deserialized.iter() {
+        let date = util::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?;
+        let amount = util::parse_decimal(&amount, DecimalRestrictions::StrictlyPositive).map_err(|_|
+            D::Error::custom(format!("Invalid tax deduction amount: {}", amount)))?;
+
+        tax_deductions.push(CashAssets::new_from_cash(date, Cash::new("RUB", amount)));
+    }
+
+    tax_deductions.sort_by_key(|tax_deduction| tax_deduction.date);
+
+    Ok(tax_deductions)
 }

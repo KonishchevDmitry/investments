@@ -27,7 +27,8 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     statement.emulate_sellout(&mut quotes)?;
 
     for currency in ["USD", "RUB"].iter() {
-        PortfolioPerformanceAnalyser::analyse(&statement, *currency, &converter)?;
+        PortfolioPerformanceAnalyser::analyse(
+            &statement, &portfolio.tax_deductions, *currency, &converter)?;
     }
 
     Ok(())
