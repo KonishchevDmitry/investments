@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 
 use chrono::Duration;
+use num_traits::FromPrimitive;
 use serde::de::{Deserialize, Deserializer, Error};
 use serde_yaml;
 use shellexpand;
@@ -60,8 +61,22 @@ pub struct PortfolioConfig {
     pub broker: Broker,
     pub statements: String,
 
+    #[serde(default)]
+    pub assets: Vec<AssetsConfig>,
+
     #[serde(default, deserialize_with = "deserialize_tax_deductions")]
     pub tax_deductions: Vec<CashAssets>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AssetsConfig {
+    pub name: String,
+    pub symbol: Option<String>,
+
+    #[serde(deserialize_with = "deserialize_weight")]
+    pub weight: Decimal,
+
+    pub assets: Option<Vec<AssetsConfig>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -173,4 +188,20 @@ fn deserialize_tax_deductions<'de, D>(deserializer: D) -> Result<Vec<CashAssets>
     tax_deductions.sort_by_key(|tax_deduction| tax_deduction.date);
 
     Ok(tax_deductions)
+}
+
+fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
+    where D: Deserializer<'de>
+{
+    let weight: String = Deserialize::deserialize(deserializer)?;
+    if !weight.ends_with('%') {
+        return Err(D::Error::custom(format!("Invalid weight: {}", weight)));
+    }
+
+    let weight = match weight[..weight.len() - 1].parse::<u8>().ok() {
+        Some(weight) if weight <= 100 => weight,
+        _ => return Err(D::Error::custom(format!("Invalid weight: {}", weight))),
+    };
+
+    Ok(Decimal::from_u8(weight).unwrap() / dec!(100))
 }
