@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Dmitry Konishchev"]
 
 [dependencies]
+ansi_term = "*"
 chrono = "*"
 chrono-tz = "*"
 clap = "*"
