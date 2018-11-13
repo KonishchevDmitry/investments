@@ -180,6 +180,17 @@ impl BrokerStatement {
         Ok(())
     }
 
+    pub fn check_date(&self) {
+        let date = self.period.1 - Duration::days(1);
+        let days = (util::today() - date).num_days();
+        let months = Decimal::from(days) / dec!(30);
+
+        if months >= dec!(1) {
+            warn!("The broker statement is {} months old and may be outdated.",
+                  util::round_to(months, 1));
+        }
+    }
+
     pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
         let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
             "Unable to find {:?} instrument name in the broker statement", symbol))?;

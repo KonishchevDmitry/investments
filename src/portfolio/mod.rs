@@ -1,5 +1,7 @@
 use config::Config;
 use core::EmptyResult;
+use db;
+use broker_statement::BrokerStatement;
 
 use self::asset_allocation::Assets;
 
@@ -21,5 +23,12 @@ pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
 }
 
 pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
+    let portfolio = config.get_portfolio(portfolio_name)?;
+
+    let database = db::connect(&config.db_path)?;
+
+    let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
+    statement.check_date();
+
     Ok(())
 }

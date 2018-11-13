@@ -1,13 +1,9 @@
-use chrono::Duration;
-
 use broker_statement::BrokerStatement;
 use config::Config;
 use core::EmptyResult;
 use currency::converter::CurrencyConverter;
 use db;
 use quotes::Quotes;
-use types::Decimal;
-use util;
 
 use self::performance::PortfolioPerformanceAnalyser;
 
@@ -22,7 +18,7 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     let mut quotes = Quotes::new(&config, database.clone());
 
     let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
-    check_statement_date(&statement);
+    statement.check_date();
     statement.batch_quotes(&mut quotes);
     statement.emulate_sellout(&mut quotes)?;
 
@@ -32,15 +28,4 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     }
 
     Ok(())
-}
-
-fn check_statement_date(statement: &BrokerStatement) {
-    let statement_date = statement.period.1 - Duration::days(1);
-    let days = (util::today() - statement_date).num_days();
-    let months = Decimal::from(days) / dec!(30);
-
-    if months >= dec!(1) {
-        warn!("The broker statement is {} months old and may be outdated.",
-              util::round_to(months, 1));
-    }
 }
