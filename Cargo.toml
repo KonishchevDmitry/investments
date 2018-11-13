@@ -10,6 +10,7 @@ chrono-tz = "*"
 clap = "*"
 csv = "*"
 diesel = { version = "*", features = ["sqlite", "chrono"] }
+diesel-derive-enum = { version = "*", features = ["sqlite"] }
 diesel_migrations = "*"
 easy-logging = "*"
 encoding_rs = "*"

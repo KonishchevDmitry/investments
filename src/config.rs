@@ -33,7 +33,7 @@ impl Config {
     pub fn mock() -> Config {
         Config {
             db_path: "/mock".to_owned(),
-            cache_expire_time: default_expire_time,
+            cache_expire_time: default_expire_time(),
 
             portfolios: Vec::new(),
             brokers: BrokersConfig::mock(),

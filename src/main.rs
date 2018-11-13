@@ -4,6 +4,7 @@ extern crate chrono_tz;
 extern crate clap;
 extern crate csv;
 #[macro_use] extern crate diesel;
+#[macro_use] extern crate diesel_derive_enum;
 #[macro_use] extern crate diesel_migrations;
 extern crate easy_logging;
 extern crate encoding_rs;
