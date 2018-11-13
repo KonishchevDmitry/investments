@@ -58,12 +58,9 @@ fn main() {
 
 fn run(action: Action, config: Config) -> EmptyResult {
     match action {
-        Action::Analyse(portfolio_name) =>
-            analyse::analyse(&config, &portfolio_name)?,
-
-        Action::Show(portfolio_name) =>
-            portfolio::show(&config, &portfolio_name)?,
-
+        Action::Analyse(name) => analyse::analyse(&config, &name)?,
+        Action::Show(name) => portfolio::show(&config, &name)?,
+        Action::Sync(name) => portfolio::sync(&config, &name)?,
         Action::TaxStatement { portfolio_name, year, tax_statement_path } =>
             tax_statement::generate_tax_statement(
                 &config, &portfolio_name, year, tax_statement_path.as_ref().map(String::as_str))?,

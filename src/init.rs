@@ -15,6 +15,7 @@ use util;
 pub enum Action {
     Analyse(String),
     Show(String),
+    Sync(String),
     TaxStatement {
         portfolio_name: String,
         year: i32,
@@ -53,6 +54,9 @@ pub fn initialize() -> (Action, Config) {
             .arg(portfolio_arg()))
         .subcommand(SubCommand::with_name("show")
             .about("Show portfolio's asset allocaiton")
+            .arg(portfolio_arg()))
+        .subcommand(SubCommand::with_name("sync")
+            .about("Sync portfolio with broker statement")
             .arg(portfolio_arg()))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
@@ -124,6 +128,7 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
     Ok(match matches.subcommand() {
         ("analyse", Some(matches)) => Action::Analyse(get_portfolio_arg(matches)),
         ("show", Some(matches)) => Action::Show(get_portfolio_arg(matches)),
+        ("sync", Some(matches)) => Action::Sync(get_portfolio_arg(matches)),
         ("tax-statement", Some(matches)) => {
             let year = matches.value_of("YEAR").unwrap();
             let year = year.trim().parse::<i32>().ok()

@@ -8,6 +8,8 @@ mod asset_allocation;
 // FIXME: flat mode
 pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
+
+    // FIXME: Validate against real assets
     let assets = Assets::parse(portfolio)?;
 
 //    let database = db::connect(&config.db_path)?;
@@ -15,5 +17,9 @@ pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
 //    let mut quotes = Quotes::new(&config, database.clone());
     assets.print(0);
 
+    Ok(())
+}
+
+pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
     Ok(())
 }
