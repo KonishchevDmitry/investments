@@ -13,17 +13,17 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn new(connection: db::Connection) -> Cache {
+    pub fn new(connection: db::Connection, expire_time: Duration) -> Cache {
         Cache {
             db: connection,
-            expire_time: Duration::minutes(1),
+            expire_time: expire_time,
         }
     }
 
     #[cfg(test)]
     pub fn new_temporary() -> (NamedTempFile, Cache) {
         let (database, connection) = db::new_temporary();
-        (database, Cache::new(connection))
+        (database, Cache::new(connection, Duration::minutes(1)))
     }
 
     pub fn get(&self, symbol: &str) -> GenericResult<Option<Cash>> {

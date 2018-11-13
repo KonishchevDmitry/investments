@@ -24,7 +24,7 @@ pub fn generate_tax_statement(
     }
 
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let broker_statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statement)?;
+    let broker_statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
 
     let tax_period_start = date!(1, 1, year);
     let tax_period_end = date!(1, 1, year + 1);

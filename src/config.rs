@@ -2,6 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::fs::File;
 use std::io::Read;
 
+use chrono::Duration;
 use serde::de::{Deserialize, Deserializer, Error};
 use serde_yaml;
 use shellexpand;
@@ -15,6 +16,9 @@ pub struct Config {
     #[serde(skip)]
     pub db_path: String,
 
+    #[serde(skip, default = "default_expire_time")]
+    pub cache_expire_time: Duration,
+
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: BrokersConfig,
 
@@ -26,6 +30,8 @@ impl Config {
     pub fn mock() -> Config {
         Config {
             db_path: "/mock".to_owned(),
+            cache_expire_time: default_expire_time,
+
             portfolios: Vec::new(),
             brokers: BrokersConfig::mock(),
             alphavantage: AlphaVantageConfig {
@@ -45,12 +51,16 @@ impl Config {
     }
 }
 
+fn default_expire_time() -> Duration {
+    Duration::minutes(1)
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
-    pub statement: String,
+    pub statements: String,
 }
 
 #[derive(Deserialize)]
@@ -135,7 +145,7 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
     }
 
     for portfolio in &mut config.portfolios {
-        portfolio.statement = shellexpand::tilde(&portfolio.statement).to_string();
+        portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
     }
 
     Ok(config)

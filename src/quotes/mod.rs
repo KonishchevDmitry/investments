@@ -22,7 +22,7 @@ pub struct Quotes {
 
 impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> Quotes {
-        Quotes::new_with(Cache::new(database), vec![
+        Quotes::new_with(Cache::new(database, config.cache_expire_time), vec![
             Box::new(AlphaVantage::new(&config.alphavantage.api_key)),
             Box::new(Moex::new()),
         ])

@@ -10,6 +10,7 @@ use shellexpand;
 use config::{Config, load_config};
 use core::GenericResult;
 use types::Date;
+use util;
 
 pub enum Action {
     Analyse(String),
@@ -30,6 +31,12 @@ pub fn initialize() -> (Action, Config) {
             .long("config")
             .value_name("PATH")
             .help(&format!("Configuration directory path [default: {}]", default_config_dir_path))
+            .takes_value(true))
+        .arg(Arg::with_name("cache_expire_time")
+            .short("e")
+            .long("cache-expire-time")
+            .value_name("DURATION")
+            .help("Quote cache expire time (in $number{m|h|d} format)")
             .takes_value(true))
         .arg(Arg::with_name("verbose")
             .short("v")
@@ -82,19 +89,11 @@ pub fn initialize() -> (Action, Config) {
         process::exit(1);
     }
 
-    let action = match parse_arguments(&matches) {
-        Ok(action) => action,
-        Err(err) => {
-            error!("{}.", err);
-            process::exit(1);
-        },
-    };
-
     let config_dir_path = matches.value_of("config").map(ToString::to_string).unwrap_or_else(||
         shellexpand::tilde(default_config_dir_path).to_string());
     let config_dir_path = Path::new(&config_dir_path);
-
     let config_path = config_dir_path.join("config.yaml");
+
     let mut config = match load_config(config_path.to_str().unwrap()) {
         Ok(config) => config,
         Err(err) => {
@@ -102,13 +101,25 @@ pub fn initialize() -> (Action, Config) {
             process::exit(1);
         }
     };
-
     config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
+
+    let action = match parse_arguments(&mut config, &matches) {
+        Ok(action) => action,
+        Err(err) => {
+            error!("{}.", err);
+            process::exit(1);
+        },
+    };
 
     (action, config)
 }
 
-fn parse_arguments(matches: &ArgMatches) -> GenericResult<Action> {
+fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<Action> {
+    if let Some(expire_time) = matches.value_of("cache_expire_time") {
+        config.cache_expire_time = util::parse_duration(expire_time).map_err(|_| format!(
+            "Invalid cache expire time: {:?}", expire_time))?;
+    };
+
     Ok(match matches.subcommand() {
         ("analyse", Some(matches)) => Action::Analyse(
             matches.value_of("PORTFOLIO").unwrap().to_owned()),

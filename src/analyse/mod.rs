@@ -21,7 +21,7 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     let converter = CurrencyConverter::new(database.clone(), false);
     let mut quotes = Quotes::new(&config, database.clone());
 
-    let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statement)?;
+    let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
     check_statement_date(&statement);
     statement.batch_quotes(&mut quotes);
     statement.emulate_sellout(&mut quotes)?;
