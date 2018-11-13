@@ -14,6 +14,7 @@ use util;
 
 pub enum Action {
     Analyse(String),
+    Show(String),
     TaxStatement {
         portfolio_name: String,
         year: i32,
@@ -49,9 +50,10 @@ pub fn initialize() -> (Action, Config) {
                 "\nCalculates average rate of return from cash investments by comparing portfolio ",
                 "performance to performance of a bank deposit with exactly the same investments ",
                 "and monthly capitalization."))
-            .arg(Arg::with_name("PORTFOLIO")
-                .help("Portfolio name")
-                .required(true)))
+            .arg(portfolio_arg()))
+        .subcommand(SubCommand::with_name("show")
+            .about("Show portfolio's asset allocaiton")
+            .arg(portfolio_arg()))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
@@ -60,9 +62,7 @@ pub fn initialize() -> (Action, Config) {
                 "dividends.\n",
                 "\nIf tax statement file is not specified only outputs the data which is going to ",
                 "be declared."))
-            .arg(Arg::with_name("PORTFOLIO")
-                .help("Portfolio name")
-                .required(true))
+            .arg(portfolio_arg())
             .arg(Arg::with_name("YEAR")
                 .help("Year to generate the statement for")
                 .required(true))
@@ -122,23 +122,32 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
     };
 
     Ok(match matches.subcommand() {
-        ("analyse", Some(matches)) => Action::Analyse(
-            matches.value_of("PORTFOLIO").unwrap().to_owned()),
+        ("analyse", Some(matches)) => Action::Analyse(get_portfolio_arg(matches)),
+        ("show", Some(matches)) => Action::Show(get_portfolio_arg(matches)),
         ("tax-statement", Some(matches)) => {
             let year = matches.value_of("YEAR").unwrap();
             let year = year.trim().parse::<i32>().ok()
                 .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
                 .ok_or_else(|| format!("Invalid year: {}", year))?;
 
-            let portfolio_name = matches.value_of("PORTFOLIO").unwrap().to_owned();
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
-                portfolio_name: portfolio_name,
+                portfolio_name: get_portfolio_arg(matches),
                 year: year,
                 tax_statement_path: tax_statement_path,
             }
         },
         _ => unreachable!(),
     })
+}
+
+fn portfolio_arg() -> Arg<'static, 'static> {
+    Arg::with_name("PORTFOLIO")
+        .help("Portfolio name")
+        .required(true)
+}
+
+fn get_portfolio_arg(matches: &ArgMatches) -> String {
+    matches.value_of("PORTFOLIO").unwrap().to_owned()
 }

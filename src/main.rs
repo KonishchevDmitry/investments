@@ -1,3 +1,4 @@
+extern crate ansi_term;
 extern crate chrono;
 extern crate chrono_tz;
 extern crate clap;
@@ -34,6 +35,7 @@ mod currency;
 mod db;
 mod formatting;
 mod init;
+mod portfolio;
 mod quotes;
 mod regulations;
 mod tax_statement;
@@ -58,6 +60,9 @@ fn run(action: Action, config: Config) -> EmptyResult {
     match action {
         Action::Analyse(portfolio_name) =>
             analyse::analyse(&config, &portfolio_name)?,
+
+        Action::Show(portfolio_name) =>
+            portfolio::show(&config, &portfolio_name)?,
 
         Action::TaxStatement { portfolio_name, year, tax_statement_path } =>
             tax_statement::generate_tax_statement(
