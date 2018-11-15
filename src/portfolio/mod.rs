@@ -4,8 +4,10 @@ use db;
 use broker_statement::BrokerStatement;
 
 use self::asset_allocation::AssetAllocation;
+use self::assets::Assets;
 
 mod asset_allocation;
+mod assets;
 
 // FIXME: flat mode
 pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
@@ -29,6 +31,8 @@ pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
 
     let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
     statement.check_date();
+
+    let assets = Assets::new(statement.cash_assets, statement.open_positions);
 
     Ok(())
 }

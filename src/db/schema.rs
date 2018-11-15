@@ -9,11 +9,11 @@ pub enum AssetType {
 
 table! {
     use diesel::sql_types::Text;
-    use super::AssetType;
+    use super::AssetTypeMapping;
 
-    my_table (portfolio, asset_type, symbol) {
+    assets (portfolio, asset_type, symbol) {
         portfolio -> Text,
-        asset_type -> AssetType,
+        asset_type -> AssetTypeMapping,
         symbol -> Text,
         quantity -> Text,
     }

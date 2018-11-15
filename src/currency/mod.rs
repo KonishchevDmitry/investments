@@ -1,3 +1,4 @@
+use std;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
@@ -124,6 +125,10 @@ impl MultiCurrencyCashAccount {
 
     pub fn has_assets(&self, currency: &str) -> bool {
         self.assets.get(currency).is_some()
+    }
+
+    pub fn iter(&self) -> std::collections::hash_map::Iter<&'static str, Decimal> {
+        self.assets.iter()
     }
 
     pub fn deposit(&mut self, amount: Cash) {

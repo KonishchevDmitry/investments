@@ -1,8 +1,17 @@
 // TODO: https://github.com/diesel-rs/diesel/issues/1785
 #![allow(proc_macro_derive_resolution_fallback)]
 
-use db::schema::{currency_rates, quotes};
+use db::schema::{AssetType, assets, currency_rates, quotes};
 use types::{Date, DateTime};
+
+#[derive(Insertable)]
+#[table_name="assets"]
+pub struct NewAsset<'a> {
+    pub portfolio: &'a str,
+    pub asset_type: AssetType,
+    pub symbol: &'a str,
+    pub quantity: String,
+}
 
 #[derive(Insertable)]
 #[table_name="currency_rates"]
