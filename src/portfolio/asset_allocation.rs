@@ -1,24 +1,24 @@
 use ansi_term::Style;
 
-use config::{PortfolioConfig, AssetsConfig};
+use config::{PortfolioConfig, AssetAllocationConfig};
 use core::{EmptyResult, GenericResult};
 use formatting;
 use types::Decimal;
 
-pub struct Assets {
+pub struct AssetAllocation {
     name: String,
     symbol: Option<String>,
     weight: Decimal,
-    assets: Vec<Assets>, // FIXME: Option?
+    assets: Vec<AssetAllocation>, // FIXME: Option?
 }
 
-impl Assets {
-    pub fn parse(portfolio: &PortfolioConfig) -> GenericResult<Assets> {
+impl AssetAllocation {
+    pub fn parse(portfolio: &PortfolioConfig) -> GenericResult<AssetAllocation> {
         if portfolio.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
 
-        let mut assets = Assets {
+        let mut assets = AssetAllocation {
             name: portfolio.name.clone(), // FIXME
             symbol: None,
             weight: dec!(1),
@@ -26,15 +26,15 @@ impl Assets {
         };
 
         for assets_config in &portfolio.assets {
-            assets.assets.push(Assets::from_config(assets_config)?);
+            assets.assets.push(AssetAllocation::from_config(assets_config)?);
         }
         assets.check_weights()?;
 
         Ok(assets)
     }
 
-    fn from_config(config: &AssetsConfig) -> GenericResult<Assets> {
-        let mut assets = Assets {
+    fn from_config(config: &AssetAllocationConfig) -> GenericResult<AssetAllocation> {
+        let mut assets = AssetAllocation {
             name: config.name.clone(),
             symbol: None,
             weight: config.weight,
@@ -47,7 +47,7 @@ impl Assets {
             },
             (None, Some(assets_configs)) => {
                 for assets_config in assets_configs {
-                    assets.assets.push(Assets::from_config(assets_config)?);
+                    assets.assets.push(AssetAllocation::from_config(assets_config)?);
                 }
                 assets.check_weights()?;
             },

@@ -62,21 +62,21 @@ pub struct PortfolioConfig {
     pub statements: String,
 
     #[serde(default)]
-    pub assets: Vec<AssetsConfig>,
+    pub assets: Vec<AssetAllocationConfig>,
 
     #[serde(default, deserialize_with = "deserialize_tax_deductions")]
     pub tax_deductions: Vec<CashAssets>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct AssetsConfig {
+pub struct AssetAllocationConfig {
     pub name: String,
     pub symbol: Option<String>,
 
     #[serde(deserialize_with = "deserialize_weight")]
     pub weight: Decimal,
 
-    pub assets: Option<Vec<AssetsConfig>>,
+    pub assets: Option<Vec<AssetAllocationConfig>>,
 }
 
 #[derive(Deserialize, Debug)]
