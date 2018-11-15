@@ -80,7 +80,8 @@ impl Record for ForeignIncome {
 
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum IncomeType {
     Dividend,
     Unknown {unknown: Integer, code: Integer, name: String},

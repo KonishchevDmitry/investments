@@ -166,7 +166,8 @@ macro_rules! declare_tax_statement_record {
             $($field_name:ident: $field_type:ty,)*
         }
     ) => {
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug)]
+        #[cfg_attr(test, derive(PartialEq, Eq))]
         pub struct $name {
             $(pub $field_name: $field_type,)*
         }

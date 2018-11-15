@@ -101,13 +101,15 @@ impl CashAssets {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct CurrencyRate {
     date: Date,
     price: Decimal,
 }
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct MultiCurrencyCashAccount {
     assets: HashMap<&'static str, Decimal>,
 }

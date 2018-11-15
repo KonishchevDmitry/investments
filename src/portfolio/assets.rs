@@ -6,6 +6,7 @@ use core::{EmptyResult, GenericError, GenericResult};
 use currency::{Cash, MultiCurrencyCashAccount};
 use db::{self, schema::{AssetType, assets}, models::NewAsset};
 
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Assets {
     cash: MultiCurrencyCashAccount,
     stocks: HashMap<String, u32>,
@@ -88,6 +89,9 @@ mod tests {
         };
 
         first_assets.save(connection.clone(), "first").unwrap();
-        first_assets.save(connection.clone(), "second").unwrap();
+        second_assets.save(connection.clone(), "second").unwrap();
+
+        // FIXME
+        assert_ne!(first_assets, second_assets);
     }
 }
