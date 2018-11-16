@@ -26,6 +26,7 @@ pub enum Action {
 pub fn initialize() -> (Action, Config) {
     let default_config_dir_path = "~/.investments";
 
+    // TODO: Stock selling emulation (taxes, profit)
     let matches = App::new("Investments")
         .about("\nHelps you with managing your investments")
         .arg(Arg::with_name("config")

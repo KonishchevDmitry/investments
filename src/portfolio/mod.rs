@@ -12,27 +12,30 @@ mod assets;
 // FIXME: flat mode
 pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
+    let database = db::connect(&config.db_path)?;
 
-    // FIXME: Validate against real assets
-    let assets = AssetAllocation::parse(portfolio)?;
+    let assets = Assets::load(database, &portfolio.name)?;
+    assets.validate(&portfolio)?;
 
-//    let database = db::connect(&config.db_path)?;
+    let asset_allocation = AssetAllocation::parse(portfolio)?;
+
 //    let converter = CurrencyConverter::new(database.clone(), false);
 //    let mut quotes = Quotes::new(&config, database.clone());
-    assets.print(0);
+    asset_allocation.print(0);
 
     Ok(())
 }
 
 pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
-
     let database = db::connect(&config.db_path)?;
 
-    let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
+    let statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
     statement.check_date();
 
     let assets = Assets::new(statement.cash_assets, statement.open_positions);
+    assets.validate(&portfolio)?;
+    assets.save(database, &portfolio.name)?;
 
     Ok(())
 }

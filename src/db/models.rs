@@ -4,12 +4,12 @@
 use db::schema::{AssetType, assets, currency_rates, quotes};
 use types::{Date, DateTime};
 
-#[derive(Insertable)]
+#[derive(Insertable, Queryable)]
 #[table_name="assets"]
-pub struct NewAsset<'a> {
-    pub portfolio: &'a str,
+pub struct Asset {
+    pub portfolio: String,
     pub asset_type: AssetType,
-    pub symbol: &'a str,
+    pub symbol: String,
     pub quantity: String,
 }
 

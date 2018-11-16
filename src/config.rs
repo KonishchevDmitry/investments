@@ -68,6 +68,18 @@ pub struct PortfolioConfig {
     pub tax_deductions: Vec<CashAssets>,
 }
 
+impl PortfolioConfig {
+    pub fn get_stock_symbols(&self) -> HashSet<String> {
+        let mut symbols = HashSet::new();
+
+        for asset in &self.assets {
+            asset.get_stock_symbols(&mut symbols);
+        }
+
+        symbols
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct AssetAllocationConfig {
     pub name: String,
@@ -77,6 +89,20 @@ pub struct AssetAllocationConfig {
     pub weight: Decimal,
 
     pub assets: Option<Vec<AssetAllocationConfig>>,
+}
+
+impl AssetAllocationConfig {
+    fn get_stock_symbols(&self, symbols: &mut HashSet<String>) {
+        if let Some(ref symbol) = self.symbol {
+            symbols.insert(symbol.to_owned());
+        }
+
+        if let Some(ref assets) = self.assets {
+            for asset in assets {
+                asset.get_stock_symbols(symbols);
+            }
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
