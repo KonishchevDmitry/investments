@@ -9,34 +9,30 @@ use types::Decimal;
 
 use super::Assets;
 
-pub struct AssetAllocation {
+pub struct Portfolio {
     name: String,
-    symbol: Option<String>,
-    weight: Decimal,
-    assets: Vec<AssetAllocation>, // FIXME: Option?
+    assets: Vec<AssetAllocation>,
 }
 
-impl AssetAllocation {
-    pub fn load(portfolio: &PortfolioConfig, assets: &Assets) -> GenericResult<AssetAllocation> {
-        if portfolio.assets.is_empty() {
+impl Portfolio {
+    pub fn load(config: &PortfolioConfig, assets: &Assets) -> GenericResult<Portfolio> {
+        if config.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
+
+        let mut portfolio = Portfolio {
+            name: config.name.clone(),
+            assets: Vec::new(),
+        };
 
         let mut stocks = assets.stocks.clone();
         let mut symbols = HashSet::new();
 
-        let mut asset_allocation = AssetAllocation {
-            name: portfolio.name.clone(), // FIXME
-            symbol: None,
-            weight: dec!(1),
-            assets: Vec::new(),
-        };
-
-        for config in &portfolio.assets {
-            asset_allocation.assets.push(
-                AssetAllocation::load_inner(config, &mut symbols, &mut stocks)?);
+        for assets_config in &config.assets {
+            portfolio.assets.push(
+                AssetAllocation::load(assets_config, &mut symbols, &mut stocks)?);
         }
-        asset_allocation.check_weights()?;
+        check_weights(&portfolio.name, &portfolio.assets)?;
 
         if !stocks.is_empty() {
             let mut missing_symbols: Vec<String> = stocks.keys()
@@ -45,14 +41,30 @@ impl AssetAllocation {
             missing_symbols.sort();
 
             return Err!(
-                "The portfolio contains stocks that are missing in asset allocation configuration: {}",
-                missing_symbols.join(", "));
+                    "The portfolio contains stocks that are missing in asset allocation configuration: {}",
+                    missing_symbols.join(", "));
         }
 
-        Ok(asset_allocation)
+        Ok(portfolio)
     }
 
-    fn load_inner(
+    // FIXME: flat mode
+    pub fn print(&self) {
+        for assets in &self.assets {
+            assets.print(0);
+        }
+    }
+}
+
+pub struct AssetAllocation {
+    name: String,
+    symbol: Option<String>,
+    weight: Decimal,
+    assets: Vec<AssetAllocation>, // FIXME: Option?
+}
+
+impl AssetAllocation {
+    fn load(
         config: &AssetAllocationConfig, symbols: &mut HashSet<String>,
         stocks: &mut HashMap<String, u32>
     ) -> GenericResult<AssetAllocation> {
@@ -79,9 +91,10 @@ impl AssetAllocation {
             (None, Some(assets)) => {
                 for asset in assets {
                     asset_allocation.assets.push(
-                        AssetAllocation::load_inner(asset, symbols, stocks)?);
+                        AssetAllocation::load(asset, symbols, stocks)?);
                 }
-                asset_allocation.check_weights()?;
+
+                check_weights(&asset_allocation.name, &asset_allocation.assets)?;
             },
             _ => return Err!(
                "Invalid {:?} assets configuration: either symbol or assets must be specified",
@@ -89,21 +102,6 @@ impl AssetAllocation {
         };
 
         Ok(asset_allocation)
-    }
-
-    fn check_weights(&self) -> EmptyResult {
-        let mut weight = dec!(0);
-
-        for assets in &self.assets {
-            weight += assets.weight;
-        }
-
-        if weight != dec!(1) {
-            return Err!("{:?} assets have unbalanced weights: {}% total",
-                self.name, (weight * dec!(100)).normalize());
-        }
-
-        Ok(())
     }
 
     pub fn print(&self, depth: usize) {
@@ -122,4 +120,19 @@ impl AssetAllocation {
             assets.print(depth + 1);
         }
     }
+}
+
+fn check_weights(name: &str, assets: &Vec<AssetAllocation>) -> EmptyResult {
+    let mut weight = dec!(0);
+
+    for asset in assets {
+        weight += asset.weight;
+    }
+
+    if weight != dec!(1) {
+        return Err!("{:?} assets have unbalanced weights: {}% total",
+            name, (weight * dec!(100)).normalize());
+    }
+
+    Ok(())
 }

@@ -3,25 +3,24 @@ use core::EmptyResult;
 use db;
 use broker_statement::BrokerStatement;
 
-use self::asset_allocation::AssetAllocation;
+use self::asset_allocation::Portfolio;
 use self::assets::Assets;
 
 mod asset_allocation;
 mod assets;
 
-// FIXME: flat mode
 pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
-    let portfolio = config.get_portfolio(portfolio_name)?;
+    let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
-    let assets = Assets::load(database, &portfolio.name)?;
-    assets.validate(&portfolio)?;
+    let assets = Assets::load(database, &portfolio_config.name)?;
+    assets.validate(&portfolio_config)?;
 
-    let asset_allocation = AssetAllocation::load(portfolio, &assets)?;
+    let portfolio = Portfolio::load(portfolio_config, &assets)?;
 
 //    let converter = CurrencyConverter::new(database.clone(), false);
 //    let mut quotes = Quotes::new(&config, database.clone());
-    asset_allocation.print(0);
+    portfolio.print();
 
     Ok(())
 }
