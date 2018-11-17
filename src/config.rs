@@ -60,6 +60,7 @@ pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
     pub statements: String,
+    pub currency: Option<String>,
 
     #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,

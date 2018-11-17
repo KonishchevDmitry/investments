@@ -1,7 +1,9 @@
+use broker_statement::BrokerStatement;
 use config::Config;
 use core::EmptyResult;
+use currency::converter::CurrencyConverter;
 use db;
-use broker_statement::BrokerStatement;
+use quotes::Quotes;
 
 use self::asset_allocation::Portfolio;
 use self::assets::Assets;
@@ -13,13 +15,14 @@ pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
+    let converter = CurrencyConverter::new(database.clone(), false);
+    let mut quotes = Quotes::new(&config, database.clone());
+
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(&portfolio_config)?;
 
-    let portfolio = Portfolio::load(portfolio_config, &assets)?;
+    let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
 
-//    let converter = CurrencyConverter::new(database.clone(), false);
-//    let mut quotes = Quotes::new(&config, database.clone());
     portfolio.print();
 
     Ok(())

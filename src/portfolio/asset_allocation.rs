@@ -4,33 +4,57 @@ use ansi_term::Style;
 
 use config::{PortfolioConfig, AssetAllocationConfig};
 use core::{EmptyResult, GenericResult};
+use currency::converter::CurrencyConverter;
 use formatting;
+use quotes::Quotes;
 use types::Decimal;
+use util;
 
 use super::Assets;
 
 pub struct Portfolio {
     name: String,
     assets: Vec<AssetAllocation>,
+
+    total_value: Decimal,
+    free_assets: Decimal,
 }
 
 impl Portfolio {
-    pub fn load(config: &PortfolioConfig, assets: &Assets) -> GenericResult<Portfolio> {
+    pub fn load(
+        config: &PortfolioConfig, assets: Assets,
+        converter: &CurrencyConverter, quotes: &mut Quotes
+    ) -> GenericResult<Portfolio> {
+        let currency = match config.currency.as_ref() {
+            Some(currency) => currency,
+            None => return Err!("The portfolio's currency is not specified in the configuration"),
+        };
+
         if config.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
 
+        for symbol in config.get_stock_symbols() {
+            quotes.batch(&symbol);
+        }
+
+        let free_assets = assets.cash.total_assets(&currency, converter)?;
+
         let mut portfolio = Portfolio {
             name: config.name.clone(),
             assets: Vec::new(),
+            total_value: free_assets,
+            free_assets: free_assets,
         };
 
-        let mut stocks = assets.stocks.clone();
+        let mut stocks = assets.stocks;
         let mut symbols = HashSet::new();
 
         for assets_config in &config.assets {
-            portfolio.assets.push(
-                AssetAllocation::load(assets_config, &mut symbols, &mut stocks)?);
+            let asset_allocation = AssetAllocation::load(
+                assets_config, &currency, &mut symbols, &mut stocks, converter, quotes)?;
+            portfolio.total_value += asset_allocation.value;
+            portfolio.assets.push(asset_allocation);
         }
         check_weights(&portfolio.name, &portfolio.assets)?;
 
@@ -53,71 +77,120 @@ impl Portfolio {
         for assets in &self.assets {
             assets.print(0);
         }
+
+        println!();
+        println!("Total value: {}", self.total_value);
+        println!("Free assets: {}", self.free_assets);
     }
+}
+
+// FIXME: name
+enum Holding {
+    Stock(StockHolding),
+    Group(Vec<AssetAllocation>),
+}
+
+impl Holding {
+    fn value(&self) -> Decimal {
+        match self {
+            Holding::Stock(holding) => {
+                Decimal::from(holding.shares) * holding.price
+            },
+            Holding::Group(assets) => {
+                let mut value = dec!(0);
+
+                for asset in assets {
+                    value += asset.value;
+                }
+
+                value
+            },
+        }
+    }
+}
+
+// FIXME: name
+struct StockHolding {
+    symbol: String,
+    shares: u32,
+    price: Decimal,
 }
 
 pub struct AssetAllocation {
     name: String,
-    symbol: Option<String>,
-    weight: Decimal,
-    assets: Vec<AssetAllocation>, // FIXME: Option?
+    expected_weight: Decimal,
+
+    holding: Holding,
+    value: Decimal,
 }
 
 impl AssetAllocation {
     fn load(
-        config: &AssetAllocationConfig, symbols: &mut HashSet<String>,
-        stocks: &mut HashMap<String, u32>
+        config: &AssetAllocationConfig, currency: &str,
+        symbols: &mut HashSet<String>, stocks: &mut HashMap<String, u32>,
+        converter: &CurrencyConverter, quotes: &mut Quotes,
     ) -> GenericResult<AssetAllocation> {
-        let mut asset_allocation = AssetAllocation {
-            name: config.name.clone(),
-            symbol: None,
-            weight: config.weight,
-            assets: Vec::new(),
-        };
-
-        match (&config.symbol, &config.assets) {
+        let holding = match (&config.symbol, &config.assets) {
             (Some(symbol), None) => {
                 if !symbols.insert(symbol.clone()) {
                     return Err!("Invalid asset allocation configuration: Duplicated symbol: {}",
                         symbol);
                 }
 
-                if let Some(shares) = stocks.remove(symbol) {
-                    // FIXME: HERE
-                }
+                let price = converter.convert_to(
+                    util::today(), quotes.get(symbol)?, currency)?;
 
-                asset_allocation.symbol = Some(symbol.clone());
+                Holding::Stock(StockHolding {
+                    symbol: symbol.clone(),
+                    shares: stocks.remove(symbol).unwrap_or(0),
+                    price: price,
+                })
             },
             (None, Some(assets)) => {
+                let mut holdings = Vec::new();
+
                 for asset in assets {
-                    asset_allocation.assets.push(
-                        AssetAllocation::load(asset, symbols, stocks)?);
+                    holdings.push(AssetAllocation::load(
+                        asset, currency, symbols, stocks, converter, quotes)?);
                 }
 
-                check_weights(&asset_allocation.name, &asset_allocation.assets)?;
+                check_weights(&config.name, &holdings)?;
+
+                Holding::Group(holdings)
             },
             _ => return Err!(
                "Invalid {:?} assets configuration: either symbol or assets must be specified",
                config.name),
         };
 
-        Ok(asset_allocation)
+        Ok(AssetAllocation {
+            name: config.name.clone(),
+            expected_weight: config.weight,
+
+            value: holding.value(),
+            holding: holding,
+        })
     }
 
     pub fn print(&self, depth: usize) {
-        for assets in &self.assets {
-            let suffix = if assets.assets.is_empty() {
+        let suffix = match self.holding {
+            Holding::Stock(_) => {
                 ""
-            } else {
+            },
+            Holding::Group(_) => {
                 ":"
-            };
+            }
+        };
 
-            println!("{bullet:>depth$} {name} - {weight}{suffix}",
-                     bullet='*', name=Style::new().bold().paint(&assets.name),
-                     weight=formatting::format_weight(assets.weight),
-                     suffix=suffix, depth=depth * 2 + 1);
+        println!("{bullet:>depth$} {name} - {weight}{suffix}",
+                 bullet='*', name=Style::new().bold().paint(&self.name),
+                 weight=formatting::format_weight(self.expected_weight),
+                 suffix=suffix, depth=depth * 2 + 1);
 
-            assets.print(depth + 1);
+        if let Holding::Group(ref assets) = self.holding {
+            for asset in assets {
+                asset.print(depth + 1);
+            }
         }
     }
 }
@@ -126,7 +199,7 @@ fn check_weights(name: &str, assets: &Vec<AssetAllocation>) -> EmptyResult {
     let mut weight = dec!(0);
 
     for asset in assets {
-        weight += asset.weight;
+        weight += asset.expected_weight;
     }
 
     if weight != dec!(1) {
