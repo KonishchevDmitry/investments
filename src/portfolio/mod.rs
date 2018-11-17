@@ -17,7 +17,7 @@ pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     let assets = Assets::load(database, &portfolio.name)?;
     assets.validate(&portfolio)?;
 
-    let asset_allocation = AssetAllocation::parse(portfolio)?;
+    let asset_allocation = AssetAllocation::load(portfolio, &assets)?;
 
 //    let converter = CurrencyConverter::new(database.clone(), false);
 //    let mut quotes = Quotes::new(&config, database.clone());

@@ -1,9 +1,13 @@
+use std::collections::{HashSet, HashMap};
+
 use ansi_term::Style;
 
 use config::{PortfolioConfig, AssetAllocationConfig};
 use core::{EmptyResult, GenericResult};
 use formatting;
 use types::Decimal;
+
+use super::Assets;
 
 pub struct AssetAllocation {
     name: String,
@@ -13,28 +17,46 @@ pub struct AssetAllocation {
 }
 
 impl AssetAllocation {
-    pub fn parse(portfolio: &PortfolioConfig) -> GenericResult<AssetAllocation> {
+    pub fn load(portfolio: &PortfolioConfig, assets: &Assets) -> GenericResult<AssetAllocation> {
         if portfolio.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
 
-        let mut assets = AssetAllocation {
+        let mut stocks = assets.stocks.clone();
+        let mut symbols = HashSet::new();
+
+        let mut asset_allocation = AssetAllocation {
             name: portfolio.name.clone(), // FIXME
             symbol: None,
             weight: dec!(1),
             assets: Vec::new(),
         };
 
-        for assets_config in &portfolio.assets {
-            assets.assets.push(AssetAllocation::from_config(assets_config)?);
+        for config in &portfolio.assets {
+            asset_allocation.assets.push(
+                AssetAllocation::load_inner(config, &mut symbols, &mut stocks)?);
         }
-        assets.check_weights()?;
+        asset_allocation.check_weights()?;
 
-        Ok(assets)
+        if !stocks.is_empty() {
+            let mut missing_symbols: Vec<String> = stocks.keys()
+                .map(|symbol| symbol.to_owned()).collect();
+
+            missing_symbols.sort();
+
+            return Err!(
+                "The portfolio contains stocks that are missing in asset allocation configuration: {}",
+                missing_symbols.join(", "));
+        }
+
+        Ok(asset_allocation)
     }
 
-    fn from_config(config: &AssetAllocationConfig) -> GenericResult<AssetAllocation> {
-        let mut assets = AssetAllocation {
+    fn load_inner(
+        config: &AssetAllocationConfig, symbols: &mut HashSet<String>,
+        stocks: &mut HashMap<String, u32>
+    ) -> GenericResult<AssetAllocation> {
+        let mut asset_allocation = AssetAllocation {
             name: config.name.clone(),
             symbol: None,
             weight: config.weight,
@@ -43,20 +65,30 @@ impl AssetAllocation {
 
         match (&config.symbol, &config.assets) {
             (Some(symbol), None) => {
-                assets.symbol = Some(symbol.clone());
-            },
-            (None, Some(assets_configs)) => {
-                for assets_config in assets_configs {
-                    assets.assets.push(AssetAllocation::from_config(assets_config)?);
+                if !symbols.insert(symbol.clone()) {
+                    return Err!("Invalid asset allocation configuration: Duplicated symbol: {}",
+                        symbol);
                 }
-                assets.check_weights()?;
+
+                if let Some(shares) = stocks.remove(symbol) {
+                    // FIXME: HERE
+                }
+
+                asset_allocation.symbol = Some(symbol.clone());
+            },
+            (None, Some(assets)) => {
+                for asset in assets {
+                    asset_allocation.assets.push(
+                        AssetAllocation::load_inner(asset, symbols, stocks)?);
+                }
+                asset_allocation.check_weights()?;
             },
             _ => return Err!(
                "Invalid {:?} assets configuration: either symbol or assets must be specified",
                config.name),
         };
 
-        Ok(assets)
+        Ok(asset_allocation)
     }
 
     fn check_weights(&self) -> EmptyResult {

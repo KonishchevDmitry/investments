@@ -11,8 +11,8 @@ use types::Decimal;
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Assets {
-    cash: MultiCurrencyCashAccount,
-    stocks: HashMap<String, u32>,
+    pub cash: MultiCurrencyCashAccount,
+    pub stocks: HashMap<String, u32>,
 }
 
 impl Assets {
@@ -53,6 +53,7 @@ impl Assets {
         Ok(Assets::new(cash, stocks))
     }
 
+    // FIXME: Deprecate?
     pub fn validate(&self, portfolio: &PortfolioConfig) -> EmptyResult {
         let portfolio_symbols = portfolio.get_stock_symbols();
 
