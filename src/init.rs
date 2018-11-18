@@ -22,6 +22,7 @@ pub enum Action {
     SetCashAssets(String, Decimal),
 
     Show(String),
+    Rebalance(String),
 
     TaxStatement {
         portfolio_name: String,
@@ -82,6 +83,9 @@ pub fn initialize() -> (Action, Config) {
             .about("Set current cash assets")
             .arg(portfolio::arg())
             .arg(cash_assets::arg()))
+        .subcommand(SubCommand::with_name("rebalance")
+            .about("Rebalance the portfolio according to the asset allocation configuration")
+            .arg(portfolio::arg()))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
@@ -177,6 +181,7 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
         },
 
         "show" => Action::Show(portfolio_name),
+        "rebalance" => Action::Rebalance(portfolio_name),
 
         "tax-statement" => {
             let year = matches.value_of("YEAR").unwrap();

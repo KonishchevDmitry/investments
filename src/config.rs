@@ -62,6 +62,8 @@ pub struct PortfolioConfig {
     pub statements: String,
 
     pub currency: Option<String>,
+    pub min_trade_volume: Option<Decimal>,
+    pub min_free_assets: Option<Decimal>,
     pub restrict_buying: Option<bool>,
     pub restrict_selling: Option<bool>,
 

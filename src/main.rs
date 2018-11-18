@@ -70,6 +70,7 @@ fn run(action: Action, config: Config) -> EmptyResult {
             portfolio::set_cash_assets(&config, &name, cash_assets)?,
 
         Action::Show(name) => portfolio::show(&config, &name)?,
+        Action::Rebalance(name) => portfolio::rebalance(&config, &name)?,
 
         Action::TaxStatement { portfolio_name, year, tax_statement_path } =>
             tax_statement::generate_tax_statement(

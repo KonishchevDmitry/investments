@@ -11,8 +11,11 @@ use super::Assets;
 
 pub struct Portfolio {
     pub name: String,
+
     pub currency: String,
     pub assets: Vec<AssetAllocation>,
+    pub min_trade_volume: Decimal,
+    pub min_free_assets: Decimal,
 
     pub total_value: Decimal,
     pub free_assets: Decimal,
@@ -28,6 +31,16 @@ impl Portfolio {
             None => return Err!("The portfolio's currency is not specified in the config"),
         };
 
+        let min_trade_volume = config.min_trade_volume.unwrap_or(dec!(0));
+        if min_trade_volume.is_sign_negative() {
+            return Err!("Invalid minimum trade volume value")
+        }
+
+        let min_free_assets = config.min_free_assets.unwrap_or(dec!(0));
+        if min_free_assets.is_sign_negative() {
+            return Err!("Invalid minimum free cash assets value")
+        }
+
         if config.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
@@ -40,8 +53,12 @@ impl Portfolio {
 
         let mut portfolio = Portfolio {
             name: config.name.clone(),
+
             currency: currency.clone(),
             assets: Vec::new(),
+            min_trade_volume: min_trade_volume,
+            min_free_assets: min_free_assets,
+
             total_value: free_assets,
             free_assets: free_assets,
         };

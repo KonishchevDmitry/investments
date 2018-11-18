@@ -15,22 +15,6 @@ mod asset_allocation;
 mod assets;
 mod formatting;
 
-pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
-    let portfolio_config = config.get_portfolio(portfolio_name)?;
-    let database = db::connect(&config.db_path)?;
-
-    let converter = CurrencyConverter::new(database.clone(), false);
-    let mut quotes = Quotes::new(&config, database.clone());
-
-    let assets = Assets::load(database, &portfolio_config.name)?;
-    assets.validate(&portfolio_config)?;
-
-    let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
-    print_portfolio(&portfolio);
-
-    Ok(())
-}
-
 pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
@@ -102,6 +86,39 @@ fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_a
 
     assets.cash.clear();
     assets.cash.deposit(Cash::new(&currency, cash_assets));
+
+    Ok(())
+}
+
+pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
+    let portfolio_config = config.get_portfolio(portfolio_name)?;
+    let database = db::connect(&config.db_path)?;
+
+    let converter = CurrencyConverter::new(database.clone(), false);
+    let mut quotes = Quotes::new(&config, database.clone());
+
+    let assets = Assets::load(database, &portfolio_config.name)?;
+    assets.validate(&portfolio_config)?;
+
+    let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
+    print_portfolio(&portfolio);
+
+    Ok(())
+}
+
+// FIXME: Implement + deduplicate code
+pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
+    let portfolio_config = config.get_portfolio(portfolio_name)?;
+    let database = db::connect(&config.db_path)?;
+
+    let converter = CurrencyConverter::new(database.clone(), false);
+    let mut quotes = Quotes::new(&config, database.clone());
+
+    let assets = Assets::load(database, &portfolio_config.name)?;
+    assets.validate(&portfolio_config)?;
+
+    let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
+    print_portfolio(&portfolio);
 
     Ok(())
 }
