@@ -133,6 +133,10 @@ impl MultiCurrencyCashAccount {
         self.assets.iter()
     }
 
+    pub fn clear(&mut self) {
+        self.assets.clear();
+    }
+
     pub fn deposit(&mut self, amount: Cash) {
         if let Some(assets) = self.assets.get_mut(amount.currency) {
             *assets += amount.amount;

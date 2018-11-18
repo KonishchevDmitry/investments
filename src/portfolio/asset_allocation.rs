@@ -27,7 +27,7 @@ impl Portfolio {
     ) -> GenericResult<Portfolio> {
         let currency = match config.currency.as_ref() {
             Some(currency) => currency,
-            None => return Err!("The portfolio's currency is not specified in the configuration"),
+            None => return Err!("The portfolio's currency is not specified in the config"),
         };
 
         if config.assets.is_empty() {

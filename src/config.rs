@@ -184,6 +184,13 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
             if !portfolio_names.insert(&portfolio.name) {
                 return Err!("Duplicate portfolio name: {:?}", portfolio.name);
             }
+
+            if let Some(ref currency) = portfolio.currency {
+                match currency.as_str() {
+                    "RUB" | "USD" => (),
+                    _ => return Err!("Unsupported portfolio currency: {}", currency),
+                };
+            }
         }
     }
 
