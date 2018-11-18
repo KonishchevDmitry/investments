@@ -60,7 +60,10 @@ pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
     pub statements: String,
+
     pub currency: Option<String>,
+    pub restrict_buying: Option<bool>,
+    pub restrict_selling: Option<bool>,
 
     #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,
@@ -88,6 +91,8 @@ pub struct AssetAllocationConfig {
 
     #[serde(deserialize_with = "deserialize_weight")]
     pub weight: Decimal,
+    pub restrict_buying: Option<bool>,
+    pub restrict_selling: Option<bool>,
 
     pub assets: Option<Vec<AssetAllocationConfig>>,
 }

@@ -51,8 +51,10 @@ impl Portfolio {
         let mut symbols = HashSet::new();
 
         for assets_config in &config.assets {
-            let asset_allocation = AssetAllocation::load(
+            let mut asset_allocation = AssetAllocation::load(
                 assets_config, &currency, &mut symbols, &mut stocks, converter, quotes)?;
+            asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);
+
             portfolio.total_value += asset_allocation.value;
             portfolio.assets.push(asset_allocation);
         }
@@ -118,7 +120,10 @@ struct StockHolding {
 
 pub struct AssetAllocation {
     name: String,
+
     expected_weight: Decimal,
+    restrict_buying: Option<bool>,
+    restrict_selling: Option<bool>,
 
     holding: Holding,
     value: Decimal,
@@ -163,13 +168,58 @@ impl AssetAllocation {
                config.name),
         };
 
-        Ok(AssetAllocation {
+        let mut asset_allocation = AssetAllocation {
             name: config.name.clone(),
+
             expected_weight: config.weight,
+            restrict_buying: None,
+            restrict_selling: None,
 
             value: holding.value(),
             holding: holding,
-        })
+        };
+
+        asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);
+
+        Ok(asset_allocation)
+    }
+
+    fn apply_restrictions(&mut self, restrict_buying: Option<bool>, restrict_selling: Option<bool>) {
+        if let Some(restrict) = restrict_buying {
+            self.apply_buying_restriction(restrict);
+        }
+
+        if let Some(restrict) = restrict_selling {
+            self.apply_selling_restriction(restrict);
+        }
+    }
+
+    fn apply_buying_restriction(&mut self, restrict: bool) {
+        if self.restrict_buying.is_some() {
+            return
+        }
+
+        self.restrict_buying = Some(restrict);
+
+        if let Holding::Group(ref mut assets) = self.holding {
+            for asset in assets {
+                asset.apply_buying_restriction(restrict);
+            }
+        }
+    }
+
+    fn apply_selling_restriction(&mut self, restrict: bool) {
+        if self.restrict_selling.is_some() {
+            return
+        }
+
+        self.restrict_selling = Some(restrict);
+
+        if let Holding::Group(ref mut assets) = self.holding {
+            for asset in assets {
+                asset.apply_selling_restriction(restrict);
+            }
+        }
     }
 
     pub fn print(&self, depth: usize) {
