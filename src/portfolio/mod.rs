@@ -14,6 +14,7 @@ use self::formatting::print_portfolio;
 mod asset_allocation;
 mod assets;
 mod formatting;
+mod rebalancing;
 
 pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
@@ -117,7 +118,8 @@ pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(&portfolio_config)?;
 
-    let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
+    let mut portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
+    rebalancing::rebalance_portfolio(&mut portfolio);
     print_portfolio(&portfolio);
 
     Ok(())

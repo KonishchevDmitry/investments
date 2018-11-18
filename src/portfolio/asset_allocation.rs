@@ -71,7 +71,7 @@ impl Portfolio {
                 assets_config, &currency, &mut symbols, &mut stocks, converter, quotes)?;
             asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);
 
-            portfolio.total_value += asset_allocation.value;
+            portfolio.total_value += asset_allocation.current_value;
             portfolio.assets.push(asset_allocation);
         }
         check_weights(&portfolio.name, &portfolio.assets)?;
@@ -98,16 +98,16 @@ pub enum Holding {
 }
 
 impl Holding {
-    fn value(&self) -> Decimal {
+    fn current_value(&self) -> Decimal {
         match self {
             Holding::Stock(holding) => {
-                Decimal::from(holding.shares) * holding.price
+                Decimal::from(holding.current_shares) * holding.price
             },
             Holding::Group(assets) => {
                 let mut value = dec!(0);
 
                 for asset in assets {
-                    value += asset.value;
+                    value += asset.current_value;
                 }
 
                 value
@@ -119,7 +119,7 @@ impl Holding {
 // FIXME: name
 pub struct StockHolding {
     pub symbol: String,
-    pub shares: u32,
+    pub current_shares: u32,
     pub price: Decimal,
 }
 
@@ -131,7 +131,7 @@ pub struct AssetAllocation {
     pub restrict_selling: Option<bool>,
 
     pub holding: Holding,
-    pub value: Decimal,
+    pub current_value: Decimal,
 }
 
 impl AssetAllocation {
@@ -152,8 +152,8 @@ impl AssetAllocation {
 
                 Holding::Stock(StockHolding {
                     symbol: symbol.clone(),
-                    shares: stocks.remove(symbol).unwrap_or(0),
                     price: price,
+                    current_shares: stocks.remove(symbol).unwrap_or(0),
                 })
             },
             (None, Some(assets)) => {
@@ -180,7 +180,7 @@ impl AssetAllocation {
             restrict_buying: None,
             restrict_selling: None,
 
-            value: holding.value(),
+            current_value: holding.current_value(),
             holding: holding,
         };
 

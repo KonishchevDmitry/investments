@@ -34,7 +34,7 @@ fn print_assets(asset: &AssetAllocation, currency: &str, depth: usize) {
     // FIXME: expected value
     write!(&mut buffer, " / {expected_weight} ({current_value})",
            expected_weight=format_weight(asset.expected_weight),
-           current_value=format_cash(currency, asset.value)).unwrap();
+           current_value=format_cash(currency, asset.current_value)).unwrap();
 
     if let Holding::Group(ref assets) = asset.holding {
         write!(&mut buffer, ":").unwrap();
