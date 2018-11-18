@@ -9,9 +9,11 @@ use types::Decimal;
 
 use self::asset_allocation::Portfolio;
 use self::assets::Assets;
+use self::formatting::print_portfolio;
 
 mod asset_allocation;
 mod assets;
+mod formatting;
 
 pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
@@ -24,7 +26,7 @@ pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     assets.validate(&portfolio_config)?;
 
     let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
-    portfolio.print();
+    print_portfolio(&portfolio);
 
     Ok(())
 }

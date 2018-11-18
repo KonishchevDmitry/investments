@@ -1,11 +1,8 @@
 use std::collections::{HashSet, HashMap};
 
-use ansi_term::Style;
-
 use config::{PortfolioConfig, AssetAllocationConfig};
 use core::{EmptyResult, GenericResult};
 use currency::converter::CurrencyConverter;
-use formatting;
 use quotes::Quotes;
 use types::Decimal;
 use util;
@@ -13,11 +10,12 @@ use util;
 use super::Assets;
 
 pub struct Portfolio {
-    name: String,
-    assets: Vec<AssetAllocation>,
+    pub name: String,
+    pub currency: String,
+    pub assets: Vec<AssetAllocation>,
 
-    total_value: Decimal,
-    free_assets: Decimal,
+    pub total_value: Decimal,
+    pub free_assets: Decimal,
 }
 
 impl Portfolio {
@@ -42,6 +40,7 @@ impl Portfolio {
 
         let mut portfolio = Portfolio {
             name: config.name.clone(),
+            currency: currency.clone(),
             assets: Vec::new(),
             total_value: free_assets,
             free_assets: free_assets,
@@ -73,21 +72,10 @@ impl Portfolio {
 
         Ok(portfolio)
     }
-
-    // FIXME: flat mode
-    pub fn print(&self) {
-        for assets in &self.assets {
-            assets.print(0);
-        }
-
-        println!();
-        println!("Total value: {}", self.total_value);
-        println!("Free assets: {}", self.free_assets);
-    }
 }
 
 // FIXME: name
-enum Holding {
+pub enum Holding {
     Stock(StockHolding),
     Group(Vec<AssetAllocation>),
 }
@@ -112,21 +100,21 @@ impl Holding {
 }
 
 // FIXME: name
-struct StockHolding {
-    symbol: String,
-    shares: u32,
-    price: Decimal,
+pub struct StockHolding {
+    pub symbol: String,
+    pub shares: u32,
+    pub price: Decimal,
 }
 
 pub struct AssetAllocation {
-    name: String,
+    pub name: String,
 
-    expected_weight: Decimal,
-    restrict_buying: Option<bool>,
-    restrict_selling: Option<bool>,
+    pub expected_weight: Decimal,
+    pub restrict_buying: Option<bool>,
+    pub restrict_selling: Option<bool>,
 
-    holding: Holding,
-    value: Decimal,
+    pub holding: Holding,
+    pub value: Decimal,
 }
 
 impl AssetAllocation {
@@ -218,28 +206,6 @@ impl AssetAllocation {
         if let Holding::Group(ref mut assets) = self.holding {
             for asset in assets {
                 asset.apply_selling_restriction(restrict);
-            }
-        }
-    }
-
-    pub fn print(&self, depth: usize) {
-        let suffix = match self.holding {
-            Holding::Stock(_) => {
-                ""
-            },
-            Holding::Group(_) => {
-                ":"
-            }
-        };
-
-        println!("{bullet:>depth$} {name} - {weight}{suffix}",
-                 bullet='*', name=Style::new().bold().paint(&self.name),
-                 weight=formatting::format_weight(self.expected_weight),
-                 suffix=suffix, depth=depth * 2 + 1);
-
-        if let Holding::Group(ref assets) = self.holding {
-            for asset in assets {
-                asset.print(depth + 1);
             }
         }
     }

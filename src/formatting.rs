@@ -2,8 +2,7 @@ use chrono::Duration;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
 
-use types::{Date, Decimal};
-use util;
+use types::Date;
 
 pub fn format_date(date: Date) -> String {
     date.format("%d.%m.%Y").to_string()
@@ -11,10 +10,6 @@ pub fn format_date(date: Date) -> String {
 
 pub fn format_period(start: Date, end: Date) -> String {
     format!("{} - {}", format_date(start), format_date(end - Duration::days(1)))
-}
-
-pub fn format_weight(weight: Decimal) -> String {
-    format!("{}%", util::round_to(weight * dec!(100), 1))
 }
 
 pub fn print_statement(name: &str, titles: Vec<&str>, mut statement: Table) {
