@@ -8,10 +8,59 @@ use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 
 // FIXME: implement
 pub fn rebalance_portfolio(portfolio: &mut Portfolio) {
-    match sell_overbought_assets(&mut portfolio.assets, portfolio.total_value, portfolio.min_trade_volume) {
-        SellResult::Ok => (),
-        SellResult::Debt(debt) => panic!("Sell failed: {}", debt),
+    calculate_restrictions(&mut portfolio.assets);
+
+    if false {
+        match sell_overbought_assets(&mut portfolio.assets, portfolio.total_value, portfolio.min_trade_volume) {
+            SellResult::Ok => (),
+            SellResult::Debt(debt) => panic!("Sell failed: {}", debt),
+        };
+    }
+}
+
+fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
+    assert!(!assets.is_empty());
+
+    let mut total_min_value = dec!(0);
+    let mut total_max_value = dec!(0);
+    let mut all_with_max_value = true;
+
+    for asset in assets {
+        let (min_value, max_value) = match &mut asset.holding {
+            Holding::Group(assets) => calculate_restrictions(assets),
+            Holding::Stock(_) => {
+                let min_value = if asset.restrict_selling.unwrap_or(false) {
+                    asset.current_value
+                } else {
+                    dec!(0)
+                };
+
+                let max_value = if asset.restrict_buying.unwrap_or(false) {
+                    Some(asset.current_value)
+                } else {
+                    None
+                };
+
+                (min_value, max_value)
+            },
+        };
+
+        total_min_value += min_value;
+
+        if let Some(max_value) = max_value {
+            total_max_value += max_value;
+        } else {
+            all_with_max_value = false;
+        }
+    }
+
+    let total_max_value = if all_with_max_value {
+        Some(total_max_value)
+    } else {
+        None
     };
+
+    (total_min_value, total_max_value)
 }
 
 enum SellResult {

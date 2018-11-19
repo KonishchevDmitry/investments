@@ -135,6 +135,8 @@ pub struct AssetAllocation {
 
     // FIXME: Experimental
     pub target_value: Decimal,
+    pub min_value: Decimal,
+    pub max_value: Option<Decimal>,
 }
 
 impl AssetAllocation {
@@ -188,6 +190,8 @@ impl AssetAllocation {
 
             // FIXME: Experimental
             target_value: dec!(0),
+            min_value: dec!(0),
+            max_value: None,
         };
 
         asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);
