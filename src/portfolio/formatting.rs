@@ -29,10 +29,11 @@ fn print_assets(asset: &AssetAllocation, currency: &str, depth: usize) {
     }
 
     write!(&mut buffer, "{bullet:>indent$} {name}",
-           bullet='*', indent=depth * 2 + 1, name=colorify_name(&name)).unwrap();
+           bullet='•', indent=depth * 2 + 1, name=colorify_name(&name)).unwrap();
 
-    // FIXME: expected value
-    write!(&mut buffer, " / {expected_weight} ({current_value})",
+    // FIXME: target value, expected value
+    write!(&mut buffer, " {target_value} / {expected_weight} ({current_value})",
+           target_value=format_cash(currency, asset.target_value),
            expected_weight=format_weight(asset.expected_weight),
            current_value=format_cash(currency, asset.current_value)).unwrap();
 

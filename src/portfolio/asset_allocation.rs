@@ -132,6 +132,9 @@ pub struct AssetAllocation {
 
     pub holding: Holding,
     pub current_value: Decimal,
+
+    // FIXME: Experimental
+    pub target_value: Decimal,
 }
 
 impl AssetAllocation {
@@ -182,6 +185,9 @@ impl AssetAllocation {
 
             current_value: holding.current_value(),
             holding: holding,
+
+            // FIXME: Experimental
+            target_value: dec!(0),
         };
 
         asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);
