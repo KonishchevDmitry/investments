@@ -121,7 +121,7 @@ fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>>
 
 #[cfg(not(test))]
 fn is_outdated<T: TimeZone>(date_time: DateTime<T>) -> bool {
-    (chrono::Local::now().naive_utc() - date_time.naive_utc()).num_days() >= 4
+    (chrono::Local::now().naive_utc() - date_time.naive_utc()).num_days() >= 5
 }
 
 #[cfg(test)]

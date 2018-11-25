@@ -73,7 +73,7 @@ impl Quotes {
         if !self.batched_symbols.is_empty() {
             let symbols = self.batched_symbols.iter()
                 .map(|symbol| symbol.to_owned()).collect::<Vec<String>>();
-            return Err!("Unable to find quotes for following symbols: {}.", symbols.join(", "));
+            return Err!("Unable to find quotes for following symbols: {}", symbols.join(", "));
         }
 
         Ok(price.unwrap())
