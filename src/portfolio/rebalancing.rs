@@ -52,6 +52,9 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
             },
         };
 
+        asset.min_value = min_value;
+        asset.max_value = max_value;
+
         total_min_value += min_value;
 
         if let Some(max_value) = max_value {
@@ -83,16 +86,17 @@ fn calculate_target_value(
 
     let mut balance = dec!(0);
     let mut correctable_holdings = HashSet::new();
-    let mut uncorrectable_holdings = HashSet::new();
+    let mut uncorrectable_holdings = HashSet::new();  // FIXME
 
     for index in 0..assets.len() {
         correctable_holdings.insert(index);
     }
 
-    // FIXME: HERE
+    debug!("* Rebalancing:");
+
     // First process assets with max value limit to release free cash assets
-    for index in correctable_holdings.clone() {
-        let asset = &mut assets[index];
+    for index in &correctable_holdings {
+        let asset = &mut assets[*index];
 
         let max_value = match asset.max_value {
             Some(max_value) => max_value,
@@ -102,26 +106,29 @@ fn calculate_target_value(
         if asset.target_value > max_value {
             balance += asset.target_value - max_value;
             asset.target_value = max_value;
+            asset.buy_blocked = true;
 
-            uncorrectable_holdings.insert(index);
-            correctable_holdings.remove(&index);
+            debug!("  * {name}: buying is blocked at {value}",
+                   name=asset.full_name(), value=max_value);
         }
     }
 
-    // Second process assets with min value limit to adapt to restrictions from the caller
-    for index in correctable_holdings.clone() {
-        let asset = &mut assets[index];
+    // Then process assets with min value limit to adapt to restrictions provided by the caller
+    for index in &correctable_holdings {
+        let asset = &mut assets[*index];
         let min_value = asset.min_value;
 
         if asset.target_value < min_value {
             balance += asset.target_value - min_value;
             asset.target_value = min_value;
+            asset.sell_blocked = true;
 
-            uncorrectable_holdings.insert(index);
-            correctable_holdings.remove(&index);
+            debug!("  * {name}: selling is blocked at {value}",
+                   name=asset.full_name(), value=min_value);
         }
     }
 
+    // FIXME: HERE
     let mut sells = Vec::new();
     let mut buys = Vec::new();
 

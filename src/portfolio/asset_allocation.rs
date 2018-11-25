@@ -137,6 +137,8 @@ pub struct AssetAllocation {
     pub target_value: Decimal,
     pub min_value: Decimal,
     pub max_value: Option<Decimal>,
+    pub buy_blocked: bool,
+    pub sell_blocked: bool,
 }
 
 impl AssetAllocation {
@@ -199,6 +201,8 @@ impl AssetAllocation {
             target_value: dec!(0),
             min_value: dec!(0),
             max_value: None,
+            buy_blocked: false,
+            sell_blocked: false,
         };
 
         asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);

@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use ansi_term::{Style, ANSIString};
+use ansi_term::{Style, Color, ANSIString};
 use num_traits::ToPrimitive;
 use separator::Separatable;
 
@@ -25,6 +25,13 @@ fn print_assets(asset: &AssetAllocation, currency: &str, depth: usize) {
 
     write!(&mut buffer, "{bullet:>indent$} {name}",
            bullet='•', indent=depth * 2 + 1, name=colorify_name(&asset.full_name())).unwrap();
+
+    if asset.buy_blocked {
+        write!(&mut buffer, " {}", colorify_restriction("[buy blocked]")).unwrap();
+    }
+    if asset.sell_blocked {
+        write!(&mut buffer, " {}", colorify_restriction("[sell blocked]")).unwrap();
+    }
 
     // FIXME: target value, expected value
     write!(&mut buffer, " {target_value} / {expected_weight} ({current_value})",
@@ -68,4 +75,8 @@ fn format_weight(weight: Decimal) -> String {
 
 fn colorify_name(name: &str) -> ANSIString {
     Style::new().bold().paint(name)
+}
+
+fn colorify_restriction(message: &str) -> ANSIString {
+    Color::Blue.paint(message)
 }
