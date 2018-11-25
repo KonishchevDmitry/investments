@@ -140,6 +140,13 @@ pub struct AssetAllocation {
 }
 
 impl AssetAllocation {
+    pub fn full_name(&self) -> String {
+        match self.holding {
+            Holding::Group(_) => self.name.clone(),
+            Holding::Stock(ref holding) => format!("{} ({})", self.name, holding.symbol),
+        }
+    }
+
     fn load(
         config: &AssetAllocationConfig, currency: &str,
         symbols: &mut HashSet<String>, stocks: &mut HashMap<String, u32>,

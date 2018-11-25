@@ -23,13 +23,8 @@ pub fn print_portfolio(portfolio: &Portfolio) {
 fn print_assets(asset: &AssetAllocation, currency: &str, depth: usize) {
     let mut buffer = String::new();
 
-    let mut name = asset.name.clone();
-    if let Holding::Stock(ref holding) = asset.holding {
-        write!(&mut name, " ({symbol})", symbol=holding.symbol).unwrap();
-    }
-
     write!(&mut buffer, "{bullet:>indent$} {name}",
-           bullet='•', indent=depth * 2 + 1, name=colorify_name(&name)).unwrap();
+           bullet='•', indent=depth * 2 + 1, name=colorify_name(&asset.full_name())).unwrap();
 
     // FIXME: target value, expected value
     write!(&mut buffer, " {target_value} / {expected_weight} ({current_value})",
