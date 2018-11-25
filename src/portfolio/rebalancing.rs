@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
+use std::cmp::min;
 
 use num_traits::Zero;
 
@@ -8,7 +9,15 @@ use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 
 // FIXME: implement
 pub fn rebalance_portfolio(portfolio: &mut Portfolio) {
-    calculate_restrictions(&mut portfolio.assets);
+    // The first step is bottom-up and calculates strict limits on asset min/max value
+    calculate_restrictions(&mut portfolio.assets); // FIXME: Use result
+
+    // The second step is top-down and tries to apply the specified weights and limits calculated in
+    // the first step to the actual free assets
+    debug!("");
+    debug!("Calculating assets target value...");
+    calculate_target_value(
+        &portfolio.name, &mut portfolio.assets, portfolio.total_value, portfolio.min_trade_volume);
 
     if false {
         match sell_overbought_assets(&mut portfolio.assets, portfolio.total_value, portfolio.min_trade_volume) {
@@ -19,8 +28,6 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio) {
 }
 
 fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
-    assert!(!assets.is_empty());
-
     let mut total_min_value = dec!(0);
     let mut total_max_value = dec!(0);
     let mut all_with_max_value = true;
@@ -61,6 +68,160 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
     };
 
     (total_min_value, total_max_value)
+}
+
+fn calculate_target_value(
+    name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
+    min_trade_volume: Decimal
+) {
+    debug!("{name}:", name=name);
+    debug!("* Initial target values:");
+    for asset in assets.iter_mut() {
+        asset.target_value = target_total_value * asset.expected_weight;
+        debug!("  * {name} - {value}", name=asset.full_name(), value=asset.target_value);
+    }
+
+    let mut balance = dec!(0);
+    let mut correctable_holdings = HashSet::new();
+    let mut uncorrectable_holdings = HashSet::new();
+
+    for index in 0..assets.len() {
+        correctable_holdings.insert(index);
+    }
+
+    // FIXME: HERE
+    // First process assets with max value limit to release free cash assets
+    for index in correctable_holdings.clone() {
+        let asset = &mut assets[index];
+
+        let max_value = match asset.max_value {
+            Some(max_value) => max_value,
+            None => continue,
+        };
+
+        if asset.target_value > max_value {
+            balance += asset.target_value - max_value;
+            asset.target_value = max_value;
+
+            uncorrectable_holdings.insert(index);
+            correctable_holdings.remove(&index);
+        }
+    }
+
+    // Second process assets with min value limit to adapt to restrictions from the caller
+    for index in correctable_holdings.clone() {
+        let asset = &mut assets[index];
+        let min_value = asset.min_value;
+
+        if asset.target_value < min_value {
+            balance += asset.target_value - min_value;
+            asset.target_value = min_value;
+
+            uncorrectable_holdings.insert(index);
+            correctable_holdings.remove(&index);
+        }
+    }
+
+    let mut sells = Vec::new();
+    let mut buys = Vec::new();
+
+    for index in correctable_holdings.clone() {
+        let asset = &mut assets[index];
+
+        let difference = asset.target_value - asset.current_value;
+        if !difference.is_zero() && difference.abs() < min_trade_volume {
+            if difference.is_sign_negative() {
+                sells.push((index, -difference));
+            } else {
+                buys.push((index, difference));
+            }
+
+            asset.target_value = asset.current_value;
+            balance += difference;
+        }
+    }
+
+    if !balance.is_zero() {
+        if balance.is_sign_positive() {
+            buys.sort_by_key(|item| item.1);
+
+            for (index, _) in buys {
+                if balance < min_trade_volume {
+                    break;
+                }
+
+                let asset = &mut assets[index];
+                let target_value = asset.current_value + min_trade_volume;
+
+                if let Some(max_value) = asset.max_value {
+                    if target_value > max_value {
+                        continue;
+                    }
+                }
+
+                asset.target_value = target_value;
+                balance -= min_trade_volume;
+            }
+        } else {
+            sells.sort_by_key(|item| item.1);
+
+            for (index, _) in buys {
+                if balance > -min_trade_volume {
+                    break;
+                }
+
+                let asset = &mut assets[index];
+                let target_value = asset.current_value - min_trade_volume;
+
+                if target_value < asset.min_value {
+                    if asset.expected_weight.is_zero() && target_value <= dec!(0) {
+                        balance += asset.current_value - asset.target_value;
+                        asset.target_value = dec!(0);
+                    }
+
+                    continue
+                }
+
+                asset.target_value = target_value;
+                balance += min_trade_volume;
+            }
+        }
+    }
+
+    for index in correctable_holdings.clone() {
+        let asset = &mut assets[index];
+
+        let difference = asset.target_value - asset.current_value;
+
+        if difference.is_sign_positive() && balance.is_sign_positive() {
+            if let Some(max_value) = asset.max_value {
+                let max_volume = max_value - asset.target_value;
+                let volume = min(max_volume, balance);
+                balance -= volume;
+                asset.target_value += volume;
+            } else {
+                let volume = balance;
+                balance -= volume;
+                asset.target_value += volume;
+            }
+        } else if difference.is_sign_negative() && balance.is_sign_negative() {
+            let max_volume = asset.target_value - asset.min_value;
+            let volume = min(max_volume, -balance);
+            balance += volume;
+            asset.target_value -= volume;
+        }
+    }
+
+    info!(">> {}", balance);
+
+    for index in correctable_holdings.union(&uncorrectable_holdings) {
+        let asset = &mut assets[*index];
+        let asset_name = asset.full_name();
+
+        if let Holding::Group(ref mut holdings) = asset.holding {
+            calculate_target_value(&asset_name, holdings, asset.target_value, min_trade_volume);
+        }
+    }
 }
 
 enum SellResult {
