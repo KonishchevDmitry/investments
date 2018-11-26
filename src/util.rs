@@ -72,3 +72,16 @@ pub fn parse_duration(string: &str) -> GenericResult<Duration> {
 
     Ok(Duration::seconds(seconds))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rounding() {
+        assert_eq!(round_to(decs!("-1.5"), 0), dec!(-2));
+        assert_eq!(round_to(decs!("-1.4"), 0), dec!(-1));
+        assert_eq!(round_to(decs!("1.4"), 0), dec!(1));
+        assert_eq!(round_to(decs!("1.5"), 0), dec!(2));
+    }
+}

@@ -4,6 +4,7 @@ use std::cmp::min;
 use num_traits::Zero;
 
 use types::Decimal;
+use util;
 
 use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 
@@ -81,23 +82,46 @@ fn calculate_target_value(
     debug!("* Initial target values:");
     for asset in assets.iter_mut() {
         asset.target_value = target_total_value * asset.expected_weight;
-        debug!("  * {name} - {value}", name=asset.full_name(), value=asset.target_value);
+        debug!("  * {name}: {value}", name=asset.full_name(), value=asset.target_value.normalize());
     }
 
     let mut balance = dec!(0);
-    let mut correctable_holdings = HashSet::new();
+    let mut correctable_holdings = HashSet::new();  // Do we need it everywhere?
     let mut uncorrectable_holdings = HashSet::new();  // FIXME
 
     for index in 0..assets.len() {
         correctable_holdings.insert(index);
     }
 
+    debug!("* Rounding:");
+
+    for asset in assets.iter_mut() {
+        let mut difference = asset.target_value - asset.current_value;
+
+        if let Holding::Stock(ref holding) = asset.holding {
+            difference = util::round_to(difference / holding.price, 0) * holding.price;
+        }
+
+        if difference.abs() < min_trade_volume {
+            difference = dec!(0);
+        }
+
+        let target_value = (asset.current_value + difference).normalize();
+
+        if target_value != asset.target_value {
+            debug!("  * {name}: {target_value} -> {corrected_target_value}",
+                name=asset.full_name(), target_value=asset.target_value.normalize(),
+                corrected_target_value=target_value.normalize());
+
+            balance += asset.target_value - target_value;
+            asset.target_value = target_value;
+        }
+    }
+
     debug!("* Rebalancing:");
 
     // First process assets with max value limit to release free cash assets
-    for index in &correctable_holdings {
-        let asset = &mut assets[*index];
-
+    for asset in assets.iter_mut() {
         let max_value = match asset.max_value {
             Some(max_value) => max_value,
             None => continue,
@@ -109,13 +133,12 @@ fn calculate_target_value(
             asset.buy_blocked = true;
 
             debug!("  * {name}: buying is blocked at {value}",
-                   name=asset.full_name(), value=max_value);
+                   name=asset.full_name(), value=max_value.normalize());
         }
     }
 
     // Then process assets with min value limit to adapt to restrictions provided by the caller
-    for index in &correctable_holdings {
-        let asset = &mut assets[*index];
+    for asset in assets.iter_mut() {
         let min_value = asset.min_value;
 
         if asset.target_value < min_value {
@@ -124,7 +147,7 @@ fn calculate_target_value(
             asset.sell_blocked = true;
 
             debug!("  * {name}: selling is blocked at {value}",
-                   name=asset.full_name(), value=min_value);
+                   name=asset.full_name(), value=min_value.normalize());
         }
     }
 
@@ -195,6 +218,8 @@ fn calculate_target_value(
         }
     }
 
+    // FIXME: Reset blocked flag
+
     for index in correctable_holdings.clone() {
         let asset = &mut assets[index];
 
@@ -219,7 +244,7 @@ fn calculate_target_value(
         }
     }
 
-    info!(">> {}", balance);
+    debug!("* Balance: {}", balance.normalize());
 
     for index in correctable_holdings.union(&uncorrectable_holdings) {
         let asset = &mut assets[*index];
