@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::HashSet;
 
 use log;
 
@@ -139,17 +139,15 @@ fn calculate_target_value(
         }
     }
 
-    // FIXME: HERE
-    #[derive(Clone, Copy)]
     struct PossibleTrade {
         index: usize,
         volume: Decimal,
-        impact: Decimal,
+        result: Decimal,
     }
 
-    enum BalanceMismatchType {
-        Negative,
-        Positive,
+    enum Action {
+        Sell,
+        Buy,
     }
 
     let balance_before_distribution = balance;
@@ -161,39 +159,54 @@ fn calculate_target_value(
         }
     }
 
-    for balance_mismatch_type in &[BalanceMismatchType::Negative, BalanceMismatchType::Positive] {
-        let mut correctable_holdings: HashSet<_> = (0..assets.len()).collect();
+    for action in &[Action::Sell, Action::Buy] {
+        let mut correctable_holdings: HashSet<usize> = (0..assets.len()).collect();
 
-        while balance.is_sign_negative() {
+        while match action {
+            Action::Sell => balance.is_sign_negative(),
+            Action::Buy => balance.is_sign_positive(),
+        } {
             let mut best_trade: Option<PossibleTrade> = None;
 
-            for index in correctable_holdings.clone() {
+            for index in correctable_holdings.iter().cloned().collect::<Vec<_>>() {
                 let asset = &mut assets[index];
-                let asset_min_trade_volume = match asset.holding {
-                    Holding::Stock(ref holding) => {
-                        // FIXME: From current value
-                        (min_trade_volume / holding.price).ceil() * holding.price
-                    }
-                    Holding::Group(_) => min_trade_volume,
-                };
-                let target_value = asset.target_value - asset_min_trade_volume;
 
-                if target_value < asset.min_value {
-                    correctable_holdings.remove(&index);
-                    continue
-                }
+                let trade_volume = match action {
+                    Action::Sell => calculate_min_sell_volume(asset, min_trade_volume),
+                    Action::Buy => {
+                        match calculate_min_buy_volume(asset, min_trade_volume) {
+                            Some(trade_volume) if trade_volume <= balance => Some(trade_volume),
+                            _ => None,
+                        }
+                    },
+                };
+
+                let trade_volume = match trade_volume {
+                    Some(trade_volume) => match action {
+                        Action::Sell => -trade_volume,
+                        Action::Buy => trade_volume,
+                    },
+                    None => {
+                        correctable_holdings.remove(&index);
+                        continue
+                    },
+                };
 
                 let expected_value = target_total_value * asset.expected_weight;
-                let impact = target_value / expected_value;
+                let target_value = asset.target_value + trade_volume;
+
                 let possible_trade = PossibleTrade {
                     index: index,
-                    volume: asset_min_trade_volume,
-                    impact: impact,
+                    volume: trade_volume,
+                    result: target_value / expected_value,
                 };
 
                 best_trade = Some(match best_trade {
                     Some(best_trade) => {
-                        if possible_trade.impact > best_trade.impact {
+                        if match action {
+                            Action::Sell => possible_trade.result > best_trade.result,
+                            Action::Buy => possible_trade.result < best_trade.result,
+                        } {
                             possible_trade
                         } else {
                             best_trade
@@ -203,14 +216,14 @@ fn calculate_target_value(
                 });
             }
 
-            let possible_trade = match best_trade {
+            let trade = match best_trade {
                 Some(best_trade) => best_trade,
                 None => break,
             };
 
-            let asset = &mut assets[possible_trade.index];
-            asset.target_value -= possible_trade.volume;
-            balance += possible_trade.volume;
+            let asset = &mut assets[trade.index];
+            asset.target_value += trade.volume;
+            balance -= trade.volume;
         }
     }
 
@@ -237,4 +250,93 @@ fn calculate_target_value(
             calculate_target_value(&asset_name, holdings, asset.target_value, min_trade_volume);
         }
     }
+}
+
+fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
+    let trade_granularity = get_trade_granularity(asset);
+
+    let trade_volume = if asset.target_value <= asset.current_value {
+        // target <= current
+
+        if asset.target_value <= asset.current_value - min_trade_volume {
+            // trade < target <= min < current
+            trade_granularity
+        } else {
+            // trade <= min < target <= current
+            round_min_trade_volume(
+                min_trade_volume - (asset.current_value - asset.target_value),
+                trade_granularity
+            )
+        }
+    } else {
+        // current < target
+
+        if asset.target_value - trade_granularity >= asset.current_value + min_trade_volume {
+            // current < min <= trade < target
+            trade_granularity
+        } else {
+            // trade <= min < current < target
+            round_min_trade_volume(
+                asset.target_value - (asset.current_value - min_trade_volume),
+                trade_granularity,
+            )
+        }
+    };
+
+    if asset.target_value - trade_volume < asset.min_value {
+        return None
+    }
+
+    Some(trade_volume)
+}
+
+fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
+    let trade_granularity = get_trade_granularity(asset);
+
+    let trade_volume = if asset.target_value >= asset.current_value {
+        // current <= target
+
+        if asset.target_value >= asset.current_value + min_trade_volume {
+            // current < min <= target < trade
+            trade_granularity
+        } else {
+            // current <= target < min <= trade
+            round_min_trade_volume(
+                min_trade_volume - (asset.target_value - asset.current_value),
+                trade_granularity,
+            )
+        }
+    } else {
+        // target < current
+
+        if asset.target_value + trade_granularity <= asset.current_value - min_trade_volume {
+            // target < trade <= min < current
+            trade_granularity
+        } else {
+            // target < current < min <= trade
+            round_min_trade_volume(
+                asset.current_value + min_trade_volume - asset.target_value,
+                trade_granularity
+            )
+        }
+    };
+
+    if let Some(max_value) = asset.max_value {
+        if asset.target_value + trade_volume > max_value {
+            return None;
+        }
+    }
+
+    Some(trade_volume)
+}
+
+fn get_trade_granularity(asset: &AssetAllocation) -> Decimal {
+    match asset.holding {
+        Holding::Stock(ref holding) => holding.price,
+        Holding::Group(_) => dec!(1), // FIXME
+    }
+}
+
+fn round_min_trade_volume(volume: Decimal, granularity: Decimal) -> Decimal {
+    (volume / granularity).ceil() * granularity
 }
