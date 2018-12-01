@@ -24,7 +24,8 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
         &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_free_assets,
         portfolio.min_trade_volume);
 
-    let (current_value, commissions) = calculate_current_value(
+    // The next step is bottom-up and calculates the result of the rebalancing operation
+    let (current_value, commissions) = calculate_result_value(
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
 
     portfolio.total_value -= commissions;
@@ -270,7 +271,7 @@ fn calculate_target_value(
     return balance
 }
 
-fn calculate_current_value(
+fn calculate_result_value(
     assets: &mut Vec<AssetAllocation>, broker: &BrokerInfo,
     currency: &str, converter: &CurrencyConverter
 ) -> GenericResult<(Decimal, Decimal)> {
@@ -290,7 +291,7 @@ fn calculate_current_value(
                 (asset.target_value, commission)
             },
             Holding::Group(ref mut holdings) => {
-                calculate_current_value(holdings, broker, currency, converter)?
+                calculate_result_value(holdings, broker, currency, converter)?
             },
         };
 
