@@ -3,6 +3,7 @@ use std::collections::{HashSet, HashMap};
 use brokers::BrokerInfo;
 use config::{Config, PortfolioConfig, AssetAllocationConfig};
 use core::{EmptyResult, GenericResult};
+use currency::Cash;
 use currency::converter::CurrencyConverter;
 use quotes::Quotes;
 use types::Decimal;
@@ -124,8 +125,10 @@ impl Holding {
 // FIXME: name
 pub struct StockHolding {
     pub symbol: String,
-    pub current_shares: u32,
     pub price: Decimal,
+    pub cash_price: Cash,  // FIXME: ?
+    pub current_shares: u32,
+    pub target_shares: u32,
 }
 
 pub struct AssetAllocation {
@@ -166,13 +169,15 @@ impl AssetAllocation {
                         symbol);
                 }
 
-                let price = converter.convert_to(
-                    util::today(), quotes.get(symbol)?, currency)?;
+                let price = quotes.get(symbol)?;
+                let shares = stocks.remove(symbol).unwrap_or(0);
 
                 Holding::Stock(StockHolding {
                     symbol: symbol.clone(),
-                    price: price,
-                    current_shares: stocks.remove(symbol).unwrap_or(0),
+                    price: converter.convert_to(util::today(), price, currency)?,
+                    cash_price: price,
+                    current_shares: shares,
+                    target_shares: shares,
                 })
             },
             (None, Some(assets)) => {

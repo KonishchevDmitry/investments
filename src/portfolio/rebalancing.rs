@@ -1,27 +1,36 @@
 use std::collections::HashSet;
 
 use log;
+use num_traits::{FromPrimitive, ToPrimitive};
 
+use brokers::BrokerInfo;
+use core::GenericResult;
+use currency::converter::CurrencyConverter;
 use types::Decimal;
 use util;
 
-use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
+use super::asset_allocation::{Portfolio, AssetAllocation, Holding, StockHolding};
 
 // FIXME: implement
-pub fn rebalance_portfolio(portfolio: &mut Portfolio) {
+pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> GenericResult<Decimal> {
     // The first step is bottom-up and calculates strict limits on asset min/max value
     calculate_restrictions(&mut portfolio.assets);
-
-    let target_value = portfolio.total_value - portfolio.min_free_assets;
 
     // The second step is top-down and tries to apply the specified weights and limits calculated in
     // the first step to the actual free assets
     debug!("");
     debug!("Calculating assets target value...");
     calculate_target_value(
-        &portfolio.name, &mut portfolio.assets, target_value, portfolio.min_trade_volume);
+        &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_free_assets,
+        portfolio.min_trade_volume);
 
-    let free_assets = portfolio.free_assets;
+    let (current_value, commissions) = calculate_current_value(
+        &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
+
+    portfolio.total_value -= commissions;
+    portfolio.free_assets = portfolio.total_value - current_value;
+
+    Ok(commissions) // FIXME: print
 }
 
 fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
@@ -261,12 +270,76 @@ fn calculate_target_value(
     return balance
 }
 
-// FIXME: HERE
-fn calculate_free_assets(
-    name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
-    min_trade_volume: Decimal
-) -> Decimal {
-    unreachable!();
+fn calculate_current_value(
+    assets: &mut Vec<AssetAllocation>, broker: &BrokerInfo,
+    currency: &str, converter: &CurrencyConverter
+) -> GenericResult<(Decimal, Decimal)> {
+    let mut total_value = dec!(0);
+    let mut total_commissions = dec!(0);
+
+    for asset in assets.iter_mut() {
+        let name = asset.full_name();
+
+        let (value, commissions) = match asset.holding {
+            Holding::Stock(ref mut holding) => {
+                assert_eq!(holding.target_shares, holding.current_shares);
+
+                let commission = change_to(
+                    &name, holding, asset.target_value, broker, currency, converter)?;
+
+                (asset.target_value, commission)
+            },
+            Holding::Group(ref mut holdings) => {
+                calculate_current_value(holdings, broker, currency, converter)?
+            },
+        };
+
+        total_value += value;
+        total_commissions += commissions;
+    }
+
+    Ok((total_value, total_commissions))
+}
+
+fn change_to(
+    name: &str, holding: &mut StockHolding, target_value: Decimal,
+    broker: &BrokerInfo, currency: &str, converter: &CurrencyConverter
+) -> GenericResult<Decimal> {
+    let target_shares_fractional = target_value / holding.price;
+
+    let target_shares = target_shares_fractional.to_u32().unwrap();
+    assert_eq!(target_shares_fractional, Decimal::from_u32(target_shares).unwrap());
+
+    let prev_target_shares = holding.target_shares;
+    let paid_commission = calculate_target_commission(
+        name, holding, prev_target_shares, broker, currency, converter)?;
+
+    let current_commission = calculate_target_commission(
+        name, holding, target_shares, broker, currency, converter)?;
+
+    holding.target_shares = target_shares;
+
+    Ok(current_commission - paid_commission)
+}
+
+fn calculate_target_commission(
+    name: &str, holding: &mut StockHolding, target_shares: u32,
+    broker: &BrokerInfo, currency: &str, converter: &CurrencyConverter
+) -> GenericResult<Decimal> {
+    if target_shares == holding.current_shares {
+        return Ok(dec!(0))
+    }
+
+    let shares = if target_shares > holding.current_shares {
+        target_shares - holding.current_shares
+    } else {
+        holding.current_shares - target_shares
+    };
+
+    let commission = broker.get_trade_commission(shares, holding.cash_price)
+        .map_err(|e| format!("{}: {}", name, e))?;
+
+    Ok(converter.convert_to(util::today(), commission, currency)?)
 }
 
 fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {

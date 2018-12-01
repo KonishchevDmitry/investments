@@ -119,7 +119,7 @@ pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
     assets.validate(&portfolio_config)?;
 
     let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &mut quotes)?;
-    rebalancing::rebalance_portfolio(&mut portfolio);
+    rebalancing::rebalance_portfolio(&mut portfolio, &converter)?;
     print_portfolio(&portfolio);
 
     Ok(())
