@@ -10,14 +10,16 @@ use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 // FIXME: implement
 pub fn rebalance_portfolio(portfolio: &mut Portfolio) {
     // The first step is bottom-up and calculates strict limits on asset min/max value
-    calculate_restrictions(&mut portfolio.assets); // FIXME: Use result
+    calculate_restrictions(&mut portfolio.assets);
+
+    let target_value = portfolio.total_value - portfolio.min_free_assets;
 
     // The second step is top-down and tries to apply the specified weights and limits calculated in
     // the first step to the actual free assets
     debug!("");
     debug!("Calculating assets target value...");
     calculate_target_value(
-        &portfolio.name, &mut portfolio.assets, portfolio.total_value, portfolio.min_trade_volume);
+        &portfolio.name, &mut portfolio.assets, target_value, portfolio.min_trade_volume);
 }
 
 fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
@@ -69,7 +71,7 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
 fn calculate_target_value(
     name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
     min_trade_volume: Decimal
-) {
+) -> Decimal {
     debug!("{name}:", name=name);
     debug!("* Initial target values:");
     for asset in assets.iter_mut() {
@@ -227,29 +229,34 @@ fn calculate_target_value(
         }
     }
 
-    if log_enabled!(log::Level::Debug) && balance != balance_before_distribution {
+    for asset in assets.iter_mut() {
+        let asset_name = asset.full_name();
+
+        if let Holding::Group(ref mut holdings) = asset.holding {
+            let group_balance = calculate_target_value(
+                &asset_name, holdings, asset.target_value, min_trade_volume);
+
+            asset.target_value -= balance;
+            balance += group_balance;
+        }
+    }
+
+    if log_enabled!(log::Level::Debug) {
+        debug!("{name}:", name=name);
         debug!("* Distribution: {prev_balance} -> {balance}:",
-               prev_balance = balance_before_distribution.normalize(), balance = balance.normalize());
+               prev_balance=balance_before_distribution.normalize(), balance=balance.normalize());
 
         for (index, asset) in assets.iter().enumerate() {
             let prev_target_value = target_values_before_distribution[index];
             if prev_target_value != asset.target_value {
                 debug!("  * {name}: {prev_target_value} -> {target_value}",
-                    name=asset.full_name(), prev_target_value=prev_target_value,
-                       target_value=asset.target_value)
+                       name=asset.full_name(), prev_target_value=prev_target_value.normalize(),
+                       target_value=asset.target_value.normalize())
             }
         }
     }
 
-    debug!("* Balance: {}", balance.normalize());
-
-    for asset in assets.iter_mut() {
-        let asset_name = asset.full_name();
-
-        if let Holding::Group(ref mut holdings) = asset.holding {
-            calculate_target_value(&asset_name, holdings, asset.target_value, min_trade_volume);
-        }
-    }
+    return balance
 }
 
 fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
