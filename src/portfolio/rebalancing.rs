@@ -20,6 +20,8 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio) {
     debug!("Calculating assets target value...");
     calculate_target_value(
         &portfolio.name, &mut portfolio.assets, target_value, portfolio.min_trade_volume);
+
+    let free_assets = portfolio.free_assets;
 }
 
 fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
@@ -77,7 +79,7 @@ fn calculate_target_value(
     for asset in assets.iter_mut() {
         asset.target_value = target_total_value * asset.expected_weight;
         debug!("  * {name}: {current_value} -> {target_value}",
-               name=asset.full_name(), current_value=asset.current_value,
+               name=asset.full_name(), current_value=asset.current_value.normalize(),
                target_value=asset.target_value.normalize());
     }
 
@@ -257,6 +259,14 @@ fn calculate_target_value(
     }
 
     return balance
+}
+
+// FIXME: HERE
+fn calculate_free_assets(
+    name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
+    min_trade_volume: Decimal
+) -> Decimal {
+    unreachable!();
 }
 
 fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {

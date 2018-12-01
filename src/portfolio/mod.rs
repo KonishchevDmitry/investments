@@ -101,7 +101,7 @@ pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(&portfolio_config)?;
 
-    let portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
+    let portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &mut quotes)?;
     print_portfolio(&portfolio);
 
     Ok(())
@@ -118,7 +118,7 @@ pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(&portfolio_config)?;
 
-    let mut portfolio = Portfolio::load(portfolio_config, assets, &converter, &mut quotes)?;
+    let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &mut quotes)?;
     rebalancing::rebalance_portfolio(&mut portfolio);
     print_portfolio(&portfolio);
 

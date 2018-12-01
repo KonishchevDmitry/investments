@@ -1,5 +1,5 @@
 #[cfg(test)] use brokers;
-#[cfg(test)] use config::BrokerConfig;
+#[cfg(test)] use config::Config;
 use core::{EmptyResult, GenericResult};
 use currency::Cash;
 use types::Decimal;
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn interactive_brokers_commission() {
-        let commission_spec = brokers::interactive_brokers(&BrokerConfig::mock()).commission_spec;
+        let commission_spec = brokers::interactive_brokers(&Config::mock()).unwrap().commission_spec;
 
         // Minimum commission > per share commission
         assert_eq!(commission_spec.calculate(199, Cash::new("USD", dec!(100))).unwrap(),
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn open_broker_commission() {
-        let commission_spec = brokers::open_broker(&BrokerConfig::mock()).commission_spec;
+        let commission_spec = brokers::open_broker(&Config::mock()).unwrap().commission_spec;
 
         // Percent commission > minimum commission
         assert_eq!(commission_spec.calculate(73, Cash::new("RUB", dec!(2758))).unwrap(),

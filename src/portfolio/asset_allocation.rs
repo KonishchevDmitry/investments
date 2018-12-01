@@ -1,6 +1,7 @@
 use std::collections::{HashSet, HashMap};
 
-use config::{PortfolioConfig, AssetAllocationConfig};
+use brokers::BrokerInfo;
+use config::{Config, PortfolioConfig, AssetAllocationConfig};
 use core::{EmptyResult, GenericResult};
 use currency::converter::CurrencyConverter;
 use quotes::Quotes;
@@ -11,6 +12,7 @@ use super::Assets;
 
 pub struct Portfolio {
     pub name: String,
+    pub broker: BrokerInfo,
 
     pub currency: String,
     pub assets: Vec<AssetAllocation>,
@@ -23,36 +25,37 @@ pub struct Portfolio {
 
 impl Portfolio {
     pub fn load(
-        config: &PortfolioConfig, assets: Assets,
+        config: &Config, portfolio_config: &PortfolioConfig, assets: Assets,
         converter: &CurrencyConverter, quotes: &mut Quotes
     ) -> GenericResult<Portfolio> {
-        let currency = match config.currency.as_ref() {
+        let currency = match portfolio_config.currency.as_ref() {
             Some(currency) => currency,
             None => return Err!("The portfolio's currency is not specified in the config"),
         };
 
-        let min_trade_volume = config.min_trade_volume.unwrap_or(dec!(0));
+        let min_trade_volume = portfolio_config.min_trade_volume.unwrap_or(dec!(0));
         if min_trade_volume.is_sign_negative() {
             return Err!("Invalid minimum trade volume value")
         }
 
-        let min_free_assets = config.min_free_assets.unwrap_or(dec!(0));
+        let min_free_assets = portfolio_config.min_free_assets.unwrap_or(dec!(0));
         if min_free_assets.is_sign_negative() {
             return Err!("Invalid minimum free cash assets value")
         }
 
-        if config.assets.is_empty() {
+        if portfolio_config.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
 
-        for symbol in config.get_stock_symbols() {
+        for symbol in portfolio_config.get_stock_symbols() {
             quotes.batch(&symbol);
         }
 
         let free_assets = assets.cash.total_assets(&currency, converter)?;
 
         let mut portfolio = Portfolio {
-            name: config.name.clone(),
+            name: portfolio_config.name.clone(),
+            broker: BrokerInfo::get(config, portfolio_config.broker)?,
 
             currency: currency.clone(),
             assets: Vec::new(),
@@ -66,10 +69,12 @@ impl Portfolio {
         let mut stocks = assets.stocks;
         let mut symbols = HashSet::new();
 
-        for assets_config in &config.assets {
+        for assets_config in &portfolio_config.assets {
             let mut asset_allocation = AssetAllocation::load(
                 assets_config, &currency, &mut symbols, &mut stocks, converter, quotes)?;
-            asset_allocation.apply_restrictions(config.restrict_buying, config.restrict_selling);
+
+            asset_allocation.apply_restrictions(
+                portfolio_config.restrict_buying, portfolio_config.restrict_selling);
 
             portfolio.total_value += asset_allocation.current_value;
             portfolio.assets.push(asset_allocation);

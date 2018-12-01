@@ -39,14 +39,9 @@ pub struct BrokerStatement {
 impl BrokerStatement {
     pub fn read(config: &Config, broker: Broker, statement_dir_path: &str) -> GenericResult<BrokerStatement> {
         let statement_reader = match broker {
-            Broker::InteractiveBrokers => ib::StatementReader::new(
-                config.brokers.interactive_brokers.as_ref().ok_or_else(|| format!(
-                    "Interactive Brokers configuration is not set in the configuration file"))?),
-
-            Broker::OpenBroker => open_broker::StatementReader::new(
-                config.brokers.open_broker.as_ref().ok_or_else(|| format!(
-                    "Open Broker configuration is not set in the configuration file"))?),
-        };
+            Broker::InteractiveBrokers => ib::StatementReader::new(config),
+            Broker::OpenBroker => open_broker::StatementReader::new(config),
+        }?;
 
         let mut file_names = get_statement_files(statement_dir_path, &statement_reader).map_err(|e| format!(
             "Error while reading {:?}: {}", statement_dir_path, e))?;

@@ -5,8 +5,8 @@ use encoding_rs;
 use serde_xml_rs;
 
 use brokers::{self, BrokerInfo};
-#[cfg(test)] use config::{Config, Broker};
-use config::BrokerConfig;
+#[cfg(test)] use config::Broker;
+use config::Config;
 use core::GenericResult;
 
 use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
@@ -21,10 +21,10 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(config: &BrokerConfig) -> Box<BrokerStatementReader> {
-        Box::new(StatementReader {
-            broker_info: brokers::open_broker(config),
-        })
+    pub fn new(config: &Config) -> GenericResult<Box<BrokerStatementReader>> {
+        Ok(Box::new(StatementReader {
+            broker_info: brokers::open_broker(config)?,
+        }))
     }
 }
 
