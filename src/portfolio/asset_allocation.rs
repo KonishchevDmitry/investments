@@ -18,10 +18,10 @@ pub struct Portfolio {
     pub currency: String,
     pub assets: Vec<AssetAllocation>,
     pub min_trade_volume: Decimal,
-    pub min_cash_assets: Decimal,
+    pub min_cash_assets: Decimal, // FIXME: Check all usage
 
     pub total_value: Decimal,
-    pub free_assets: Decimal,
+    pub free_assets: Decimal
 }
 
 impl Portfolio {
@@ -197,6 +197,7 @@ impl AssetAllocation {
                config.name),
         };
 
+        let current_value = holding.current_value();
         let mut asset_allocation = AssetAllocation {
             name: config.name.clone(),
 
@@ -204,11 +205,11 @@ impl AssetAllocation {
             restrict_buying: None,
             restrict_selling: None,
 
-            current_value: holding.current_value(),
+            current_value: current_value,
             holding: holding,
 
             // FIXME: Experimental
-            target_value: dec!(0),
+            target_value: current_value,
             min_value: dec!(0),
             max_value: None,
             buy_blocked: false,
