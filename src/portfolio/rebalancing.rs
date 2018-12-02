@@ -1,15 +1,21 @@
 use std::collections::HashSet;
 
 use log;
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 
 use brokers::BrokerInfo;
-use core::GenericResult;
+use core::{GenericResult, EmptyResult};
 use currency::converter::CurrencyConverter;
 use types::Decimal;
 use util;
 
 use super::asset_allocation::{Portfolio, AssetAllocation, Holding, StockHolding};
+
+#[derive(Clone, Copy)]
+enum Action {
+    Sell,
+    Buy,
+}
 
 // FIXME: implement
 pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> GenericResult<Decimal> {
@@ -31,7 +37,10 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
     portfolio.total_value -= commissions;
     portfolio.free_assets = portfolio.total_value - current_value;
 
-    Ok(commissions) // FIXME: print
+    // FIXME
+    distribute_free_assets(portfolio, converter)?;
+
+    Ok(commissions) // FIXME: print + free assets -> free assets
 }
 
 fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
@@ -159,11 +168,6 @@ fn calculate_target_value(
         result: Decimal,
     }
 
-    enum Action {
-        Sell,
-        Buy,
-    }
-
     let balance_before_distribution = balance;
     let mut target_values_before_distribution = Vec::new();
 
@@ -180,6 +184,7 @@ fn calculate_target_value(
             Action::Sell => balance.is_sign_negative(),
             Action::Buy => balance.is_sign_positive(),
         } {
+            // FIXME: Deduplicate code
             let mut best_trade: Option<PossibleTrade> = None;
 
             for index in correctable_holdings.iter().cloned().collect::<Vec<_>>() {
@@ -206,15 +211,16 @@ fn calculate_target_value(
                     },
                 };
 
-                let expected_value = target_total_value * asset.expected_weight;
+                let expected_value = target_total_value * asset.expected_weight;  // FIXME: expected total value?
                 let target_value = asset.target_value + trade_volume;
 
                 let possible_trade = PossibleTrade {
                     index: index,
                     volume: trade_volume,
-                    result: target_value / expected_value,
+                    result: target_value / expected_value,  // FIXME: Zero division
                 };
 
+                // FIXME: Deduplicate code
                 best_trade = Some(match best_trade {
                     Some(best_trade) => {
                         if match action {
@@ -300,6 +306,172 @@ fn calculate_result_value(
     }
 
     Ok((total_value, total_commissions))
+}
+
+// FIXME
+struct PossibleDeepTrade {
+    path: Vec<usize>,
+    volume: Decimal,
+    result: Decimal,
+}
+
+fn distribute_free_assets(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
+    debug!("");
+    debug!("Free assets distribution:");
+
+    for action in [Action::Sell, Action::Buy].iter().cloned() {
+        while match action {
+            Action::Sell => portfolio.free_assets.is_sign_negative(),
+            Action::Buy => portfolio.free_assets.is_sign_positive(),
+        } {
+            let expected_total_value = portfolio.total_value - portfolio.min_free_assets;
+
+            let trade = find_assets_for_cash_distribution(
+                action, &portfolio.assets, expected_total_value, portfolio.free_assets,
+                portfolio.min_trade_volume);
+
+            let trade = match trade {
+                Some(trade) => trade,
+                None => break,
+            };
+
+            portfolio.free_assets -= trade.volume;
+            // FIXME: to portfolio
+            let commission = process_trade(
+                &mut portfolio.assets, trade, &portfolio.broker, &portfolio.currency, converter)?;
+            portfolio.free_assets -= commission;
+        }
+    }
+
+    Ok(())
+}
+
+fn find_assets_for_cash_distribution(
+    action: Action, assets: &Vec<AssetAllocation>, expected_total_value: Decimal,
+    cash_assets: Decimal, min_trade_volume: Decimal
+) -> Option<PossibleDeepTrade> {
+    let mut best_trade: Option<PossibleDeepTrade> = None;
+
+    for (index, asset) in assets.iter().enumerate() {
+        let expected_value = expected_total_value * asset.expected_weight;
+
+        let trade = match asset.holding {
+            Holding::Stock(_) => {
+                calculate_min_trade_volume(
+                    action, asset, expected_value, cash_assets, min_trade_volume)
+            },
+            Holding::Group(ref holdings) => {
+                find_assets_for_cash_distribution(
+                    action, holdings, expected_value, cash_assets, min_trade_volume)
+            },
+        };
+
+        let trade = match trade {
+            Some(mut trade) => {
+                trade.path.push(index);
+                trade
+            },
+            None => continue,
+        };
+
+        best_trade = Some(get_best_trade(action, best_trade, trade));
+    }
+
+    best_trade
+}
+
+fn process_trade(
+    assets: &mut Vec<AssetAllocation>, mut trade: PossibleDeepTrade,
+    broker: &BrokerInfo, currency: &str, converter: &CurrencyConverter
+) -> GenericResult<Decimal> {
+    let index = trade.path.pop().unwrap();
+    let asset = &mut assets[index];
+
+    let name = asset.full_name();
+    let target_value = asset.target_value + trade.volume;
+
+    let commission = match asset.holding {
+        Holding::Stock(ref mut holding) => {
+            assert!(trade.path.is_empty());
+
+            debug!("* {name}: {prev_target_value} -> {target_value}",
+                   name=name, prev_target_value=asset.target_value.normalize(),
+                   target_value=target_value.normalize());
+
+            change_to(&name, holding, target_value, broker, currency, converter)?
+        },
+        Holding::Group(ref mut holdings) => {
+            process_trade(holdings, trade, broker, currency, converter)?
+        },
+    };
+
+    asset.target_value = target_value;
+
+    Ok(commission)
+}
+
+fn calculate_min_trade_volume(
+    action: Action, asset: &AssetAllocation, expected_value: Decimal,
+    cash_assets: Decimal, min_trade_volume: Decimal
+) -> Option<PossibleDeepTrade> {
+    let trade_volume = match action {
+        Action::Sell => calculate_min_sell_volume(asset, min_trade_volume),
+        Action::Buy => {
+            match calculate_min_buy_volume(asset, min_trade_volume) {
+                Some(trade_volume) if trade_volume <= cash_assets => Some(trade_volume),
+                _ => None,
+            }
+        },
+    };
+
+    let trade_volume = match trade_volume {
+        Some(trade_volume) => match action {
+            Action::Sell => -trade_volume,
+            Action::Buy => trade_volume,
+        },
+        None => return None,
+    };
+
+    let target_value = asset.target_value + trade_volume;
+    let result = if expected_value.is_zero() {
+        if target_value.is_zero() {
+            dec!(0)
+        } else {
+            Decimal::max_value()
+        }
+    } else {
+        target_value / expected_value
+    };
+
+    Some(PossibleDeepTrade {
+        path: Vec::new(),
+        volume: trade_volume,
+        result: result
+    })
+}
+
+fn get_best_trade(action: Action, best_trade: Option<PossibleDeepTrade>, trade: PossibleDeepTrade) -> PossibleDeepTrade {
+    match best_trade {
+        Some(best_trade) => {
+            if best_trade.result == trade.result {
+                if best_trade.volume <= trade.volume {
+                    best_trade
+                } else {
+                    trade
+                }
+            } else {
+                if match action {
+                    Action::Sell => best_trade.result > trade.result,
+                    Action::Buy => best_trade.result < trade.result,
+                } {
+                    best_trade
+                } else {
+                    trade
+                }
+            }
+        },
+        None => trade,
+    }
 }
 
 fn change_to(
