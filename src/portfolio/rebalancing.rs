@@ -35,10 +35,10 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
 
     portfolio.total_value -= commissions;
-    portfolio.free_assets = portfolio.total_value - current_value;
+    portfolio.target_cash_assets = portfolio.total_value - current_value;
 
     // FIXME
-    distribute_free_assets(portfolio, converter)?;
+    distribute_cash_assets(portfolio, converter)?;
 
     Ok(commissions) // FIXME: print + free assets -> free assets
 }
@@ -315,19 +315,25 @@ struct PossibleDeepTrade {
     result: Decimal,
 }
 
-fn distribute_free_assets(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
+fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
     debug!("");
-    debug!("Free assets distribution:");
+    debug!("Cash assets distribution:");
 
     for action in [Action::Sell, Action::Buy].iter().cloned() {
-        while match action {
-            Action::Sell => portfolio.free_assets.is_sign_negative(),
-            Action::Buy => portfolio.free_assets.is_sign_positive(),
-        } {
+        loop {
+            let free_cash_assets = portfolio.target_cash_assets - portfolio.min_cash_assets;
+
+            if !match action {
+                Action::Sell => free_cash_assets.is_sign_negative(),
+                Action::Buy => free_cash_assets.is_sign_positive(),
+            } {
+                break;
+            }
+
             let expected_total_value = portfolio.total_value - portfolio.min_cash_assets;
 
             let trade = find_assets_for_cash_distribution(
-                action, &portfolio.assets, expected_total_value, portfolio.free_assets,
+                action, &portfolio.assets, expected_total_value, free_cash_assets,
                 portfolio.min_trade_volume);
 
             let trade = match trade {
@@ -335,11 +341,11 @@ fn distribute_free_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
                 None => break,
             };
 
-            portfolio.free_assets -= trade.volume;
+            portfolio.target_cash_assets -= trade.volume;
             // FIXME: to portfolio
             let commission = process_trade(
                 &mut portfolio.assets, trade, &portfolio.broker, &portfolio.currency, converter)?;
-            portfolio.free_assets -= commission;
+            portfolio.target_cash_assets -= commission;
         }
     }
 

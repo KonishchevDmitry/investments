@@ -19,7 +19,7 @@ pub fn print_portfolio(portfolio: &Portfolio) {
 
     println!();
     println!("{}: {}", colorify_name("Total value"), format_cash(&portfolio.currency, portfolio.total_value));
-    println!("{}: {}", colorify_name("Free assets"), format_cash(&portfolio.currency, portfolio.free_assets));
+//    println!("{}: {}", colorify_name("Free assets"), format_cash(&portfolio.currency, portfolio.free_assets));
 }
 
 fn print_asset(asset: &AssetAllocation, expected_total_value: Decimal, currency: &str, depth: usize) {

@@ -14,14 +14,15 @@ use super::Assets;
 pub struct Portfolio {
     pub name: String,
     pub broker: BrokerInfo,
-
     pub currency: String,
-    pub assets: Vec<AssetAllocation>,
+
     pub min_trade_volume: Decimal,
     pub min_cash_assets: Decimal, // FIXME: Check all usage
 
+    pub assets: Vec<AssetAllocation>,
+    pub current_cash_assets: Decimal,
+    pub target_cash_assets: Decimal,
     pub total_value: Decimal,
-    pub free_assets: Decimal
 }
 
 impl Portfolio {
@@ -52,19 +53,20 @@ impl Portfolio {
             quotes.batch(&symbol);
         }
 
-        let free_assets = assets.cash.total_assets(&currency, converter)?;
+        let cash_assets = assets.cash.total_assets(&currency, converter)?;
 
         let mut portfolio = Portfolio {
             name: portfolio_config.name.clone(),
             broker: BrokerInfo::get(config, portfolio_config.broker)?,
-
             currency: currency.clone(),
-            assets: Vec::new(),
+
             min_trade_volume: min_trade_volume,
             min_cash_assets: min_cash_assets,
 
-            total_value: free_assets,
-            free_assets: free_assets,
+            assets: Vec::new(),
+            current_cash_assets: cash_assets,
+            target_cash_assets: cash_assets,
+            total_value: cash_assets,
         };
 
         let mut stocks = assets.stocks;
