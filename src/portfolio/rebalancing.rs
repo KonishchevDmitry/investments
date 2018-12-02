@@ -27,7 +27,7 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
     debug!("");
     debug!("Calculating assets target value...");
     calculate_target_value(
-        &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_free_assets,
+        &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_cash_assets,
         portfolio.min_trade_volume);
 
     // The next step is bottom-up and calculates the result of the rebalancing operation
@@ -324,7 +324,7 @@ fn distribute_free_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
             Action::Sell => portfolio.free_assets.is_sign_negative(),
             Action::Buy => portfolio.free_assets.is_sign_positive(),
         } {
-            let expected_total_value = portfolio.total_value - portfolio.min_free_assets;
+            let expected_total_value = portfolio.total_value - portfolio.min_cash_assets;
 
             let trade = find_assets_for_cash_distribution(
                 action, &portfolio.assets, expected_total_value, portfolio.free_assets,

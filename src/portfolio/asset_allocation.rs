@@ -18,7 +18,7 @@ pub struct Portfolio {
     pub currency: String,
     pub assets: Vec<AssetAllocation>,
     pub min_trade_volume: Decimal,
-    pub min_free_assets: Decimal,
+    pub min_cash_assets: Decimal,
 
     pub total_value: Decimal,
     pub free_assets: Decimal,
@@ -39,8 +39,8 @@ impl Portfolio {
             return Err!("Invalid minimum trade volume value")
         }
 
-        let min_free_assets = portfolio_config.min_free_assets.unwrap_or(dec!(0));
-        if min_free_assets.is_sign_negative() {
+        let min_cash_assets = portfolio_config.min_cash_assets.unwrap_or(dec!(0));
+        if min_cash_assets.is_sign_negative() {
             return Err!("Invalid minimum free cash assets value")
         }
 
@@ -61,7 +61,7 @@ impl Portfolio {
             currency: currency.clone(),
             assets: Vec::new(),
             min_trade_volume: min_trade_volume,
-            min_free_assets: min_free_assets,
+            min_cash_assets: min_cash_assets,
 
             total_value: free_assets,
             free_assets: free_assets,
