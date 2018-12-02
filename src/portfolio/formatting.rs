@@ -11,7 +11,7 @@ use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 
 // FIXME: flat mode
 pub fn print_portfolio(portfolio: &Portfolio) {
-    let expected_assets_value = portfolio.total_value - portfolio.min_cash_assets;
+    let expected_assets_value = portfolio.total_value - portfolio.min_cash_assets; // FIXME: Check logic (min_cash_assets)
 
     for asset in &portfolio.assets {
         print_asset(asset, expected_assets_value, &portfolio.currency, 0);
@@ -19,6 +19,7 @@ pub fn print_portfolio(portfolio: &Portfolio) {
 
     println!();
     println!("{}: {}", colorify_name("Total value"), format_cash(&portfolio.currency, portfolio.total_value));
+    // FIXME: commissions + free assets -> free assets
 //    println!("{}: {}", colorify_name("Free assets"), format_cash(&portfolio.currency, portfolio.free_assets));
 }
 

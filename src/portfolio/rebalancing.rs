@@ -17,30 +17,34 @@ enum Action {
     Buy,
 }
 
-// FIXME: implement
-pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
     // The first step is bottom-up and calculates strict limits on asset min/max value
     calculate_restrictions(&mut portfolio.assets);
 
     // The second step is top-down and tries to apply the specified weights and limits calculated in
-    // the first step to the actual free assets
+    // the first step to the current assets
     debug!("");
     debug!("Calculating assets target value...");
     calculate_target_value(
         &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_cash_assets,
         portfolio.min_trade_volume);
 
-    // The next step is bottom-up and calculates the result of the rebalancing operation
+    // TODO: Merge with previous step?
+    // The next step is bottom-up and calculates the result of the previous step
     let (current_value, commissions) = calculate_result_value(
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
 
+    portfolio.commissions += commissions;
     portfolio.total_value -= commissions;
     portfolio.target_cash_assets = portfolio.total_value - current_value;
 
-    // FIXME
+    // The rebalancing logic is relatively inaccurate because it distributes funds only inside of
+    // one group which leads to accumulation of free cash / debt from each asset group. The
+    // following step operates on all levels of asset tree and distributes accumulated free cash /
+    // debt in the optimal way according to asset allocation configuration.
     distribute_cash_assets(portfolio, converter)?;
 
-    Ok(commissions) // FIXME: print + free assets -> free assets
+    Ok(())
 }
 
 fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option<Decimal>) {
@@ -254,7 +258,7 @@ fn calculate_target_value(
             let group_balance = calculate_target_value(
                 &asset_name, holdings, asset.target_value, min_trade_volume);
 
-            asset.target_value -= balance;
+            asset.target_value -= group_balance;
             balance += group_balance;
         }
     }
@@ -321,7 +325,7 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
 
     for action in [Action::Sell, Action::Buy].iter().cloned() {
         loop {
-            let free_cash_assets = portfolio.target_cash_assets - portfolio.min_cash_assets;
+            let free_cash_assets = portfolio.target_cash_assets - portfolio.min_cash_assets; // FIXME: Check logic (min_cash_assets)
 
             if !match action {
                 Action::Sell => free_cash_assets.is_sign_negative(),
@@ -330,7 +334,7 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
                 break;
             }
 
-            let expected_total_value = portfolio.total_value - portfolio.min_cash_assets;
+            let expected_total_value = portfolio.total_value - portfolio.min_cash_assets; // FIXME: Check logic (min_cash_assets)
 
             let trade = find_assets_for_cash_distribution(
                 action, &portfolio.assets, expected_total_value, free_cash_assets,

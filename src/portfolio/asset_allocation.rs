@@ -17,11 +17,12 @@ pub struct Portfolio {
     pub currency: String,
 
     pub min_trade_volume: Decimal,
-    pub min_cash_assets: Decimal, // FIXME: Check all usage
+    pub min_cash_assets: Decimal,
 
     pub assets: Vec<AssetAllocation>,
     pub current_cash_assets: Decimal,
     pub target_cash_assets: Decimal,
+    pub commissions: Decimal,
     pub total_value: Decimal,
 }
 
@@ -66,6 +67,7 @@ impl Portfolio {
             assets: Vec::new(),
             current_cash_assets: cash_assets,
             target_cash_assets: cash_assets,
+            commissions: dec!(0),
             total_value: cash_assets,
         };
 
