@@ -75,6 +75,11 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
         asset.min_value = min_value;
         asset.max_value = max_value;
 
+        // FIXME
+        if asset.expected_weight.is_zero() {
+            asset.max_value = Some(dec!(0));
+        }
+
         total_min_value += min_value;
 
         if let Some(max_value) = max_value {
@@ -145,10 +150,12 @@ fn calculate_target_value(
         if asset.target_value > max_value {
             balance += asset.target_value - max_value;
             asset.target_value = max_value;
-            asset.buy_blocked = true;
-
-            debug!("  * {name}: buying is blocked at {value}",
-                   name=asset.full_name(), value=max_value.normalize());
+            // FIXME
+            if asset.restrict_buying.unwrap_or(false) {
+                asset.buy_blocked = true;
+                debug!("  * {name}: buying is blocked at {value}",
+                       name=asset.full_name(), value=max_value.normalize());
+            }
         }
     }
 
@@ -378,6 +385,19 @@ fn find_assets_for_cash_distribution(
 
         let trade = match trade {
             Some(mut trade) => {
+                // FIXME: HERE
+                let target_value = asset.target_value + trade.volume;
+                trade.result = if expected_value.is_zero() {
+                    if target_value.is_zero() {
+                        dec!(0)
+                    } else {
+                        Decimal::max_value()
+                    }
+                } else {
+                    target_value / expected_value
+                };
+
+
                 trade.path.push(index);
                 trade
             },

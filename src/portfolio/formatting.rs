@@ -18,7 +18,16 @@ pub fn print_portfolio(portfolio: &Portfolio) {
     }
 
     println!();
-    println!("{}: {}", colorify_name("Total value"), format_cash(&portfolio.currency, portfolio.total_value));
+    println!("{} {}", colorify_title("Total value:"),
+             format_cash(&portfolio.currency, portfolio.total_value));
+
+    print!("{} {}", colorify_title("Cash assets:"),
+           format_cash(&portfolio.currency, portfolio.current_cash_assets));
+    if portfolio.target_cash_assets != portfolio.current_cash_assets {
+        print!(" -> {}", format_cash(&portfolio.currency, portfolio.target_cash_assets));
+    }
+    println!();
+
     // FIXME: commissions + free assets -> free assets
 //    println!("{}: {}", colorify_name("Free assets"), format_cash(&portfolio.currency, portfolio.free_assets));
 }
@@ -29,7 +38,7 @@ fn print_asset(asset: &AssetAllocation, expected_total_value: Decimal, currency:
     let mut buffer = String::new();
 
     write!(&mut buffer, "{bullet:>indent$} {name}",
-           bullet='•', indent=depth * 2 + 1, name=colorify_name(&asset.full_name())).unwrap();
+           bullet='•', indent=depth * 2 + 1, name= colorify_title(&asset.full_name())).unwrap();
 
     if asset.buy_blocked {
         write!(&mut buffer, " {}", colorify_restriction("[buy blocked]")).unwrap();
@@ -134,7 +143,7 @@ fn format_weight(weight: Decimal) -> String {
     }
 }
 
-fn colorify_name(name: &str) -> ANSIString {
+fn colorify_title(name: &str) -> ANSIString {
     Style::new().bold().paint(name)
 }
 
