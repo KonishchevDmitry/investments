@@ -28,8 +28,10 @@ pub fn print_portfolio(portfolio: &Portfolio) {
     }
     println!();
 
-    // FIXME: commissions + free assets -> free assets
-//    println!("{}: {}", colorify_name("Free assets"), format_cash(&portfolio.currency, portfolio.free_assets));
+    if !portfolio.commissions.is_zero() {
+        println!("{} {}", colorify_title("Commissions:"),
+                 colorify_commission(&format_cash(&portfolio.currency, portfolio.commissions)));
+    }
 }
 
 fn print_asset(asset: &AssetAllocation, expected_total_value: Decimal, currency: &str, depth: usize) {
@@ -157,4 +159,8 @@ fn colorify_buy(message: &str) -> ANSIString {
 
 fn colorify_sell(message: &str) -> ANSIString {
     Color::Red.paint(message)
+}
+
+fn colorify_commission(message: &str) -> ANSIString {
+    Color::Yellow.paint(message)
 }
