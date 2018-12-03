@@ -101,36 +101,15 @@ impl Portfolio {
     }
 }
 
-// FIXME: name
 pub enum Holding {
     Stock(StockHolding),
     Group(Vec<AssetAllocation>),
 }
 
-impl Holding {
-    fn current_value(&self) -> Decimal {
-        match self {
-            Holding::Stock(holding) => {
-                Decimal::from(holding.current_shares) * holding.price
-            },
-            Holding::Group(assets) => {
-                let mut value = dec!(0);
-
-                for asset in assets {
-                    value += asset.current_value;
-                }
-
-                value
-            },
-        }
-    }
-}
-
-// FIXME: name
 pub struct StockHolding {
     pub symbol: String,
     pub price: Decimal,
-    pub cash_price: Cash,  // FIXME: ?
+    pub currency_price: Cash,
     pub current_shares: u32,
     pub target_shares: u32,
 }
@@ -144,11 +123,11 @@ pub struct AssetAllocation {
 
     pub holding: Holding,
     pub current_value: Decimal,
-
-    // FIXME: Experimental
     pub target_value: Decimal,
+
     pub min_value: Decimal,
     pub max_value: Option<Decimal>,
+
     pub buy_blocked: bool,
     pub sell_blocked: bool,
 }
@@ -166,42 +145,50 @@ impl AssetAllocation {
         symbols: &mut HashSet<String>, stocks: &mut HashMap<String, u32>,
         converter: &CurrencyConverter, quotes: &mut Quotes,
     ) -> GenericResult<AssetAllocation> {
-        let holding = match (&config.symbol, &config.assets) {
+        let (holding, current_value) = match (&config.symbol, &config.assets) {
             (Some(symbol), None) => {
                 if !symbols.insert(symbol.clone()) {
                     return Err!("Invalid asset allocation configuration: Duplicated symbol: {}",
                         symbol);
                 }
 
-                let price = quotes.get(symbol)?;
-                let shares = stocks.remove(symbol).unwrap_or(0);
+                let currency_price = quotes.get(symbol)?;
+                let price = converter.convert_to(util::today(), currency_price, currency)?;
 
-                Holding::Stock(StockHolding {
+                let shares = stocks.remove(symbol).unwrap_or(0);
+                let current_value = Decimal::from(shares) * price;
+
+                let holding = StockHolding {
                     symbol: symbol.clone(),
-                    price: converter.convert_to(util::today(), price, currency)?,
-                    cash_price: price,
+                    price: price,
+                    currency_price: currency_price,
                     current_shares: shares,
                     target_shares: shares,
-                })
+                };
+
+                (Holding::Stock(holding), current_value)
             },
             (None, Some(assets)) => {
                 let mut holdings = Vec::new();
+                let mut current_value = dec!(0);
 
                 for asset in assets {
-                    holdings.push(AssetAllocation::load(
-                        asset, currency, symbols, stocks, converter, quotes)?);
+                    let holding = AssetAllocation::load(
+                        asset, currency, symbols, stocks, converter, quotes)?;
+
+                    current_value += holding.current_value;
+                    holdings.push(holding);
                 }
 
                 check_weights(&config.name, &holdings)?;
 
-                Holding::Group(holdings)
+                (Holding::Group(holdings), current_value)
             },
             _ => return Err!(
                "Invalid {:?} assets configuration: either symbol or assets must be specified",
                config.name),
         };
 
-        let current_value = holding.current_value();
         let mut asset_allocation = AssetAllocation {
             name: config.name.clone(),
 
@@ -209,13 +196,13 @@ impl AssetAllocation {
             restrict_buying: None,
             restrict_selling: None,
 
-            current_value: current_value,
             holding: holding,
-
-            // FIXME: Experimental
+            current_value: current_value,
             target_value: current_value,
+
             min_value: dec!(0),
             max_value: None,
+
             buy_blocked: false,
             sell_blocked: false,
         };

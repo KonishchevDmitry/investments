@@ -75,7 +75,7 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
         asset.min_value = min_value;
         asset.max_value = max_value;
 
-        // FIXME
+        // FIXME: propagate
         if asset.expected_weight.is_zero() {
             asset.max_value = Some(dec!(0));
         }
@@ -539,7 +539,7 @@ fn calculate_target_commission(
         holding.current_shares - target_shares
     };
 
-    let commission = broker.get_trade_commission(shares, holding.cash_price)
+    let commission = broker.get_trade_commission(shares, holding.currency_price)
         .map_err(|e| format!("{}: {}", name, e))?;
 
     Ok(converter.convert_to(util::today(), commission, currency)?)
