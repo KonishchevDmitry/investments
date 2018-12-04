@@ -394,26 +394,20 @@ fn find_assets_for_cash_distribution(
                     action, asset, expected_value, cash_assets, min_trade_volume)
             },
             Holding::Group(ref holdings) => {
-                find_assets_for_cash_distribution(
-                    action, holdings, expected_value, cash_assets, min_trade_volume)
+                let mut trade = find_assets_for_cash_distribution(
+                    action, holdings, expected_value, cash_assets, min_trade_volume);
+
+                if let Some(ref mut trade) = trade {
+                    trade.result = calculate_trade_result(
+                        expected_value, asset.target_value, trade.volume);
+                }
+
+                trade
             },
         };
 
         let trade = match trade {
             Some(mut trade) => {
-                // FIXME: HERE
-                let target_value = asset.target_value + trade.volume;
-                trade.result = if expected_value.is_zero() {
-                    if target_value.is_zero() {
-                        dec!(0)
-                    } else {
-                        Decimal::max_value()
-                    }
-                } else {
-                    target_value / expected_value
-                };
-
-
                 trade.path.push(index);
                 trade
             },
@@ -478,22 +472,25 @@ fn calculate_min_trade_volume(
         None => return None,
     };
 
-    let target_value = asset.target_value + trade_volume;
-    let result = if expected_value.is_zero() {
-        if target_value.is_zero() {
-            dec!(0)
+    Some(PossibleDeepTrade {
+        path: Vec::new(),
+        volume: trade_volume,
+        result: calculate_trade_result(expected_value, asset.target_value, trade_volume),
+    })
+}
+
+fn calculate_trade_result(expected_value: Decimal, target_value: Decimal, trade_volume: Decimal) -> Decimal {
+    let result_value = target_value + trade_volume;
+
+    if expected_value.is_zero() {
+        if result_value.is_zero() {
+            dec!(1)
         } else {
             Decimal::max_value()
         }
     } else {
-        target_value / expected_value
-    };
-
-    Some(PossibleDeepTrade {
-        path: Vec::new(),
-        volume: trade_volume,
-        result: result
-    })
+        result_value / expected_value
+    }
 }
 
 fn get_best_trade(action: Action, best_trade: Option<PossibleDeepTrade>, trade: PossibleDeepTrade) -> PossibleDeepTrade {
