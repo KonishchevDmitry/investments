@@ -54,7 +54,7 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
 
     for asset in assets {
         let (min_value, max_value) = match &mut asset.holding {
-            Holding::Group(assets) => calculate_restrictions(assets),
+            Holding::Group(holdings) => calculate_restrictions(holdings),
             Holding::Stock(_) => {
                 let min_value = if asset.restrict_selling.unwrap_or(false) {
                     asset.current_value
@@ -75,14 +75,15 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
         asset.min_value = min_value;
         asset.max_value = max_value;
 
-        // FIXME: propagate
+        // Treat zero weight as a special case of restrictions (deprecated asset)
         if asset.expected_weight.is_zero() {
-            asset.max_value = Some(dec!(0));
+            propagate_zero_weight(asset)
         }
 
-        total_min_value += min_value;
+        total_min_value += asset.min_value;
 
-        if let Some(max_value) = max_value {
+        if let Some(max_value) = asset.max_value {
+            assert!(max_value >= asset.min_value);
             total_max_value += max_value;
         } else {
             all_with_max_value = false;
@@ -96,6 +97,21 @@ fn calculate_restrictions(assets: &mut Vec<AssetAllocation>) -> (Decimal, Option
     };
 
     (total_min_value, total_max_value)
+}
+
+fn propagate_zero_weight(asset: &mut AssetAllocation) {
+    if asset.min_value.is_zero() {
+        if let Holding::Group(ref mut holdings) = asset.holding {
+            for holding in holdings {
+                assert!(holding.min_value.is_zero());
+                propagate_zero_weight(holding);
+            }
+        }
+    } else if let Some(max_value) = asset.max_value {
+        assert_eq!(max_value, asset.min_value);
+    }
+
+    asset.max_value = Some(asset.min_value);
 }
 
 fn calculate_target_value(
@@ -148,14 +164,14 @@ fn calculate_target_value(
         };
 
         if asset.target_value > max_value {
-            balance += asset.target_value - max_value;
-            asset.target_value = max_value;
-            // FIXME
-            if asset.restrict_buying.unwrap_or(false) {
+            if asset.restrict_buying.unwrap_or(false) && asset.target_value > asset.current_value {
                 asset.buy_blocked = true;
                 debug!("  * {name}: buying is blocked at {value}",
                        name=asset.full_name(), value=max_value.normalize());
             }
+
+            balance += asset.target_value - max_value;
+            asset.target_value = max_value;
         }
     }
 
