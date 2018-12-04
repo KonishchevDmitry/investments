@@ -189,12 +189,6 @@ fn calculate_target_value(
         }
     }
 
-    struct PossibleTrade {
-        index: usize,
-        volume: Decimal,
-        result: Decimal,
-    }
-
     let balance_before_distribution = balance;
     let mut target_values_before_distribution = Vec::new();
 
@@ -204,71 +198,36 @@ fn calculate_target_value(
         }
     }
 
-    for action in &[Action::Sell, Action::Buy] {
+    for action in [Action::Sell, Action::Buy].iter().cloned() {
         let mut correctable_holdings: HashSet<usize> = (0..assets.len()).collect();
 
         while match action {
             Action::Sell => balance.is_sign_negative(),
             Action::Buy => balance.is_sign_positive(),
         } {
-            // FIXME: Deduplicate code
             let mut best_trade: Option<PossibleTrade> = None;
 
             for index in correctable_holdings.iter().cloned().collect::<Vec<_>>() {
                 let asset = &mut assets[index];
+                let expected_value = target_total_value * asset.expected_weight;  // FIXME: expected total value?
 
-                let trade_volume = match action {
-                    Action::Sell => calculate_min_sell_volume(asset, min_trade_volume),
-                    Action::Buy => {
-                        match calculate_min_buy_volume(asset, min_trade_volume) {
-                            Some(trade_volume) if trade_volume <= balance => Some(trade_volume),
-                            _ => None,
-                        }
-                    },
-                };
-
-                let trade_volume = match trade_volume {
-                    Some(trade_volume) => match action {
-                        Action::Sell => -trade_volume,
-                        Action::Buy => trade_volume,
+                match calculate_min_trade_volume(action, asset, expected_value, balance, min_trade_volume) {
+                    Some(mut trade) => {
+                        trade.path.push(index);
+                        best_trade = Some(get_best_trade(action, best_trade, trade));
                     },
                     None => {
                         correctable_holdings.remove(&index);
-                        continue
                     },
                 };
-
-                let expected_value = target_total_value * asset.expected_weight;  // FIXME: expected total value?
-                let target_value = asset.target_value + trade_volume;
-
-                let possible_trade = PossibleTrade {
-                    index: index,
-                    volume: trade_volume,
-                    result: target_value / expected_value,  // FIXME: Zero division
-                };
-
-                // FIXME: Deduplicate code
-                best_trade = Some(match best_trade {
-                    Some(best_trade) => {
-                        if match action {
-                            Action::Sell => possible_trade.result > best_trade.result,
-                            Action::Buy => possible_trade.result < best_trade.result,
-                        } {
-                            possible_trade
-                        } else {
-                            best_trade
-                        }
-                    }
-                    None => possible_trade,
-                });
             }
 
             let trade = match best_trade {
-                Some(best_trade) => best_trade,
+                Some(trade) => trade,
                 None => break,
             };
 
-            let asset = &mut assets[trade.index];
+            let asset = &mut assets[*trade.path.last().unwrap()];
             asset.target_value += trade.volume;
             balance -= trade.volume;
         }
@@ -335,13 +294,6 @@ fn calculate_result_value(
     Ok((total_value, total_commissions))
 }
 
-// FIXME
-struct PossibleDeepTrade {
-    path: Vec<usize>,
-    volume: Decimal,
-    result: Decimal,
-}
-
 fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
     debug!("");
     debug!("Cash assets distribution:");
@@ -379,11 +331,17 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
     Ok(())
 }
 
+struct PossibleTrade {
+    path: Vec<usize>,
+    volume: Decimal,
+    result: Decimal,
+}
+
 fn find_assets_for_cash_distribution(
     action: Action, assets: &Vec<AssetAllocation>, expected_total_value: Decimal,
     cash_assets: Decimal, min_trade_volume: Decimal
-) -> Option<PossibleDeepTrade> {
-    let mut best_trade: Option<PossibleDeepTrade> = None;
+) -> Option<PossibleTrade> {
+    let mut best_trade: Option<PossibleTrade> = None;
 
     for (index, asset) in assets.iter().enumerate() {
         let expected_value = expected_total_value * asset.expected_weight;
@@ -421,7 +379,7 @@ fn find_assets_for_cash_distribution(
 }
 
 fn process_trade(
-    assets: &mut Vec<AssetAllocation>, mut trade: PossibleDeepTrade,
+    assets: &mut Vec<AssetAllocation>, mut trade: PossibleTrade,
     broker: &BrokerInfo, currency: &str, converter: &CurrencyConverter
 ) -> GenericResult<Decimal> {
     let index = trade.path.pop().unwrap();
@@ -453,7 +411,7 @@ fn process_trade(
 fn calculate_min_trade_volume(
     action: Action, asset: &AssetAllocation, expected_value: Decimal,
     cash_assets: Decimal, min_trade_volume: Decimal
-) -> Option<PossibleDeepTrade> {
+) -> Option<PossibleTrade> {
     let trade_volume = match action {
         Action::Sell => calculate_min_sell_volume(asset, min_trade_volume),
         Action::Buy => {
@@ -472,7 +430,7 @@ fn calculate_min_trade_volume(
         None => return None,
     };
 
-    Some(PossibleDeepTrade {
+    Some(PossibleTrade {
         path: Vec::new(),
         volume: trade_volume,
         result: calculate_trade_result(expected_value, asset.target_value, trade_volume),
@@ -493,7 +451,7 @@ fn calculate_trade_result(expected_value: Decimal, target_value: Decimal, trade_
     }
 }
 
-fn get_best_trade(action: Action, best_trade: Option<PossibleDeepTrade>, trade: PossibleDeepTrade) -> PossibleDeepTrade {
+fn get_best_trade(action: Action, best_trade: Option<PossibleTrade>, trade: PossibleTrade) -> PossibleTrade {
     match best_trade {
         Some(best_trade) => {
             if best_trade.result == trade.result {
