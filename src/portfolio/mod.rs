@@ -92,23 +92,14 @@ fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_a
 }
 
 pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
-    let portfolio_config = config.get_portfolio(portfolio_name)?;
-    let database = db::connect(&config.db_path)?;
-
-    let converter = CurrencyConverter::new(database.clone(), false);
-    let mut quotes = Quotes::new(&config, database.clone());
-
-    let assets = Assets::load(database, &portfolio_config.name)?;
-    assets.validate(&portfolio_config)?;
-
-    let portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &mut quotes)?;
-    print_portfolio(&portfolio);
-
-    Ok(())
+    process(config, portfolio_name, false)
 }
 
-// FIXME: Implement + deduplicate code
 pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
+    process(config, portfolio_name, true)
+}
+
+pub fn process(config: &Config, portfolio_name: &str, rebalance: bool) -> EmptyResult {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
@@ -119,7 +110,10 @@ pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
     assets.validate(&portfolio_config)?;
 
     let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &mut quotes)?;
-    rebalancing::rebalance_portfolio(&mut portfolio, &converter)?;
+    if rebalance {
+        rebalancing::rebalance_portfolio(&mut portfolio, &converter)?;
+    }
+
     print_portfolio(&portfolio);
 
     Ok(())

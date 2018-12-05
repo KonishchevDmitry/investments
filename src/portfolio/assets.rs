@@ -53,7 +53,6 @@ impl Assets {
         Ok(Assets::new(cash, stocks))
     }
 
-    // FIXME: Deprecate?
     pub fn validate(&self, portfolio: &PortfolioConfig) -> EmptyResult {
         let portfolio_symbols = portfolio.get_stock_symbols();
 
