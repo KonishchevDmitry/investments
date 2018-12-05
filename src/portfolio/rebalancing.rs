@@ -142,7 +142,7 @@ fn calculate_target_value(
             difference = dec!(0);
         }
 
-        let target_value = (asset.current_value + difference).normalize();
+        let target_value = asset.current_value + difference;
 
         if target_value != asset.target_value {
             debug!("  * {name}: {target_value} -> {corrected_target_value}",
@@ -156,36 +156,29 @@ fn calculate_target_value(
 
     debug!("* Rebalancing:");
 
-    // First process assets with max value limit to release free cash assets
     for asset in assets.iter_mut() {
-        let max_value = match asset.max_value {
-            Some(max_value) => max_value,
-            None => continue,
-        };
+        if let Some(max_value) = asset.max_value {
+            if asset.target_value > max_value {
+                if asset.restrict_buying.unwrap_or(false) && asset.target_value > asset.current_value {
+                    asset.buy_blocked = true;
+                    debug!("  * {name}: buying is blocked at {value}",
+                           name=asset.full_name(), value=max_value.normalize());
+                }
 
-        if asset.target_value > max_value {
-            if asset.restrict_buying.unwrap_or(false) && asset.target_value > asset.current_value {
-                asset.buy_blocked = true;
-                debug!("  * {name}: buying is blocked at {value}",
-                       name=asset.full_name(), value=max_value.normalize());
+                balance += asset.target_value - max_value;
+                asset.target_value = max_value;
             }
-
-            balance += asset.target_value - max_value;
-            asset.target_value = max_value;
         }
-    }
 
-    // Then process assets with min value limit to adapt to restrictions provided by the caller
-    for asset in assets.iter_mut() {
         let min_value = asset.min_value;
 
         if asset.target_value < min_value {
-            balance += asset.target_value - min_value;
-            asset.target_value = min_value;
-            asset.sell_blocked = true;
-
             debug!("  * {name}: selling is blocked at {value}",
                    name=asset.full_name(), value=min_value.normalize());
+            asset.sell_blocked = true;
+
+            balance += asset.target_value - min_value;
+            asset.target_value = min_value;
         }
     }
 
@@ -209,7 +202,7 @@ fn calculate_target_value(
 
             for index in correctable_holdings.iter().cloned().collect::<Vec<_>>() {
                 let asset = &mut assets[index];
-                let expected_value = target_total_value * asset.expected_weight;  // FIXME: expected total value?
+                let expected_value = target_total_value * asset.expected_weight;
 
                 match calculate_min_trade_volume(action, asset, expected_value, balance, min_trade_volume) {
                     Some(mut trade) => {
@@ -227,7 +220,9 @@ fn calculate_target_value(
                 None => break,
             };
 
+            assert_eq!(trade.path.len(), 1);
             let asset = &mut assets[*trade.path.last().unwrap()];
+
             asset.target_value += trade.volume;
             balance -= trade.volume;
         }
@@ -300,7 +295,7 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
 
     for action in [Action::Sell, Action::Buy].iter().cloned() {
         loop {
-            let free_cash_assets = portfolio.target_cash_assets - portfolio.min_cash_assets; // FIXME: Check logic (min_cash_assets)
+            let free_cash_assets = portfolio.target_cash_assets - portfolio.min_cash_assets;
 
             if !match action {
                 Action::Sell => free_cash_assets.is_sign_negative(),
@@ -309,7 +304,7 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
                 break;
             }
 
-            let expected_total_value = portfolio.total_value - portfolio.min_cash_assets; // FIXME: Check logic (min_cash_assets)
+            let expected_total_value = portfolio.total_value - portfolio.min_cash_assets;
 
             let trade = find_assets_for_cash_distribution(
                 action, &portfolio.assets, expected_total_value, free_cash_assets,
@@ -321,10 +316,12 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
             };
 
             portfolio.target_cash_assets -= trade.volume;
-            // FIXME: to portfolio
+
             let commission = process_trade(
                 &mut portfolio.assets, trade, &portfolio.broker, &portfolio.currency, converter)?;
+
             portfolio.target_cash_assets -= commission;
+            portfolio.commissions += commission;
         }
     }
 
@@ -535,8 +532,13 @@ fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal)
     } else {
         // current < target
 
-        if asset.target_value - trade_granularity >= asset.current_value + min_trade_volume {
+        if
             // current < min <= trade < target
+            asset.target_value - trade_granularity >= asset.current_value + min_trade_volume ||
+
+            // current = trade < target
+            asset.target_value - trade_granularity == asset.current_value
+        {
             trade_granularity
         } else {
             // trade <= min < current < target
@@ -573,8 +575,13 @@ fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) 
     } else {
         // target < current
 
-        if asset.target_value + trade_granularity <= asset.current_value - min_trade_volume {
+        if
             // target < trade <= min < current
+            asset.target_value + trade_granularity <= asset.current_value - min_trade_volume ||
+
+            // target < trade = current
+            asset.target_value + trade_granularity == asset.current_value
+        {
             trade_granularity
         } else {
             // target < current < min <= trade
@@ -597,7 +604,20 @@ fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) 
 fn get_trade_granularity(asset: &AssetAllocation) -> Decimal {
     match asset.holding {
         Holding::Stock(ref holding) => holding.price,
-        Holding::Group(_) => dec!(1), // FIXME
+        Holding::Group(ref holdings) => {
+            let mut min_granularity = None;
+
+            for holding in holdings {
+                let granularity = get_trade_granularity(holding);
+
+                min_granularity = Some(match min_granularity {
+                    Some(min_granularity) if min_granularity <= granularity => min_granularity,
+                    _ => granularity,
+                });
+            }
+
+            min_granularity.unwrap()
+        },
     }
 }
 
