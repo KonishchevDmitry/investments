@@ -9,16 +9,15 @@ use util;
 
 use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 
-// FIXME: flat mode
-pub fn print_portfolio(portfolio: &Portfolio) {
-    let expected_assets_value = portfolio.total_value - portfolio.min_cash_assets; // FIXME: Check logic (min_cash_assets)
-
-    for asset in &portfolio.assets {
-        print_asset(asset, expected_assets_value, &portfolio.currency, 0);
+pub fn print_portfolio(portfolio: Portfolio, flat: bool) {
+    let mut assets = portfolio.assets;
+    if flat {
+        assets = flatify(assets, dec!(1));
     }
 
-    println!();
-    println!("{} {}", colorify_title("Total value:"),
+    print_assets(assets, portfolio.total_value - portfolio.min_cash_assets, &portfolio.currency, 0);
+
+    println!("\n{} {}", colorify_title("Total value:"),
              format_cash(&portfolio.currency, portfolio.total_value));
 
     print!("{} {}", colorify_title("Cash assets:"),
@@ -34,7 +33,34 @@ pub fn print_portfolio(portfolio: &Portfolio) {
     }
 }
 
-fn print_asset(asset: &AssetAllocation, expected_total_value: Decimal, currency: &str, depth: usize) {
+fn flatify(assets: Vec<AssetAllocation>, expected_weight: Decimal) -> Vec<AssetAllocation> {
+    let mut flat_assets = Vec::new();
+
+    for mut asset in assets {
+        asset.expected_weight *= expected_weight;
+
+        match asset.holding {
+            Holding::Stock(_) => {
+                flat_assets.push(asset);
+            },
+            Holding::Group(holdings) => {
+                flat_assets.extend(flatify(holdings, asset.expected_weight));
+            },
+        };
+    }
+
+    flat_assets
+}
+
+fn print_assets(mut assets: Vec<AssetAllocation>, expected_total_value: Decimal, currency: &str, depth: usize) {
+    assets.sort_by_key(|asset: &AssetAllocation| -asset.target_value);
+
+    for asset in assets {
+        print_asset(asset, expected_total_value, currency, depth);
+    }
+}
+
+fn print_asset(asset: AssetAllocation, expected_total_value: Decimal, currency: &str, depth: usize) {
     let expected_value = expected_total_value * asset.expected_weight;
 
     let mut buffer = String::new();
@@ -89,13 +115,9 @@ fn print_asset(asset: &AssetAllocation, expected_total_value: Decimal, currency:
            expected_weight=format_weight(asset.expected_weight),
            expected_value=format_cash(currency, expected_value)).unwrap();
 
-    if let Holding::Group(ref sub_assets) = asset.holding {
-        write!(&mut buffer, ":").unwrap();
-        println!("{}", buffer);
-
-        for sub_asset in sub_assets {
-            print_asset(sub_asset, expected_value, currency, depth + 1);
-        }
+    if let Holding::Group(holdings) = asset.holding {
+        println!("{}:", buffer);
+        print_assets(holdings, expected_value, currency, depth + 1);
     } else {
         println!("{}", buffer);
     }

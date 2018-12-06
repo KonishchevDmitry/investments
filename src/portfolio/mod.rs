@@ -91,15 +91,15 @@ fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_a
     Ok(())
 }
 
-pub fn show(config: &Config, portfolio_name: &str) -> EmptyResult {
-    process(config, portfolio_name, false)
+pub fn show(config: &Config, portfolio_name: &str, flat: bool) -> EmptyResult {
+    process(config, portfolio_name, false, flat)
 }
 
-pub fn rebalance(config: &Config, portfolio_name: &str) -> EmptyResult {
-    process(config, portfolio_name, true)
+pub fn rebalance(config: &Config, portfolio_name: &str, flat: bool) -> EmptyResult {
+    process(config, portfolio_name, true, flat)
 }
 
-pub fn process(config: &Config, portfolio_name: &str, rebalance: bool) -> EmptyResult {
+pub fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> EmptyResult {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
@@ -114,7 +114,7 @@ pub fn process(config: &Config, portfolio_name: &str, rebalance: bool) -> EmptyR
         rebalancing::rebalance_portfolio(&mut portfolio, &converter)?;
     }
 
-    print_portfolio(&portfolio);
+    print_portfolio(portfolio, flat);
 
     Ok(())
 }

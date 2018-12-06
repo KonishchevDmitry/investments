@@ -21,11 +21,17 @@ pub enum Action {
     Sell(String, u32, String, Decimal),
     SetCashAssets(String, Decimal),
 
-    Show(String),
-    Rebalance(String),
+    Show {
+        name: String,
+        flat: bool,
+    },
+    Rebalance {
+        name: String,
+        flat: bool,
+    },
 
     TaxStatement {
-        portfolio_name: String,
+        name: String,
         year: i32,
         tax_statement_path: Option<String>,
     },
@@ -63,6 +69,10 @@ pub fn initialize() -> (Action, Config) {
             .arg(portfolio::arg()))
         .subcommand(SubCommand::with_name("show")
             .about("Show portfolio's asset allocation")
+            .arg(Arg::with_name("flat")
+                .short("f")
+                .long("flat")
+                .help("Flat view"))
             .arg(portfolio::arg()))
         .subcommand(SubCommand::with_name("sync")
             .about("Sync portfolio with broker statement")
@@ -85,6 +95,10 @@ pub fn initialize() -> (Action, Config) {
             .arg(cash_assets::arg()))
         .subcommand(SubCommand::with_name("rebalance")
             .about("Rebalance the portfolio according to the asset allocation configuration")
+            .arg(Arg::with_name("flat")
+                .short("f")
+                .long("flat")
+                .help("Flat view"))
             .arg(portfolio::arg()))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
@@ -180,8 +194,14 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             }
         },
 
-        "show" => Action::Show(portfolio_name),
-        "rebalance" => Action::Rebalance(portfolio_name),
+        "show" => Action::Show {
+            name: portfolio_name,
+            flat: matches.is_present("flat"),
+        },
+        "rebalance" => Action::Rebalance {
+            name: portfolio_name,
+            flat: matches.is_present("flat"),
+        },
 
         "tax-statement" => {
             let year = matches.value_of("YEAR").unwrap();
@@ -192,7 +212,7 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
-                portfolio_name: portfolio_name,
+                name: portfolio_name,
                 year: year,
                 tax_statement_path: tax_statement_path,
             }

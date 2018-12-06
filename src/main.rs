@@ -69,12 +69,12 @@ fn run(action: Action, config: Config) -> EmptyResult {
         Action::SetCashAssets(name, cash_assets) =>
             portfolio::set_cash_assets(&config, &name, cash_assets)?,
 
-        Action::Show(name) => portfolio::show(&config, &name)?,
-        Action::Rebalance(name) => portfolio::rebalance(&config, &name)?,
+        Action::Show { name, flat } => portfolio::show(&config, &name, flat)?,
+        Action::Rebalance { name, flat } => portfolio::rebalance(&config, &name, flat)?,
 
-        Action::TaxStatement { portfolio_name, year, tax_statement_path } =>
+        Action::TaxStatement { name, year, tax_statement_path } =>
             tax_statement::generate_tax_statement(
-                &config, &portfolio_name, year, tax_statement_path.as_ref().map(String::as_str))?,
+                &config, &name, year, tax_statement_path.as_ref().map(String::as_str))?,
     };
 
     Ok(())
