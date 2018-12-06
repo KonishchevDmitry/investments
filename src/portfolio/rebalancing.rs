@@ -532,20 +532,12 @@ fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal)
     } else {
         // current < target
 
-        if
+        if asset.target_value - trade_granularity >= asset.current_value + min_trade_volume {
             // current < min <= trade < target
-            asset.target_value - trade_granularity >= asset.current_value + min_trade_volume ||
-
-            // current = trade < target
-            asset.target_value - trade_granularity == asset.current_value
-        {
             trade_granularity
         } else {
-            // trade <= min < current < target
-            round_min_trade_volume(
-                asset.target_value - (asset.current_value - min_trade_volume),
-                trade_granularity,
-            )
+            // current = trade < min <= target
+            asset.target_value - asset.current_value
         }
     };
 
@@ -575,20 +567,12 @@ fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) 
     } else {
         // target < current
 
-        if
+        if asset.target_value + trade_granularity <= asset.current_value - min_trade_volume {
             // target < trade <= min < current
-            asset.target_value + trade_granularity <= asset.current_value - min_trade_volume ||
-
-            // target < trade = current
-            asset.target_value + trade_granularity == asset.current_value
-        {
             trade_granularity
         } else {
-            // target < current < min <= trade
-            round_min_trade_volume(
-                asset.current_value + min_trade_volume - asset.target_value,
-                trade_granularity
-            )
+            // target <= min < trade = current
+            asset.current_value - asset.target_value
         }
     };
 
