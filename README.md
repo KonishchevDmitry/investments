@@ -109,8 +109,8 @@ ARGS:
 ```
 $ investments tax-statement --help
 
-Reads broker statement and alters *.dcX file (created by Russian tax program named Декларация) by adding all required
-information about income from paid dividends.
+Reads broker statement and alters *.dcX file (created by Russian tax program named Декларация) by adding
+all required information about income from paid dividends.
 
 If tax statement file is not specified only outputs the data which is going to be declared.
 
