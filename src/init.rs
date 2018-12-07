@@ -103,7 +103,7 @@ pub fn initialize() -> (Action, Config) {
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
-                "\nReads Interactive Brokers statement and alters *.dcX file (Russian tax program ",
+                "\nReads broker statement and alters *.dcX file (created by Russian tax program ",
                 "named Декларация) by adding all required information about income from paid ",
                 "dividends.\n",
                 "\nIf tax statement file is not specified only outputs the data which is going to ",

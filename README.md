@@ -1,6 +1,6 @@
 ## Investments
 
-Helps me to organize my investments.
+Helps you with managing your investments.
 
 Targeted for russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
 [Open Broker](https://open-broker.ru). Considers taxes, commissions, dividends and tax deductions when calculates
@@ -18,8 +18,7 @@ USAGE:
     investments analyse <PORTFOLIO>
 
 ARGS:
-    <PORTFOLIO>
-            Portfolio name
+    <PORTFOLIO>    Portfolio name
 ```
 
 ```
@@ -110,8 +109,8 @@ ARGS:
 ```
 $ investments tax-statement --help
 
-Reads Interactive Brokers statement and alters *.dcX file (Russian tax program named Декларация)
-by adding all required information about income from paid dividends.
+Reads broker statement and alters *.dcX file (created by Russian tax program named Декларация) by adding all required
+information about income from paid dividends.
 
 If tax statement file is not specified only outputs the data which is going to be declared.
 
