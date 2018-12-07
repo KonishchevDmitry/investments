@@ -1,24 +1,10 @@
 ## Investments
 
-A work in progress project to organize my investments.
+Helps me to organize my investments.
 
 Targeted for russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
 [Open Broker](https://open-broker.ru). Considers taxes, commissions, dividends and tax deductions when calculates
 portfolio performance.
-
-### Installation
-
-Install [Rust](https://www.rust-lang.org/):
-
-`curl https://sh.rustup.rs -sSf | sh`
-
-Clone the repository:
-
-`git clone https://github.com/KonishchevDmitry/investments`
-
-Compile and install:
-
-`cargo install --path investments`
 
 ### Available functionality
 
@@ -34,6 +20,91 @@ USAGE:
 ARGS:
     <PORTFOLIO>
             Portfolio name
+```
+
+```
+$ investments sync --help
+
+Sync portfolio with broker statement
+
+USAGE:
+    investments sync <PORTFOLIO>
+
+ARGS:
+    <PORTFOLIO>    Portfolio name
+```
+
+```
+$ investments buy --help
+
+Add the specified stock shares to the portfolio
+
+USAGE:
+    investments buy <PORTFOLIO> <SHARES> <SYMBOL> <CASH_ASSETS>
+
+ARGS:
+    <PORTFOLIO>      Portfolio name
+    <SHARES>         Shares
+    <SYMBOL>         Symbol
+    <CASH_ASSETS>    Current cash assets
+```
+
+```
+$ investments sell --help
+
+Remove the specified stock shares from the portfolio
+
+USAGE:
+    investments sell <PORTFOLIO> <SHARES> <SYMBOL> <CASH_ASSETS>
+
+ARGS:
+    <PORTFOLIO>      Portfolio name
+    <SHARES>         Shares
+    <SYMBOL>         Symbol
+    <CASH_ASSETS>    Current cash assets
+```
+
+```
+$ investments cash --help
+
+Set current cash assets
+
+USAGE:
+    investments cash <PORTFOLIO> <CASH_ASSETS>
+
+ARGS:
+    <PORTFOLIO>      Portfolio name
+    <CASH_ASSETS>    Current cash assets
+```
+
+```
+$ investments show --help
+
+Show portfolio's asset allocation
+
+USAGE:
+    investments show [FLAGS] <PORTFOLIO>
+
+FLAGS:
+    -f, --flat    Flat view
+
+ARGS:
+    <PORTFOLIO>    Portfolio name
+```
+
+```
+$ investments rebalance --help
+
+Rebalance the portfolio according to the asset allocation configuration
+
+USAGE:
+    investments rebalance [FLAGS] <PORTFOLIO>
+
+FLAGS:
+    -f, --flat    Flat view
+
+ARGS:
+    <PORTFOLIO>    Portfolio name
 ```
 
 ```
