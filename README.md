@@ -2,7 +2,7 @@
 
 Helps you with managing your investments.
 
-Targeted for russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
+Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
 [Open Broker](https://open-broker.ru). Considers taxes, commissions, dividends and tax deductions when calculates
 portfolio performance.
 
