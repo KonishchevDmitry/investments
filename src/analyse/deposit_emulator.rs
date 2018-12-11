@@ -143,25 +143,25 @@ mod tests {
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
             date!(28, 9, 2018), interest);
-        assert_eq!(currency::round(result), decs!("607155.45"));
+        assert_eq!(currency::round(result), decf!(607155.45));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 8, 2018), transaction_amount)],
             date!(28, 9, 2018), interest);
-        assert_eq!(currency::round(result), decs!("604763.23"));
+        assert_eq!(currency::round(result), decf!(604763.23));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(14, 8, 2018), transaction_amount)],
             date!(28, 9, 2018), interest);
-        assert_eq!(currency::round(result), decs!("605843.59"));
+        assert_eq!(currency::round(result), decf!(605843.59));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
             date!(28, 1, 2019), interest);
-        assert_eq!(currency::round(result), decs!("621486.34"));
+        assert_eq!(currency::round(result), decf!(621486.34));
     }
 
     #[test]

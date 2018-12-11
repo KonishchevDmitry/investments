@@ -64,7 +64,7 @@ mod tests {
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::OpenBroker, "testdata/open-broker").unwrap();
 
-        // TODO: More checks
+        // FIXME: More checks
         assert!(statement.deposits.len() > 0);
     }
 }

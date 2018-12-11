@@ -149,11 +149,11 @@ struct Trade {
     #[serde(rename = "security_name")]
     name: String,
 
-    // TODO: Commission date must be equal to conclusion_date - not to execution_date
+    // FIXME: Commission date must be equal to conclusion_date - not to execution_date
     // #[serde(deserialize_with = "deserialize_date")]
     // conclusion_date: Date,
 
-    // TODO: Compare the trades with <spot_main_deals_executed> and check execution_date?
+    // FIXME: Compare the trades with <spot_main_deals_executed> and check execution_date?
     #[serde(deserialize_with = "deserialize_date")]
     execution_date: Date,
 
@@ -203,7 +203,7 @@ impl Trades {
                         sold: 0,
                     });
                 },
-                // TODO: Selling support
+                // FIXME: Selling support
                 _ => return Err!("Stock selling is not supported yet")
             };
         }

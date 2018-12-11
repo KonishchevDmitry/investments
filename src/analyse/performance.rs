@@ -53,7 +53,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 "Unable to calculate current assets: The broker statement has open positions");
         }
 
-        // TODO: Withdrawals support
+        // FIXME: Withdrawals support
         analyser.process_deposits()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
@@ -133,7 +133,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         let name = self.statement.get_instrument_name(symbol)?;
-        // TODO: Zero assets pauses
+        // FIXME: Zero assets pauses
         let days = (sell_date - deposit_view.transactions.first().unwrap().date).num_days();
 
         self.add_results(&name, investments, result, interest, days);
@@ -158,7 +158,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         check_emulation_precision(
             &format!("portfolio {}", self.currency), current_assets, difference)?;
 
-        // TODO: Zero assets pauses
+        // FIXME: Zero assets pauses
         let start_date = self.transactions.first()
             .map(|transaction| transaction.date)
             .unwrap_or(self.statement.period.0);
@@ -216,7 +216,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     stock_sell.date, stock_sell.commission, self.currency)?;
                 deposit_view.transactions.push(Transaction::new(stock_sell.date, commission));
 
-                // TODO: Consider to send a marker to deposit emulator when for some period we have no
+                // FIXME: Consider to send a marker to deposit emulator when for some period we have no
                 // open positions.
                 deposit_view.sell_transaction = Some((stock_sell.date, assets));
             }
@@ -323,7 +323,7 @@ fn compare_to_bank_deposit(
     let mut interest = dec!(0);
     let mut difference = emulate(interest);
 
-    for mut step in [decs!("1"), decs!("0.1"), decs!("0.01")].iter().cloned() {
+    for mut step in [dec!(1), decf!(0.1), decf!(0.01)].iter().cloned() {
         let decreasing_difference = emulate(interest - step);
         let increasing_difference = emulate(interest + step);
 
@@ -361,7 +361,7 @@ fn compare_to_bank_deposit(
 fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
     let precision = (difference / assets).abs();
 
-    if precision >= decs!("0.01") {
+    if precision >= decf!(0.01) {
         return Err!(concat!(
             "Failed to compare {} performance to bank deposit: ",
             "got a result with too low precision ({})"), name, util::round_to(precision, 3));
@@ -381,10 +381,10 @@ mod tests {
     fn comparing_to_bank_deposit() {
         let (interest, difference) = compare_to_bank_deposit(
             &vec![Transaction::new(date!(28, 7, 2018), dec!(600000))],
-            date!(28, 1, 2019), decs!("621486.34"),
+            date!(28, 1, 2019), decf!(621486.34),
         ).unwrap();
 
         assert_eq!(interest, dec!(7));
-        assert!(difference < decs!("0.01"));
+        assert!(difference < decf!(0.01));
     }
 }

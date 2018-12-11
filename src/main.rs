@@ -48,6 +48,9 @@ use config::Config;
 use core::EmptyResult;
 use init::{Action, initialize};
 
+// FIXME:
+// * Travis CI
+
 fn main() {
     let (action, config) = initialize();
 

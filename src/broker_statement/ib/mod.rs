@@ -39,7 +39,7 @@ impl BrokerStatementReader for StatementReader {
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
         let parser = StatementParser {
             statement: BrokerStatementBuilder::new(self.broker_info.clone()),
-            currency: "USD", // TODO: Get from statement
+            currency: "USD", // FIXME: Get from statement
             taxes: HashMap::new(),
             dividends: Vec::new(),
         };
@@ -96,7 +96,7 @@ impl StatementParser {
                 State::Header(record) => {
                     let (name, fields) = parse_header(&record)?;
 
-                    // TODO: Remember seen records and check?
+                    // FIXME: Remember seen records and check?
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
@@ -175,7 +175,7 @@ mod tests {
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::InteractiveBrokers, "testdata/interactive-brokers").unwrap();
 
-        // TODO: More checks
+        // FIXME: More checks
         assert!(statement.deposits.len() > 0);
         assert!(statement.dividends.len() > 0);
     }

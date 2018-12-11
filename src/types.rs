@@ -2,16 +2,15 @@ pub use chrono::NaiveDate as Date;
 pub use chrono::NaiveDateTime as DateTime;
 pub use rust_decimal::Decimal as Decimal;
 
-macro_rules! decs {
-    ($value:expr) => {{
-        use ::std::str::FromStr;
-        ::rust_decimal::Decimal::from_str($value).unwrap()
-    }}
-}
-
-// TODO: Switch to macro provided by the crate
+// TODO: Waiting for https://github.com/paupino/rust-decimal/issues/151
 macro_rules! dec {
     ($value:expr) => (::rust_decimal::Decimal::from($value))
+}
+macro_rules! decf {
+    ($value:expr) => {{
+        use ::std::str::FromStr;
+        ::rust_decimal::Decimal::from_str(stringify!($value)).unwrap()
+    }}
 }
 
 macro_rules! date {

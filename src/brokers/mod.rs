@@ -48,7 +48,7 @@ pub fn interactive_brokers(config: &Config) -> GenericResult<BrokerInfo> {
         config: get_broker_config(name, &config.brokers.interactive_brokers)?,
         commission_spec: CommissionSpecBuilder::new()
             .minimum(Cash::new("USD", dec!(1)))
-            .per_share(Cash::new("USD", decs!("0.005")))
+            .per_share(Cash::new("USD", decf!(0.005)))
             .maximum_percent(dec!(1))
             .build().unwrap(),
     })
@@ -61,8 +61,8 @@ pub fn open_broker(config: &Config) -> GenericResult<BrokerInfo> {
         name: name,
         config: get_broker_config(name, &config.brokers.open_broker)?,
         commission_spec: CommissionSpecBuilder::new()
-            .minimum(Cash::new("RUB", decs!("0.04")))
-            .percent(decs!("0.057"))
+            .minimum(Cash::new("RUB", decf!(0.04)))
+            .percent(decf!(0.057))
             .build().unwrap(),
     })
 }

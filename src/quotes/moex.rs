@@ -75,7 +75,7 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
 
     #[derive(Deserialize)]
     struct Row {
-        // TODO: Check time?
+        // FIXME: Check time?
         // 10.11.2018 closed session: UPDATETIME="19:18:26" TIME="18:41:07" SYSTIME="2018-11-09 19:33:27"
         // 13.11.2018 open session: UPDATETIME="13:00:50" TIME="13:00:30" SYSTIME="2018-11-13 13:15:50"
         #[serde(rename = "SECID")]
@@ -181,8 +181,8 @@ mod tests {
         );
 
         let mut quotes = HashMap::new();
-        quotes.insert(s!("FXUS"), Cash::new("RUB", decs!("3320")));
-        quotes.insert(s!("FXIT"), Cash::new("RUB", decs!("4612")));
+        quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
+        quotes.insert(s!("FXIT"), Cash::new("RUB", dec!(4612)));
 
         assert_eq!(Moex::new().get_quotes(&vec![
             s!("FXUS"), s!("FXIT"), s!("INVALID")

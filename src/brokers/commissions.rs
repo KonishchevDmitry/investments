@@ -119,15 +119,15 @@ mod tests {
 
         // Per share commission > minimum commission
         assert_eq!(commission_spec.calculate(201, Cash::new("USD", dec!(100))).unwrap(),
-                   Cash::new("USD", decs!("1.01")));
+                   Cash::new("USD", decf!(1.01)));
 
         // Per share commission > minimum commission
         assert_eq!(commission_spec.calculate(300, Cash::new("USD", dec!(100))).unwrap(),
-                   Cash::new("USD", decs!("1.5")));
+                   Cash::new("USD", decf!(1.5)));
 
         // Per share commission > maximum commission
-        assert_eq!(commission_spec.calculate(300, Cash::new("USD", decs!("0.4"))).unwrap(),
-                   Cash::new("USD", decs!("1.2")));
+        assert_eq!(commission_spec.calculate(300, Cash::new("USD", decf!(0.4))).unwrap(),
+                   Cash::new("USD", decf!(1.2)));
     }
 
     #[test]
@@ -136,10 +136,10 @@ mod tests {
 
         // Percent commission > minimum commission
         assert_eq!(commission_spec.calculate(73, Cash::new("RUB", dec!(2758))).unwrap(),
-                   Cash::new("RUB", decs!("114.76")));
+                   Cash::new("RUB", decf!(114.76)));
 
         // Percent commission < minimum commission
         assert_eq!(commission_spec.calculate(1, Cash::new("RUB", dec!(1))).unwrap(),
-                   Cash::new("RUB", decs!("0.04")));
+                   Cash::new("RUB", decf!(0.04)));
     }
 }

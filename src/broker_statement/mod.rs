@@ -18,7 +18,7 @@ use util;
 mod ib;
 mod open_broker;
 
-// TODO: Take care of stock splitting
+// FIXME: Take care of stock splitting
 #[derive(Debug)]
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
@@ -406,7 +406,7 @@ impl StockSell {
 
         let income = sell_revenue - purchase_cost;
 
-        // TODO: Declare loss?
+        // FIXME: Declare loss?
         if income.is_sign_negative() {
             return Ok(dec!(0));
         }

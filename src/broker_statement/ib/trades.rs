@@ -41,7 +41,7 @@ impl RecordParser for TradesParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_value("DataDiscriminator", "Order")?;
 
-        // TODO: Taxes from selling?
+        // FIXME: Taxes from selling?
         if record.get_value("Asset Category")? == "Forex" {
             return Ok(());
         }
@@ -56,7 +56,7 @@ impl RecordParser for TradesParser {
         if quantity == 0 {
             return Err!("Invalid quantity: {}", quantity)
         } else if quantity < 0 {
-            // TODO: Support selling
+            // FIXME: Support selling
             return Err!("Position closing is not supported yet");
         }
 

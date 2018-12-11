@@ -135,11 +135,11 @@ fn get_currency_rates(currency: &str, _start_date: Date, _end_date: Date) -> Gen
     Ok(vec![
         CurrencyRate {
             date: date!(1, 9, 2018),
-            price: decs!("68.0447"),
+            price: decf!(68.0447),
         },
         CurrencyRate {
             date: date!(4, 9, 2018),
-            price: decs!("67.7443"),
+            price: decf!(67.7443),
         },
     ])
 }
@@ -162,8 +162,8 @@ mod tests {
         }
 
         for (from, to, value, result) in [
-            ("USD", "RUB", amount, decs!("68.0447") * amount),
-            ("RUB", "USD", decs!("68.0447") * amount, amount),
+            ("USD", "RUB", amount, decf!(68.0447) * amount),
+            ("RUB", "USD", decf!(68.0447) * amount, amount),
         ].iter() {
             assert_matches!(
                 converter.convert(from, to, date!(31, 8, 2018), *value),
@@ -179,8 +179,8 @@ mod tests {
         }
 
         for (from, to, value, result) in [
-            ("USD", "RUB", amount, decs!("67.7443") * amount),
-            ("RUB", "USD", decs!("67.7443") * amount, amount),
+            ("USD", "RUB", amount, decf!(67.7443) * amount),
+            ("RUB", "USD", decf!(67.7443) * amount, amount),
         ].iter() {
             let mut date = date!(4, 9, 2018);
 

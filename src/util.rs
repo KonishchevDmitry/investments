@@ -79,9 +79,9 @@ mod tests {
 
     #[test]
     fn rounding() {
-        assert_eq!(round_to(decs!("-1.5"), 0), dec!(-2));
-        assert_eq!(round_to(decs!("-1.4"), 0), dec!(-1));
-        assert_eq!(round_to(decs!("1.4"), 0), dec!(1));
-        assert_eq!(round_to(decs!("1.5"), 0), dec!(2));
+        assert_eq!(round_to(decf!(-1.5), 0), dec!(-2));
+        assert_eq!(round_to(decf!(-1.4), 0), dec!(-1));
+        assert_eq!(round_to(decf!(1.4), 0), dec!(1));
+        assert_eq!(round_to(decf!(1.5), 0), dec!(2));
     }
 }

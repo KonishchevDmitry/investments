@@ -29,7 +29,7 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
         &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_cash_assets,
         portfolio.min_trade_volume);
 
-    // TODO: Merge with previous step?
+    // FIXME: Merge with previous step?
     // The next step is bottom-up and calculates the result of the previous step
     let (current_value, commissions) = calculate_result_value(
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
