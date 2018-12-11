@@ -2,3 +2,5 @@ language: rust
 rust:
   - stable
   - beta
+git:
+  submodules: false
