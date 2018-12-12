@@ -7,13 +7,13 @@ rust:
   - stable
   - beta
 
-install: cargo build
+env:
+  - UPDATE_DEPENDENCIES=false
+  - UPDATE_DEPENDENCIES=true
 
-jobs:
-  include:
-    - name: "Locked dependencies"
-      before_install: cargo update
-    - name: "Latest dependencies"
+install:
+  - test $UPDATE_DEPENDENCIES != true || cargo update
+  - cargo build
 
 # FIXME
 script: cargo test -- --exact \
