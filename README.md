@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/KonishchevDmitry/investments.svg?branch=master)](https://travis-ci.com/KonishchevDmitry/investments)
+
 ## Investments
 
 Helps you with managing your investments.
