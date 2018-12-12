@@ -16,8 +16,7 @@ install:
   - cargo build
 
 # Skip tests that require real statements from private submodule
-script: >-
-  cargo test -- --exact
-    --skip broker_statement::ib::tests::parsing
-    --skip broker_statement::open_broker::tests::parsing
-    --skip tax_statement::statement::parser::tests::parse_real
+script: cargo test -- --exact
+  --skip broker_statement::ib::tests::parsing
+  --skip broker_statement::open_broker::tests::parsing
+  --skip tax_statement::statement::parser::tests::parse_real
