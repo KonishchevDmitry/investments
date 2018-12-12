@@ -1,6 +1,22 @@
+git:
+  submodules: false
+
 language: rust
+cache: cargo
 rust:
   - stable
   - beta
-git:
-  submodules: false
+
+install: cargo build
+
+jobs:
+  include:
+    - name: "Locked dependencies"
+      before_install: cargo update
+    - name: "Latest dependencies"
+
+# FIXME
+script: cargo test -- --exact \
+  --skip broker_statement::ib::tests::parsing \
+  --skip broker_statement::open_broker::tests::parsing \
+  --skip tax_statement::statement::parser::tests::parse_real
