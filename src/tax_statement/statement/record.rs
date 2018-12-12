@@ -148,7 +148,7 @@ macro_rules! tax_statement_array_record {
 
                 let mut name = String::with_capacity(name_length);
                 name.push_str($name::RECORD_NAME);
-                write!(name, "{:0width$}", index, width=index_length);
+                write!(name, "{:0width$}", index, width=index_length).unwrap();
 
                 if name.len() != name_length {
                     return Err!("Got a too big index for {} record: {}", $name::RECORD_NAME, index);

@@ -206,19 +206,20 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         for stock_sell in &self.statement.stock_sells {
+            let assets = self.converter.convert_to(
+                stock_sell.date, stock_sell.price * stock_sell.quantity, self.currency)?;
+
+            let commission = self.converter.convert_to(
+                stock_sell.date, stock_sell.commission, self.currency)?;
+
             {
                 let deposit_view = self.get_deposit_view(&stock_sell.symbol);
 
-                let assets = self.converter.convert_to(
-                    stock_sell.date, stock_sell.price * stock_sell.quantity, self.currency)?;
                 deposit_view.transactions.push(Transaction::new(stock_sell.date, -assets));
-
-                let commission = self.converter.convert_to(
-                    stock_sell.date, stock_sell.commission, self.currency)?;
                 deposit_view.transactions.push(Transaction::new(stock_sell.date, commission));
 
-                // FIXME: Consider to send a marker to deposit emulator when for some period we have no
-                // open positions.
+                // FIXME: Consider to send a marker to deposit emulator when for some period we have
+                // no open positions.
                 deposit_view.sell_transaction = Some((stock_sell.date, assets));
             }
 
