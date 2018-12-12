@@ -1,3 +1,4 @@
+#[cfg(test)] use matches::assert_matches;
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Deserializer};
 use serde::de::Error;

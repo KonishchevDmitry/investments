@@ -1,4 +1,5 @@
 use chrono::{Duration, Datelike};
+#[cfg(test)] use matches::assert_matches;
 
 use crate::core::GenericResult;
 use crate::currency::{Cash, CurrencyRate};

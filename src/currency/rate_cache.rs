@@ -1,5 +1,6 @@
 use chrono::{Datelike, Duration};
 use diesel::{self, prelude::*};
+#[cfg(test)] use matches::assert_matches;
 #[cfg(test)] use tempfile::NamedTempFile;
 
 use crate::core::{GenericResult, GenericError, EmptyResult};
