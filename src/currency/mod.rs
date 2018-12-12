@@ -6,9 +6,9 @@ use std::ops::{Mul, Div, Neg};
 
 use num_traits::identities::Zero;
 
-use core::GenericResult;
-use types::{Date, Decimal};
-use util;
+use crate::core::GenericResult;
+use crate::types::{Date, Decimal};
+use crate::util;
 
 use self::converter::CurrencyConverter;
 

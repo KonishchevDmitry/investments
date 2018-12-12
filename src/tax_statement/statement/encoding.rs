@@ -3,9 +3,9 @@ use std::str::FromStr;
 
 use chrono::Duration;
 
-use core::{EmptyResult, GenericResult};
-use currency;
-use types::{Date, Decimal};
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency;
+use crate::types::{Date, Decimal};
 
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 

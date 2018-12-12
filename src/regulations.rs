@@ -1,6 +1,6 @@
 use chrono::Datelike;
 
-use types::{Date, Decimal};
+use crate::types::{Date, Decimal};
 
 pub struct Country {
     pub currency: &'static str,

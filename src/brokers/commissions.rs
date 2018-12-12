@@ -1,8 +1,8 @@
-#[cfg(test)] use brokers;
-#[cfg(test)] use config::Config;
-use core::{EmptyResult, GenericResult};
-use currency::Cash;
-use types::Decimal;
+#[cfg(test)] use crate::brokers;
+#[cfg(test)] use crate::config::Config;
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
+use crate::types::Decimal;
 
 #[derive(Debug, Clone)]
 pub struct CommissionSpec {

@@ -2,7 +2,7 @@ use chrono::Duration;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
 
-use types::Date;
+use crate::types::Date;
 
 pub fn format_date(date: Date) -> String {
     date.format("%d.%m.%Y").to_string()

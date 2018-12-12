@@ -1,7 +1,7 @@
-use broker_statement::StockBuy;
-use core::EmptyResult;
-use currency::Cash;
-use util::DecimalRestrictions;
+use crate::broker_statement::StockBuy;
+use crate::core::EmptyResult;
+use crate::currency::Cash;
+use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date_time};

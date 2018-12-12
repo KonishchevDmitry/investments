@@ -8,10 +8,10 @@ use serde::de::{Deserialize, Deserializer, Error};
 use serde_yaml;
 use shellexpand;
 
-use core::GenericResult;
-use currency::{Cash, CashAssets};
-use types::Decimal;
-use util::{self, DecimalRestrictions};
+use crate::core::GenericResult;
+use crate::currency::{Cash, CashAssets};
+use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]

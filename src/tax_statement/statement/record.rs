@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::fmt::Debug;
 
-use core::{EmptyResult, GenericResult};
+use crate::core::{EmptyResult, GenericResult};
 
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 

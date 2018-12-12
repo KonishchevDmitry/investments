@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use chrono::Duration;
 use num_traits::Zero;
 
-use broker_statement::{BrokerStatementBuilder, StockBuy};
-use core::{EmptyResult, GenericResult};
-use currency::{Cash, CashAssets};
-use types::{Date, Decimal};
-use util::{self, DecimalRestrictions};
+use crate::broker_statement::{BrokerStatementBuilder, StockBuy};
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::{Cash, CashAssets};
+use crate::types::{Date, Decimal};
+use crate::util::{self, DecimalRestrictions};
 
 use super::parsers::{CashFlowType, deserialize_date, parse_security_description, parse_quantity};
 

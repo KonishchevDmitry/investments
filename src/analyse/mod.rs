@@ -1,9 +1,9 @@
-use broker_statement::BrokerStatement;
-use config::Config;
-use core::EmptyResult;
-use currency::converter::CurrencyConverter;
-use db;
-use quotes::Quotes;
+use crate::broker_statement::BrokerStatement;
+use crate::config::Config;
+use crate::core::EmptyResult;
+use crate::currency::converter::CurrencyConverter;
+use crate::db;
+use crate::quotes::Quotes;
 
 use self::performance::PortfolioPerformanceAnalyser;
 

@@ -1,14 +1,15 @@
 use std::str::FromStr;
 
+use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::{self, Url};
 use serde_xml_rs;
 
-use core::GenericResult;
-use currency::CurrencyRate;
-use formatting;
-use types::{Date, Decimal};
-use util;
+use crate::core::GenericResult;
+use crate::currency::CurrencyRate;
+use crate::formatting;
+use crate::types::{Date, Decimal};
+use crate::util;
 
 #[cfg(not(test))]
 const CBR_URL: &'static str = "http://www.cbr.ru";

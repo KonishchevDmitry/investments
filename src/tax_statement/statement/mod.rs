@@ -1,7 +1,7 @@
 use std::fs;
 
-use core::{EmptyResult, GenericResult};
-use types::{Date, Decimal};
+use crate::core::{EmptyResult, GenericResult};
+use crate::types::{Date, Decimal};
 
 use self::foreign_income::{ForeignIncome, CurrencyIncome, IncomeType};
 use self::record::Record;

@@ -2,12 +2,12 @@ use chrono::{Datelike, Duration};
 use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
 
-use core::{GenericResult, GenericError, EmptyResult};
-use currency::CurrencyRate;
-use db::{self, schema::currency_rates, models};
-use formatting;
-use types::{Date, Decimal};
-use util::{self, DecimalRestrictions};
+use crate::core::{GenericResult, GenericError, EmptyResult};
+use crate::currency::CurrencyRate;
+use crate::db::{self, schema::currency_rates, models};
+use crate::formatting;
+use crate::types::{Date, Decimal};
+use crate::util::{self, DecimalRestrictions};
 
 pub struct CurrencyRateCache {
     today: Date,

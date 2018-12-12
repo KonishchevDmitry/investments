@@ -1,12 +1,13 @@
 use std::iter::Iterator;
 
 use chrono::Duration;
+use log::trace;
 
-use core::{EmptyResult, GenericResult};
-use currency::{Cash, CashAssets};
-use formatting;
-use types::Date;
-use util::{self, DecimalRestrictions};
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::{Cash, CashAssets};
+use crate::formatting;
+use crate::types::Date;
+use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date, format_record};

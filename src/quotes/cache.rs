@@ -2,10 +2,10 @@ use chrono::{self, Duration};
 use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
 
-use core::{GenericResult, EmptyResult};
-use currency::Cash;
-use db::{self, schema::quotes, models};
-use util::{self, DecimalRestrictions};
+use crate::core::{GenericResult, EmptyResult};
+use crate::currency::Cash;
+use crate::db::{self, schema::quotes, models};
+use crate::util::{self, DecimalRestrictions};
 
 pub struct Cache {
     db: db::Connection,

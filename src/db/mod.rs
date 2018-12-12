@@ -3,7 +3,7 @@ use std::rc::Rc;
 use diesel::{Connection as ConnectionTrait, SqliteConnection};
 #[cfg(test)] use tempfile::NamedTempFile;
 
-use core::GenericResult;
+use crate::core::GenericResult;
 
 pub mod models;
 pub mod schema;

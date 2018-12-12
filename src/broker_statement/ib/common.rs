@@ -3,10 +3,10 @@ use std::str::FromStr;
 
 use csv::StringRecord;
 
-use broker_statement::ib::StatementParser;
-use core::{EmptyResult, GenericResult};
-use types::{Date, DateTime, Decimal};
-use util::{self, DecimalRestrictions};
+use crate::broker_statement::ib::StatementParser;
+use crate::core::{EmptyResult, GenericResult};
+use crate::types::{Date, DateTime, Decimal};
+use crate::util::{self, DecimalRestrictions};
 
 pub struct Record<'a> {
     pub name: &'a str,

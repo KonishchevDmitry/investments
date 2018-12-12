@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use log;
+use log::{self, log_enabled, debug};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 
-use brokers::BrokerInfo;
-use core::{GenericResult, EmptyResult};
-use currency::converter::CurrencyConverter;
-use types::Decimal;
-use util;
+use crate::brokers::BrokerInfo;
+use crate::core::{GenericResult, EmptyResult};
+use crate::currency::converter::CurrencyConverter;
+use crate::types::Decimal;
+use crate::util;
 
 use super::asset_allocation::{Portfolio, AssetAllocation, Holding, StockHolding};
 

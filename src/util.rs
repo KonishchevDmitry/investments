@@ -5,8 +5,8 @@ use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
 
-use core::GenericResult;
-use types::{Date, DateTime, Decimal};
+use crate::core::GenericResult;
+use crate::types::{Date, DateTime, Decimal};
 
 pub enum DecimalRestrictions {
     NonZero,

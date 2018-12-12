@@ -4,10 +4,10 @@ use std::io::{Read, BufReader};
 use encoding_rs;
 use serde_xml_rs;
 
-use brokers::{self, BrokerInfo};
-#[cfg(test)] use config::Broker;
-use config::Config;
-use core::GenericResult;
+use crate::brokers::{self, BrokerInfo};
+#[cfg(test)] use crate::config::Broker;
+use crate::config::Config;
+use crate::core::GenericResult;
 
 use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
 

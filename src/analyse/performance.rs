@@ -1,18 +1,19 @@
 use std::collections::HashMap;
 
+use log::debug;
 use num_traits::{ToPrimitive, Zero};
 use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
 use separator::Separatable;
 
-use broker_statement::BrokerStatement;
-use core::{EmptyResult, GenericResult};
-use currency::{Cash, CashAssets};
-use currency::converter::CurrencyConverter;
-use formatting;
-use regulations::{self, Country};
-use types::{Date, Decimal};
-use util;
+use crate::broker_statement::BrokerStatement;
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::{Cash, CashAssets};
+use crate::currency::converter::CurrencyConverter;
+use crate::formatting;
+use crate::regulations::{self, Country};
+use crate::types::{Date, Decimal};
+use crate::util;
 
 use super::deposit_emulator::{DepositEmulator, Transaction};
 

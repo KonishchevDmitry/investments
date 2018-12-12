@@ -4,8 +4,8 @@ use ansi_term::{Style, Color, ANSIString};
 use num_traits::{ToPrimitive, Zero};
 use separator::Separatable;
 
-use types::Decimal;
-use util;
+use crate::types::Decimal;
+use crate::util;
 
 use super::asset_allocation::{Portfolio, AssetAllocation, Holding};
 

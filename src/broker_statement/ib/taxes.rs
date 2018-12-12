@@ -1,8 +1,8 @@
-use core::EmptyResult;
-use currency::Cash;
-use formatting;
-use types::Date;
-use util::DecimalRestrictions;
+use crate::core::EmptyResult;
+use crate::currency::Cash;
+use crate::formatting;
+use crate::types::Date;
+use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date};

@@ -4,13 +4,13 @@ use std::collections::HashMap;
 #[cfg(test)] use chrono::NaiveDate;
 use chrono::{DateTime, TimeZone};
 use chrono_tz::Tz;
-
+use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::{Client, Url, Response};
 
-use core::GenericResult;
-use currency::Cash;
-use util::{self, DecimalRestrictions};
+use crate::core::GenericResult;
+use crate::currency::Cash;
+use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesMap, QuotesProvider};
 

@@ -1,13 +1,13 @@
 use std::collections::{HashSet, HashMap};
 
-use brokers::BrokerInfo;
-use config::{Config, PortfolioConfig, AssetAllocationConfig};
-use core::{EmptyResult, GenericResult};
-use currency::Cash;
-use currency::converter::CurrencyConverter;
-use quotes::Quotes;
-use types::Decimal;
-use util;
+use crate::brokers::BrokerInfo;
+use crate::config::{Config, PortfolioConfig, AssetAllocationConfig};
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
+use crate::currency::converter::CurrencyConverter;
+use crate::quotes::Quotes;
+use crate::types::Decimal;
+use crate::util;
 
 use super::Assets;
 

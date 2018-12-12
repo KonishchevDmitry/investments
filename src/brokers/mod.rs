@@ -1,7 +1,7 @@
-use config::{Config, Broker, BrokerConfig};
-use core::GenericResult;
-use currency::{Cash, CashAssets};
-use types::Decimal;
+use crate::config::{Config, Broker, BrokerConfig};
+use crate::core::GenericResult;
+use crate::currency::{Cash, CashAssets};
+use crate::types::Decimal;
 
 use self::commissions::{CommissionSpec, CommissionSpecBuilder};
 

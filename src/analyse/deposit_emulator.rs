@@ -1,7 +1,7 @@
 use chrono::{Duration, Datelike};
 
-#[cfg(test)] use currency;
-use types::{Date, Decimal};
+#[cfg(test)] use crate::currency;
+use crate::types::{Date, Decimal};
 
 pub struct DepositEmulator {
     date: Date,

@@ -6,10 +6,11 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use encoding_rs;
+use log::debug;
 use regex::Regex;
 #[cfg(test)] use tempfile::NamedTempFile;
 
-use core::{EmptyResult, GenericResult};
+use crate::core::{EmptyResult, GenericResult};
 
 use super::TaxStatement;
 use super::record::{Record, UnknownRecord};

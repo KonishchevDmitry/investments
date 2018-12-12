@@ -1,11 +1,11 @@
 use chrono::{Duration, Datelike};
 
-use core::GenericResult;
-use currency::{Cash, CurrencyRate};
-use currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
-use db;
-use formatting;
-use types::{Date, Decimal};
+use crate::core::GenericResult;
+use crate::currency::{Cash, CurrencyRate};
+use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
+use crate::db;
+use crate::formatting;
+use crate::types::{Date, Decimal};
 
 pub struct CurrencyConverter {
     backend: Box<CurrencyConverterBackend>,
@@ -124,7 +124,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
 
 #[cfg(not(test))]
 fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    Ok(::currency::cbr::get_rates(currency, start_date, end_date).map_err(|e| format!(
+    Ok(crate::currency::cbr::get_rates(currency, start_date, end_date).map_err(|e| format!(
         "Failed to get currency rates from the Central Bank of the Russian Federation: {}", e))?)
 }
 

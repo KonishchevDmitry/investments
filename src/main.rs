@@ -1,30 +1,11 @@
-extern crate ansi_term;
-extern crate chrono;
-extern crate chrono_tz;
-extern crate clap;
-extern crate csv;
+// FIXME: Drop?
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_derive_enum;
 #[macro_use] extern crate diesel_migrations;
-extern crate easy_logging;
-extern crate encoding_rs;
 #[cfg(test)] #[macro_use] extern crate indoc;
 #[macro_use] extern crate lazy_static;
-#[macro_use] extern crate log;
 #[cfg(test)] #[macro_use] extern crate matches;
-#[cfg(test)] extern crate mockito;
-extern crate num_traits;
-extern crate prettytable;
-extern crate regex;
-extern crate reqwest;
-extern crate rust_decimal;
-extern crate separator;
-extern crate serde;
 #[macro_use] extern crate serde_derive;
-extern crate serde_xml_rs;
-extern crate serde_yaml;
-extern crate shellexpand;
-extern crate tempfile;
 
 #[macro_use] mod core;
 #[macro_use] mod types;
@@ -44,12 +25,11 @@ mod util;
 
 use std::process;
 
-use config::Config;
-use core::EmptyResult;
-use init::{Action, initialize};
+use log::error;
 
-// FIXME:
-// * Travis CI
+use crate::config::Config;
+use crate::core::EmptyResult;
+use crate::init::{Action, initialize};
 
 fn main() {
     let (action, config) = initialize();

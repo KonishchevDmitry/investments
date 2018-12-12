@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use regex::Regex;
 
-use core::{EmptyResult, GenericResult};
-use currency::Cash;
-use broker_statement::Dividend;
-use formatting;
-use regulations;
-use types::Date;
-use util::DecimalRestrictions;
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
+use crate::broker_statement::Dividend;
+use crate::formatting;
+use crate::regulations;
+use crate::types::Date;
+use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date};

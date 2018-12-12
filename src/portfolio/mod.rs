@@ -1,11 +1,11 @@
-use broker_statement::BrokerStatement;
-use config::{Config, PortfolioConfig};
-use core::EmptyResult;
-use currency::Cash;
-use currency::converter::CurrencyConverter;
-use db;
-use quotes::Quotes;
-use types::Decimal;
+use crate::broker_statement::BrokerStatement;
+use crate::config::{Config, PortfolioConfig};
+use crate::core::EmptyResult;
+use crate::currency::Cash;
+use crate::currency::converter::CurrencyConverter;
+use crate::db;
+use crate::quotes::Quotes;
+use crate::types::Decimal;
 
 use self::asset_allocation::Portfolio;
 use self::assets::Assets;

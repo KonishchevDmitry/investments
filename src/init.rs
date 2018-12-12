@@ -5,13 +5,13 @@ use std::str::FromStr;
 
 use clap::{App, Arg, AppSettings, SubCommand, ArgMatches};
 use easy_logging;
-use log;
+use log::{self, debug, error};
 use shellexpand;
 
-use config::{Config, load_config};
-use core::GenericResult;
-use types::{Date, Decimal};
-use util;
+use crate::config::{Config, load_config};
+use crate::core::GenericResult;
+use crate::types::{Date, Decimal};
+use crate::util;
 
 pub enum Action {
     Analyse(String),

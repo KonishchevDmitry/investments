@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use num_traits::Zero;
 use reqwest::{Client, Url};
 
-use core::GenericResult;
-use currency::Cash;
-use types::Decimal;
+use crate::core::GenericResult;
+use crate::currency::Cash;
+use crate::types::Decimal;
 
 use super::{QuotesMap, QuotesProvider};
 

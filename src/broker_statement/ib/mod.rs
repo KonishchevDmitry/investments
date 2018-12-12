@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 
 use csv::{self, StringRecord};
+use log::trace;
 
-use brokers::{self, BrokerInfo};
-#[cfg(test)] use config::Broker;
-use config::Config;
-use core::GenericResult;
-use currency::Cash;
+use crate::brokers::{self, BrokerInfo};
+#[cfg(test)] use crate::config::Broker;
+use crate::config::Config;
+use crate::core::GenericResult;
+use crate::currency::Cash;
 
 use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
 

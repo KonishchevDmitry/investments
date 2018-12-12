@@ -1,7 +1,7 @@
 use std::any::Any;
 
-use core::{EmptyResult, GenericResult};
-use types::{Date, Decimal};
+use crate::core::{EmptyResult, GenericResult};
+use crate::types::{Date, Decimal};
 
 use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};

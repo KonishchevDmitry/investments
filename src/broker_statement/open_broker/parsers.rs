@@ -2,9 +2,9 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Deserializer};
 use serde::de::Error;
 
-use core::GenericResult;
-use types::{Date, Decimal};
-use util;
+use crate::core::GenericResult;
+use crate::types::{Date, Decimal};
+use crate::util;
 
 fn parse_date(date: &str) -> GenericResult<Date> {
     util::parse_date(date, "%Y-%m-%dT00:00:00")

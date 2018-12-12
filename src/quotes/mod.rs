@@ -1,10 +1,12 @@
 #[cfg(test)] use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use config::Config;
-use core::GenericResult;
-use currency::Cash;
-use db;
+use log::debug;
+
+use crate::config::Config;
+use crate::core::GenericResult;
+use crate::currency::Cash;
+use crate::db;
 
 use self::alphavantage::AlphaVantage;
 use self::cache::Cache;

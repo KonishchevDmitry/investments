@@ -3,11 +3,11 @@ use std::str::FromStr;
 
 use diesel::{self, prelude::*};
 
-use config::PortfolioConfig;
-use core::{EmptyResult, GenericError, GenericResult};
-use currency::{Cash, MultiCurrencyCashAccount};
-use db::{self, schema::{AssetType, assets}, models};
-use types::Decimal;
+use crate::config::PortfolioConfig;
+use crate::core::{EmptyResult, GenericError, GenericResult};
+use crate::currency::{Cash, MultiCurrencyCashAccount};
+use crate::db::{self, schema::{AssetType, assets}, models};
+use crate::types::Decimal;
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Assets {
