@@ -2,8 +2,6 @@
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_derive_enum;
 #[macro_use] extern crate diesel_migrations;
-#[cfg(test)] #[macro_use] extern crate indoc;
-#[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
 
 #[macro_use] mod core;

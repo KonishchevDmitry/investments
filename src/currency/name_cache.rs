@@ -3,6 +3,8 @@ use std::collections::HashSet;
 #[cfg(test)] use std::ptr;
 use std::sync::Mutex;
 
+use lazy_static::lazy_static;
+
 lazy_static! {
     static ref CURRENCIES: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
 }

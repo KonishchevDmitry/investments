@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use encoding_rs;
+use lazy_static::lazy_static;
 use log::debug;
 use regex::Regex;
 #[cfg(test)] use tempfile::NamedTempFile;

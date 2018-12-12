@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+#[cfg(test)] use indoc::indoc;
 use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::{self, Url};

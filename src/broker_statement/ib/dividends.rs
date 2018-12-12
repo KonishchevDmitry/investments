@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
