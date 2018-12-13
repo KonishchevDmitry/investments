@@ -176,8 +176,15 @@ mod tests {
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::InteractiveBrokers, "testdata/interactive-brokers").unwrap();
 
-        // FIXME: More checks
-        assert!(statement.deposits.len() > 0);
-        assert!(statement.dividends.len() > 0);
+        assert!(!statement.starting_assets);
+        assert!(!statement.cash_assets.is_empty());
+
+        assert!(!statement.deposits.is_empty());
+        assert!(!statement.stock_buys.is_empty());
+        assert!(statement.stock_sells.is_empty());
+        assert!(!statement.dividends.is_empty());
+
+        assert!(!statement.open_positions.is_empty());
+        assert!(!statement.instrument_names.is_empty());
     }
 }
