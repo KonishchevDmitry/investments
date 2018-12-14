@@ -26,13 +26,34 @@ impl RecordParser for StatementInfoParser {
     }
 }
 
+pub struct AccountInformationParser {}
+
+impl RecordParser for AccountInformationParser {
+    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+        let name = record.get_value("Field Name")?;
+        let value = record.get_value("Field Value")?;
+
+        if name == "Account Capabilities" {
+            if value != "Cash" {
+                return Err!("Unsupported account type: {}", value);
+            }
+        } else if name == "Base Currency" {
+            parser.currency.replace(value.to_owned());
+        }
+
+        Ok(())
+    }
+}
+
 pub struct ChangeInNavParser {}
 
 impl RecordParser for ChangeInNavParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Starting Value" {
-            let amount = Cash::new_from_string(
-                parser.currency, record.get_value("Field Value")?)?;
+            let currency = parser.currency.as_ref().ok_or_else(||
+                "Unable to determine account base currency")?;
+
+            let amount = Cash::new_from_string(&currency, record.get_value("Field Value")?)?;
             parser.statement.set_starting_assets(!amount.is_zero())?;
         }
 

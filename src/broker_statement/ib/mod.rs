@@ -40,7 +40,7 @@ impl BrokerStatementReader for StatementReader {
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
         let parser = StatementParser {
             statement: BrokerStatementBuilder::new(self.broker_info.clone()),
-            currency: "USD", // FIXME: Get from statement
+            currency: None,
             taxes: HashMap::new(),
             dividends: Vec::new(),
         };
@@ -57,7 +57,7 @@ enum State {
 
 pub struct StatementParser {
     statement: BrokerStatementBuilder,
-    currency: &'static str,
+    currency: Option<String>,
     taxes: HashMap<taxes::TaxId, Cash>,
     dividends: Vec<dividends::DividendInfo>,
 }
@@ -100,6 +100,7 @@ impl StatementParser {
                     // FIXME: Remember seen records and check?
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
+                        "Account Information" => Box::new(parsers::AccountInformationParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
                         "Cash Report" => Box::new(parsers::CashReportParser {}),
                         "Open Positions" => Box::new(trades::OpenPositionsParser {}),
