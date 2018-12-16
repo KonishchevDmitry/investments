@@ -42,7 +42,7 @@ pub fn parse_quantity(decimal_quantity: Decimal) -> GenericResult<u32> {
 
 #[derive(Debug)]
 pub enum CashFlowType {
-    // FIXME: Withdrawal support
+    // TODO: Withdrawal support
     Deposit,
     Commission,
 }
