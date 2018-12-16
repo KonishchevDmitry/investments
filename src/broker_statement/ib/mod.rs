@@ -156,6 +156,7 @@ impl StatementParser {
             }
         }
 
+        // FIXME: Ensure that all taxes are handled
         self.statement.dividends = dividends::parse_dividends(self.dividends, &mut self.taxes)?;
         self.statement.get()
     }
