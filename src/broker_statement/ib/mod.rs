@@ -9,6 +9,7 @@ use crate::brokers::{self, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::formatting::format_date;
 
 use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
 
@@ -97,7 +98,6 @@ impl StatementParser {
                 State::Header(record) => {
                     let (name, fields) = parse_header(&record)?;
 
-                    // FIXME: Remember seen records and check?
                     let parser: Box<RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Account Information" => Box::new(parsers::AccountInformationParser {}),
@@ -156,8 +156,18 @@ impl StatementParser {
             }
         }
 
-        // FIXME: Ensure that all taxes are handled
         self.statement.dividends = dividends::parse_dividends(self.dividends, &mut self.taxes)?;
+
+        if !self.taxes.is_empty() {
+            let taxes = self.taxes.keys()
+                .map(|tax: &taxes::TaxId| format!(
+                    "* {date}: {description}", date=format_date(tax.0), description=tax.1))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
+        }
+
         self.statement.get()
     }
 }
