@@ -65,14 +65,8 @@ impl RecordParser for TradesParser {
         let commission = Cash::new(
             currency, record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?);
 
-        parser.statement.stock_buys.push(StockBuy {
-            date: date,
-            symbol: symbol.to_owned(),
-            quantity: quantity as u32,
-            price: price,
-            commission: commission,
-            sold: 0,
-        });
+        parser.statement.stock_buys.push(StockBuy::new(
+            date, symbol, quantity as u32, price, commission));
 
         return Ok(());
     }

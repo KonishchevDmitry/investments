@@ -1,5 +1,5 @@
 use std::{self, fs};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 
 use chrono::Duration;
@@ -73,8 +73,45 @@ impl BrokerStatement {
                 "Failed to merge broker statements: {}", e))?;
         }
 
+        joint_statement.process_trades(false)?;
+
         debug!("{:#?}", joint_statement);
         Ok(joint_statement)
+    }
+
+    pub fn check_date(&self) {
+        let date = self.period.1 - Duration::days(1);
+        let days = (util::today() - date).num_days();
+        let months = Decimal::from(days) / dec!(30);
+
+        if months >= dec!(1) {
+            warn!("The broker statement is {} months old and may be outdated.",
+                  util::round_to(months, 1));
+        }
+    }
+
+    pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
+        let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
+            "Unable to find {:?} instrument name in the broker statement", symbol))?;
+        Ok(format!("{} ({})", name, symbol))
+    }
+
+    pub fn batch_quotes(&self, quotes: &mut Quotes) {
+        for (symbol, _) in &self.instrument_names {
+            quotes.batch(&symbol);
+        }
+    }
+
+    pub fn emulate_sellout(&mut self, quotes: &mut Quotes) -> EmptyResult {
+        let today = util::today();
+
+        for (symbol, quantity) in self.open_positions.drain() {
+            let price = quotes.get(&symbol)?;
+            let commission = self.broker.get_trade_commission(quantity, price)?;
+            self.stock_sells.push(StockSell::new(today, &symbol, quantity, price, commission));
+        }
+
+        self.process_trades(true)
     }
 
     fn merge(&mut self, mut statement: BrokerStatement) -> EmptyResult {
@@ -112,26 +149,10 @@ impl BrokerStatement {
         }
 
         self.deposits.sort_by_key(|deposit| deposit.date);
-        self.stock_buys.sort_by_key(|transaction| transaction.date);
-        self.stock_sells.sort_by_key(|transaction| transaction.date);
+        // FIXME: Process / execution date?
+        self.stock_buys.sort_by_key(|trade| trade.date);
+        self.stock_sells.sort_by_key(|trade| trade.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
-
-        if !self.starting_assets {
-            let mut open_positions = HashMap::new();
-
-            for stock_buy in &self.stock_buys {
-                if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
-                    *position += stock_buy.quantity;
-                    continue;
-                }
-
-                open_positions.insert(stock_buy.symbol.clone(), stock_buy.quantity);
-            }
-
-            if open_positions != self.open_positions {
-                return Err!("The calculated open positions don't match declared ones in the statement");
-            }
-        }
 
         let min_date = self.period.0;
         let max_date = self.period.1 - Duration::days(1);
@@ -176,96 +197,105 @@ impl BrokerStatement {
         Ok(())
     }
 
-    pub fn check_date(&self) {
-        let date = self.period.1 - Duration::days(1);
-        let days = (util::today() - date).num_days();
-        let months = Decimal::from(days) / dec!(30);
+    fn process_trades(&mut self, emulated_sells: bool) -> EmptyResult {
+        let stock_buys_num = self.stock_buys.len();
+        let mut stock_buys = Vec::with_capacity(stock_buys_num);
+        let mut unsold_stock_buys: HashMap<String, Vec<StockBuy>> = HashMap::new();
 
-        if months >= dec!(1) {
-            warn!("The broker statement is {} months old and may be outdated.",
-                  util::round_to(months, 1));
-        }
-    }
+        for stock_buy in self.stock_buys.drain(..).rev() {
+            if stock_buy.is_sold() {
+                stock_buys.push(stock_buy);
+                continue;
+            }
 
-    pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
-        let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
-            "Unable to find {:?} instrument name in the broker statement", symbol))?;
-        Ok(format!("{} ({})", name, symbol))
-    }
-
-    pub fn batch_quotes(&self, quotes: &mut Quotes) {
-        for (symbol, _) in &self.instrument_names {
-            quotes.batch(&symbol);
-        }
-    }
-
-    pub fn emulate_sellout(&mut self, quotes: &mut Quotes) -> EmptyResult {
-        let today = util::today();
-        let mut unsold_stocks = HashSet::new();
-
-        for (symbol, mut quantity) in self.open_positions.drain() {
-            let price = quotes.get(&symbol)?;
-            let mut stock_sell = StockSell {
-                date: today,
-                symbol: symbol,
-                quantity: quantity,
-                price: price,
-                commission: self.broker.get_trade_commission(quantity, price)?,
-                sources: Vec::new(),
+            let symbol_buys = match unsold_stock_buys.get_mut(&stock_buy.symbol) {
+                Some(symbol_buys) => symbol_buys,
+                None => {
+                    unsold_stock_buys.insert(stock_buy.symbol.clone(), Vec::new());
+                    unsold_stock_buys.get_mut(&stock_buy.symbol).unwrap()
+                },
             };
 
-            for stock_buy in self.stock_buys.iter_mut() {
-                if stock_buy.symbol != stock_sell.symbol {
-                    continue;
-                }
+            symbol_buys.push(stock_buy);
+        }
+
+        for stock_sell in self.stock_sells.iter_mut() {
+            if stock_sell.is_processed() {
+                continue;
+            }
+
+            let mut remaining_quantity = stock_sell.quantity;
+            let symbol_buys = unsold_stock_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
+                "Error while processing {} position closing: There are no open positions for it",
+                stock_sell.symbol
+            ))?;
+
+            while remaining_quantity > 0 {
+                let mut stock_buy = symbol_buys.pop().ok_or_else(|| format!(
+                    "Error while processing {} position closing: There are no open positions for it",
+                    stock_sell.symbol
+                ))?;
 
                 let available = stock_buy.quantity - stock_buy.sold;
-                if available <= 0 {
-                    continue;
-                }
-
-                let sell_quantity = std::cmp::min(quantity, available);
+                let sell_quantity = std::cmp::min(remaining_quantity, available);
+                assert!(sell_quantity > 0);
 
                 stock_sell.sources.push(StockSellSource {
-                    date: stock_buy.date,
+                    date: stock_buy.date,  // FIXME: Process / execution date?
                     quantity: sell_quantity,
                     price: stock_buy.price,
                     commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
                 });
 
-                quantity -= sell_quantity;
+                remaining_quantity -= sell_quantity;
                 stock_buy.sold += sell_quantity;
 
-                if quantity <= 0 {
-                    break;
+                if stock_buy.is_sold() {
+                    stock_buys.push(stock_buy);
+                } else {
+                    symbol_buys.push(stock_buy);
                 }
             }
 
-            if quantity > 0 {
-                unsold_stocks.insert(stock_sell.symbol);
+            if emulated_sells {
+                self.cash_assets.deposit(stock_sell.price * stock_sell.quantity);
+                self.cash_assets.withdraw(stock_sell.commission);
+            }
+        }
+
+        for (_, mut symbol_buys) in unsold_stock_buys.drain() {
+            stock_buys.extend(symbol_buys.drain(..));
+        }
+        drop(unsold_stock_buys);
+
+        stock_buys.sort_by_key(|trade| trade.date);
+        self.stock_buys = stock_buys;
+        assert_eq!(self.stock_buys.len(), stock_buys_num);
+
+        self.validate_open_positions()?;
+
+        Ok(())
+    }
+
+    fn validate_open_positions(&self) -> EmptyResult {
+        let mut open_positions = HashMap::new();
+
+        for stock_buy in &self.stock_buys {
+            if stock_buy.is_sold() {
                 continue;
             }
 
-            self.cash_assets.deposit(stock_sell.price * stock_sell.quantity);
-            self.cash_assets.withdraw(stock_sell.commission);
-            self.stock_sells.push(stock_sell);
-        }
+            let quantity = stock_buy.quantity - stock_buy.sold;
 
-        if !unsold_stocks.is_empty() {
-            return Err!(
-                "Failed to emulate sellout: Unable to sell {}: Not enough buy transactions.",
-                unsold_stocks.drain().map(|symbol| symbol.to_owned()).collect::<Vec<_>>().join(", "));
-        }
-
-        for stock_buy in &self.stock_buys {
-            if stock_buy.sold != stock_buy.quantity {
-                unsold_stocks.insert(stock_buy.symbol.clone());
+            if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
+                *position += quantity;
+            } else {
+                open_positions.insert(stock_buy.symbol.clone(), quantity);
             }
         }
 
-        if !unsold_stocks.is_empty() {
-            return Err!("Failed to emulate sellout: The following stocks remain unsold: {}.",
-                unsold_stocks.drain().map(|symbol| symbol.to_owned()).collect::<Vec<_>>().join(", "));
+        if open_positions != self.open_positions {
+            return Err!("The calculated open positions don't match declared ones in the statement");
         }
 
         Ok(())
@@ -369,6 +399,19 @@ pub struct StockBuy {
     sold: u32,
 }
 
+impl StockBuy {
+    pub fn new(date: Date, symbol: &str, quantity: u32, price: Cash, commission: Cash) -> StockBuy {
+        StockBuy {
+            date, quantity, price, commission,
+            symbol: symbol.to_owned(), sold: 0,
+        }
+    }
+
+    fn is_sold(&self) -> bool {
+        self.sold == self.quantity
+    }
+}
+
 #[derive(Debug)]
 pub struct StockSell {
     pub date: Date,
@@ -377,6 +420,19 @@ pub struct StockSell {
     pub price: Cash,
     pub commission: Cash,
     sources: Vec<StockSellSource>,
+}
+
+impl StockSell {
+    pub fn new(date: Date, symbol: &str, quantity: u32, price: Cash, commission: Cash) -> StockSell {
+        StockSell {
+            date, quantity, price, commission,
+            symbol: symbol.to_owned(), sources: Vec::new(),
+        }
+    }
+
+    fn is_processed(&self) -> bool {
+        !self.sources.is_empty()
+    }
 }
 
 #[derive(Debug)]

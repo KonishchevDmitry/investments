@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::Duration;
 use num_traits::Zero;
 
-use crate::broker_statement::{BrokerStatementBuilder, StockBuy};
+use crate::broker_statement::{BrokerStatementBuilder, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Date, Decimal};
@@ -160,6 +160,9 @@ struct Trade {
     #[serde(rename = "buy_qnty")]
     buy_quantity: Option<Decimal>,
 
+    #[serde(rename = "sell_qnty")]
+    sell_quantity: Option<Decimal>,
+
     #[serde(rename = "price_currency_code")]
     currency: String,
 
@@ -175,7 +178,7 @@ struct Trade {
 impl Trades {
     fn parse(&self, statement: &mut BrokerStatementBuilder, securities: &HashMap<String, String>) -> EmptyResult {
         for trade in &self.trades {
-            let symbol = get_symbol(securities, &trade.name)?.clone();
+            let symbol = get_symbol(securities, &trade.name)?;
             let price = util::validate_decimal(trade.price, DecimalRestrictions::StrictlyPositive)
                 .map_err(|_| format!("Invalid {} price: {}", symbol, trade.price))?;
             let commission = util::validate_decimal(trade.commission, DecimalRestrictions::PositiveOrZero)
@@ -190,19 +193,25 @@ impl Trades {
             let price = Cash::new(&trade.currency, price);
             let commission = Cash::new(&trade.accounting_currency, commission);
 
-            match trade.buy_quantity {
-                Some(quantity) => {
+            match (trade.buy_quantity, trade.sell_quantity) {
+                (Some(quantity), None) => {
                     let quantity = parse_quantity(quantity)?;
 
-                    statement.stock_buys.push(StockBuy {
-                        date: trade.execution_date,
-                        symbol: symbol,
-                        quantity: quantity,
-                        price: price,
-                        commission: commission,
-                        sold: 0,
-                    });
+                    statement.stock_buys.push(StockBuy::new(
+                        trade.execution_date, symbol, quantity, price, commission));
                 },
+//                (None, Some(quantity)) => {
+//                    let quantity = parse_quantity(quantity)?;
+//
+//                    statement.stock_sells.push(StockSell {
+//                        date: trade.execution_date,
+//                        symbol: symbol,
+//                        quantity: quantity,
+//                        price: price,
+//                        commission: commission,
+//                        sources: Vec::new(),
+//                    });
+//                },
                 // FIXME: Selling support
                 _ => return Err!("Stock selling is not supported yet")
             };
