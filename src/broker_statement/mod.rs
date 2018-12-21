@@ -149,8 +149,7 @@ impl BrokerStatement {
         }
 
         self.deposits.sort_by_key(|deposit| deposit.date);
-        // FIXME: Process / execution date?
-        self.stock_buys.sort_by_key(|trade| trade.date);
+        self.stock_buys.sort_by_key(|trade| trade.conclusion_date);
         self.stock_sells.sort_by_key(|trade| trade.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
 
@@ -176,9 +175,11 @@ impl BrokerStatement {
             validate_date("deposit", first_date, last_date)?;
         }
 
+        // FIXME: Validate execution dates order
+
         if !self.stock_buys.is_empty() {
-            let first_date = self.stock_buys.first().unwrap().date;
-            let last_date = self.stock_buys.last().unwrap().date;
+            let first_date = self.stock_buys.first().unwrap().conclusion_date;
+            let last_date = self.stock_buys.last().unwrap().conclusion_date;
             validate_date("stock buy", first_date, last_date)?;
         }
 
@@ -241,10 +242,12 @@ impl BrokerStatement {
                 assert!(sell_quantity > 0);
 
                 stock_sell.sources.push(StockSellSource {
-                    date: stock_buy.date,  // FIXME: Process / execution date?
                     quantity: sell_quantity,
                     price: stock_buy.price,
                     commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
+
+                    conclusion_date: stock_buy.conclusion_date,
+                    execution_date: stock_buy.execution_date,
                 });
 
                 remaining_quantity -= sell_quantity;
@@ -268,7 +271,7 @@ impl BrokerStatement {
         }
         drop(unsold_stock_buys);
 
-        stock_buys.sort_by_key(|trade| trade.date);
+        stock_buys.sort_by_key(|trade| trade.conclusion_date);
         self.stock_buys = stock_buys;
         assert_eq!(self.stock_buys.len(), stock_buys_num);
 
@@ -390,20 +393,25 @@ impl BrokerStatementBuilder {
 
 #[derive(Debug)]
 pub struct StockBuy {
-    pub date: Date,
     pub symbol: String,
     pub quantity: u32,
     pub price: Cash,
     pub commission: Cash,
 
+    pub conclusion_date: Date,
+    pub execution_date: Date,
+
     sold: u32,
 }
 
 impl StockBuy {
-    pub fn new(date: Date, symbol: &str, quantity: u32, price: Cash, commission: Cash) -> StockBuy {
+    pub fn new(
+        symbol: &str, quantity: u32, price: Cash, commission: Cash,
+        conclusion_date: Date, execution_date: Date,
+    ) -> StockBuy {
         StockBuy {
-            date, quantity, price, commission,
-            symbol: symbol.to_owned(), sold: 0,
+            symbol: symbol.to_owned(), quantity, price, commission,
+            conclusion_date, execution_date, sold: 0,
         }
     }
 
@@ -437,10 +445,12 @@ impl StockSell {
 
 #[derive(Debug)]
 pub struct StockSellSource {
-    date: Date,
     quantity: u32,
     price: Cash,
     commission: Cash,
+
+    conclusion_date: Date,
+    execution_date: Date,
 }
 
 impl StockSell {
@@ -448,11 +458,12 @@ impl StockSell {
         let mut purchase_cost = dec!(0);
 
         for source in &self.sources {
+            // FIXME: We have to support future dates in converter here and in similar cases
             purchase_cost += converter.convert_to(
-                source.date, source.price * source.quantity, country.currency)?;
+                source.execution_date, source.price * source.quantity, country.currency)?;
 
             purchase_cost += converter.convert_to(
-                source.date, source.commission, country.currency)?;
+                source.conclusion_date, source.commission, country.currency)?;
         }
 
         let mut sell_revenue = converter.convert_to(

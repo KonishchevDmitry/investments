@@ -149,9 +149,8 @@ struct Trade {
     #[serde(rename = "security_name")]
     name: String,
 
-    // FIXME: Commission date must be equal to conclusion_date - not to execution_date
-    // #[serde(deserialize_with = "deserialize_date")]
-    // conclusion_date: Date,
+    #[serde(deserialize_with = "deserialize_date")]
+    conclusion_date: Date,
 
     // FIXME: Compare the trades with <spot_main_deals_executed> and check execution_date?
     #[serde(deserialize_with = "deserialize_date")]
@@ -198,7 +197,8 @@ impl Trades {
                     let quantity = parse_quantity(quantity)?;
 
                     statement.stock_buys.push(StockBuy::new(
-                        trade.execution_date, symbol, quantity, price, commission));
+                        symbol, quantity, price, commission,
+                        trade.conclusion_date, trade.execution_date));
                 },
 //                (None, Some(quantity)) => {
 //                    let quantity = parse_quantity(quantity)?;

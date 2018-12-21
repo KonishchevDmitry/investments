@@ -196,13 +196,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_positions(&mut self) -> EmptyResult {
         for stock_buy in &self.statement.stock_buys {
             let mut assets = self.converter.convert_to(
-                stock_buy.date, stock_buy.price * stock_buy.quantity, self.currency)?;
+                stock_buy.conclusion_date, stock_buy.price * stock_buy.quantity, self.currency)?;
 
             assets += self.converter.convert_to(
-                stock_buy.date, stock_buy.commission, self.currency)?;
+                stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
 
             self.get_deposit_view(&stock_buy.symbol).transactions.push(
-                Transaction::new(stock_buy.date, assets));
+                Transaction::new(stock_buy.conclusion_date, assets));
         }
 
         for stock_sell in &self.statement.stock_sells {

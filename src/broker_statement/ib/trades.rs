@@ -66,7 +66,7 @@ impl RecordParser for TradesParser {
             currency, record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?);
 
         parser.statement.stock_buys.push(StockBuy::new(
-            date, symbol, quantity as u32, price, commission));
+            symbol, quantity as u32, price, commission, date, date));
 
         return Ok(());
     }
