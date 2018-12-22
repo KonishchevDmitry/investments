@@ -207,24 +207,27 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         for stock_sell in &self.statement.stock_sells {
             let assets = self.converter.convert_to(
-                stock_sell.date, stock_sell.price * stock_sell.quantity, self.currency)?;
+                stock_sell.execution_date, stock_sell.price * stock_sell.quantity, self.currency)?;
 
             let commission = self.converter.convert_to(
-                stock_sell.date, stock_sell.commission, self.currency)?;
+                stock_sell.conclusion_date, stock_sell.commission, self.currency)?;
 
             {
                 let deposit_view = self.get_deposit_view(&stock_sell.symbol);
 
-                deposit_view.transactions.push(Transaction::new(stock_sell.date, -assets));
-                deposit_view.transactions.push(Transaction::new(stock_sell.date, commission));
+                deposit_view.transactions.push(Transaction::new(
+                    stock_sell.execution_date, -assets));
+
+                deposit_view.transactions.push(Transaction::new(
+                    stock_sell.conclusion_date, commission));
 
                 // FIXME: Consider to send a marker to deposit emulator when for some period we have
                 // no open positions.
-                deposit_view.sell_transaction = Some((stock_sell.date, assets));
+                deposit_view.sell_transaction = Some((stock_sell.execution_date, assets));
             }
 
             let tax_to_pay = stock_sell.tax_to_pay(&self.country, self.converter)?;
-            self.process_tax(stock_sell.date, &stock_sell.symbol, tax_to_pay)?;
+            self.process_tax(stock_sell.execution_date, &stock_sell.symbol, tax_to_pay)?;
         }
 
         Ok(())
@@ -275,6 +278,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
 
+        // FIXME: This date must be corrected according to periods with no assets
         let mut tax_payment_date = self.country.get_tax_payment_date(income_date);
         if tax_payment_date > self.date {
             tax_payment_date = self.date;

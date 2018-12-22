@@ -105,12 +105,20 @@ impl BrokerStatement {
     pub fn emulate_sellout(&mut self, quotes: &mut Quotes) -> EmptyResult {
         let today = util::today();
 
+        let conclusion_date = today;
+        let execution_date = match self.stock_sells.last() {
+            Some(last_trade) if last_trade.execution_date > today => last_trade.execution_date,
+            _ => today,
+        };
+
         for (symbol, quantity) in self.open_positions.drain() {
             let price = quotes.get(&symbol)?;
             let commission = self.broker.get_trade_commission(quantity, price)?;
-            self.stock_sells.push(StockSell::new(today, &symbol, quantity, price, commission));
+            self.stock_sells.push(StockSell::new(
+                &symbol, quantity, price, commission, conclusion_date, execution_date));
         }
 
+        self.order_stock_sells()?;
         self.process_trades(true)
     }
 
@@ -149,9 +157,10 @@ impl BrokerStatement {
         }
 
         self.deposits.sort_by_key(|deposit| deposit.date);
-        self.stock_buys.sort_by_key(|trade| trade.conclusion_date);
-        self.stock_sells.sort_by_key(|trade| trade.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
+
+        self.order_stock_buys()?;
+        self.order_stock_sells()?;
 
         let min_date = self.period.0;
         let max_date = self.period.1 - Duration::days(1);
@@ -175,8 +184,6 @@ impl BrokerStatement {
             validate_date("deposit", first_date, last_date)?;
         }
 
-        // FIXME: Validate execution dates order
-
         if !self.stock_buys.is_empty() {
             let first_date = self.stock_buys.first().unwrap().conclusion_date;
             let last_date = self.stock_buys.last().unwrap().conclusion_date;
@@ -184,8 +191,8 @@ impl BrokerStatement {
         }
 
         if !self.stock_sells.is_empty() {
-            let first_date = self.stock_sells.first().unwrap().date;
-            let last_date = self.stock_sells.last().unwrap().date;
+            let first_date = self.stock_sells.first().unwrap().conclusion_date;
+            let last_date = self.stock_sells.last().unwrap().conclusion_date;
             validate_date("stock sell", first_date, last_date)?;
         }
 
@@ -193,6 +200,42 @@ impl BrokerStatement {
             let first_date = self.dividends.first().unwrap().date;
             let last_date = self.dividends.last().unwrap().date;
             validate_date("dividend", first_date, last_date)?;
+        }
+
+        Ok(())
+    }
+
+    fn order_stock_buys(&mut self) -> EmptyResult {
+        self.stock_buys.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
+
+        let mut prev_execution_date = None;
+
+        for stock_buy in &self.stock_buys {
+            if let Some(prev_execution_date) = prev_execution_date {
+                if stock_buy.execution_date < prev_execution_date {
+                    return Err!("Got an unexpected execution order for buy trades");
+                }
+            }
+
+            prev_execution_date = Some(stock_buy.execution_date);
+        }
+
+        Ok(())
+    }
+
+    fn order_stock_sells(&mut self) -> EmptyResult {
+        self.stock_sells.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
+
+        let mut prev_execution_date = None;
+
+        for stock_sell in &self.stock_sells {
+            if let Some(prev_execution_date) = prev_execution_date {
+                if stock_sell.execution_date < prev_execution_date {
+                    return Err!("Got an unexpected execution order for sell trades");
+                }
+            }
+
+            prev_execution_date = Some(stock_sell.execution_date);
         }
 
         Ok(())
@@ -271,9 +314,9 @@ impl BrokerStatement {
         }
         drop(unsold_stock_buys);
 
-        stock_buys.sort_by_key(|trade| trade.conclusion_date);
+        assert_eq!(stock_buys.len(), stock_buys_num);
         self.stock_buys = stock_buys;
-        assert_eq!(self.stock_buys.len(), stock_buys_num);
+        self.order_stock_buys()?;
 
         self.validate_open_positions()?;
 
@@ -422,19 +465,25 @@ impl StockBuy {
 
 #[derive(Debug)]
 pub struct StockSell {
-    pub date: Date,
     pub symbol: String,
     pub quantity: u32,
     pub price: Cash,
     pub commission: Cash,
+
+    pub conclusion_date: Date,
+    pub execution_date: Date,
+
     sources: Vec<StockSellSource>,
 }
 
 impl StockSell {
-    pub fn new(date: Date, symbol: &str, quantity: u32, price: Cash, commission: Cash) -> StockSell {
+    pub fn new(
+        symbol: &str, quantity: u32, price: Cash, commission: Cash,
+        conclusion_date: Date, execution_date: Date,
+    ) -> StockSell {
         StockSell {
-            date, quantity, price, commission,
-            symbol: symbol.to_owned(), sources: Vec::new(),
+            symbol: symbol.to_owned(), quantity, price, commission,
+            conclusion_date, execution_date, sources: Vec::new(),
         }
     }
 
@@ -467,10 +516,10 @@ impl StockSell {
         }
 
         let mut sell_revenue = converter.convert_to(
-            self.date, self.price * self.quantity, country.currency)?;
+            self.execution_date, self.price * self.quantity, country.currency)?;
 
         sell_revenue -= converter.convert_to(
-            self.date, self.commission, country.currency)?;
+            self.conclusion_date, self.commission, country.currency)?;
 
         let income = sell_revenue - purchase_cost;
 
