@@ -115,7 +115,7 @@ impl Assets {
             match asset.type_.as_str() {
                 "ПАИ" => {
                     let symbol = get_symbol(securities, &asset.name)?;
-                    let amount = parse_quantity(asset.end_amount)?;
+                    let amount = parse_quantity(asset.end_amount, true)?;
 
                     if amount != 0 {
                         if statement.open_positions.insert(symbol.clone(), amount).is_some() {
@@ -194,26 +194,20 @@ impl Trades {
 
             match (trade.buy_quantity, trade.sell_quantity) {
                 (Some(quantity), None) => {
-                    let quantity = parse_quantity(quantity)?;
+                    let quantity = parse_quantity(quantity, false)?;
 
                     statement.stock_buys.push(StockBuy::new(
                         symbol, quantity, price, commission,
                         trade.conclusion_date, trade.execution_date));
                 },
-//                (None, Some(quantity)) => {
-//                    let quantity = parse_quantity(quantity)?;
-//
-//                    statement.stock_sells.push(StockSell {
-//                        date: trade.execution_date,
-//                        symbol: symbol,
-//                        quantity: quantity,
-//                        price: price,
-//                        commission: commission,
-//                        sources: Vec::new(),
-//                    });
-//                },
-                // FIXME: Selling support
-                _ => return Err!("Stock selling is not supported yet")
+                (None, Some(quantity)) => {
+                    let quantity = parse_quantity(quantity, false)?;
+
+                    statement.stock_sells.push(StockSell::new(
+                        symbol, quantity, price, commission,
+                        trade.conclusion_date, trade.execution_date));
+                },
+                _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };
         }
 

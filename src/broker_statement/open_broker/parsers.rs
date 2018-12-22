@@ -30,13 +30,17 @@ pub fn parse_security_description(mut issuer: &str) -> &str {
     issuer.trim()
 }
 
-pub fn parse_quantity(decimal_quantity: Decimal) -> GenericResult<u32> {
+pub fn parse_quantity(decimal_quantity: Decimal, allow_zero: bool) -> GenericResult<u32> {
     Ok(decimal_quantity.to_u32().and_then(|quantity| {
-        if Decimal::from_u32(quantity).unwrap() == decimal_quantity {
-            Some(quantity)
-        } else {
-            None
+        if Decimal::from_u32(quantity).unwrap() != decimal_quantity {
+            return None;
         }
+
+        if !allow_zero && quantity == 0 {
+            return None;
+        }
+
+        Some(quantity)
     }).ok_or_else(|| format!("Invalid quantity: {}", decimal_quantity))?)
 }
 
