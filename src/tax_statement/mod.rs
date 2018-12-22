@@ -63,6 +63,7 @@ pub fn generate_tax_statement(
 
         let mut generator = TaxStatementGenerator {
             broker_statement: broker_statement,
+            year: year,
             tax_statement: tax_statement.as_mut(),
             converter: CurrencyConverter::new(database, true),
         };
@@ -80,6 +81,7 @@ pub fn generate_tax_statement(
 
 struct TaxStatementGenerator<'a> {
     broker_statement: BrokerStatement,
+    year: i32,
     tax_statement: Option<&'a mut TaxStatement>,
     converter: CurrencyConverter,
 }
@@ -101,6 +103,10 @@ impl<'a> TaxStatementGenerator<'a> {
         let mut total_income = dec!(0);
 
         for dividend in &self.broker_statement.dividends {
+            if dividend.date.year() != self.year {
+                continue;
+            }
+
             let currency = dividend.amount.currency;
             if currency != foreign_country.currency {
                 return Err!("{} dividend currency is not supported", currency);
