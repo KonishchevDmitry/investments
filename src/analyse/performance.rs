@@ -153,8 +153,16 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let current_assets = self.statement.cash_assets.total_assets(
             self.currency, self.converter)?;
 
+        // FIXME: Check this workaround
+        let mut end_date = self.date;
+        if let Some(sell_trade) = self.statement.stock_sells.last() {
+            if sell_trade.execution_date > end_date {
+                end_date = sell_trade.execution_date;
+            }
+        }
+
         let (interest, difference) = compare_to_bank_deposit(
-            &self.transactions, self.date, current_assets)?;
+            &self.transactions, end_date, current_assets)?;
 
         check_emulation_precision(
             &format!("portfolio {}", self.currency), current_assets, difference)?;
@@ -163,7 +171,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let start_date = self.transactions.first()
             .map(|transaction| transaction.date)
             .unwrap_or(self.statement.period.0);
-        let days = (self.date - start_date).num_days();
+        let days = (end_date - start_date).num_days();
 
         self.add_results("", investments, current_assets, interest, days);
 
@@ -278,11 +286,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
 
-        // FIXME: This date must be corrected according to periods with no assets
+        #[allow(unused_assignments)]
         let mut tax_payment_date = self.country.get_tax_payment_date(income_date);
-        if tax_payment_date > self.date {
-            tax_payment_date = self.date;
-        }
+        // FIXME: This date must be corrected according to periods with no assets
+        tax_payment_date = income_date;
+//        if tax_payment_date > self.date {
+//            tax_payment_date = self.date;
+//        }
 
         let deposit_amount = self.converter.convert_to(
             tax_payment_date, tax_to_pay, self.currency)?;
