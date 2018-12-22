@@ -89,17 +89,26 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         };
 
         let today = self.rate_cache.today();
-        if date > today || self.strict_mode && date == today {
+
+        if
+            // Strict mode for tax calculations when we must provide only real currency rates
+            self.strict_mode && date >= today ||
+
+            // Default mode for portfolio performance and other calculations where we have to
+            // operate with future dates because of T+2 trade mode with vacations
+            !self.strict_mode && date > today + Duration::days(7)
+        {
             return Err!("An attempt to make currency conversion for future date: {}",
                 formatting::format_date(date));
         }
 
-        let mut cur_date = date;
-        if cur_date == today {
-            cur_date -= Duration::days(1);
-        }
+        let mut cur_date = if date < today {
+            date
+        } else {
+            today - Duration::days(1)
+        };
 
-        let min_date = match date {
+        let min_date = match cur_date {
             date if date.month() == 1 && date.day() < 10 => Date::from_ymd(date.year() - 1, 12, 30),
             date if (date.month() == 3 || date.month() == 5) && date.day() < 13 => date - Duration::days(5),
             date => date - Duration::days(3),
