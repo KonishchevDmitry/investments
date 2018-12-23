@@ -133,17 +133,12 @@ mod tests {
     use super::*;
 
     #[test]
+    // FIXME: Replace with real data
     fn deposit_emulator() {
         let start_date = date!(28, 7, 2018);
         let initial_assets = dec!(200000);
         let transaction_amount = dec!(400000);
         let interest = dec!(7);
-
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets,
-            &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest);
-        assert_eq!(currency::round(result), decf!(607155.45));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
@@ -156,12 +151,46 @@ mod tests {
             &vec![Transaction::new(date!(14, 8, 2018), transaction_amount)],
             date!(28, 9, 2018), interest);
         assert_eq!(currency::round(result), decf!(605843.59));
+    }
 
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets,
-            &vec![Transaction::new(date!(28, 7, 2018), transaction_amount)],
-            date!(28, 1, 2019), interest);
-        assert_eq!(currency::round(result), decf!(621486.34));
+    #[test]
+    fn real_deposit() {
+        test_real_deposit(dec!(600000), None);
+    }
+
+    #[test]
+    fn real_deposit_fake_transaction() {
+        test_real_deposit(dec!(0), Some(dec!(600000)));
+    }
+
+    #[test]
+    fn real_deposit_initial_and_fake_transaction() {
+        test_real_deposit(dec!(400000), Some(dec!(200000)));
+    }
+
+    fn test_real_deposit(initial_assets: Decimal, transaction_amount: Option<Decimal>) {
+        let start_date = date!(28, 7, 2018);
+        let interest = dec!(7);
+
+        let mut transactions = Vec::new();
+        if let Some(amount) = transaction_amount {
+            transactions.push(Transaction::new(start_date, amount));
+        }
+
+        for (end_date, expected_assets) in [
+            (date!(28,  7, 2018), dec!(600000)),
+            (date!(28,  8, 2018), decf!(603567.12)),
+            (date!(28,  9, 2018), decf!(607155.45)),
+            (date!(28, 10, 2018), decf!(610648.68)),
+            (date!(28, 11, 2018), decf!(614279.11)),
+            (date!(28, 12, 2018), decf!(617813.32)),
+            (date!(28,  1, 2019), decf!(621486.34)),
+        ].iter().cloned() {
+            let result = DepositEmulator::emulate(
+                start_date, initial_assets, &transactions, end_date, interest);
+
+            assert_eq!(currency::round(result), expected_assets);
+        }
     }
 
     #[test]
