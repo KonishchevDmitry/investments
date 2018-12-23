@@ -5,12 +5,10 @@ use crate::types::{Date, Decimal};
 
 pub struct DepositEmulator {
     date: Date,
-    capitalization_day: u32,
-    next_capitalization_date: Date,
-
-    assets: Decimal,
+    interest_periods: Vec<InterestPeriod>,
+    interest_period: Option<ActiveInterestPeriod>,
     daily_interest: Decimal,
-    accumulated_income: Decimal,
+    assets: Decimal,
 }
 
 impl DepositEmulator {
@@ -18,65 +16,135 @@ impl DepositEmulator {
         start_date: Date, start_assets: Decimal, transactions: &Vec<Transaction>, end_date: Date,
         interest: Decimal,
     ) -> Decimal {
+        let mut interest_periods = Vec::new();
+
+        if start_date != end_date {
+            interest_periods.push(InterestPeriod::new(start_date, end_date));
+        } else {
+            assert!(start_date <= end_date);
+        }
+
         let mut emulator = DepositEmulator {
             date: start_date,
-            capitalization_day: start_date.day(),
-            next_capitalization_date: start_date,
-
-            assets: start_assets,
+            interest_periods: interest_periods,
+            interest_period: None,
             daily_interest: interest / dec!(100) / dec!(365),
-            accumulated_income: dec!(0),
+            assets: start_assets,
         };
-        emulator.set_next_capitalization_date();
+        emulator.select_interest_period();
 
         for transaction in transactions {
             emulator.process_transaction(transaction);
         }
 
         emulator.process_to(end_date);
-        emulator.capitalize();
+        assert!(emulator.interest_period.is_none());
 
         emulator.assets
     }
 
+    fn select_interest_period(&mut self) {
+        assert!(self.interest_period.is_none());
+
+        let period = match self.interest_periods.last() {
+            Some(period) => *period,
+            None => return,
+        };
+
+        assert!(self.date <= period.start);
+        if self.date != period.start {
+            return
+        }
+
+        self.interest_periods.pop().unwrap();
+
+        let mut interest_period = ActiveInterestPeriod {
+            start_date: period.start,
+            next_capitalization_date: period.start,
+            accumulated_income: dec!(0),
+            end_date: period.end,
+        };
+        interest_period.set_next_capitalization_date();
+
+        self.interest_period = Some(interest_period);
+    }
+
     fn process_transaction(&mut self, transaction: &Transaction) {
         self.process_to(transaction.date);
-        assert_eq!(self.date, transaction.date);
         self.assets += transaction.amount;
     }
 
     fn process_to(&mut self, date: Date) {
-        while date >= self.next_capitalization_date {
-            let capitalization_date = self.next_capitalization_date;
-            self.accumulate_income(capitalization_date);
-            self.capitalize();
-            self.set_next_capitalization_date();
+        assert!(self.date <= date);
+
+        while self.date < date {
+            if let Some(interest_period) = self.interest_period {
+                // We're inside of the interest period
+
+                if date >= interest_period.next_capitalization_date {
+                    self.accumulate_income_to(interest_period.next_capitalization_date);
+
+                    if self.date == interest_period.end_date {
+                        self.close_interest_period();
+                    } else {
+                        self.capitalize();
+                    }
+                } else {
+                    self.accumulate_income_to(date);
+                }
+            } else {
+                // We're outside of the interest period
+
+                if let Some(next_period) = self.interest_periods.last() {
+                    assert!(self.date < next_period.start);
+
+                    if date < next_period.start {
+                        self.date = date;
+                    } else {
+                        self.date = next_period.start;
+                        self.select_interest_period();
+                    }
+                } else {
+                    self.date = date;
+                }
+            }
         }
 
-        self.accumulate_income(date);
+        assert_eq!(self.date, date);
     }
 
-    fn accumulate_income(&mut self, date: Date) {
+    fn accumulate_income_to(&mut self, date: Date) {
+        let interest_period = self.interest_period.as_mut().unwrap();
+
         assert!(self.date <= date);
-        assert!(date <= self.next_capitalization_date);
+        assert!(interest_period.start_date <= self.date);
+        assert!(date <= interest_period.next_capitalization_date);
 
         if self.assets.is_sign_positive() {
             let days = (date - self.date).num_days();
-            self.accumulated_income += self.assets * self.daily_interest * Decimal::from(days);
+            let income = self.assets * self.daily_interest * Decimal::from(days);
+            interest_period.accumulated_income += income;
         }
 
         self.date = date;
     }
 
     fn capitalize(&mut self) {
-        self.assets += self.accumulated_income;
-        self.accumulated_income = dec!(0);
+        let interest_period = self.interest_period.as_mut().unwrap();
+        assert_eq!(self.date, interest_period.next_capitalization_date);
+
+        self.assets += interest_period.accumulated_income;
+        interest_period.accumulated_income = dec!(0);
+
+        interest_period.set_next_capitalization_date();
     }
 
-    fn set_next_capitalization_date(&mut self) {
-        assert_eq!(self.date, self.next_capitalization_date);
-        self.next_capitalization_date = get_next_capitalization_date(
-            self.next_capitalization_date, self.capitalization_day);
+    fn close_interest_period(&mut self) {
+        let interest_period = self.interest_period.take().unwrap();
+        assert_eq!(self.date, interest_period.end_date);
+        self.assets += interest_period.accumulated_income;
+
+        self.select_interest_period();
     }
 }
 
@@ -90,6 +158,40 @@ impl Transaction {
         Transaction {
             date: date,
             amount: amount,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct InterestPeriod {
+    start: Date,
+    end: Date,
+}
+
+impl InterestPeriod {
+    pub fn new(start: Date, end: Date) -> InterestPeriod {
+        assert!(start < end);
+        InterestPeriod { start, end }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ActiveInterestPeriod {
+    start_date: Date,
+    next_capitalization_date: Date,
+    accumulated_income: Decimal,
+    end_date: Date,
+}
+
+impl ActiveInterestPeriod {
+    fn set_next_capitalization_date(&mut self) {
+        assert!(self.next_capitalization_date < self.end_date);
+
+        self.next_capitalization_date = get_next_capitalization_date(
+            self.next_capitalization_date, self.start_date.day());
+
+        if self.next_capitalization_date > self.end_date {
+            self.next_capitalization_date = self.end_date;
         }
     }
 }
