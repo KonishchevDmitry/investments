@@ -331,7 +331,7 @@ fn compare_to_bank_deposit(
 
     let emulate = |interest: Decimal| -> Decimal {
         let result_assets = DepositEmulator::emulate(
-            start_date, start_assets, transactions, current_date, interest);
+            start_date, start_assets, transactions, current_date, interest, None);
 
         let difference = (current_assets - result_assets).abs();
 

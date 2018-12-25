@@ -14,11 +14,13 @@ pub struct DepositEmulator {
 impl DepositEmulator {
     pub fn emulate(
         start_date: Date, start_assets: Decimal, transactions: &Vec<Transaction>, end_date: Date,
-        interest: Decimal,
+        interest: Decimal, custom_interest_periods: Option<&Vec<InterestPeriod>>
     ) -> Decimal {
         let mut interest_periods = Vec::new();
 
-        if start_date != end_date {
+        if let Some(custom_interest_periods) = custom_interest_periods {
+            interest_periods.extend(custom_interest_periods.iter().rev())
+        } else if start_date != end_date {
             interest_periods.push(InterestPeriod::new(start_date, end_date));
         } else {
             assert!(start_date <= end_date);
@@ -235,8 +237,9 @@ mod tests {
     use super::*;
 
     #[test]
-    // FIXME: Replace with real data
     fn deposit_emulator() {
+        // FIXME: Replace with real data
+
         let start_date = date!(28, 7, 2018);
         let initial_assets = dec!(200000);
         let transaction_amount = dec!(400000);
@@ -245,13 +248,13 @@ mod tests {
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(28, 8, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest);
+            date!(28, 9, 2018), interest, None);
         assert_eq!(currency::round(result), decf!(604763.23));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
             &vec![Transaction::new(date!(14, 8, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest);
+            date!(28, 9, 2018), interest, None);
         assert_eq!(currency::round(result), decf!(605843.59));
     }
 
@@ -289,10 +292,53 @@ mod tests {
             (date!(28,  1, 2019), decf!(621486.34)),
         ].iter().cloned() {
             let result = DepositEmulator::emulate(
-                start_date, initial_assets, &transactions, end_date, interest);
+                start_date, initial_assets, &transactions, end_date, interest, None);
 
             assert_eq!(currency::round(result), expected_assets);
         }
+    }
+
+    #[test]
+    fn joint_deposits() {
+        let interest = dec!(7);
+        let mut transactions = Vec::new();
+        let mut interest_periods = Vec::new();
+
+        // Some assets without interest
+        let start_date = date!(1, 1, 2018);
+        let initial_assets = dec!(200000);
+
+        // First deposit
+        transactions.push(Transaction::new(date!(28, 7, 2018), dec!(400000)));
+        interest_periods.push(InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019)));
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets, &transactions, date!(28, 1, 2019),
+            interest, Some(&interest_periods));
+        assert_eq!(currency::round(result), decf!(621486.34));
+
+        // FIXME: Replace with real data all below
+
+        // A pause with no interest
+        transactions.push(Transaction::new(date!(8, 2, 2019), dec!(300000) - result));
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets, &transactions, date!(28, 3, 2019),
+            interest, Some(&interest_periods));
+        assert_eq!(currency::round(result), dec!(300000));
+
+        // Second deposit
+        transactions.push(Transaction::new(date!(28, 3, 2019), dec!(300000)));
+        interest_periods.push(InterestPeriod::new(date!(28, 3, 2019), date!(28, 4, 2019)));
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets, &transactions, date!(28, 4, 2019),
+            interest, Some(&interest_periods));
+        assert_eq!(currency::round(result), decf!(603567.12));
+
+        // Some activity with no interest
+        transactions.push(Transaction::new(date!(8, 5, 2019), dec!(300000) - result));
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets, &transactions, date!(1, 6, 2019),
+            interest, Some(&interest_periods));
+        assert_eq!(currency::round(result), dec!(300000));
     }
 
     #[test]
