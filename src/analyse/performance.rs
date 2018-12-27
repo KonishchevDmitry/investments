@@ -1,5 +1,8 @@
-use std::collections::HashMap;
+use std;
+use std::collections::{HashMap, BTreeMap};
 
+use cast::From as CastFrom;
+use chrono::Duration;
 use log::debug;
 use num_traits::{ToPrimitive, Zero};
 use prettytable::{Table, Row, Cell};
@@ -15,7 +18,7 @@ use crate::regulations::{self, Country};
 use crate::types::{Date, Decimal};
 use crate::util;
 
-use super::deposit_emulator::{DepositEmulator, Transaction};
+use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 
 // FIXME: Free commissions support?
 
@@ -26,7 +29,6 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     currency: &'a str,
     converter: &'a CurrencyConverter,
 
-    date: Date,
     country: Country,
     transactions: Vec<Transaction>,
     instruments: Option<HashMap<String, StockDepositView>>,
@@ -43,7 +45,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             currency: currency,
             converter: converter,
 
-            date: util::today(),
             country: regulations::russia(),
             transactions: Vec::new(),
             instruments: Some(HashMap::new()),
@@ -57,6 +58,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         // FIXME: Withdrawals support
+        analyser.calculate_open_position_periods()?;
         analyser.process_deposits()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
@@ -110,19 +112,12 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn analyse_instrument_performance(&mut self, symbol: &str, mut deposit_view: StockDepositView) -> EmptyResult {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
-        let (sell_date, sell_volume) = match deposit_view.sell_transaction {
-            Some(transaction) => transaction,
-            None => return Err!(concat!(
-                "Inconsistent broker statement: ",
-                "It has income/expenses for {} but doesn't have any buy/sell transactions for it"),
-                symbol),
-        };
-
         let (interest, difference) = compare_to_bank_deposit(
-            &deposit_view.transactions, sell_date, dec!(0))?;
+            &deposit_view.transactions, &deposit_view.interest_periods, dec!(0))?;
 
         check_emulation_precision(
-            &format!("{} {}", symbol, self.currency), sell_volume, difference)?;
+            &format!("{} {}", symbol, self.currency),
+            deposit_view.last_sell_volume.unwrap(), difference)?;
 
         let mut investments = dec!(0);
         let mut result = dec!(0);
@@ -136,8 +131,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         let name = self.statement.get_instrument_name(symbol)?;
-        // FIXME: Zero assets pauses
-        let days = (sell_date - deposit_view.transactions.first().unwrap().date).num_days();
+        let days = get_total_activity_duration(&deposit_view.interest_periods);
 
         self.add_results(&name, investments, result, interest, days);
 
@@ -145,7 +139,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn analyse_portfolio_performance(&mut self) -> EmptyResult {
+        if self.transactions.is_empty() {
+            return Err!("The portfolio has no activity yet");
+        }
+
         self.transactions.sort_by_key(|transaction| transaction.date);
+        let activity_periods = vec![InterestPeriod::new(
+            self.transactions.first().unwrap().date, util::today())];
 
         let mut investments = dec!(0);
         for transaction in &self.transactions {
@@ -155,36 +155,126 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let current_assets = self.statement.cash_assets.total_assets(
             self.currency, self.converter)?;
 
-        // FIXME: Check this workaround
-        let mut end_date = self.date;
-        if let Some(sell_trade) = self.statement.stock_sells.last() {
-            if sell_trade.execution_date > end_date {
-                end_date = sell_trade.execution_date;
-            }
-        }
-
         let (interest, difference) = compare_to_bank_deposit(
-            &self.transactions, end_date, current_assets)?;
+            &self.transactions, &activity_periods, current_assets)?;
 
         check_emulation_precision(
             &format!("portfolio {}", self.currency), current_assets, difference)?;
 
-        // FIXME: Zero assets pauses
-        let start_date = self.transactions.first()
-            .map(|transaction| transaction.date)
-            .unwrap_or(self.statement.period.0);
-        let days = (end_date - start_date).num_days();
-
+        let days = get_total_activity_duration(&activity_periods);
         self.add_results("", investments, current_assets, interest, days);
 
         Ok(())
     }
 
-    fn get_deposit_view(&mut self, symbol: &String) -> &mut StockDepositView {
-        if !self.instruments.as_ref().unwrap().contains_key(symbol) {
-            self.instruments.as_mut().unwrap().insert(symbol.clone(), StockDepositView::new());
+    fn get_deposit_view(&mut self, symbol: &String) -> GenericResult<&mut StockDepositView> {
+        Ok(self.instruments.as_mut().unwrap().get_mut(symbol).ok_or_else(|| format!(
+            "Got an unexpected transaction for {} which had no open positions", symbol))?)
+    }
+
+    fn calculate_open_position_periods(&mut self) -> EmptyResult {
+        struct Trade {
+            quantity: i32,
+            conclusion_date: Date,
         }
-        self.instruments.as_mut().unwrap().get_mut(symbol).unwrap()
+        type Trades = BTreeMap<Date, Trade>;
+        let mut trades: HashMap<&str, Trades> = HashMap::new();
+
+        let add_trade = |
+            symbol_trades: std::collections::hash_map::Entry<&str, Trades>, quantity: i32,
+            conclusion_date: Date, execution_date: Date
+        | {
+            symbol_trades.or_insert_with(|| BTreeMap::new())
+                .entry(execution_date)
+                .and_modify(|trade| {
+                    if quantity > 0 {
+                        trade.conclusion_date = std::cmp::min(trade.conclusion_date, conclusion_date);
+                    }
+                    trade.quantity += quantity;
+                })
+                .or_insert_with(|| Trade {
+                    conclusion_date: conclusion_date,
+                    quantity: quantity,
+                });
+        };
+
+        for stock_buy in &self.statement.stock_buys {
+            add_trade(trades.entry(&stock_buy.symbol),
+                      i32::cast(stock_buy.quantity).unwrap(),
+                      stock_buy.conclusion_date, stock_buy.execution_date);
+        }
+
+        for stock_sell in &self.statement.stock_sells {
+            add_trade(trades.entry(&stock_sell.symbol),
+                      -i32::cast(stock_sell.quantity).unwrap(),
+                      stock_sell.conclusion_date, stock_sell.execution_date);
+        }
+
+        struct OpenPosition {
+            start_date: Date,
+            quantity: i32,
+        }
+
+        for (symbol, symbol_trades) in &trades {
+            let symbol = *symbol;
+            let mut open_position = None;
+            let mut open_periods: Vec<InterestPeriod> = Vec::new();
+
+            for (execution_date, trade) in symbol_trades {
+                let execution_date = *execution_date;
+                let current = open_position.get_or_insert_with(|| {
+                    OpenPosition {
+                        start_date: trade.conclusion_date,
+                        quantity: 0,
+                    }
+                });
+
+                current.quantity += trade.quantity;
+
+                if current.quantity > 0 {
+                    continue;
+                } else if current.quantity < 0 {
+                    return Err!(
+                        "Error while processing {} sell operations: Got a negative balance on {}",
+                        symbol, formatting::format_date(execution_date));
+                }
+
+                let start_date = current.start_date;
+                let end_date = if execution_date == start_date {
+                    start_date + Duration::days(1)
+                } else {
+                    execution_date
+                };
+
+                match open_periods.last_mut() {
+                    Some(ref mut period) if period.end >= start_date => {
+                        assert!(period.end < end_date);
+                        period.end = end_date;
+                    },
+                    _ => open_periods.push(InterestPeriod::new(start_date, end_date)),
+                };
+
+                open_position = None;
+            }
+
+            if open_position.is_some() {
+                return Err!(
+                    "The portfolio contains unsold {} stocks when sellout simulation is expected",
+                    symbol);
+            }
+
+            assert!(!open_periods.is_empty());
+            let deposit_view = StockDepositView {
+                transactions: Vec::new(),
+                interest_periods: open_periods,
+                last_sell_volume: None,
+            };
+
+            assert!(self.instruments.as_mut().unwrap()
+                .insert(symbol.to_string(), deposit_view).is_none());
+        }
+
+        Ok(())
     }
 
     fn process_deposits(&mut self) -> EmptyResult {
@@ -211,7 +301,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             assets += self.converter.convert_to(
                 stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
 
-            self.get_deposit_view(&stock_buy.symbol).transactions.push(
+            self.get_deposit_view(&stock_buy.symbol)?.transactions.push(
                 Transaction::new(stock_buy.conclusion_date, assets));
         }
 
@@ -223,7 +313,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 stock_sell.conclusion_date, stock_sell.commission, self.currency)?;
 
             {
-                let deposit_view = self.get_deposit_view(&stock_sell.symbol);
+                let deposit_view = self.get_deposit_view(&stock_sell.symbol)?;
 
                 deposit_view.transactions.push(Transaction::new(
                     stock_sell.execution_date, -assets));
@@ -231,9 +321,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 deposit_view.transactions.push(Transaction::new(
                     stock_sell.conclusion_date, commission));
 
-                // FIXME: Consider to send a marker to deposit emulator when for some period we have
-                // no open positions.
-                deposit_view.sell_transaction = Some((stock_sell.execution_date, assets));
+                deposit_view.last_sell_volume.replace(assets);
             }
 
             let tax_to_pay = stock_sell.tax_to_pay(&self.country, self.converter)?;
@@ -256,7 +344,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             amount.sub(dividend.paid_tax);
             let amount = self.converter.convert_to(dividend.date, amount, self.currency)?;
 
-            self.get_deposit_view(&dividend.issuer).transactions.push(
+            self.get_deposit_view(&dividend.issuer)?.transactions.push(
                 Transaction::new(dividend.date, -amount));
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
@@ -287,19 +375,19 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         assert!(tax_to_pay.is_sign_positive());
 
         let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
+        let tax_payment_date = self.country.get_tax_payment_date(income_date);
 
-        #[allow(unused_assignments)]
-        let mut tax_payment_date = self.country.get_tax_payment_date(income_date);
-        // FIXME: This date must be corrected according to periods with no assets
-        tax_payment_date = income_date;
-//        if tax_payment_date > self.date {
-//            tax_payment_date = self.date;
-//        }
+        let today = util::today();
+        let conversion_date = if tax_payment_date > today {
+            today
+        } else {
+            tax_payment_date
+        };
 
         let deposit_amount = self.converter.convert_to(
-            tax_payment_date, tax_to_pay, self.currency)?;
+            conversion_date, tax_to_pay, self.currency)?;
 
-        self.get_deposit_view(symbol).transactions.push(
+        self.get_deposit_view(symbol)?.transactions.push(
             Transaction::new(tax_payment_date, deposit_amount));
 
         self.transactions.push(
@@ -311,27 +399,28 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
 struct StockDepositView {
     transactions: Vec<Transaction>,
-    sell_transaction: Option<(Date, Decimal)>,
-}
-
-impl StockDepositView {
-    fn new() -> StockDepositView {
-        StockDepositView {
-            transactions: Vec::new(),
-            sell_transaction: None,
-        }
-    }
+    interest_periods: Vec<InterestPeriod>,
+    last_sell_volume: Option<Decimal>,
 }
 
 fn compare_to_bank_deposit(
-    transactions: &Vec<Transaction>, current_date: Date, current_assets: Decimal
+    transactions: &Vec<Transaction>, interest_periods: &Vec<InterestPeriod>, current_assets: Decimal
 ) -> GenericResult<(Decimal, Decimal)> {
-    let start_date = transactions.first().unwrap().date;
     let start_assets = dec!(0);
+
+    let start_date = std::cmp::min(
+        transactions.first().unwrap().date,
+        interest_periods.first().unwrap().start,
+    );
+
+    let end_date = std::cmp::max(
+        transactions.last().unwrap().date,
+        interest_periods.last().unwrap().end,
+    );
 
     let emulate = |interest: Decimal| -> Decimal {
         let result_assets = DepositEmulator::emulate(
-            start_date, start_assets, transactions, current_date, interest, None);
+            start_date, start_assets, transactions, end_date, interest, Some(interest_periods));
 
         let difference = (current_assets - result_assets).abs();
 
@@ -391,15 +480,36 @@ fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -
     Ok(())
 }
 
+fn get_total_activity_duration(periods: &Vec<InterestPeriod>) -> i64 {
+    periods.iter().map(|period| (period.end - period.start).num_days()).sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn comparing_to_bank_deposit() {
+    fn real_deposit() {
         let (interest, difference) = compare_to_bank_deposit(
             &vec![Transaction::new(date!(28, 7, 2018), dec!(600000))],
-            date!(28, 1, 2019), decf!(621486.34),
+            &vec![InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
+            decf!(621486.34),
+        ).unwrap();
+
+        assert_eq!(interest, dec!(7));
+        assert!(difference < decf!(0.01));
+    }
+
+    #[test]
+    fn real_deposit_fake_transactions() {
+        let (interest, difference) = compare_to_bank_deposit(
+            &vec![
+                Transaction::new(date!( 2, 2, 2018), dec!(200000)),
+                Transaction::new(date!(28, 7, 2018), dec!(400000)),
+                Transaction::new(date!( 3, 3, 2019), dec!(-300000)),
+            ],
+            &vec![InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
+            decf!(321486.34),
         ).unwrap();
 
         assert_eq!(interest, dec!(7));
