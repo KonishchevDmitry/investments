@@ -8,6 +8,7 @@ authors = ["Dmitry Konishchev"]
 ansi_term = "*"
 chrono = "*"
 chrono-tz = "*"
+cast = "*"
 clap = "*"
 csv = "*"
 diesel = { version = "*", features = ["sqlite", "chrono"] }
