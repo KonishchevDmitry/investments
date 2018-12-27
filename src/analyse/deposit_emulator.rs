@@ -166,8 +166,8 @@ impl Transaction {
 
 #[derive(Clone, Copy)]
 pub struct InterestPeriod {
-    start: Date,
-    end: Date,
+    pub start: Date,
+    pub end: Date,
 }
 
 impl InterestPeriod {
