@@ -85,21 +85,20 @@ impl RecordParser for CashReportParser {
     }
 }
 
-pub struct DepositsParser {}
+pub struct DepositsAndWithdrawalsParser {}
 
-impl RecordParser for DepositsParser {
+impl RecordParser for DepositsAndWithdrawalsParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         if currency.starts_with("Total") {
             return Ok(());
         }
 
-        // TODO: Withdrawals support
         let date = parse_date(record.get_value("Settle Date")?)?;
-        let amount = Cash::new(
-            currency, record.parse_cash("Amount", DecimalRestrictions::StrictlyPositive)?);
+        let amount = record.parse_cash("Amount", DecimalRestrictions::NonZero)?;
 
-        parser.statement.deposits.push(CashAssets::new_from_cash(date, amount));
+        parser.statement.cash_flows.push(
+            CashAssets::new_from_cash(date, Cash::new(currency, amount)));
 
         Ok(())
     }

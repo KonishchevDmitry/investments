@@ -57,9 +57,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 "Unable to calculate current assets: The broker statement has open positions");
         }
 
-        // FIXME: Withdrawals support
         analyser.calculate_open_position_periods()?;
-        analyser.process_deposits()?;
+        analyser.process_deposits_and_withdrawals()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
         analyser.process_tax_deductions(tax_deductions)?;
@@ -277,17 +276,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn process_deposits(&mut self) -> EmptyResult {
-        if self.statement.deposits.is_empty() {
-            return Err!("Broker statement contains no deposits");
-        }
+    fn process_deposits_and_withdrawals(&mut self) -> EmptyResult {
+        for mut cash_flow in self.statement.cash_flows.iter().cloned() {
+            if cash_flow.cash.is_positive() {
+                cash_flow.cash.amount += self.statement.broker.get_deposit_commission(cash_flow)?;
+            }
 
-        for mut deposit in self.statement.deposits.iter().cloned() {
-            assert!(deposit.cash.is_positive());
-            deposit.cash.amount += self.statement.broker.get_deposit_commission(deposit)?;
-            let amount = self.converter.convert_to(deposit.date, deposit.cash, self.currency)?;
-
-            self.transactions.push(Transaction::new(deposit.date, amount));
+            let amount = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.currency)?;
+            self.transactions.push(Transaction::new(cash_flow.date, amount));
         }
 
         Ok(())

@@ -105,7 +105,7 @@ impl StatementParser {
                         "Cash Report" => Box::new(parsers::CashReportParser {}),
                         "Open Positions" => Box::new(trades::OpenPositionsParser {}),
                         "Trades" => Box::new(trades::TradesParser {}),
-                        "Deposits & Withdrawals" => Box::new(parsers::DepositsParser {}),
+                        "Deposits & Withdrawals" => Box::new(parsers::DepositsAndWithdrawalsParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
                         "Financial Instrument Information" => Box::new(parsers::FinancialInstrumentInformationParser {}),
@@ -191,7 +191,7 @@ mod tests {
         assert!(!statement.starting_assets);
         assert!(!statement.cash_assets.is_empty());
 
-        assert!(!statement.deposits.is_empty());
+        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.stock_buys.is_empty());
         assert!(statement.stock_sells.is_empty());
         assert!(!statement.dividends.is_empty());

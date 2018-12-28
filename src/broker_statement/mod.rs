@@ -26,7 +26,7 @@ pub struct BrokerStatement {
     pub period: (Date, Date),
 
     starting_assets: bool,
-    pub deposits: Vec<CashAssets>,
+    pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
 
     pub stock_buys: Vec<StockBuy>,
@@ -131,7 +131,7 @@ impl BrokerStatement {
 
         self.period.1 = statement.period.1;
 
-        self.deposits.extend(statement.deposits.drain(..));
+        self.cash_flows.extend(statement.cash_flows.drain(..));
         self.cash_assets = statement.cash_assets;
 
         self.stock_buys.extend(statement.stock_buys.drain(..));
@@ -156,7 +156,7 @@ impl BrokerStatement {
             return Err!("Unable to find any information about current cash assets");
         }
 
-        self.deposits.sort_by_key(|deposit| deposit.date);
+        self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
 
         self.order_stock_buys()?;
@@ -178,10 +178,10 @@ impl BrokerStatement {
             Ok(())
         };
 
-        if !self.deposits.is_empty() {
-            let first_date = self.deposits.first().unwrap().date;
-            let last_date = self.deposits.last().unwrap().date;
-            validate_date("deposit", first_date, last_date)?;
+        if !self.cash_flows.is_empty() {
+            let first_date = self.cash_flows.first().unwrap().date;
+            let last_date = self.cash_flows.last().unwrap().date;
+            validate_date("cash flow", first_date, last_date)?;
         }
 
         if !self.stock_buys.is_empty() {
@@ -375,7 +375,7 @@ pub struct BrokerStatementBuilder {
     period: Option<(Date, Date)>,
 
     starting_assets: Option<bool>,
-    deposits: Vec<CashAssets>,
+    cash_flows: Vec<CashAssets>,
     cash_assets: MultiCurrencyCashAccount,
 
     stock_buys: Vec<StockBuy>,
@@ -393,7 +393,7 @@ impl BrokerStatementBuilder {
             period: None,
 
             starting_assets: None,
-            deposits: Vec::new(),
+            cash_flows: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
 
             stock_buys: Vec::new(),
@@ -419,7 +419,7 @@ impl BrokerStatementBuilder {
             period: get_option("statement period", self.period)?,
 
             starting_assets: get_option("starting assets", self.starting_assets)?,
-            deposits: self.deposits,
+            cash_flows: self.cash_flows,
             cash_assets: self.cash_assets,
 
             stock_buys: self.stock_buys,

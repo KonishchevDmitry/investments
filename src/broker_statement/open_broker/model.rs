@@ -247,7 +247,7 @@ impl CashFlows {
                     let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyPositive)
                         .map_err(|_| format!("Invalid deposit amount: {}", amount))?;
 
-                    statement.deposits.push(
+                    statement.cash_flows.push(
                         CashAssets::new_from_cash(date, Cash::new(currency, amount)));
                 },
                 CashFlowType::Commission => (),
