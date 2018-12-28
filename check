@@ -16,9 +16,8 @@ get_lint_args() {
     ' <<< "$lints"
 }
 
-cargo clippy --all-targets -- $(get_lint_args -A '
+cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     # FIXME: Check all lints below
-    borrowed_box
     cast_lossless
     collapsible_if
     const_static_lifetime

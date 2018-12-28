@@ -44,8 +44,8 @@ impl BrokerStatement {
             Broker::OpenBroker => open_broker::StatementReader::new(config),
         }?;
 
-        let mut file_names = get_statement_files(statement_dir_path, &statement_reader).map_err(|e| format!(
-            "Error while reading {:?}: {}", statement_dir_path, e))?;
+        let mut file_names = get_statement_files(statement_dir_path, statement_reader.as_ref())
+            .map_err(|e| format!("Error while reading {:?}: {}", statement_dir_path, e))?;
         file_names.sort();
 
         let mut statements = Vec::new();
@@ -349,7 +349,7 @@ impl BrokerStatement {
 }
 
 fn get_statement_files(
-    statement_dir_path: &str, statement_reader: &Box<BrokerStatementReader>
+    statement_dir_path: &str, statement_reader: &BrokerStatementReader
 ) -> GenericResult<Vec<String>> {
     let mut file_names = Vec::new();
 
