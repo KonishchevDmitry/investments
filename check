@@ -1,8 +1,41 @@
 #!/bin/sh
 #
-# Checks compile warnings for both test and non-test mode
+# Checks code with clippy linter
 #
 
-set -x
-cargo check
-cargo check --tests
+set -eu
+
+get_lint_args() {
+    local action="$1"
+    local lints="$2"
+
+    sed -r '
+    s/\s*#.*//
+    /^\s*$/d
+    s/^\s*(.*)/'"$action"' clippy::\1/
+    ' <<< "$lints"
+}
+
+cargo clippy --all-targets -- $(get_lint_args -A '
+    # FIXME: Check all lints below
+    borrowed_box
+    cast_lossless
+    collapsible_if
+    const_static_lifetime
+    cyclomatic_complexity
+    for_kv_map
+    let_and_return
+    map_clone
+    needless_pass_by_value
+    needless_return
+    new_ret_no_self
+    or_fun_call
+    ptr_arg
+    redundant_closure
+    redundant_field_names
+    redundant_pattern_matching
+    too_many_arguments
+    unit_arg
+    unreadable_literal
+    useless_format
+')
