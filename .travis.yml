@@ -15,6 +15,9 @@ install:
   - test $UPDATE_DEPENDENCIES != true || cargo update
   - cargo build
 
+before_script:
+  - rustup component add clippy
+
 # Skip tests that require real statements from private submodule
 script:
   - ./check
