@@ -18,7 +18,6 @@ get_lint_args() {
 
 cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     # FIXME: Check all lints below
-    cast_lossless
     collapsible_if
     const_static_lifetime
     cyclomatic_complexity

@@ -33,7 +33,7 @@ impl TaxStatementReader {
         let year = extension_regex.captures(path)
             .and_then(|captures| captures.get(1).unwrap().as_str().parse::<u8>().ok())
             .ok_or_else(||"Invalid tax statement file extension: *.dcX is expected")?;
-        let year = 2010 + (year as i32);
+        let year = 2010 + i32::from(year);
 
         let mut reader = TaxStatementReader {
             file: BufReader::new(File::open(path)?),
