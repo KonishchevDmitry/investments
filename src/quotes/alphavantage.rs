@@ -16,10 +16,10 @@ use crate::util::{self, DecimalRestrictions};
 use super::{QuotesMap, QuotesProvider};
 
 #[cfg(not(test))]
-const BASE_URL: &'static str = "https://www.alphavantage.co";
+const BASE_URL: &str = "https://www.alphavantage.co";
 
 #[cfg(test)]
-const BASE_URL: &'static str = mockito::SERVER_URL;
+const BASE_URL: &str = mockito::SERVER_URL;
 
 pub struct AlphaVantage {
     api_key: String,

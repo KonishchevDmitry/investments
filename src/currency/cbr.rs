@@ -13,10 +13,10 @@ use crate::types::{Date, Decimal};
 use crate::util;
 
 #[cfg(not(test))]
-const CBR_URL: &'static str = "http://www.cbr.ru";
+const CBR_URL: &str = "http://www.cbr.ru";
 
 #[cfg(test)]
-const CBR_URL: &'static str = mockito::SERVER_URL;
+const CBR_URL: &str = mockito::SERVER_URL;
 
 pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
     let currency_code = match currency {

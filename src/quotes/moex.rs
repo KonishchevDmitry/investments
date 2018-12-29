@@ -13,10 +13,10 @@ use crate::types::Decimal;
 use super::{QuotesMap, QuotesProvider};
 
 #[cfg(not(test))]
-const BASE_URL: &'static str = "https://iss.moex.com";
+const BASE_URL: &str = "https://iss.moex.com";
 
 #[cfg(test)]
-const BASE_URL: &'static str = mockito::SERVER_URL;
+const BASE_URL: &str = mockito::SERVER_URL;
 
 pub struct Moex {
 }
