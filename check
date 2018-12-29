@@ -20,11 +20,8 @@ cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     collapsible_if
 
     # FIXME: Check all lints below
-    for_kv_map
-    let_and_return
-    map_clone
     needless_pass_by_value
-    needless_return
+
     new_ret_no_self
     or_fun_call
     ptr_arg

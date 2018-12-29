@@ -138,7 +138,7 @@ impl RecordParser for UnknownRecordParser {
 fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
     let dates = period.split(" - ").collect::<Vec<_>>();
 
-    return Ok(match dates.len() {
+    Ok(match dates.len() {
         1 => {
             let date = parse_period_date(dates[0])?;
             (date, date + Duration::days(1))
@@ -156,7 +156,7 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
             (start, end)
         },
         _ => return Err!("Invalid date: {:?}", period),
-    });
+    })
 }
 
 fn parse_period_date(date: &str) -> GenericResult<Date> {

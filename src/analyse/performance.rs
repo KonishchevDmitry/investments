@@ -418,9 +418,7 @@ fn compare_to_bank_deposit(
         let result_assets = DepositEmulator::emulate(
             start_date, start_assets, transactions, end_date, interest, Some(interest_periods));
 
-        let difference = (current_assets - result_assets).abs();
-
-        difference
+        (current_assets - result_assets).abs()
     };
 
     let mut interest = dec!(0);

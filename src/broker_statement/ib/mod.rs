@@ -175,7 +175,7 @@ impl StatementParser {
 fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
     let name = record.get(0).unwrap();
     let fields = record.iter().skip(2).collect::<Vec<_>>();
-    trace!("Header: {}: {}.", name, format_record(fields.iter().map(|field: &&str| *field)));
+    trace!("Header: {}: {}.", name, format_record(fields.iter().cloned()));
     Ok((name, fields))
 }
 

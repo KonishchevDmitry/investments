@@ -195,10 +195,10 @@ mod tests {
         let mut body = String::new();
         File::open(body_path).unwrap().read_to_string(&mut body).unwrap();
 
-        return mock("GET", path)
+        mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/xml; charset=utf-8")
             .with_body(body)
-            .create();
+            .create()
     }
 }

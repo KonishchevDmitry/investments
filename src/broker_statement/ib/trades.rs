@@ -27,7 +27,7 @@ impl RecordParser for OpenPositionsParser {
             return Err!("Got a duplicated {:?} symbol", symbol);
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -68,6 +68,6 @@ impl RecordParser for TradesParser {
         parser.statement.stock_buys.push(StockBuy::new(
             symbol, quantity as u32, price, commission, date, date));
 
-        return Ok(());
+        Ok(())
     }
 }

@@ -256,7 +256,7 @@ fn calculate_target_value(
         }
     }
 
-    return balance
+    balance
 }
 
 fn calculate_result_value(

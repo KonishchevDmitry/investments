@@ -12,7 +12,7 @@ lazy_static! {
 pub fn get(currency: &str) -> &'static str {
     let mut currencies = CURRENCIES.lock().unwrap();
 
-    match currencies.get(currency).map(|currency: &&str| *currency) {
+    match currencies.get(currency).cloned() {
         Some(static_currency) => static_currency,
         None => {
             let static_currency = Box::leak(currency.to_owned().into_boxed_str());

@@ -201,10 +201,10 @@ mod tests {
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {
-        return mock("GET", path)
+        mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/json")
             .with_body(data)
-            .create();
+            .create()
     }
 }

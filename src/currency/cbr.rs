@@ -158,10 +158,10 @@ mod tests {
     }
 
     fn mock_cbr_response(path: &str, data: &str) -> Mock {
-        return mock("GET", path)
+        mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/xml; charset=windows-1251")
             .with_body(data)
-            .create();
+            .create()
     }
 }

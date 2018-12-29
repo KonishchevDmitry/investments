@@ -97,7 +97,7 @@ impl BrokerStatement {
     }
 
     pub fn batch_quotes(&self, quotes: &mut Quotes) {
-        for (symbol, _) in &self.instrument_names {
+        for symbol in self.instrument_names.keys() {
             quotes.batch(&symbol);
         }
     }

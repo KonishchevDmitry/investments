@@ -20,7 +20,7 @@ impl CurrencyConverter {
     }
 
     pub fn new_with_backend(source: Box<CurrencyConverterBackend>) -> CurrencyConverter {
-        return CurrencyConverter { backend: source }
+        CurrencyConverter { backend: source }
     }
 
     pub fn currency_rate(&self, date: Date, from: &str, to: &str) -> GenericResult<Decimal> {
@@ -47,7 +47,7 @@ struct CurrencyRateCacheBackend {
 
 impl CurrencyRateCacheBackend {
     pub fn new(rate_cache: CurrencyRateCache, strict_mode: bool) -> Box<CurrencyConverterBackend> {
-        return Box::new(CurrencyRateCacheBackend {
+        Box::new(CurrencyRateCacheBackend {
             rate_cache: rate_cache,
             strict_mode: strict_mode,
         })
