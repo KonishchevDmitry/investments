@@ -54,8 +54,8 @@ impl TaxStatement {
         let currency_rate_units = 100;
         let currency_rate = currency_rate * Decimal::from(currency_rate_units);
 
-        let incomes = self.get_foreign_incomes()?.ok_or_else(|| format!(
-            "Foreign income must be enabled in the tax statement to add dividend income"))?;
+        let incomes = self.get_foreign_incomes()?.ok_or(
+            "Foreign income must be enabled in the tax statement to add dividend income")?;
 
         incomes.push(CurrencyIncome {
             type_: IncomeType::Dividend,

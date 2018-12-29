@@ -27,6 +27,4 @@ cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     too_many_arguments
     unit_arg
     unreadable_literal
-
-    useless_format
 ')
