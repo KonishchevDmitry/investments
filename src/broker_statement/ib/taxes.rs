@@ -37,7 +37,7 @@ impl RecordParser for WithholdingTaxParser {
 
         tax = -tax;
 
-        if let Some(_) = parser.taxes.insert(tax_id, tax) {
+        if parser.taxes.insert(tax_id, tax).is_some() {
             return Err!("Got a duplicate withholding tax: {} / {:?}",
                 formatting::format_date(date), description);
         }

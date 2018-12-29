@@ -68,7 +68,7 @@ pub fn parse_duration(string: &str) -> GenericResult<Duration> {
         };
 
         Some(duration)
-    }).ok_or(format!("Invalid duration: {}", string))?;
+    }).ok_or_else(|| format!("Invalid duration: {}", string))?;
 
     Ok(Duration::seconds(seconds))
 }

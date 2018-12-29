@@ -36,12 +36,12 @@ impl Portfolio {
             None => return Err!("The portfolio's currency is not specified in the config"),
         };
 
-        let min_trade_volume = portfolio_config.min_trade_volume.unwrap_or(dec!(0));
+        let min_trade_volume = portfolio_config.min_trade_volume.unwrap_or_else(|| dec!(0));
         if min_trade_volume.is_sign_negative() {
             return Err!("Invalid minimum trade volume value")
         }
 
-        let min_cash_assets = portfolio_config.min_cash_assets.unwrap_or(dec!(0));
+        let min_cash_assets = portfolio_config.min_cash_assets.unwrap_or_else(|| dec!(0));
         if min_cash_assets.is_sign_negative() {
             return Err!("Invalid minimum free cash assets value")
         }

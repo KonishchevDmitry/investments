@@ -183,7 +183,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             symbol_trades: std::collections::hash_map::Entry<&str, Trades>, quantity: i32,
             conclusion_date: Date, execution_date: Date
         | {
-            symbol_trades.or_insert_with(|| BTreeMap::new())
+            symbol_trades.or_insert_with(BTreeMap::new)
                 .entry(execution_date)
                 .and_modify(|trade| {
                     if quantity > 0 {

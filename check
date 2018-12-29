@@ -21,15 +21,12 @@ cargo clippy --all-targets --all-features -- $(get_lint_args -A '
 
     # FIXME: Check all lints below
     needless_pass_by_value
-
     new_ret_no_self
-    or_fun_call
     ptr_arg
-    redundant_closure
     redundant_field_names
-    redundant_pattern_matching
     too_many_arguments
     unit_arg
     unreadable_literal
+
     useless_format
 ')
