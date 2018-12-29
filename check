@@ -20,7 +20,6 @@ cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     collapsible_if
 
     # FIXME: Check all lints below
-    cyclomatic_complexity
     for_kv_map
     let_and_return
     map_clone

@@ -114,6 +114,7 @@ fn propagate_zero_weight(asset: &mut AssetAllocation) {
     asset.max_value = Some(asset.min_value);
 }
 
+#[allow(clippy::cyclomatic_complexity)] // FIXME
 fn calculate_target_value(
     name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
     min_trade_volume: Decimal
