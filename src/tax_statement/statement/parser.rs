@@ -57,10 +57,14 @@ impl TaxStatementReader {
 
             let record: Box<Record> = match record_name.as_str() {
                 ForeignIncome::RECORD_NAME => Box::new(ForeignIncome::read(&mut reader)?),
+
+                // FIXME: A dirty hackaround to quickly switch to *.dc8 from *.dc7 format support
+                "EOF hackaround" => break,
                 Nalog::RECORD_NAME => {
                     last_record = true;
                     Box::new(Nalog::read(&mut reader)?)
                 },
+
                 _ => {
                     let (record, read_next_record_name) = UnknownRecord::read(&mut reader, record_name)?;
                     next_record_name = Some(read_next_record_name);
@@ -71,9 +75,12 @@ impl TaxStatementReader {
             records.push(record);
         }
 
-        let mut footer_buffer = [0; 3];
-        if reader.file.read(&mut footer_buffer[..])? != 2 || footer_buffer[0..2] != [0, 0] {
-            return Err!("The file has an unexpected footer");
+        // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
+        if false {
+            let mut footer_buffer = [0; 3];
+            if reader.file.read(&mut footer_buffer[..])? != 2 || footer_buffer[0..2] != [0, 0] {
+                return Err!("The file has an unexpected footer");
+            }
         }
 
         let statement = TaxStatement {
@@ -148,8 +155,11 @@ impl TaxStatementWriter {
             record.write(&mut writer)?;
         }
 
-        let footer = [0, 0];
-        writer.write_bytes(&footer)?;
+        // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
+        if false {
+            let footer = [0, 0];
+            writer.write_bytes(&footer)?;
+        }
 
         Ok(())
     }
@@ -213,15 +223,17 @@ tax_statement_record!(Nalog {
 mod tests {
     use super::*;
 
+    const VERSION: i32 = 8;
+
     #[test]
     fn parse_empty() {
-        let path = Path::new(file!()).parent().unwrap().join("testdata/empty.dc7");
+        let path = Path::new(file!()).parent().unwrap().join(get_path("empty"));
         test_parsing(path.to_str().unwrap());
     }
 
     #[test]
     fn parse_filled() {
-        let path = Path::new(file!()).parent().unwrap().join("testdata/filled.dc7")
+        let path = Path::new(file!()).parent().unwrap().join(get_path("filled"))
             .to_str().unwrap().to_owned();
 
         let data = get_contents(&path);
@@ -236,11 +248,11 @@ mod tests {
             let description = "Дивиденд";
             let date = date!(1, 1, year);
             let currency = "USD";
-            let currency_rate = decf!(60.6569);
+            let currency_rate = decf!(57.6002);
             let amount = dec!(100);
             let paid_tax = dec!(10);
-            let local_amount = decf!(6065.69);
-            let local_paid_tax = decf!(606.57);
+            let local_amount = decf!(5760.02);
+            let local_paid_tax = dec!(576);
 
             statement.add_dividend(
                 description, date, currency, currency_rate,
@@ -253,14 +265,15 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        test_parsing("testdata/statement.dc7");
+        // FIXME: Provide real data
+        test_parsing(&get_path("statement"));
     }
 
     fn test_parsing(path: &str) -> TaxStatement {
         let data = get_contents(path);
 
         let statement = TaxStatementReader::read(path).unwrap();
-        assert_eq!(statement.year, 2017);
+        assert_eq!(statement.year, 2010 + VERSION);
         compare_to(&statement, &data);
 
         statement
@@ -272,6 +285,10 @@ mod tests {
 
         TaxStatementWriter::write(&statement, path).unwrap();
         assert_eq!(&get_contents(path), data);
+    }
+
+    fn get_path(name: &str) -> String {
+        format!("testdata/{}.dc{}", name, VERSION)
     }
 
     fn get_contents(path: &str) -> String {

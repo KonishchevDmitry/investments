@@ -22,7 +22,20 @@ impl UnknownRecord {
         let mut fields = Vec::new();
 
         loop {
-            let data: String = reader.read_value()?;
+            let data: String = match reader.read_value() {
+                Ok(data) => data,
+                Err(e) => {
+                    // FIXME: A dirty hackaround to quickly switch to *.dc8 from *.dc7 format support
+                    assert_eq!(e.to_string(), "failed to fill whole buffer");
+
+                    let record = UnknownRecord {
+                        name: name,
+                        fields: fields,
+                    };
+
+                    return Ok((record, "EOF hackaround".to_string()));
+                }
+            };
 
             if is_record_name(&data) {
                 let record = UnknownRecord {
