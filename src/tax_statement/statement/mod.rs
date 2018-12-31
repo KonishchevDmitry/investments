@@ -1,6 +1,7 @@
 use std::fs;
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency;
 use crate::types::{Date, Decimal};
 
 use self::foreign_income::{ForeignIncome, CurrencyIncome, IncomeType};
@@ -52,7 +53,7 @@ impl TaxStatement {
         };
 
         let currency_rate_units = 100;
-        let currency_rate = currency_rate * Decimal::from(currency_rate_units);
+        let currency_rate = currency::round(currency_rate * Decimal::from(currency_rate_units));
 
         let incomes = self.get_foreign_incomes()?.ok_or(
             "Foreign income must be enabled in the tax statement to add dividend income")?;
