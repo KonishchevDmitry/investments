@@ -41,7 +41,7 @@ impl BrokerInfo {
 }
 
 pub fn interactive_brokers(config: &Config) -> GenericResult<BrokerInfo> {
-    let name = "Interactive Brokers";
+    let name = "Interactive Brokers LLC";
 
     Ok(BrokerInfo {
         name: name,
@@ -55,7 +55,7 @@ pub fn interactive_brokers(config: &Config) -> GenericResult<BrokerInfo> {
 }
 
 pub fn open_broker(config: &Config) -> GenericResult<BrokerInfo> {
-    let name = "Open Broker";
+    let name = "АО «Открытие Брокер»";
 
     Ok(BrokerInfo {
         name: name,
