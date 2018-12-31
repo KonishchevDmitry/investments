@@ -14,7 +14,7 @@ use regex::Regex;
 use crate::core::{EmptyResult, GenericResult};
 
 use super::TaxStatement;
-use super::record::{Record, UnknownRecord};
+use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
 use super::types::Integer;
@@ -66,6 +66,11 @@ impl TaxStatementReader {
                 },
 
                 _ => {
+                    // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
+                    if !is_record_name(&record_name) {
+                        return Err!("Got an invalid record: {:?}", record_name);
+                    }
+
                     let (record, read_next_record_name) = UnknownRecord::read(&mut reader, record_name)?;
                     next_record_name = Some(read_next_record_name);
                     Box::new(record)
@@ -88,7 +93,7 @@ impl TaxStatementReader {
             year: year,
             records: records,
         };
-        debug!("{:#?}", statement);
+        debug!("Read statement:\n{:#?}", statement);
 
         Ok(statement)
     }
@@ -144,6 +149,8 @@ pub struct TaxStatementWriter {
 
 impl TaxStatementWriter {
     pub fn write(statement: &TaxStatement, path: &str) -> EmptyResult {
+        debug!("Statement to write:\n{:#?}", statement);
+
         let mut writer = TaxStatementWriter {
             file: BufWriter::new(File::create(path)?),
             buffer: Rc::default(),
