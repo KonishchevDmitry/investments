@@ -33,9 +33,10 @@ tax_statement_array_record!(CurrencyIncome {
     deduction_code: Integer,
     deduction_value: Decimal,
 
-    unknown1: Integer,
-    company_type: Integer,
-    unknown2: String,
+    unknown: Integer,
+    controlled_foreign_company_profit_calculation_method: Integer,
+    controlled_foreign_company_number: String,
+    controlled_foreign_company_tax: Integer,
 }, index_length=3);
 
 #[derive(Debug)]

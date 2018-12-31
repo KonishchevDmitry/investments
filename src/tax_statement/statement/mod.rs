@@ -82,9 +82,10 @@ impl TaxStatement {
             deduction_code: 0,
             deduction_value: dec!(0),
 
-            unknown1: 0,
-            company_type: 0,
-            unknown2: String::new(),
+            unknown: 0,
+            controlled_foreign_company_profit_calculation_method: 0,
+            controlled_foreign_company_number: String::new(),
+            controlled_foreign_company_tax: 0,
         });
 
         Ok(())
