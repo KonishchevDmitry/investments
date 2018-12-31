@@ -117,8 +117,10 @@ impl<'a> TaxStatementGenerator<'a> {
             let foreign_amount = dividend.amount.round().amount;
             total_foreign_amount += foreign_amount;
 
-            let currency_rate = currency::round(self.converter.currency_rate(
-                dividend.date, currency, country.currency)?);
+            // Don't round currency rate. CBR provides currency rates with high precision like
+            // 56.3438 and tax statement uses currency rate value for 100 units like 5634.38.
+            let precise_currency_rate = self.converter.currency_rate(
+                dividend.date, currency, country.currency)?;
 
             let amount = currency::round(self.converter.convert_to(
                 dividend.date, dividend.amount, country.currency)?);
@@ -143,7 +145,7 @@ impl<'a> TaxStatementGenerator<'a> {
                 Cell::new_align(currency, Alignment::CENTER),
 
                 Cell::new_align(&foreign_amount.to_string(), Alignment::RIGHT),
-                Cell::new_align(&currency_rate.to_string(), Alignment::RIGHT),
+                Cell::new_align(&precise_currency_rate.normalize().to_string(), Alignment::RIGHT),
                 Cell::new_align(&amount.to_string(), Alignment::RIGHT),
 
                 Cell::new_align(&foreign_paid_tax.to_string(), Alignment::RIGHT),
@@ -157,7 +159,7 @@ impl<'a> TaxStatementGenerator<'a> {
                     "{}: Дивиденд от {}", self.broker_statement.broker.name, issuer);
 
                 tax_statement.add_dividend(
-                    &description, dividend.date, currency, currency_rate,
+                    &description, dividend.date, currency, precise_currency_rate,
                     foreign_amount, foreign_paid_tax, amount, paid_tax
                 ).map_err(|e| format!(
                     "Unable to add {:?} dividend to the tax statement: {}", issuer, e
