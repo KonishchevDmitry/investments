@@ -80,14 +80,6 @@ impl TaxStatementReader {
             return Err!("The tax statement has no records");
         }
 
-        // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
-        if false {
-            let mut footer_buffer = [0; 3];
-            if reader.file.read(&mut footer_buffer[..])? != 2 || footer_buffer[0..2] != [0, 0] {
-                return Err!("The file has an unexpected footer");
-            }
-        }
-
         let statement = TaxStatement {
             path: path.to_owned(),
             year: year,
@@ -164,12 +156,6 @@ impl TaxStatementWriter {
 
         for record in &statement.records {
             record.write(&mut writer)?;
-        }
-
-        // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
-        if false {
-            let footer = [0, 0];
-            writer.write_bytes(&footer)?;
         }
 
         Ok(())
