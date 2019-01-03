@@ -12,7 +12,6 @@ pub struct DepositEmulator {
 }
 
 impl DepositEmulator {
-    // FIXME: Deprecate start date and start assets?
     pub fn emulate(
         start_date: Date, start_assets: Decimal, transactions: &Vec<Transaction>, end_date: Date,
         interest: Decimal, custom_interest_periods: Option<&Vec<InterestPeriod>>
