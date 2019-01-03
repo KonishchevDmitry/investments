@@ -12,12 +12,6 @@ use crate::types::Decimal;
 
 use super::{QuotesMap, QuotesProvider};
 
-#[cfg(not(test))]
-const BASE_URL: &str = "https://iss.moex.com";
-
-#[cfg(test)]
-const BASE_URL: &str = mockito::SERVER_URL;
-
 pub struct Moex {
 }
 
@@ -29,12 +23,18 @@ impl Moex {
 
 impl QuotesProvider for Moex {
     fn name(&self) -> &'static str {
-        BASE_URL
+        "Moscow Exchange"
     }
 
     fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
+        #[cfg(not(test))]
+        let base_url = "https://iss.moex.com";
+
+        #[cfg(test)]
+        let base_url = mockito::server_url();
+
         let url = Url::parse_with_params(
-            &(BASE_URL.to_owned() + "/iss/engines/stock/markets/shares/boards/TQTF/securities.xml"),
+            &format!("{}/iss/engines/stock/markets/shares/boards/TQTF/securities.xml", base_url),
             &[("securities", symbols.join(",").as_str())],
         )?;
 

@@ -12,12 +12,6 @@ use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util;
 
-#[cfg(not(test))]
-const CBR_URL: &str = "http://www.cbr.ru";
-
-#[cfg(test)]
-const CBR_URL: &str = mockito::SERVER_URL;
-
 pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
     let currency_code = match currency {
         "USD" => "R01235",
@@ -28,14 +22,17 @@ pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericRes
     let start_date_string = start_date.format(date_format).to_string();
     let end_date_string = end_date.format(date_format).to_string();
 
-    let url = Url::parse_with_params(
-        &(CBR_URL.to_owned() + "/scripts/XML_dynamic.asp"),
-        &[
-            ("date_req1", start_date_string.as_ref()),
-            ("date_req2", end_date_string.as_ref()),
-            ("VAL_NM_RQ", currency_code),
-        ],
-    )?;
+    #[cfg(not(test))]
+    let base_url = "http://www.cbr.ru";
+
+    #[cfg(test)]
+    let base_url = mockito::server_url();
+
+    let url = Url::parse_with_params(&format!("{}/scripts/XML_dynamic.asp", base_url), &[
+        ("date_req1", start_date_string.as_ref()),
+        ("date_req2", end_date_string.as_ref()),
+        ("VAL_NM_RQ", currency_code),
+    ])?;
 
     let get = |url| -> GenericResult<Vec<CurrencyRate>> {
         debug!("Getting {} currency rates for {} - {}...", currency,

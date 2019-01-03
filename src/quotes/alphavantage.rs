@@ -15,12 +15,6 @@ use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesMap, QuotesProvider};
 
-#[cfg(not(test))]
-const BASE_URL: &str = "https://www.alphavantage.co";
-
-#[cfg(test)]
-const BASE_URL: &str = mockito::SERVER_URL;
-
 pub struct AlphaVantage {
     api_key: String,
 }
@@ -35,18 +29,21 @@ impl AlphaVantage {
 
 impl QuotesProvider for AlphaVantage {
     fn name(&self) -> &'static str {
-        BASE_URL
+        "Alpha Vantage"
     }
 
     fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
-        let url = Url::parse_with_params(
-            &(BASE_URL.to_owned() + "/query"),
-            &[
-                ("function", "BATCH_STOCK_QUOTES"),
-                ("symbols", symbols.join(",").as_ref()),
-                ("apikey", self.api_key.as_ref()),
-            ],
-        )?;
+        #[cfg(not(test))]
+        let base_url = "https://www.alphavantage.co";
+
+        #[cfg(test)]
+        let base_url = mockito::server_url();
+
+        let url = Url::parse_with_params(&format!("{}/query", base_url), &[
+            ("function", "BATCH_STOCK_QUOTES"),
+            ("symbols", symbols.join(",").as_ref()),
+            ("apikey", self.api_key.as_ref()),
+        ])?;
 
         let get = |url| -> GenericResult<HashMap<String, Cash>> {
             let mut response = Client::new().get(url).send()?;
