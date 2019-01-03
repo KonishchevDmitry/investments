@@ -18,35 +18,27 @@ pub struct UnknownRecord {
 }
 
 impl UnknownRecord {
-    pub fn read(reader: &mut TaxStatementReader, name: String) -> GenericResult<(UnknownRecord, String)> {
+    pub fn read(reader: &mut TaxStatementReader, name: String) -> GenericResult<(UnknownRecord, Option<String>)> {
         let mut fields = Vec::new();
+        let mut next_record_name = None;
 
-        loop {
-            let data: String = match reader.read_value() {
-                Ok(data) => data,
-                Err(e) => {
-                    // FIXME: A dirty hackaround to quickly switch to *.dc8 from *.dc7 format support
-                    assert_eq!(e.to_string(), "failed to fill whole buffer");
-
-                    let record = UnknownRecord {
-                        name: name,
-                        fields: fields,
-                    };
-
-                    return Ok((record, "EOF hackaround".to_string()));
-                }
-            };
+        while !reader.at_eof()? {
+            let data: String = reader.read_value()?;
 
             if is_record_name(&data) {
-                let record = UnknownRecord {
-                    name: name,
-                    fields: fields,
-                };
-                return Ok((record, data));
+                next_record_name.replace(data);
+                break;
             }
 
             fields.push(data);
         }
+
+        let record = UnknownRecord {
+            name: name,
+            fields: fields,
+        };
+
+        Ok((record, next_record_name))
     }
 }
 
@@ -74,6 +66,7 @@ pub fn is_record_name(data: &str) -> bool {
     data.starts_with('@')
 }
 
+#[allow(unused_macros)]
 macro_rules! tax_statement_record {
     (
         $name:ident {

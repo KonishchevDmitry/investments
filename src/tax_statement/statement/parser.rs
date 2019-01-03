@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::fs::File;
-use std::io::{Read, BufReader, Write, BufWriter};
+use std::io::{Read, BufRead, BufReader, Write, BufWriter};
 use std::ops::Deref;
 #[cfg(test)] use std::path::Path;
 use std::rc::Rc;
@@ -17,7 +17,6 @@ use super::TaxStatement;
 use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
-use super::types::Integer;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,
@@ -46,38 +45,39 @@ impl TaxStatementReader {
         }
 
         let mut records = Vec::new();
-        let mut last_record = false;
         let mut next_record_name = None;
 
-        while !last_record {
+        loop {
             let record_name = match next_record_name.take() {
                 Some(record_name) => record_name,
-                None => reader.read_data()?.deref().to_owned(),
+                None => {
+                    if reader.at_eof()? {
+                        break;
+                    }
+
+                    let data: String = reader.read_value()?;
+                    if !is_record_name(&data) {
+                        return Err!("Got an invalid record name: {:?}", data);
+                    }
+
+                    data
+                },
             };
 
             let record: Box<Record> = match record_name.as_str() {
                 ForeignIncome::RECORD_NAME => Box::new(ForeignIncome::read(&mut reader)?),
-
-                // FIXME: A dirty hackaround to quickly switch to *.dc8 from *.dc7 format support
-                "EOF hackaround" => break,
-                Nalog::RECORD_NAME => {
-                    last_record = true;
-                    Box::new(Nalog::read(&mut reader)?)
-                },
-
                 _ => {
-                    // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
-                    if !is_record_name(&record_name) {
-                        return Err!("Got an invalid record: {:?}", record_name);
-                    }
-
                     let (record, read_next_record_name) = UnknownRecord::read(&mut reader, record_name)?;
-                    next_record_name = Some(read_next_record_name);
+                    next_record_name = read_next_record_name;
                     Box::new(record)
                 },
             };
 
             records.push(record);
+        }
+
+        if records.is_empty() {
+            return Err!("The tax statement has no records");
         }
 
         // FIXME: A workaround to quickly switch to *.dc8 from *.dc7 format support
@@ -112,6 +112,10 @@ impl TaxStatementReader {
         let size = self.read_data_size()?;
         let data = self.read_raw(size)?;
         Ok(data)
+    }
+
+    pub fn at_eof(&mut self) -> GenericResult<bool> {
+        Ok(self.file.fill_buf()?.is_empty())
     }
 
     fn read_data_size(&mut self) -> GenericResult<usize> {
@@ -221,10 +225,6 @@ fn encode(data: &str) -> GenericResult<Cow<[u8]>> {
     }
     Ok(encoded_data)
 }
-
-tax_statement_record!(Nalog {
-    unknown: Integer,
-});
 
 #[cfg(test)]
 mod tests {
