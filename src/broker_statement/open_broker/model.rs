@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::Duration;
+use log::{warn, error};
 use num_traits::Zero;
 
 use crate::broker_statement::{BrokerStatementBuilder, StockBuy, StockSell};
@@ -15,6 +16,7 @@ use super::parsers::{CashFlowType, deserialize_date, parse_security_description,
 pub struct BrokerReport {
     #[serde(deserialize_with = "deserialize_date")]
     date_from: Date,
+
     #[serde(deserialize_with = "deserialize_date")]
     date_to: Date,
 
@@ -25,7 +27,10 @@ pub struct BrokerReport {
     assets: Assets,
 
     #[serde(rename = "spot_main_deals_conclusion")]
-    trades: Option<Trades>,
+    concluded_trades: Option<ConcludedTrades>,
+
+    #[serde(rename = "spot_main_deals_executed")]
+    executed_trades: Option<ExecutedTrades>,
 
     #[serde(rename = "spot_non_trade_money_operations")]
     cash_flow: Option<CashFlows>,
@@ -42,12 +47,32 @@ impl BrokerReport {
         let securities = self.securities.parse(statement)?;
         self.assets.parse(statement, &securities)?;
 
-        if let Some(ref trades) = self.trades {
-            trades.parse(statement, &securities)?;
+        let mut trades_with_shifted_execution_date = if let Some(ref trades) = self.executed_trades {
+            trades.parse()?
+        } else {
+            HashMap::new()
+        };
+
+        if let Some(ref trades) = self.concluded_trades {
+            trades.parse(statement, &securities, &mut trades_with_shifted_execution_date)?;
         }
 
         if let Some(ref cash_flow) = self.cash_flow {
             cash_flow.parse(statement)?;
+        }
+
+        // Actually, we should check trade execution dates on statements merging stage when we have
+        // a full view, but it would add an extra unneeded complexity to its generic logic. So now
+        // we just do our best here and log found cases. If they actually will - we'll generalize
+        // statements merging logic and add an ability to consider such things in the right place.
+        if !trades_with_shifted_execution_date.is_empty() {
+            let trade_ids = trades_with_shifted_execution_date.keys()
+                .map(|trade_id| trade_id.to_string())
+                .collect::<Vec<_>>();
+
+            error!(concat!(
+                "Actual execution date of the following trades differs from the planned one and ",
+                "can't be fixed: {}."), trade_ids.join(", "));
         }
 
         Ok(())
@@ -139,20 +164,21 @@ impl Assets {
 }
 
 #[derive(Deserialize)]
-struct Trades {
+struct ConcludedTrades {
     #[serde(rename = "item")]
-    trades: Vec<Trade>,
+    trades: Vec<ConcludedTrade>,
 }
 
 #[derive(Deserialize)]
-struct Trade {
-    #[serde(rename = "security_name")]
-    name: String,
+struct ConcludedTrade {
+    #[serde(rename = "deal_no")]
+    id: u64,
+
+    security_name: String,
 
     #[serde(deserialize_with = "deserialize_date")]
     conclusion_date: Date,
 
-    // FIXME: Compare the trades with <spot_main_deals_executed> and check execution_date?
     #[serde(deserialize_with = "deserialize_date")]
     execution_date: Date,
 
@@ -174,10 +200,13 @@ struct Trade {
     commission: Decimal,
 }
 
-impl Trades {
-    fn parse(&self, statement: &mut BrokerStatementBuilder, securities: &HashMap<String, String>) -> EmptyResult {
+impl ConcludedTrades {
+    fn parse(
+        &self, statement: &mut BrokerStatementBuilder, securities: &HashMap<String, String>,
+        trades_with_shifted_execution_date: &mut HashMap<u64, Date>,
+    ) -> EmptyResult {
         for trade in &self.trades {
-            let symbol = get_symbol(securities, &trade.name)?;
+            let symbol = get_symbol(securities, &trade.security_name)?;
             let price = util::validate_decimal(trade.price, DecimalRestrictions::StrictlyPositive)
                 .map_err(|_| format!("Invalid {} price: {}", symbol, trade.price))?;
             let commission = util::validate_decimal(trade.commission, DecimalRestrictions::PositiveOrZero)
@@ -186,11 +215,23 @@ impl Trades {
             // Just don't know which one exactly is
             if trade.currency != trade.accounting_currency {
                 return Err!(
-                    "Trade currency for {} is not equal to accounting currency which is not supported yet", symbol);
+                    "Trade currency for {} is not equal to accounting currency which is not supported yet",
+                     symbol);
             }
 
             let price = Cash::new(&trade.currency, price);
             let commission = Cash::new(&trade.accounting_currency, commission);
+            let execution_date = match trades_with_shifted_execution_date.remove(&trade.id) {
+                Some(execution_date) => {
+                    warn!(concat!(
+                        "Actual execution date of {:?} trade differs from the planned one. ",
+                        "Fix execution date for this trade."
+                    ), trade.id);
+
+                    execution_date
+                },
+                None => trade.execution_date,
+            };
 
             match (trade.buy_quantity, trade.sell_quantity) {
                 (Some(quantity), None) => {
@@ -198,20 +239,54 @@ impl Trades {
 
                     statement.stock_buys.push(StockBuy::new(
                         symbol, quantity, price, commission,
-                        trade.conclusion_date, trade.execution_date));
+                        trade.conclusion_date, execution_date));
                 },
                 (None, Some(quantity)) => {
                     let quantity = parse_quantity(quantity, false)?;
 
                     statement.stock_sells.push(StockSell::new(
                         symbol, quantity, price, commission,
-                        trade.conclusion_date, trade.execution_date));
+                        trade.conclusion_date, execution_date));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };
         }
 
         Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+struct ExecutedTrades {
+    #[serde(rename = "item")]
+    trades: Vec<ExecutedTrade>,
+}
+
+#[derive(Deserialize)]
+struct ExecutedTrade {
+    #[serde(rename = "deal_no")]
+    id: u64,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    plan_execution_date: Date,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    fact_execution_date: Date,
+}
+
+impl ExecutedTrades {
+    fn parse(&self) -> GenericResult<HashMap<u64, Date>> {
+        let mut trades_with_shifted_execution_date = HashMap::new();
+
+        for trade in &self.trades {
+            if trade.fact_execution_date != trade.plan_execution_date {
+                if trades_with_shifted_execution_date.insert(trade.id, trade.fact_execution_date).is_some() {
+                    return Err!("Got a duplicated {:?} trade", trade.id);
+                }
+            }
+        }
+
+        Ok(trades_with_shifted_execution_date)
     }
 }
 
