@@ -14,7 +14,7 @@ mod formatting;
 mod init;
 mod portfolio;
 mod quotes;
-mod regulations;
+mod localities;
 mod tax_statement;
 mod util;
 

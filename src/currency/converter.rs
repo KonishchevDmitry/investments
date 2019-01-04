@@ -1,4 +1,4 @@
-use chrono::{Duration, Datelike};
+use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
 use crate::core::GenericResult;
@@ -6,6 +6,7 @@ use crate::currency::{Cash, CurrencyRate};
 use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
+use crate::localities;
 use crate::types::{Date, Decimal};
 
 pub struct CurrencyConverter {
@@ -108,11 +109,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             today - Duration::days(1)
         };
 
-        let min_date = match cur_date {
-            date if date.month() == 1 && date.day() < 10 => Date::from_ymd(date.year() - 1, 12, 30),
-            date if (date.month() == 3 || date.month() == 5) && date.day() < 13 => date - Duration::days(5),
-            date => date - Duration::days(3),
-        };
+        let min_date = localities::get_russian_stock_exchange_min_last_working_day(cur_date);
 
         while cur_date >= min_date {
             if let Some(price) = self.get_price(currency, cur_date, false)? {

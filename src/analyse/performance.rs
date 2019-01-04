@@ -14,7 +14,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::regulations::{self, Country};
+use crate::localities::{self, Country};
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -45,7 +45,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             currency: currency,
             converter: converter,
 
-            country: regulations::russia(),
+            country: localities::russia(),
             transactions: Vec::new(),
             instruments: Some(HashMap::new()),
             table: Table::new(),

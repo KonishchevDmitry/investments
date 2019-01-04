@@ -10,7 +10,7 @@ use crate::currency;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::formatting;
-use crate::regulations;
+use crate::localities;
 use crate::util;
 
 use self::statement::TaxStatement;
@@ -88,8 +88,8 @@ struct TaxStatementGenerator<'a> {
 
 impl<'a> TaxStatementGenerator<'a> {
     fn process_dividend_income(&mut self) -> EmptyResult {
-        let country = regulations::russia();
-        let foreign_country = regulations::us();
+        let country = localities::russia();
+        let foreign_country = localities::us();
 
         let mut table = Table::new();
 

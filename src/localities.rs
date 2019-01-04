@@ -1,4 +1,4 @@
-use chrono::Datelike;
+use chrono::{Datelike, Duration};
 
 use crate::types::{Date, Decimal};
 
@@ -25,5 +25,15 @@ pub fn us() -> Country {
     Country {
         currency: "USD",
         tax_rate: Decimal::new(10, 2),
+    }
+}
+
+pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
+    if today.month() == 1 && today.day() < 10 {
+        Date::from_ymd(today.year() - 1, 12, 30)
+    } else if (today.month() == 3 || today.month() == 5) && today.day() < 13 {
+        today - Duration::days(5)
+    } else {
+        today - Duration::days(3)
     }
 }

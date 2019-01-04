@@ -7,7 +7,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::broker_statement::Dividend;
 use crate::formatting;
-use crate::regulations;
+use crate::localities;
 use crate::types::Date;
 use crate::util::DecimalRestrictions;
 
@@ -46,7 +46,7 @@ impl RecordParser for DividendsParser {
 }
 
 pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Vec<Dividend>> {
-    let country = regulations::us();
+    let country = localities::us();
     let mut dividends = Vec::with_capacity(dividends_info.len());
 
     for dividend in dividends_info.drain(..) {

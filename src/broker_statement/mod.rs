@@ -12,7 +12,7 @@ use crate::currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::quotes::Quotes;
-use crate::regulations::Country;
+use crate::localities::Country;
 use crate::types::{Date, Decimal};
 use crate::util;
 
