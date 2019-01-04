@@ -2,13 +2,16 @@ use std::collections::HashMap;
 #[cfg(test)] use std::fs::File;
 #[cfg(test)] use std::path::Path;
 
+use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use num_traits::Zero;
 use reqwest::{Client, Url};
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
-use crate::types::Decimal;
+#[cfg(not(test))]use crate::localities;
+use crate::types::{Decimal, Date};
+use crate::util;
 
 use super::{QuotesMap, QuotesProvider};
 
@@ -75,9 +78,6 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
 
     #[derive(Deserialize)]
     struct Row {
-        // FIXME: Check time?
-        // 10.11.2018 closed session: UPDATETIME="19:18:26" TIME="18:41:07" SYSTIME="2018-11-09 19:33:27"
-        // 13.11.2018 open session: UPDATETIME="13:00:50" TIME="13:00:30" SYSTIME="2018-11-13 13:15:50"
         #[serde(rename = "SECID")]
         symbol: Option<String>,
 
@@ -89,6 +89,12 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
 
         #[serde(rename = "CURRENCYID")]
         currency: Option<String>,
+
+        // Time columns behaviour:
+        // * 10.11.2018 closed session: UPDATETIME="19:18:26" TIME="18:41:07" SYSTIME="2018-11-09 19:33:27"
+        // * 13.11.2018 open session: UPDATETIME="13:00:50" TIME="13:00:30" SYSTIME="2018-11-13 13:15:50"
+        #[serde(rename = "SYSTIME")]
+        time: Option<String>,
     }
 
     let result: Document = serde_xml_rs::from_str(data).map_err(|e| e.to_string())?;
@@ -135,9 +141,17 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     }
 
     let mut quotes = HashMap::new();
+    let mut outdated = Vec::new();
 
     for row in market_data {
         let symbol = get_value(&row.symbol)?;
+
+        let date = util::parse_date_time(&get_value(&row.time)?, "%Y-%m-%d %H:%M:%S")?.date();
+        if is_outdated(date) {
+            outdated.push(symbol.clone());
+            continue;
+        }
+
         let currency = symbols.get(symbol).ok_or_else(|| format!(
             "There is market data for {} but security info is missing", symbol))?;
 
@@ -151,11 +165,25 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
         }
     }
 
+    if !outdated.is_empty() {
+        error!("Got outdated quotes for the following symbols: {}.", outdated.join(", "));
+    }
+
     Ok(quotes)
 }
 
 fn get_value<T>(value: &Option<T>) -> GenericResult<&T> {
     Ok(value.as_ref().ok_or_else(|| "Got an unexpected response from server")?)
+}
+
+#[cfg(not(test))]
+fn is_outdated(date: Date) -> bool {
+    date < localities::get_russian_stock_exchange_min_last_working_day(util::today())
+}
+
+#[cfg(test)]
+fn is_outdated(_date: Date) -> bool {
+    false
 }
 
 #[cfg(test)]
