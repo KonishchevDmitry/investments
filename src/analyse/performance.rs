@@ -20,8 +20,6 @@ use crate::util;
 
 use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 
-// FIXME: Free commissions support?
-
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub struct PortfolioPerformanceAnalyser<'a> {

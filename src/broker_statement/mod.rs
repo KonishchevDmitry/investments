@@ -19,7 +19,6 @@ use crate::util;
 mod ib;
 mod open_broker;
 
-// FIXME: Take care of stock splitting
 #[derive(Debug)]
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
@@ -507,7 +506,6 @@ impl StockSell {
         let mut purchase_cost = dec!(0);
 
         for source in &self.sources {
-            // FIXME: We have to support future dates in converter here and in similar cases
             purchase_cost += converter.convert_to(
                 source.execution_date, source.price * source.quantity, country.currency)?;
 
@@ -522,8 +520,6 @@ impl StockSell {
             self.conclusion_date, self.commission, country.currency)?;
 
         let income = sell_revenue - purchase_cost;
-
-        // FIXME: Declare loss?
         if income.is_sign_negative() {
             return Ok(dec!(0));
         }

@@ -26,6 +26,11 @@ use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::init::{Action, initialize};
 
+// TODO: Features to implement:
+// * Stock split support
+// * Declare loss in tax statement
+// * Free commissions (considering monthly minimum fee)
+
 fn main() {
     let (action, config) = initialize();
 
