@@ -23,6 +23,6 @@ script:
 
   # Skip tests that require real statements from private submodule
   - cargo test -- --exact
-    --skip broker_statement::ib::tests::parsing
+    --skip broker_statement::ib::tests::parse_real_
     --skip broker_statement::open_broker::tests::parsing
     --skip tax_statement::statement::parser::tests::parse_real

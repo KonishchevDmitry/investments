@@ -3,6 +3,7 @@ use std::iter::Iterator;
 
 use csv::{self, StringRecord};
 use log::trace;
+#[cfg(test)] use rstest::rstest_parametrize;
 
 use crate::brokers::{self, BrokerInfo};
 #[cfg(test)] use crate::config::Broker;
@@ -41,7 +42,8 @@ impl BrokerStatementReader for StatementReader {
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
         let parser = StatementParser {
             statement: BrokerStatementBuilder::new(self.broker_info.clone()),
-            currency: None,
+            base_currency: None,
+            base_currency_summary: None,
             taxes: HashMap::new(),
             dividends: Vec::new(),
         };
@@ -58,7 +60,8 @@ enum State {
 
 pub struct StatementParser {
     statement: BrokerStatementBuilder,
-    currency: Option<String>,
+    base_currency: Option<String>,
+    base_currency_summary: Option<Cash>,
     taxes: HashMap<taxes::TaxId, Cash>,
     dividends: Vec<dividends::DividendInfo>,
 }
@@ -156,6 +159,15 @@ impl StatementParser {
             }
         }
 
+        // When statement has no non-base currency activity it contains only base currency summary
+        // and we have to use it as the only source of current cash assets info.
+        if self.statement.cash_assets.is_empty() {
+            let amount = self.base_currency_summary.ok_or_else(||
+                "Unable to find base currency summary")?;
+
+            self.statement.cash_assets.deposit(amount);
+        }
+
         self.statement.dividends = dividends::parse_dividends(self.dividends, &mut self.taxes)?;
 
         if !self.taxes.is_empty() {
@@ -184,9 +196,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parsing() {
-        let statement = BrokerStatement::read(
-            &Config::mock(), Broker::InteractiveBrokers, "testdata/interactive-brokers").unwrap();
+    fn parse_real_current() {
+        let statement = parse_full("current");
 
         assert!(!statement.starting_assets);
         assert!(!statement.cash_assets.is_empty());
@@ -198,5 +209,35 @@ mod tests {
 
         assert!(!statement.open_positions.is_empty());
         assert!(!statement.instrument_names.is_empty());
+    }
+
+    #[test]
+    fn parse_real_empty() {
+        let statement = parse_full("empty");
+
+        assert!(!statement.starting_assets);
+        assert!(!statement.cash_assets.is_empty());
+
+        assert!(statement.cash_flows.is_empty());
+        assert!(statement.stock_buys.is_empty());
+        assert!(statement.stock_sells.is_empty());
+        assert!(statement.dividends.is_empty());
+
+        assert!(statement.open_positions.is_empty());
+        assert!(statement.instrument_names.is_empty());
+    }
+
+    fn parse_full(name: &str) -> BrokerStatement {
+        let path = format!("testdata/interactive-brokers/{}", name);
+        BrokerStatement::read(&Config::mock(), Broker::InteractiveBrokers, &path).unwrap()
+    }
+
+    #[rstest_parametrize(name,
+        case("no-activity"),
+        case("multi-currency-activity"),
+    )]
+    fn parse_real_partial(name: &str) {
+        let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
+        StatementReader::new(&Config::mock()).unwrap().read(&path).unwrap();
     }
 }
