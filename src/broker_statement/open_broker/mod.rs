@@ -60,7 +60,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parsing() {
+    fn parse_real() {
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::OpenBroker, "testdata/open-broker").unwrap();
 
