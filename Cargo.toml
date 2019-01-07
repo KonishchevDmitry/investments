@@ -19,8 +19,6 @@ encoding_rs = "*"
 indoc = "*"
 lazy_static = "*"
 log = "0.4"
-matches = "*"
-mockito = "*"
 num-traits = "*"
 prettytable-rs = "0.8"
 regex = "*"
@@ -31,9 +29,14 @@ serde = "*"
 serde_derive = "*"
 serde_yaml = "*"
 shellexpand = "*"
-tempfile = "*"
 
 # The latest published version (0.2.1) has bugs and abandoned, so using git
 [dependencies.serde-xml-rs]
 git = "https://github.com/RReverser/serde-xml-rs.git"
 #rev = "551c78d155cac89815e28d0f36a87029a8bf2a62"
+
+[dev-dependencies]
+matches = "*"
+mockito = "*"
+rstest = "0.2"
+tempfile = "*"
