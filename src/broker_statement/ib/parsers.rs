@@ -38,7 +38,7 @@ impl RecordParser for AccountInformationParser {
                 return Err!("Unsupported account type: {}", value);
             }
         } else if name == "Base Currency" {
-            parser.currency.replace(value.to_owned());
+            parser.base_currency.replace(value.to_owned());
         }
 
         Ok(())
@@ -50,7 +50,7 @@ pub struct ChangeInNavParser {}
 impl RecordParser for ChangeInNavParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Starting Value" {
-            let currency = parser.currency.as_ref().ok_or_else(||
+            let currency = parser.base_currency.as_ref().ok_or_else(||
                 "Unable to determine account base currency")?;
 
             let amount = Cash::new_from_string(&currency, record.get_value("Field Value")?)?;
@@ -65,21 +65,30 @@ pub struct CashReportParser {}
 
 impl RecordParser for CashReportParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        let currency = record.get_value("Currency")?;
-        if currency == "Base Currency Summary" ||
-            record.get_value("Currency Summary")? != "Ending Cash" {
+        if record.get_value("Currency Summary")? != "Ending Cash" {
             return Ok(());
         }
 
-        if parser.statement.cash_assets.has_assets(currency) {
-            return Err!("Got duplicated {} assets", currency);
-        }
+        let currency = record.get_value("Currency")?;
+        let amount = record.parse_cash("Total", DecimalRestrictions::PositiveOrZero)?;
 
         record.check_value("Futures", "0")?;
         record.check_value("Total", record.get_value("Securities")?)?;
 
-        let amount = record.parse_cash("Total", DecimalRestrictions::PositiveOrZero)?;
-        parser.statement.cash_assets.deposit(Cash::new(currency, amount));
+        if currency == "Base Currency Summary" {
+            let currency = parser.base_currency.as_ref().ok_or_else(||
+                "Unable to determine account base currency")?;
+
+            if parser.base_currency_summary.replace(Cash::new(&currency, amount)).is_some() {
+                return Err!("Got duplicated base currency summary");
+            }
+        } else {
+            if parser.statement.cash_assets.has_assets(currency) {
+                return Err!("Got duplicated {} assets", currency);
+            }
+
+            parser.statement.cash_assets.deposit(Cash::new(currency, amount));
+        }
 
         Ok(())
     }
