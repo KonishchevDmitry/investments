@@ -483,7 +483,7 @@ mod tests {
     #[test]
     fn real_deposit() {
         let (interest, difference) = compare_to_bank_deposit(
-            &[Transaction::new(date!(28, 7, 2018), dec!(600000))],
+            &[Transaction::new(date!(28, 7, 2018), dec!(600_000))],
             &[InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
             decf!(621486.34),
         ).unwrap();
@@ -496,9 +496,9 @@ mod tests {
     fn real_deposit_fake_transactions() {
         let (interest, difference) = compare_to_bank_deposit(
             &[
-                Transaction::new(date!( 2, 2, 2018), dec!(200000)),
-                Transaction::new(date!(28, 7, 2018), dec!(400000)),
-                Transaction::new(date!( 3, 3, 2019), dec!(-300000)),
+                Transaction::new(date!( 2, 2, 2018), dec!(200_000)),
+                Transaction::new(date!(28, 7, 2018), dec!(400_000)),
+                Transaction::new(date!( 3, 3, 2019), dec!(-300_000)),
             ],
             &[InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
             decf!(321486.34),

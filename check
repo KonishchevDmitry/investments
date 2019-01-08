@@ -23,7 +23,4 @@ cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     redundant_field_names
     too_many_arguments
     unit_arg
-
-    # FIXME: Check all lints below
-    unreadable_literal
 ')
