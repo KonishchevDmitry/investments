@@ -25,11 +25,10 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
     // the first step to the current assets
     debug!("");
     debug!("Calculating assets target value...");
-    calculate_target_value(
+    AssetGroupRebalancer::rebalance(
         &portfolio.name, &mut portfolio.assets, portfolio.total_value - portfolio.min_cash_assets,
         portfolio.min_trade_volume);
 
-    // FIXME: Merge with previous step?
     // The next step is bottom-up and calculates the result of the previous step
     let (current_value, commissions) = calculate_result_value(
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
@@ -114,140 +113,210 @@ fn propagate_zero_weight(asset: &mut AssetAllocation) {
     asset.max_value = Some(asset.min_value);
 }
 
-#[allow(clippy::cyclomatic_complexity)] // FIXME
-fn calculate_target_value(
-    name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
-    min_trade_volume: Decimal
-) -> Decimal {
-    debug!("{name}:", name=name);
-    debug!("* Initial target values:");
-    for asset in assets.iter_mut() {
-        asset.target_value = target_total_value * asset.expected_weight;
-        debug!("  * {name}: {current_value} -> {target_value}",
-               name=asset.full_name(), current_value=asset.current_value.normalize(),
-               target_value=asset.target_value.normalize());
+struct AssetGroupRebalancer<'a> {
+    name: &'a str,
+    assets: &'a mut Vec<AssetAllocation>,
+    target_total_value: Decimal,
+    min_trade_volume: Decimal,
+    balance: Decimal,
+}
+
+impl<'a> AssetGroupRebalancer<'a> {
+    fn rebalance(
+        name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
+        min_trade_volume: Decimal
+    ) -> Decimal {
+        let mut rebalancer = AssetGroupRebalancer {
+            name, assets, target_total_value, min_trade_volume,
+            balance: dec!(0),
+        };
+
+        debug!("{name}:", name=name);
+        rebalancer.calculate_initial_target_values();
+        rebalancer.apply_restrictions();
+        rebalancer.correct_balance();
+        rebalancer.propagate_changes();
+        rebalancer.balance
     }
 
-    let mut balance = dec!(0);
-
-    debug!("* Rounding:");
-
-    for asset in assets.iter_mut() {
-        let mut difference = asset.target_value - asset.current_value;
-
-        if let Holding::Stock(ref holding) = asset.holding {
-            difference = util::round_to(difference / holding.price, 0) * holding.price;
+    fn calculate_initial_target_values(&mut self) {
+        debug!("* Initial target values:");
+        for asset in self.assets.iter_mut() {
+            asset.target_value = self.target_total_value * asset.expected_weight;
+            debug!("  * {name}: {current_value} -> {target_value}",
+                   name=asset.full_name(), current_value=asset.current_value.normalize(),
+                   target_value=asset.target_value.normalize());
         }
 
-        if difference.abs() < min_trade_volume {
-            difference = dec!(0);
-        }
+        let state = self.get_current_state();
 
-        let target_value = asset.current_value + difference;
+        for asset in self.assets.iter_mut() {
+            let mut difference = asset.target_value - asset.current_value;
 
-        if target_value != asset.target_value {
-            debug!("  * {name}: {target_value} -> {corrected_target_value}",
-                name=asset.full_name(), target_value=asset.target_value.normalize(),
-                corrected_target_value=target_value.normalize());
+            if let Holding::Stock(ref holding) = asset.holding {
+                difference = util::round_to(difference / holding.price, 0) * holding.price;
+            }
 
-            balance += asset.target_value - target_value;
+            if difference.abs() < self.min_trade_volume {
+                difference = dec!(0);
+            }
+
+            let target_value = asset.current_value + difference;
+            self.balance += asset.target_value - target_value;
             asset.target_value = target_value;
         }
+
+        self.log_state_changes("Rounding", state);
     }
 
-    debug!("* Rebalancing:");
+    fn apply_restrictions(&mut self) {
+        let state = self.get_current_state();
 
-    for asset in assets.iter_mut() {
-        if let Some(max_value) = asset.max_value {
-            if asset.target_value > max_value {
-                if asset.restrict_buying.unwrap_or(false) && asset.target_value > asset.current_value {
-                    asset.buy_blocked = true;
-                    debug!("  * {name}: buying is blocked at {value}",
-                           name=asset.full_name(), value=max_value.normalize());
+        let mut logged = false;
+        let mut log_restriction_applying = |name: &str, action: &str, value: Decimal| {
+            if !logged {
+                debug!("* Applying restrictions:");
+                logged = true;
+            }
+
+            debug!("  * {name}: {action} is blocked at {value}",
+                   name=name, action=action, value=value.normalize());
+        };
+
+        for asset in self.assets.iter_mut() {
+            if let Some(max_value) = asset.max_value {
+                if asset.target_value > max_value {
+                    if asset.restrict_buying.unwrap_or(false) && asset.target_value > asset.current_value {
+                        log_restriction_applying(&asset.full_name(), "buying", max_value);
+                        asset.buy_blocked = true;
+                    }
+
+                    self.balance += asset.target_value - max_value;
+                    asset.target_value = max_value;
+                }
+            }
+
+            let min_value = asset.min_value;
+
+            if asset.target_value < min_value {
+                log_restriction_applying(&asset.full_name(), "selling", min_value);
+                asset.sell_blocked = true;
+
+                self.balance += asset.target_value - min_value;
+                asset.target_value = min_value;
+            }
+        }
+
+        self.log_state_changes("Restrictions applying", state);
+    }
+
+    fn propagate_changes(&mut self) {
+        let state = self.get_current_state();
+        let mut propagated = false;
+
+        for asset in self.assets.iter_mut() {
+            let asset_name = asset.full_name();
+
+            if let Holding::Group(ref mut holdings) = asset.holding {
+                let balance = AssetGroupRebalancer::rebalance(
+                    &asset_name, holdings, asset.target_value, self.min_trade_volume);
+
+                asset.target_value -= balance;
+                self.balance += balance;
+                propagated = true;
+            }
+        }
+
+        if propagated {
+            debug!("{name}:", name=self.name);
+            self.log_state_changes("Target value change propagation", state);
+        }
+    }
+
+    fn correct_balance(&mut self) {
+        let state = self.get_current_state();
+
+        for action in [Action::Sell, Action::Buy].iter().cloned() {
+            let mut correctable_assets: HashSet<usize> = (0..self.assets.len()).collect();
+
+            while match action {
+                Action::Sell => self.balance.is_sign_negative(),
+                Action::Buy => self.balance.is_sign_positive(),
+            } {
+                let mut best_trade: Option<PossibleTrade> = None;
+
+                for index in correctable_assets.iter().cloned().collect::<Vec<_>>() {
+                    let asset = &mut self.assets[index];
+                    let expected_value = self.target_total_value * asset.expected_weight;
+                    let possible_trade = calculate_min_trade_volume(
+                        action, asset, expected_value, self.balance, self.min_trade_volume);
+
+                    match possible_trade {
+                        Some(mut trade) => {
+                            trade.path.push(index);
+                            best_trade = Some(get_best_trade(action, best_trade, trade));
+                        },
+                        None => {
+                            correctable_assets.remove(&index);
+                        },
+                    };
                 }
 
-                balance += asset.target_value - max_value;
-                asset.target_value = max_value;
-            }
-        }
-
-        let min_value = asset.min_value;
-
-        if asset.target_value < min_value {
-            debug!("  * {name}: selling is blocked at {value}",
-                   name=asset.full_name(), value=min_value.normalize());
-            asset.sell_blocked = true;
-
-            balance += asset.target_value - min_value;
-            asset.target_value = min_value;
-        }
-    }
-
-    let balance_before_distribution = balance;
-    let mut target_values_before_distribution = Vec::new();
-
-    if log_enabled!(log::Level::Debug) {
-        for asset in assets.iter() {
-            target_values_before_distribution.push(asset.target_value);
-        }
-    }
-
-    for action in [Action::Sell, Action::Buy].iter().cloned() {
-        let mut correctable_holdings: HashSet<usize> = (0..assets.len()).collect();
-
-        while match action {
-            Action::Sell => balance.is_sign_negative(),
-            Action::Buy => balance.is_sign_positive(),
-        } {
-            let mut best_trade: Option<PossibleTrade> = None;
-
-            for index in correctable_holdings.iter().cloned().collect::<Vec<_>>() {
-                let asset = &mut assets[index];
-                let expected_value = target_total_value * asset.expected_weight;
-
-                match calculate_min_trade_volume(action, asset, expected_value, balance, min_trade_volume) {
-                    Some(mut trade) => {
-                        trade.path.push(index);
-                        best_trade = Some(get_best_trade(action, best_trade, trade));
-                    },
-                    None => {
-                        correctable_holdings.remove(&index);
-                    },
+                let trade = match best_trade {
+                    Some(trade) => trade,
+                    None => break,
                 };
+
+                assert_eq!(trade.path.len(), 1);
+                let asset = &mut self.assets[*trade.path.last().unwrap()];
+
+                asset.target_value += trade.volume;
+                self.balance -= trade.volume;
             }
-
-            let trade = match best_trade {
-                Some(trade) => trade,
-                None => break,
-            };
-
-            assert_eq!(trade.path.len(), 1);
-            let asset = &mut assets[*trade.path.last().unwrap()];
-
-            asset.target_value += trade.volume;
-            balance -= trade.volume;
         }
+
+        self.log_state_changes("Balance correction", state);
     }
 
-    for asset in assets.iter_mut() {
-        let asset_name = asset.full_name();
-
-        if let Holding::Group(ref mut holdings) = asset.holding {
-            let group_balance = calculate_target_value(
-                &asset_name, holdings, asset.target_value, min_trade_volume);
-
-            asset.target_value -= group_balance;
-            balance += group_balance;
+    fn get_current_state(&self) -> Option<AssetGroupRebalacingState> {
+        if !log_enabled!(log::Level::Debug) {
+            return None;
         }
+
+        let mut state = AssetGroupRebalacingState {
+            target_values: Vec::new(),
+            balance: self.balance,
+        };
+
+        for asset in self.assets.iter() {
+            state.target_values.push(asset.target_value);
+        }
+
+        Some(state)
     }
 
-    if log_enabled!(log::Level::Debug) {
-        debug!("{name}:", name=name);
-        debug!("* Distribution: {prev_balance} -> {balance}:",
-               prev_balance=balance_before_distribution.normalize(), balance=balance.normalize());
+    fn log_state_changes(&self, changes_summary: &str, prev_state: Option<AssetGroupRebalacingState>) {
+        let prev_state = match prev_state {
+            Some(state) => state,
+            None => return,
+        };
 
-        for (index, asset) in assets.iter().enumerate() {
-            let prev_target_value = target_values_before_distribution[index];
+        let changed = self.balance != prev_state.balance ||
+            self.assets.iter().enumerate().any(|item| {
+                let (index, asset) = item;
+                asset.target_value != prev_state.target_values[index]
+            });
+
+        if !changed {
+            return;
+        }
+
+        debug!("* {changes_summary} ({prev_balance} -> {balance}):",
+               changes_summary=changes_summary, prev_balance=prev_state.balance.normalize(),
+               balance=self.balance.normalize());
+
+        for (index, asset) in self.assets.iter().enumerate() {
+            let prev_target_value = prev_state.target_values[index];
             if prev_target_value != asset.target_value {
                 debug!("  * {name}: {prev_target_value} -> {target_value}",
                        name=asset.full_name(), prev_target_value=prev_target_value.normalize(),
@@ -255,8 +324,11 @@ fn calculate_target_value(
             }
         }
     }
+}
 
-    balance
+struct AssetGroupRebalacingState {
+    target_values: Vec<Decimal>,
+    balance: Decimal,
 }
 
 fn calculate_result_value(
