@@ -18,13 +18,12 @@ get_lint_args() {
 
 cargo clippy --all-targets --all-features -- $(get_lint_args -A '
     collapsible_if
-
-    # FIXME: Check all lints below
     needless_pass_by_value
     new_ret_no_self
-    ptr_arg
     redundant_field_names
     too_many_arguments
     unit_arg
+
+    # FIXME: Check all lints below
     unreadable_literal
 ')

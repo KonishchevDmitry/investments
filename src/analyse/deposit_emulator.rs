@@ -13,8 +13,8 @@ pub struct DepositEmulator {
 
 impl DepositEmulator {
     pub fn emulate(
-        start_date: Date, start_assets: Decimal, transactions: &Vec<Transaction>, end_date: Date,
-        interest: Decimal, custom_interest_periods: Option<&Vec<InterestPeriod>>
+        start_date: Date, start_assets: Decimal, transactions: &[Transaction], end_date: Date,
+        interest: Decimal, custom_interest_periods: Option<&[InterestPeriod]>
     ) -> Decimal {
         let mut interest_periods = Vec::new();
 
@@ -247,13 +247,13 @@ mod tests {
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
-            &vec![Transaction::new(date!(28, 8, 2018), transaction_amount)],
+            &[Transaction::new(date!(28, 8, 2018), transaction_amount)],
             date!(28, 9, 2018), interest, None);
         assert_eq!(currency::round(result), decf!(604763.23));
 
         let result = DepositEmulator::emulate(
             start_date, initial_assets,
-            &vec![Transaction::new(date!(14, 8, 2018), transaction_amount)],
+            &[Transaction::new(date!(14, 8, 2018), transaction_amount)],
             date!(28, 9, 2018), interest, None);
         assert_eq!(currency::round(result), decf!(605843.59));
     }

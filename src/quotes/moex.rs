@@ -29,12 +29,9 @@ impl QuotesProvider for Moex {
         "Moscow Exchange"
     }
 
-    fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
-        #[cfg(not(test))]
-        let base_url = "https://iss.moex.com";
-
-        #[cfg(test)]
-        let base_url = mockito::server_url();
+    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+        #[cfg(not(test))] let base_url = "https://iss.moex.com";
+        #[cfg(test)] let base_url = mockito::server_url();
 
         let url = Url::parse_with_params(
             &format!("{}/iss/engines/stock/markets/shares/boards/TQTF/securities.xml", base_url),
@@ -198,7 +195,7 @@ mod tests {
             "testdata/moex-empty.xml",
         );
 
-        assert_eq!(Moex::new().get_quotes(&vec![s!("FXUS"), s!("FXIT")]).unwrap(), HashMap::new());
+        assert_eq!(Moex::new().get_quotes(&[s!("FXUS"), s!("FXIT")]).unwrap(), HashMap::new());
     }
 
     #[test]
@@ -212,7 +209,7 @@ mod tests {
         quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
         quotes.insert(s!("FXIT"), Cash::new("RUB", dec!(4612)));
 
-        assert_eq!(Moex::new().get_quotes(&vec![
+        assert_eq!(Moex::new().get_quotes(&[
             s!("FXUS"), s!("FXIT"), s!("INVALID")
         ]).unwrap(), quotes);
     }

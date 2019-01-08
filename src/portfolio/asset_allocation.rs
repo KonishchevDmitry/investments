@@ -251,7 +251,7 @@ impl AssetAllocation {
     }
 }
 
-fn check_weights(name: &str, assets: &Vec<AssetAllocation>) -> EmptyResult {
+fn check_weights(name: &str, assets: &[AssetAllocation]) -> EmptyResult {
     let mut weight = dec!(0);
 
     for asset in assets {

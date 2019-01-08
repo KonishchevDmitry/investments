@@ -35,7 +35,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn analyse(
-        statement: &BrokerStatement, tax_deductions: &Vec<CashAssets>, currency: &str,
+        statement: &BrokerStatement, tax_deductions: &[CashAssets], currency: &str,
         converter: &CurrencyConverter
     ) -> EmptyResult {
         let mut analyser = PortfolioPerformanceAnalyser {
@@ -164,7 +164,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn get_deposit_view(&mut self, symbol: &String) -> GenericResult<&mut StockDepositView> {
+    fn get_deposit_view(&mut self, symbol: &str) -> GenericResult<&mut StockDepositView> {
         Ok(self.instruments.as_mut().unwrap().get_mut(symbol).ok_or_else(|| format!(
             "Got an unexpected transaction for {} which had no open positions", symbol))?)
     }
@@ -348,7 +348,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn process_tax_deductions(&mut self, tax_deductions: &Vec<CashAssets>) -> EmptyResult {
+    fn process_tax_deductions(&mut self, tax_deductions: &[CashAssets]) -> EmptyResult {
         for tax_deduction in tax_deductions {
             let amount = self.converter.convert_to(
                 tax_deduction.date, tax_deduction.cash, self.currency)?;
@@ -359,7 +359,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn process_tax(&mut self, income_date: Date, symbol: &String, tax_to_pay: Decimal) -> EmptyResult {
+    fn process_tax(&mut self, income_date: Date, symbol: &str, tax_to_pay: Decimal) -> EmptyResult {
         // Treat tax payment as an ordinary deposit which we transfer to the account at tax payment
         // day.
 
@@ -398,7 +398,7 @@ struct StockDepositView {
 }
 
 fn compare_to_bank_deposit(
-    transactions: &Vec<Transaction>, interest_periods: &Vec<InterestPeriod>, current_assets: Decimal
+    transactions: &[Transaction], interest_periods: &[InterestPeriod], current_assets: Decimal
 ) -> GenericResult<(Decimal, Decimal)> {
     let start_assets = dec!(0);
 
@@ -472,7 +472,7 @@ fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -
     Ok(())
 }
 
-fn get_total_activity_duration(periods: &Vec<InterestPeriod>) -> i64 {
+fn get_total_activity_duration(periods: &[InterestPeriod]) -> i64 {
     periods.iter().map(|period| (period.end - period.start).num_days()).sum()
 }
 
@@ -483,8 +483,8 @@ mod tests {
     #[test]
     fn real_deposit() {
         let (interest, difference) = compare_to_bank_deposit(
-            &vec![Transaction::new(date!(28, 7, 2018), dec!(600000))],
-            &vec![InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
+            &[Transaction::new(date!(28, 7, 2018), dec!(600000))],
+            &[InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
             decf!(621486.34),
         ).unwrap();
 
@@ -495,12 +495,12 @@ mod tests {
     #[test]
     fn real_deposit_fake_transactions() {
         let (interest, difference) = compare_to_bank_deposit(
-            &vec![
+            &[
                 Transaction::new(date!( 2, 2, 2018), dec!(200000)),
                 Transaction::new(date!(28, 7, 2018), dec!(400000)),
                 Transaction::new(date!( 3, 3, 2019), dec!(-300000)),
             ],
-            &vec![InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
+            &[InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
             decf!(321486.34),
         ).unwrap();
 

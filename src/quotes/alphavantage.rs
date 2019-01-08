@@ -32,12 +32,9 @@ impl QuotesProvider for AlphaVantage {
         "Alpha Vantage"
     }
 
-    fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
-        #[cfg(not(test))]
-        let base_url = "https://www.alphavantage.co";
-
-        #[cfg(test)]
-        let base_url = mockito::server_url();
+    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+        #[cfg(not(test))] let base_url = "https://www.alphavantage.co";
+        #[cfg(test)] let base_url = mockito::server_url();
 
         let url = Url::parse_with_params(&format!("{}/query", base_url), &[
             ("function", "BATCH_STOCK_QUOTES"),
@@ -148,7 +145,7 @@ mod tests {
         );
 
         let client = AlphaVantage::new("mock");
-        assert_eq!(client.get_quotes(&vec![s!("BND"), s!("BNDX")]).unwrap(), HashMap::new());
+        assert_eq!(client.get_quotes(&[s!("BND"), s!("BNDX")]).unwrap(), HashMap::new());
     }
 
     #[test]
@@ -192,7 +189,7 @@ mod tests {
         quotes.insert(s!("BND"), Cash::new("USD", decf!(77.8650)));
         quotes.insert(s!("BNDX"), Cash::new("USD", decf!(54.5450)));
 
-        assert_eq!(client.get_quotes(&vec![
+        assert_eq!(client.get_quotes(&[
             s!("BND"), s!("BNDX"), s!("OUTDATED"), s!("INVALID")
         ]).unwrap(), quotes);
     }

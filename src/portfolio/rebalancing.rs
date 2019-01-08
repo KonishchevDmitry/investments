@@ -408,7 +408,7 @@ struct PossibleTrade {
 }
 
 fn find_assets_for_cash_distribution(
-    action: Action, assets: &Vec<AssetAllocation>, expected_total_value: Decimal,
+    action: Action, assets: &[AssetAllocation], expected_total_value: Decimal,
     cash_assets: Decimal, min_trade_volume: Decimal
 ) -> Option<PossibleTrade> {
     let mut best_trade: Option<PossibleTrade> = None;

@@ -86,7 +86,7 @@ type QuotesMap = HashMap<String, Cash>;
 
 trait QuotesProvider {
     fn name(&self) -> &'static str;
-    fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap>;
+    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap>;
 }
 
 #[cfg(test)]
@@ -104,8 +104,8 @@ mod tests {
                 "first-provider"
             }
 
-            fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
-                let mut symbols = symbols.clone();
+            fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+                let mut symbols = symbols.to_vec();
                 symbols.sort();
 
                 assert_eq!(*self.request_id.borrow(), 0);
@@ -128,9 +128,9 @@ mod tests {
                 "second-provider"
             }
 
-            fn get_quotes(&self, symbols: &Vec<String>) -> GenericResult<QuotesMap> {
+            fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
                 assert_eq!(*self.request_id.borrow(), 0);
-                assert_eq!(*symbols, vec![s!("BNDX")]);
+                assert_eq!(symbols, [s!("BNDX")]);
                 *self.request_id.borrow_mut() += 1;
 
                 let mut quotes = HashMap::new();
