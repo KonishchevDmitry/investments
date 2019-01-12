@@ -18,7 +18,7 @@ mod rate_cache;
 
 pub mod converter;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Cash {
     pub currency: &'static str,
     pub amount: Decimal,
@@ -164,6 +164,10 @@ impl MultiCurrencyCashAccount {
 
 pub fn round(amount: Decimal) -> Decimal {
     util::round_to(amount, 2)
+}
+
+pub fn round_to(amount: Decimal, points: u32) -> Decimal {
+    util::round_to(amount, points)
 }
 
 #[cfg(test)]

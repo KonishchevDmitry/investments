@@ -8,7 +8,7 @@ use log::{debug, warn};
 use crate::brokers::BrokerInfo;
 use crate::config::{Config, Broker};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
+use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::quotes::Quotes;
@@ -503,6 +503,8 @@ pub struct StockSellSource {
 
 impl StockSell {
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+        // TODO: We need to use exactly the same rounding logic as is tax statement
+
         let mut purchase_cost = dec!(0);
 
         for source in &self.sources {
@@ -524,7 +526,7 @@ impl StockSell {
             return Ok(dec!(0));
         }
 
-        Ok(currency::round(income * country.tax_rate))
+        Ok(country.tax_to_pay(income, None))
     }
 }
 
@@ -539,15 +541,8 @@ pub struct Dividend {
 impl Dividend {
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to(self.date, self.amount, country.currency)?;
-        let tax_amount = currency::round(amount * country.tax_rate);
-        let paid_tax = currency::round(converter.convert_to(
-            self.date, self.paid_tax, country.currency)?);
-
-        Ok(if paid_tax < tax_amount {
-            tax_amount - paid_tax
-        } else {
-            dec!(0)
-        })
+        let paid_tax = converter.convert_to(self.date, self.paid_tax, country.currency)?;
+        Ok(country.tax_to_pay(amount, Some(paid_tax)))
     }
 }
 

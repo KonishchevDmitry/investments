@@ -1,10 +1,12 @@
 use chrono::{Datelike, Duration};
 
+use crate::currency;
 use crate::types::{Date, Decimal};
 
 pub struct Country {
     pub currency: &'static str,
-    pub tax_rate: Decimal,
+    tax_rate: Decimal,
+    tax_precision: u32,
 }
 
 impl Country {
@@ -12,12 +14,31 @@ impl Country {
     pub fn get_tax_payment_date(&self, income_date: Date) -> Date {
         Date::from_ymd(income_date.year() + 1, 3, 15)
     }
+
+    pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+        assert!(!income.is_sign_negative());
+        let tax_to_pay = currency::round_to(income * self.tax_rate, self.tax_precision);
+
+        if let Some(paid_tax) = paid_tax {
+            assert!(!paid_tax.is_sign_negative());
+            let tax_deduction = currency::round_to(paid_tax, self.tax_precision);
+
+            if tax_deduction < tax_to_pay {
+                tax_to_pay - tax_deduction
+            } else {
+                dec!(0)
+            }
+        } else {
+            tax_to_pay
+        }
+    }
 }
 
 pub fn russia() -> Country {
     Country {
         currency: "RUB",
         tax_rate: Decimal::new(13, 2),
+        tax_precision: 0,
     }
 }
 
@@ -25,6 +46,7 @@ pub fn us() -> Country {
     Country {
         currency: "USD",
         tax_rate: Decimal::new(10, 2),
+        tax_precision: 2,
     }
 }
 

@@ -52,20 +52,21 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
     for dividend in dividends_info.drain(..) {
         let (issuer, tax_description) = parse_dividend_description(&dividend.description)?;
         let tax_id = (dividend.date, tax_description);
+        let paid_tax = taxes.remove(&tax_id).ok_or_else(|| format!(
+            "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
+            formatting::format_date(dividend.date), dividend.description, tax_id.1))?;
 
-        let expected_tax = (dividend.amount * country.tax_rate).round();
-        let paid_tax = match taxes.remove(&tax_id) {
-            Some(paid_tax) => paid_tax,
-            None => {
-                return Err!(
-                    "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
-                    formatting::format_date(dividend.date), dividend.description, tax_id.1);
-            },
-        };
-
-        if paid_tax != expected_tax {
+        if dividend.amount.currency != country.currency {
             return Err!(
-                "Paid tax for {} / {:?} is not equal to expected one: {} vs {}",
+                "Got {} / {:?} dividend in {} currency when {} is expected",
+                formatting::format_date(dividend.date), dividend.description,
+                dividend.amount.currency, country.currency);
+        }
+
+        let expected_tax = country.tax_to_pay(dividend.amount.amount, None);
+        if paid_tax != Cash::new(dividend.amount.currency, expected_tax) {
+            return Err!(
+                "Paid tax for {} / {:?} dividend is not equal to expected one: {} vs {}",
                 formatting::format_date(dividend.date), dividend.description, paid_tax,
                 expected_tax);
         }

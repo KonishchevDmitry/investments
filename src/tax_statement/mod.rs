@@ -133,7 +133,6 @@ impl<'a> TaxStatementGenerator<'a> {
                 dividend.date, dividend.paid_tax, country.currency)?);
             total_paid_tax += paid_tax;
 
-            // FIXME: Tax statement rounds all taxes to rubles
             let tax_to_pay = dividend.tax_to_pay(&country, &self.converter)?;
             total_tax_to_pay += tax_to_pay;
 
