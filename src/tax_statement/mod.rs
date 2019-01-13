@@ -68,6 +68,7 @@ pub fn generate_tax_statement(
             converter: CurrencyConverter::new(database, true),
         };
 
+        // FIXME: Stock selling support
         generator.process_dividend_income().map_err(|e| format!(
             "Failed to process dividend income: {}", e))?;
     }

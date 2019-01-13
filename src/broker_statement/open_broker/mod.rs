@@ -34,7 +34,7 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
-        // FIXME: Stock selling, dividends, tax agent support
+        // FIXME: tax agent support
         let mut statement = BrokerStatementBuilder::new(self.broker_info.clone());
         read_statement(path)?.parse(&mut statement)?;
         statement.get()
