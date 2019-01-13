@@ -16,6 +16,10 @@ impl Country {
     }
 
     pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+        // TODO: It looks like Декларация program rounds tax amount to rubles as
+        // round_to(round_to(value, 2), 0) because it rounds 10.64 * 65.4244 * 0.13
+        // (which is 90.4956) to 91.
+
         assert!(!income.is_sign_negative());
         let tax_to_pay = currency::round_to(income * self.tax_rate, self.tax_precision);
 
