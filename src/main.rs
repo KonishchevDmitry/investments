@@ -29,6 +29,7 @@ use crate::init::{Action, initialize};
 // TODO: Features to implement:
 // * Stock split support
 // * Declare loss in tax statement
+// * Tax payment modes (https://ndflka.ru/question/728378-oplata_naloga_po_iis_1_go_tipa)
 // * Free commissions (considering monthly minimum fee)
 
 fn main() {
