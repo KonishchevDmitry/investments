@@ -1,4 +1,4 @@
-use crate::broker_statement::StockBuy;
+use crate::broker_statement::{StockBuy, StockSell};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::util::DecimalRestrictions;
@@ -51,22 +51,22 @@ impl RecordParser for TradesParser {
         let currency = record.get_value("Currency")?;
         let symbol = record.get_value("Symbol")?;
         let date = parse_date_time(record.get_value("Date/Time")?)?.date();
-
         let quantity: i32 = record.parse_value("Quantity")?;
-        if quantity == 0 {
-            return Err!("Invalid quantity: {}", quantity)
-        } else if quantity < 0 {
-            // TODO: Support position closing
-            return Err!("Position closing is not supported yet");
-        }
 
         let price = Cash::new(
             currency, record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?);
         let commission = Cash::new(
             currency, record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?);
 
-        parser.statement.stock_buys.push(StockBuy::new(
-            symbol, quantity as u32, price, commission, date, date));
+        if quantity > 0 {
+            parser.statement.stock_buys.push(StockBuy::new(
+                symbol, quantity as u32, price, commission, date, date));
+        } else if quantity < 0 {
+            parser.statement.stock_sells.push(StockSell::new(
+                symbol, -quantity as u32, price, commission, date, date));
+        } else {
+            return Err!("Invalid quantity: {}", quantity)
+        }
 
         Ok(())
     }
