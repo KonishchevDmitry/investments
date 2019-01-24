@@ -1,6 +1,3 @@
-// TODO: Workaround for https://github.com/diesel-rs/diesel/issues/1785
-#![allow(proc_macro_derive_resolution_fallback)]
-
 use crate::db::schema::{AssetType, assets, currency_rates, quotes};
 use crate::types::{Date, DateTime};
 
