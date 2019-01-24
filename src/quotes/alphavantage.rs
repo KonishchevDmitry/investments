@@ -96,6 +96,11 @@ fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>>
         let date_time = timezone.datetime_from_str(&quote.time, "%Y-%m-%d %H:%M:%S").map_err(|_| format!(
             "Invalid time: {:?}", quote.time))?;
 
+        // A special case for quotes that are returned by API but don't updated and have zero price
+        if date_time.timestamp() == 0 {
+            continue;
+        }
+
         if is_outdated(date_time) {
             outdated.push(quote.symbol);
             continue;
