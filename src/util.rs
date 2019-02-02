@@ -1,3 +1,4 @@
+use std::ops::Neg;
 use std::str::FromStr;
 
 use chrono::{self, Duration};
@@ -34,7 +35,13 @@ pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> Ge
 }
 
 pub fn round_to(value: Decimal, points: u32) -> Decimal {
-    value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp).normalize()
+    let mut round_value = value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp);
+
+    if round_value.is_zero() && round_value.is_sign_negative() {
+        round_value = round_value.neg();
+    }
+
+    round_value.normalize()
 }
 
 pub fn today() -> Date {
@@ -81,6 +88,10 @@ mod tests {
     fn rounding() {
         assert_eq!(round_to(decf!(-1.5), 0), dec!(-2));
         assert_eq!(round_to(decf!(-1.4), 0), dec!(-1));
+        assert_eq!(round_to(decf!(-0.5), 0), dec!(-1));
+        assert_eq!(round_to(decf!(-0.4), 0), dec!(0));
+        assert_eq!(round_to(decf!(0.4), 0), dec!(0));
+        assert_eq!(round_to(decf!(0.5), 0), dec!(1));
         assert_eq!(round_to(decf!(1.4), 0), dec!(1));
         assert_eq!(round_to(decf!(1.5), 0), dec!(2));
     }
