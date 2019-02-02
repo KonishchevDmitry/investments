@@ -30,7 +30,10 @@ use crate::init::{Action, initialize};
 // * Stock split support
 // * Declare loss in tax statement
 // * Tax payment modes (https://ndflka.ru/question/728378-oplata_naloga_po_iis_1_go_tipa)
+// * XLS for tax inspector
 // * Free commissions (considering monthly minimum fee)
+// * Shadow sold positions in analyse output
+// * T+2 mode support for IB tax statement? (Trade Confirmations broker statement shows the info)
 
 fn main() {
     let (action, config) = initialize();
