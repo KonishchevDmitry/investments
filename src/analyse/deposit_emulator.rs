@@ -150,6 +150,7 @@ impl DepositEmulator {
     }
 }
 
+#[cfg_attr(test, derive(Clone, Copy))]
 pub struct Transaction {
     pub date: Date,
     pub amount: Decimal,
@@ -238,7 +239,7 @@ mod tests {
 
     #[test]
     fn deposit_emulator() {
-        // FIXME: Replace with real data
+        // FIXME: Replace with real deposit with contributions
 
         let start_date = date!(28, 7, 2018);
         let initial_assets = dec!(200_000);
@@ -293,8 +294,18 @@ mod tests {
         ].iter().cloned() {
             let result = DepositEmulator::emulate(
                 start_date, initial_assets, &transactions, end_date, interest, None);
-
             assert_eq!(currency::round(result), expected_assets);
+
+            {
+                // Test deposit closing
+
+                let mut transactions = transactions.clone();
+                transactions.push(Transaction::new(end_date, -expected_assets));
+
+                let result = DepositEmulator::emulate(
+                    start_date, initial_assets, &transactions, end_date, interest, None);
+                assert_eq!(currency::round(result), dec!(0));
+            }
         }
     }
 
@@ -316,29 +327,29 @@ mod tests {
             interest, Some(&interest_periods));
         assert_eq!(currency::round(result), decf!(621_486.34));
 
-        // FIXME: Replace with real data all below
-
         // A pause with no interest
-        transactions.push(Transaction::new(date!(8, 2, 2019), dec!(300_000) - result));
+        transactions.push(Transaction::new(date!(28, 1, 2019), dec!(100_000) - result));
+        transactions.push(Transaction::new(date!(31, 1, 2019), dec!(90_000)));
         let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(28, 3, 2019),
+            start_date, initial_assets, &transactions, date!(31, 1, 2019),
             interest, Some(&interest_periods));
-        assert_eq!(currency::round(result), dec!(300_000));
+        assert_eq!(currency::round(result), dec!(190_000));
 
         // Second deposit
-        transactions.push(Transaction::new(date!(28, 3, 2019), dec!(300_000)));
-        interest_periods.push(InterestPeriod::new(date!(28, 3, 2019), date!(28, 4, 2019)));
+        interest_periods.push(InterestPeriod::new(date!(31, 1, 2019), date!(31, 7, 2019)));
         let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(28, 4, 2019),
+            start_date, initial_assets, &transactions, date!(31, 7, 2019),
             interest, Some(&interest_periods));
-        assert_eq!(currency::round(result), decf!(603_567.12));
+        assert_eq!(currency::round(result), decf!(196_691.46)); // FIXME: 46 -> 45
+
+        // FIXME: Add contribution
 
         // Some activity with no interest
-        transactions.push(Transaction::new(date!(8, 5, 2019), dec!(300_000) - result));
+        transactions.push(Transaction::new(date!(31, 7, 2019), dec!(100_000) - result));
         let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(1, 6, 2019),
+            start_date, initial_assets, &transactions, date!(1, 1, 2020),
             interest, Some(&interest_periods));
-        assert_eq!(currency::round(result), dec!(300_000));
+        assert_eq!(currency::round(result), dec!(100_000));
     }
 
     #[test]
