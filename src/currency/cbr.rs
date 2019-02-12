@@ -4,6 +4,7 @@ use std::str::FromStr;
 use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::{self, Url};
+use serde::Deserialize;
 use serde_xml_rs;
 
 use crate::core::GenericResult;

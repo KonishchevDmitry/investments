@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use chrono::Duration;
 use log::{warn, error};
 use num_traits::Zero;
+use serde::Deserialize;
 
 use crate::broker_statement::{BrokerStatementBuilder, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};

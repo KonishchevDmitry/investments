@@ -6,6 +6,7 @@ use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use num_traits::Zero;
 use reqwest::{Client, Url};
+use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;

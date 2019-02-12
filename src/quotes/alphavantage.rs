@@ -8,6 +8,7 @@ use chrono_tz::Tz;
 use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::{Client, Url, Response};
+use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;

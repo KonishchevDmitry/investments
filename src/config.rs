@@ -4,7 +4,8 @@ use std::io::Read;
 
 use chrono::Duration;
 use num_traits::FromPrimitive;
-use serde::de::{Deserialize, Deserializer, Error};
+use serde::Deserialize;
+use serde::de::{Deserializer, Error};
 use serde_yaml;
 use shellexpand;
 
