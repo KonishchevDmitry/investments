@@ -71,10 +71,10 @@ mod tests {
         let (_database, mut cache) = Cache::new_temporary();
 
         let symbol = "BND";
-        let price = Cash::new("USD", decf!(1.234));
+        let price = Cash::new("USD", dec!(1.234));
 
         let other_symbol = "FXRU";
-        let other_price = Cash::new("RUB", decf!(1234.56));
+        let other_price = Cash::new("RUB", dec!(1234.56));
 
         diesel::replace_into(quotes::table)
             .values(models::NewQuote {

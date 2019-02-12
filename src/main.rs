@@ -1,5 +1,6 @@
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
+#[macro_use] extern crate rust_decimal_macros;
 
 #[macro_use] mod core;
 #[macro_use] mod types;

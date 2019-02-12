@@ -86,13 +86,13 @@ mod tests {
 
     #[test]
     fn rounding() {
-        assert_eq!(round_to(decf!(-1.5), 0), dec!(-2));
-        assert_eq!(round_to(decf!(-1.4), 0), dec!(-1));
-        assert_eq!(round_to(decf!(-0.5), 0), dec!(-1));
-        assert_eq!(round_to(decf!(-0.4), 0), dec!(0));
-        assert_eq!(round_to(decf!(0.4), 0), dec!(0));
-        assert_eq!(round_to(decf!(0.5), 0), dec!(1));
-        assert_eq!(round_to(decf!(1.4), 0), dec!(1));
-        assert_eq!(round_to(decf!(1.5), 0), dec!(2));
+        assert_eq!(round_to(dec!(-1.5), 0), dec!(-2));
+        assert_eq!(round_to(dec!(-1.4), 0), dec!(-1));
+        assert_eq!(round_to(dec!(-0.5), 0), dec!(-1));
+        assert_eq!(round_to(dec!(-0.4), 0), dec!(0));
+        assert_eq!(round_to(dec!(0.4), 0), dec!(0));
+        assert_eq!(round_to(dec!(0.5), 0), dec!(1));
+        assert_eq!(round_to(dec!(1.4), 0), dec!(1));
+        assert_eq!(round_to(dec!(1.5), 0), dec!(2));
     }
 }

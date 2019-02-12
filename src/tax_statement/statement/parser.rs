@@ -241,10 +241,10 @@ mod tests {
             let description = "Дивиденд";
             let date = date!(1, 1, year);
             let currency = "USD";
-            let currency_rate = decf!(57.6002);
+            let currency_rate = dec!(57.6002);
             let amount = dec!(100);
             let paid_tax = dec!(10);
-            let local_amount = decf!(5760.02);
+            let local_amount = dec!(5760.02);
             let local_paid_tax = dec!(576);
 
             statement.add_dividend(

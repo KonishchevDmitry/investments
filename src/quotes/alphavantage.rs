@@ -192,8 +192,8 @@ mod tests {
         let client = AlphaVantage::new("mock");
 
         let mut quotes = HashMap::new();
-        quotes.insert(s!("BND"), Cash::new("USD", decf!(77.8650)));
-        quotes.insert(s!("BNDX"), Cash::new("USD", decf!(54.5450)));
+        quotes.insert(s!("BND"), Cash::new("USD", dec!(77.8650)));
+        quotes.insert(s!("BNDX"), Cash::new("USD", dec!(54.5450)));
 
         assert_eq!(client.get_quotes(&[
             s!("BND"), s!("BNDX"), s!("OUTDATED"), s!("INVALID")

@@ -113,8 +113,8 @@ mod tests {
                 *self.request_id.borrow_mut() += 1;
 
                 let mut quotes = HashMap::new();
-                quotes.insert(s!("BND"), Cash::new("USD", decf!(12.34)));
-                quotes.insert(s!("VTI"), Cash::new("USD", decf!(56.78)));
+                quotes.insert(s!("BND"), Cash::new("USD", dec!(12.34)));
+                quotes.insert(s!("VTI"), Cash::new("USD", dec!(56.78)));
                 Ok(quotes)
             }
         }
@@ -134,7 +134,7 @@ mod tests {
                 *self.request_id.borrow_mut() += 1;
 
                 let mut quotes = HashMap::new();
-                quotes.insert(s!("BNDX"), Cash::new("USD", decf!(90.12)));
+                quotes.insert(s!("BNDX"), Cash::new("USD", dec!(90.12)));
                 Ok(quotes)
             }
         }
@@ -147,11 +147,11 @@ mod tests {
 
         quotes.batch("VTI");
         quotes.batch("BNDX");
-        assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", decf!(12.34)));
+        assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", dec!(12.34)));
 
         quotes.batch("VXUS");
-        assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", decf!(12.34)));
-        assert_eq!(quotes.get("VTI").unwrap(), Cash::new("USD", decf!(56.78)));
-        assert_eq!(quotes.get("BNDX").unwrap(), Cash::new("USD", decf!(90.12)));
+        assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", dec!(12.34)));
+        assert_eq!(quotes.get("VTI").unwrap(), Cash::new("USD", dec!(56.78)));
+        assert_eq!(quotes.get("BNDX").unwrap(), Cash::new("USD", dec!(90.12)));
     }
 }

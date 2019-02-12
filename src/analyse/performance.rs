@@ -422,7 +422,7 @@ fn compare_to_bank_deposit(
     let mut interest = dec!(0);
     let mut difference = emulate(interest);
 
-    for mut step in [dec!(1), decf!(0.1), decf!(0.01)].iter().cloned() {
+    for mut step in [dec!(1), dec!(0.1), dec!(0.01)].iter().cloned() {
         let decreasing_difference = emulate(interest - step);
         let increasing_difference = emulate(interest + step);
 
@@ -460,7 +460,7 @@ fn compare_to_bank_deposit(
 fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
     let precision = (difference / assets).abs();
 
-    if precision >= decf!(0.01) {
+    if precision >= dec!(0.01) {
         return Err!(concat!(
             "Failed to compare {} performance to bank deposit: ",
             "got a result with too low precision ({})"), name, util::round_to(precision, 3));
@@ -485,11 +485,11 @@ mod tests {
         let (interest, difference) = compare_to_bank_deposit(
             &[Transaction::new(date!(28, 7, 2018), dec!(600_000))],
             &[InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
-            decf!(621486.34),
+            dec!(621486.34),
         ).unwrap();
 
         assert_eq!(interest, dec!(7));
-        assert!(difference < decf!(0.01));
+        assert!(difference < dec!(0.01));
     }
 
     #[test]
@@ -501,10 +501,10 @@ mod tests {
                 Transaction::new(date!( 3, 3, 2019), dec!(-300_000)),
             ],
             &[InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019))],
-            decf!(321486.34),
+            dec!(321486.34),
         ).unwrap();
 
         assert_eq!(interest, dec!(7));
-        assert!(difference < decf!(0.01));
+        assert!(difference < dec!(0.01));
     }
 }

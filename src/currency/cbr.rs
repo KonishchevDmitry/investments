@@ -147,10 +147,10 @@ mod tests {
             get_rates("USD", date!(1, 9, 2018), date!(4, 9, 2018)).unwrap(),
             vec![CurrencyRate {
                 date: date!(1, 9, 2018),
-                price: decf!(68.0447),
+                price: dec!(68.0447),
             }, CurrencyRate {
                 date: date!(4, 9, 2018),
-                price: decf!(67.7443),
+                price: dec!(67.7443),
             }],
         );
     }
