@@ -343,6 +343,11 @@ mod tests {
         assert_eq!(currency::round(result), decf!(196_691.46)); // FIXME: 46 -> 45
 
         // FIXME: Add contribution
+        transactions.push(Transaction::new(date!(5, 2, 2019), dec!(60_000)));
+        let result = DepositEmulator::emulate(
+            start_date, initial_assets, &transactions, date!(31, 7, 2019),
+            interest, Some(&interest_periods));
+        assert_eq!(currency::round(result), decf!(258_745.33)); // FIXME: 33 -> 30
 
         // Some activity with no interest
         transactions.push(Transaction::new(date!(31, 7, 2019), dec!(100_000) - result));
