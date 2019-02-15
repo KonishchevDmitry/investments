@@ -1,0 +1,88 @@
+portfolios:
+  -
+    # Name which will identify your portfolio in commands
+    name: ib
+
+    # Specifies broker
+    broker: interactive-brokers
+
+    # Path to a directory with broker statements (*.csv for Interactive Brokers)
+    statements: ~/Brokerage/Interactive Brokers/Statements
+
+    # Base currency of your account
+    currency: USD
+
+    # When investments tries to rebalance your portfolio according to the specified weights it may lead to orders like
+    # "buy 1 XXX stock, sell 1 YYY stock" which may be too expensive in terms of commissions. This option sets minimum
+    # trade volume per stock which solves the issue.
+    min_trade_volume: 200
+
+    # Free cash assets that must left after portfolio rebalancing
+    min_cash_assets: 50
+
+    # restrict_selling/restrict_buying options may be applied to the whole portfolio, asset groups or individual stocks
+    # and restrict the specified action.
+    restrict_selling: true
+
+    # Describes your target assets allocation for portfolio rebalancing. Positions can be grouped with unlimited nesting
+    # level.
+    assets:
+      - name: Stocks
+        weight: 70%
+        assets:
+          - {name: Vanguard Total Stock Market ETF, symbol: VTI, weight: 75%}
+          - {name: Vanguard Total International Stock ETF, symbol: VXUS, weight: 25%}
+
+      - name: Bonds
+        weight: 30%
+        assets:
+          - {name: Vanguard Total Bond Market ETF, symbol: BND, weight: 50%}
+          - {name: Vanguard International Bond ETF, symbol: BNDX, weight: 50%}
+
+  - name: open
+    broker: open-broker
+    statements: ~/Brokerage/Open Broker/Statements
+
+    # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
+    tax_deductions:
+      25.09.2018: 52000
+
+    currency: RUB
+    min_cash_assets: 250
+    restrict_selling: true
+
+    assets:
+      - name: Stocks
+        weight: 70%
+        assets:
+          - {name: FinEx MSCI USA UCITS ETF, symbol: FXUS, weight: 75%}
+          - name: Other world
+            weight: 25%
+            assets:
+              - {name: FinEx Russian RTS Equity UCITS ETF, symbol: FXRL, weight: 20%}
+              - {name: FinEx MSCI China UCITS ETF, symbol: FXCN, weight: 20%}
+              - {name: FinEx MSCI Japan UCITS ETF, symbol: FXJP, weight: 15%}
+              - {name: FinEx MSCI United Kingdom UCITS ETF, symbol: FXUK, weight: 15%}
+              - {name: FinEx MSCI Germany UCITS ETF, symbol: FXDE, weight: 15%}
+              - {name: FinEx MSCI Australia UCITS ETF, symbol: FXAU, weight: 15%}
+
+      - {name: FinEx Tradable Russian Corporate Bonds UCITS ETF, symbol: FXRU, weight: 30%}
+
+# Your individual broker + bank account configuration. For now specifies your bank commissions for transferring funds
+# from your bank account to your broker account. Will be taken into account during portfolio performance analysis.
+brokers:
+  interactive_brokers:
+    deposit_commissions:
+      RUB:
+        fixed_amount: 0
+      USD:
+        fixed_amount: 15
+
+  open_broker:
+    deposit_commissions:
+      RUB:
+        fixed_amount: 0
+
+alphavantage:
+  # API key that must be obtained here - https://www.alphavantage.co/support/#api-key
+  api_key: secret
