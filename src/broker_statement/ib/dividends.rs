@@ -7,7 +7,6 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::broker_statement::Dividend;
 use crate::formatting;
-use crate::localities;
 use crate::types::Date;
 use crate::util::DecimalRestrictions;
 
@@ -46,7 +45,6 @@ impl RecordParser for DividendsParser {
 }
 
 pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Vec<Dividend>> {
-    let country = localities::us();
     let mut dividends = Vec::with_capacity(dividends_info.len());
 
     for dividend in dividends_info.drain(..) {
@@ -55,21 +53,6 @@ pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMa
         let paid_tax = taxes.remove(&tax_id).ok_or_else(|| format!(
             "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
             formatting::format_date(dividend.date), dividend.description, tax_id.1))?;
-
-        if dividend.amount.currency != country.currency {
-            return Err!(
-                "Got {} / {:?} dividend in {} currency when {} is expected",
-                formatting::format_date(dividend.date), dividend.description,
-                dividend.amount.currency, country.currency);
-        }
-
-        let expected_tax = country.tax_to_pay(dividend.amount.amount, None);
-        if paid_tax != Cash::new(dividend.amount.currency, expected_tax) {
-            return Err!(
-                "Paid tax for {} / {:?} dividend is not equal to expected one: {} vs {}",
-                formatting::format_date(dividend.date), dividend.description, paid_tax,
-                expected_tax);
-        }
 
         dividends.push(Dividend {
             date: dividend.date,
