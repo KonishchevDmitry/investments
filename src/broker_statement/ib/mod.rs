@@ -44,7 +44,7 @@ impl BrokerStatementReader for StatementReader {
             statement: BrokerStatementBuilder::new(self.broker_info.clone()),
             base_currency: None,
             base_currency_summary: None,
-            taxes: HashMap::new(),
+            tax_changes: HashMap::new(),
             dividends: Vec::new(),
         };
 
@@ -62,7 +62,7 @@ pub struct StatementParser {
     statement: BrokerStatementBuilder,
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
-    taxes: HashMap<taxes::TaxId, Cash>,
+    tax_changes: HashMap<taxes::TaxId, taxes::TaxChanges>,
     dividends: Vec<dividends::DividendInfo>,
 }
 
@@ -168,10 +168,12 @@ impl StatementParser {
             self.statement.cash_assets.deposit(amount);
         }
 
-        self.statement.dividends = dividends::parse_dividends(self.dividends, &mut self.taxes)?;
+        // FIXME: We have to do this on merge stage
+        let mut taxes = taxes::parse_taxes(self.tax_changes)?;
+        self.statement.dividends = dividends::parse_dividends(self.dividends, &mut taxes)?;
 
-        if !self.taxes.is_empty() {
-            let taxes = self.taxes.keys()
+        if !taxes.is_empty() {
+            let taxes = taxes.keys()
                 .map(|tax: &taxes::TaxId| format!(
                     "* {date}: {description}", date=format_date(tax.0), description=tax.1))
                 .collect::<Vec<_>>()
