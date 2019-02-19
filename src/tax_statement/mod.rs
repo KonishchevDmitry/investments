@@ -69,6 +69,7 @@ pub fn generate_tax_statement(
         };
 
         // FIXME: Stock selling support
+        // FIXME: Free cash interest support
         generator.process_dividend_income().map_err(|e| format!(
             "Failed to process dividend income: {}", e))?;
     }
