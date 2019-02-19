@@ -5,7 +5,7 @@ use log::{warn, error};
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::broker_statement::{BrokerStatementBuilder, StockBuy, StockSell};
+use crate::broker_statement::{PartialBrokerStatement, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Date, Decimal};
@@ -41,7 +41,7 @@ pub struct BrokerReport {
 }
 
 impl BrokerReport {
-    pub fn parse(&self, statement: &mut BrokerStatementBuilder) -> EmptyResult {
+    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         statement.period = Some((self.date_from, self.date_to + Duration::days(1)));
         self.account_summary.parse(statement)?;
 
@@ -96,7 +96,7 @@ struct AccountSummaryItem {
 }
 
 impl AccountSummary {
-    fn parse(&self, statement: &mut BrokerStatementBuilder) -> EmptyResult {
+    fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         for item in &self.items {
             if item.name == "Входящий остаток (факт)" {
                 statement.set_starting_assets(!item.amount.is_zero())?;
@@ -132,7 +132,7 @@ struct Asset {
 }
 
 impl Assets {
-    fn parse(&self, statement: &mut BrokerStatementBuilder, securities: &HashMap<String, String>) -> EmptyResult {
+    fn parse(&self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>) -> EmptyResult {
         let mut has_starting_assets = false;
 
         for asset in &self.assets {
@@ -203,7 +203,7 @@ struct ConcludedTrade {
 
 impl ConcludedTrades {
     fn parse(
-        &self, statement: &mut BrokerStatementBuilder, securities: &HashMap<String, String>,
+        &self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>,
         trades_with_shifted_execution_date: &mut HashMap<u64, Date>,
     ) -> EmptyResult {
         for trade in &self.trades {
@@ -312,7 +312,7 @@ struct CashFlow {
 }
 
 impl CashFlows {
-    fn parse(&self, statement: &mut BrokerStatementBuilder) -> EmptyResult {
+    fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         for cash_flow in &self.cash_flows {
             let date = cash_flow.date;
             let currency = &cash_flow.currency;
@@ -353,7 +353,7 @@ struct Security {
 }
 
 impl Securities {
-    fn parse(&self, statement: &mut BrokerStatementBuilder) -> GenericResult<HashMap<String, String>> {
+    fn parse(&self, statement: &mut PartialBrokerStatement) -> GenericResult<HashMap<String, String>> {
         let mut securities = HashMap::new();
 
         for security in &self.securities {

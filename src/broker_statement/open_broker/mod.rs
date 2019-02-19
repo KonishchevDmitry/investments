@@ -9,7 +9,7 @@ use crate::brokers::{self, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 
-use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
+use super::{BrokerStatement, BrokerStatementReader, PartialBrokerStatement};
 
 use self::model::BrokerReport;
 
@@ -35,7 +35,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
         // FIXME: tax agent support
-        let mut statement = BrokerStatementBuilder::new(self.broker_info.clone());
+        let mut statement = PartialBrokerStatement::new(self.broker_info.clone());
         read_statement(path)?.parse(&mut statement)?;
         statement.get()
     }

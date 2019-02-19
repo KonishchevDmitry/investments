@@ -1,5 +1,6 @@
 mod ib;
 mod open_broker;
+mod partial;
 mod taxes;
 
 use std::{self, fs};
@@ -20,7 +21,7 @@ use crate::localities::Country;
 use crate::types::{Date, Decimal};
 use crate::util;
 
-use self::taxes::{TaxId, TaxChanges};
+use self::partial::PartialBrokerStatement;
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -372,72 +373,6 @@ pub trait BrokerStatementReader {
     fn read(&self, path: &str) -> GenericResult<BrokerStatement>;
 }
 
-pub struct BrokerStatementBuilder {
-    broker: BrokerInfo,
-    period: Option<(Date, Date)>,
-
-    starting_assets: Option<bool>,
-    cash_flows: Vec<CashAssets>,
-    cash_assets: MultiCurrencyCashAccount,
-
-    stock_buys: Vec<StockBuy>,
-    stock_sells: Vec<StockSell>,
-    dividends: Vec<Dividend>,
-    tax_changes: HashMap<TaxId, TaxChanges>,
-
-    open_positions: HashMap<String, u32>,
-    instrument_names: HashMap<String, String>,
-}
-
-impl BrokerStatementBuilder {
-    fn new(broker: BrokerInfo) -> BrokerStatementBuilder {
-        BrokerStatementBuilder {
-            broker: broker,
-            period: None,
-
-            starting_assets: None,
-            cash_flows: Vec::new(),
-            cash_assets: MultiCurrencyCashAccount::new(),
-
-            stock_buys: Vec::new(),
-            stock_sells: Vec::new(),
-            dividends: Vec::new(),
-            tax_changes: HashMap::new(), // FIXME: Fill from statements
-
-            open_positions: HashMap::new(),
-            instrument_names: HashMap::new(),
-        }
-    }
-
-    fn set_period(&mut self, period: (Date, Date)) -> EmptyResult {
-        set_option("statement period", &mut self.period, period)
-    }
-
-    fn set_starting_assets(&mut self, exists: bool) -> EmptyResult {
-        set_option("starting assets", &mut self.starting_assets, exists)
-    }
-
-    fn get(self) -> GenericResult<BrokerStatement> {
-        let mut statement = BrokerStatement {
-            broker: self.broker,
-            period: get_option("statement period", self.period)?,
-
-            starting_assets: get_option("starting assets", self.starting_assets)?,
-            cash_flows: self.cash_flows,
-            cash_assets: self.cash_assets,
-
-            stock_buys: self.stock_buys,
-            stock_sells: self.stock_sells,
-            dividends: self.dividends,
-
-            open_positions: self.open_positions,
-            instrument_names: self.instrument_names,
-        };
-        statement.validate()?;
-        Ok(statement)
-    }
-}
-
 #[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
@@ -549,19 +484,4 @@ impl Dividend {
         let paid_tax = converter.convert_to(self.date, self.paid_tax, country.currency)?;
         Ok(country.tax_to_pay(amount, Some(paid_tax)))
     }
-}
-
-fn get_option<T>(name: &str, option: Option<T>) -> GenericResult<T> {
-    match option {
-        Some(value) => Ok(value),
-        None => Err!("{} is missing", name)
-    }
-}
-
-fn set_option<T>(name: &str, option: &mut Option<T>, value: T) -> EmptyResult {
-    if option.is_some() {
-        return Err!("Duplicate {}", name);
-    }
-    *option = Some(value);
-    Ok(())
 }

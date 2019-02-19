@@ -13,7 +13,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::formatting::format_date;
 
-use super::{BrokerStatement, BrokerStatementReader, BrokerStatementBuilder};
+use super::{BrokerStatement, BrokerStatementReader, PartialBrokerStatement};
 
 use self::common::{Record, RecordParser, format_record};
 
@@ -42,7 +42,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
         let parser = StatementParser {
-            statement: BrokerStatementBuilder::new(self.broker_info.clone()),
+            statement: PartialBrokerStatement::new(self.broker_info.clone()),
             base_currency: None,
             base_currency_summary: None,
             tax_changes: HashMap::new(),
@@ -60,7 +60,7 @@ enum State {
 }
 
 pub struct StatementParser {
-    statement: BrokerStatementBuilder,
+    statement: PartialBrokerStatement,
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
     tax_changes: HashMap<taxes::TaxId, TaxChanges>,
