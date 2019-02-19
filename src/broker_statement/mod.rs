@@ -18,6 +18,7 @@ use crate::util;
 
 mod ib;
 mod open_broker;
+mod taxes;
 
 #[derive(Debug)]
 pub struct BrokerStatement {

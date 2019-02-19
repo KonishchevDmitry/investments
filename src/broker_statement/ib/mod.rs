@@ -5,6 +5,7 @@ use csv::{self, StringRecord};
 use log::trace;
 #[cfg(test)] use rstest::rstest_parametrize;
 
+use crate::broker_statement::taxes::TaxChanges;
 use crate::brokers::{self, BrokerInfo};
 #[cfg(test)] use crate::config::Broker;
 use crate::config::Config;
@@ -62,7 +63,7 @@ pub struct StatementParser {
     statement: BrokerStatementBuilder,
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
-    tax_changes: HashMap<taxes::TaxId, taxes::TaxChanges>,
+    tax_changes: HashMap<taxes::TaxId, TaxChanges>,
     dividends: Vec<dividends::DividendInfo>,
 }
 
