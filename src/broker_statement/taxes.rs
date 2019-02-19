@@ -2,6 +2,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::types::Date;
 
+#[derive(PartialEq, Eq, Hash)]
 pub struct TaxId {
     date: Date,
     description: String,

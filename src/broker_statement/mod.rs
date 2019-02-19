@@ -1,3 +1,7 @@
+mod ib;
+mod open_broker;
+mod taxes;
+
 use std::{self, fs};
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,9 +20,7 @@ use crate::localities::Country;
 use crate::types::{Date, Decimal};
 use crate::util;
 
-mod ib;
-mod open_broker;
-mod taxes;
+use self::taxes::{TaxId, TaxChanges};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -381,6 +383,7 @@ pub struct BrokerStatementBuilder {
     stock_buys: Vec<StockBuy>,
     stock_sells: Vec<StockSell>,
     dividends: Vec<Dividend>,
+    tax_changes: HashMap<TaxId, TaxChanges>,
 
     open_positions: HashMap<String, u32>,
     instrument_names: HashMap<String, String>,
@@ -399,6 +402,7 @@ impl BrokerStatementBuilder {
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
             dividends: Vec::new(),
+            tax_changes: HashMap::new(), // FIXME: Fill from statements
 
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
