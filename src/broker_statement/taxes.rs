@@ -8,13 +8,11 @@ pub struct TaxId {
     pub description: String,
 }
 
-/*
 impl TaxId {
-    fn new(date: Date, description: String) -> TaxId {
-        TaxId { date, description }
+    pub fn new(date: Date, description: &str) -> TaxId {
+        TaxId { date, description: description.to_owned() }
     }
 }
-*/
 
 // Calculates result tax from a series of withholds and refunds. Doesn't require withholds and
 // refunds to be in order because Interactive Brokers' statements don't guarantee the order.
