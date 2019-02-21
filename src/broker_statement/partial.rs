@@ -6,7 +6,7 @@ use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::types::Date;
 
-use super::{Dividend, StockBuy, StockSell};
+use super::{Dividend, DividendWithoutPaidTax, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxChanges};
 
 pub struct PartialBrokerStatement {
@@ -20,6 +20,8 @@ pub struct PartialBrokerStatement {
     pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
+
+    pub dividends_without_paid_tax: Vec<DividendWithoutPaidTax>,
     pub tax_changes: HashMap<TaxId, TaxChanges>,
 
     pub open_positions: HashMap<String, u32>,
@@ -39,6 +41,8 @@ impl PartialBrokerStatement {
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
             dividends: Vec::new(),
+
+            dividends_without_paid_tax: Vec::new(),
             tax_changes: HashMap::new(), // FIXME: Fill from statements
 
             open_positions: HashMap::new(),
