@@ -39,6 +39,16 @@ impl TaxChanges {
         self.refunded.push(tax);
     }
 
+    pub fn merge(&mut self, other: &TaxChanges) {
+        for &amount in &other.withheld {
+            self.withhold(amount);
+        }
+
+        for &amount in &other.refunded {
+            self.refund(amount);
+        }
+    }
+
     pub fn get_result_tax(self) -> GenericResult<Cash> {
         let TaxChanges { mut withheld, refunded } = self;
 
