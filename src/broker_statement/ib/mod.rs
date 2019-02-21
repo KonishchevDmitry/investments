@@ -42,15 +42,13 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        // FIXME: Merge with StatementReader
-        let parser = StatementParser {
+        StatementParser {
             statement: PartialBrokerStatement::new(self.broker_info.clone()),
             base_currency: None,
             base_currency_summary: None,
             tax_changes: HashMap::new(),
             dividends: Vec::new(),
-        };
-        parser.parse(path)
+        }.parse(path)
     }
 }
 
