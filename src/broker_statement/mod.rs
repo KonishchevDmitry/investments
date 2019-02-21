@@ -28,7 +28,6 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
 
-    starting_assets: bool,  // FIXME: Deprecated
     pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
 
@@ -101,7 +100,6 @@ impl BrokerStatement {
             broker: statement.broker.clone(),
             period: period,
 
-            starting_assets: statement.get_starting_assets()?,
             cash_flows: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
 

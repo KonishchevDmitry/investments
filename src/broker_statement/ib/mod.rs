@@ -203,10 +203,9 @@ mod tests {
     fn parse_real_current() {
         let statement = parse_full("current");
 
-        assert!(!statement.starting_assets);
+        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
 
-        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.stock_buys.is_empty());
         assert!(!statement.stock_sells.is_empty());
         assert!(!statement.dividends.is_empty());
@@ -219,10 +218,9 @@ mod tests {
     fn parse_real_empty() {
         let statement = parse_full("empty");
 
-        assert!(!statement.starting_assets);
+        assert!(statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
 
-        assert!(statement.cash_flows.is_empty());
         assert!(statement.stock_buys.is_empty());
         assert!(statement.stock_sells.is_empty());
         assert!(statement.dividends.is_empty());
