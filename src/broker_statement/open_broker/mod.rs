@@ -9,7 +9,8 @@ use crate::brokers::{self, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 
-use super::{BrokerStatement, BrokerStatementReader, PartialBrokerStatement};
+#[cfg(test)] use super::{BrokerStatement};
+use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use self::model::BrokerReport;
 

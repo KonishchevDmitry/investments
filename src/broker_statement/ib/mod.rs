@@ -13,7 +13,8 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::formatting::format_date;
 
-use super::{BrokerStatement, BrokerStatementReader, PartialBrokerStatement};
+#[cfg(test)] use super::{BrokerStatement};
+use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use self::common::{Record, RecordParser, format_record};
 
