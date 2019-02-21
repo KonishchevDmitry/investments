@@ -28,7 +28,7 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
 
-    starting_assets: bool,
+    starting_assets: bool,  // FIXME: Deprecated
     pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
 
@@ -49,6 +49,11 @@ impl BrokerStatement {
 
         let mut file_names = get_statement_files(statement_dir_path, statement_reader.as_ref())
             .map_err(|e| format!("Error while reading {:?}: {}", statement_dir_path, e))?;
+
+        if file_names.is_empty() {
+            return Err!("{:?} doesn't contain any broker statement", statement_dir_path);
+        }
+
         file_names.sort();
 
         let mut statements = Vec::new();
@@ -56,30 +61,57 @@ impl BrokerStatement {
         for file_name in &file_names {
             let path = Path::new(statement_dir_path).join(file_name);
             let path = path.to_str().unwrap();
+
             let statement = statement_reader.read(path).map_err(|e| format!(
                 "Error while reading {:?} broker statement: {}", path, e))?;
+
             statements.push(statement);
         }
 
-        if statements.is_empty() {
-            return Err!("{:?} doesn't contain any broker statement", statement_dir_path);
-        }
-        statements.sort_by(|a, b| b.period.0.cmp(&a.period.0));
+        let joint_statement = BrokerStatement::new_from(statements)?;
+        debug!("{:#?}", joint_statement);
+        Ok(joint_statement)
+    }
 
-        let mut joint_statement = statements.pop().unwrap();
-        if joint_statement.starting_assets {
-            return Err!("Invalid broker statement period: It has a non-zero starting assets");
-        }
+    fn new_from(mut statements: Vec<PartialBrokerStatement>) -> GenericResult<BrokerStatement> {
+        statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
-        for statement in statements.drain(..).rev() {
+        let mut joint_statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
+
+        for statement in statements.drain(..) {
             joint_statement.merge(statement).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
         }
 
+        joint_statement.validate()?;
         joint_statement.process_trades(false)?;
 
-        debug!("{:#?}", joint_statement);
         Ok(joint_statement)
+    }
+
+    fn new_empty_from(statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
+        let mut period = statement.get_period()?;
+        period.1 = period.0;
+
+        if statement.get_starting_assets()? {
+            return Err!("Invalid broker statement period: It has a non-zero starting assets");
+        }
+
+        Ok(BrokerStatement {
+            broker: statement.broker.clone(),
+            period: period,
+
+            starting_assets: statement.get_starting_assets()?,
+            cash_flows: Vec::new(),
+            cash_assets: MultiCurrencyCashAccount::new(),
+
+            stock_buys: Vec::new(),
+            stock_sells: Vec::new(),
+            dividends: Vec::new(),
+
+            open_positions: HashMap::new(),
+            instrument_names: HashMap::new(),
+        })
     }
 
     pub fn check_date(&self) {
@@ -125,14 +157,16 @@ impl BrokerStatement {
         self.process_trades(true)
     }
 
-    fn merge(&mut self, mut statement: BrokerStatement) -> EmptyResult {
-        if statement.period.0 != self.period.1 {
+    fn merge(&mut self, mut statement: PartialBrokerStatement) -> EmptyResult {
+        let period = statement.get_period()?;
+
+        if period.0 != self.period.1 {
             return Err!("Non-continuous periods: {}, {}",
                 formatting::format_period(self.period.0, self.period.1),
-                formatting::format_period(statement.period.0, statement.period.1));
+                formatting::format_period(period.0, period.1));
         }
 
-        self.period.1 = statement.period.1;
+        self.period.1 = period.1;
 
         self.cash_flows.extend(statement.cash_flows.drain(..));
         self.cash_assets = statement.cash_assets;
@@ -144,21 +178,10 @@ impl BrokerStatement {
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.drain());
 
-        self.validate()?;
-
         Ok(())
     }
 
     fn validate(&mut self) -> EmptyResult {
-        if self.period.0 >= self.period.1 {
-            return Err!("Invalid statement period: {}",
-                formatting::format_period(self.period.0, self.period.1));
-        }
-
-        if self.cash_assets.is_empty() {
-            return Err!("Unable to find any information about current cash assets");
-        }
-
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
 
@@ -370,7 +393,7 @@ fn get_statement_files(
 
 pub trait BrokerStatementReader {
     fn is_statement(&self, file_name: &str) -> bool;
-    fn read(&self, path: &str) -> GenericResult<BrokerStatement>;
+    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement>;
 }
 
 #[derive(Debug)]

@@ -33,11 +33,11 @@ impl BrokerStatementReader for StatementReader {
         file_name.ends_with(".xml")
     }
 
-    fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
+    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
         // FIXME: tax agent support
         let mut statement = PartialBrokerStatement::new(self.broker_info.clone());
         read_statement(path)?.parse(&mut statement)?;
-        statement.get()
+        statement.validate()
     }
 }
 

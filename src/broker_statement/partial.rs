@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use crate::brokers::BrokerInfo;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{CashAssets, MultiCurrencyCashAccount};
+use crate::formatting;
 use crate::types::Date;
 
-use super::{BrokerStatement, Dividend, StockBuy, StockSell};
+use super::{Dividend, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxChanges};
 
 pub struct PartialBrokerStatement {
@@ -49,29 +50,32 @@ impl PartialBrokerStatement {
         set_option("statement period", &mut self.period, period)
     }
 
+    pub fn get_period(&self) -> GenericResult<(Date, Date)> {
+        get_option("statement period", self.period)
+    }
+
     pub fn set_starting_assets(&mut self, exists: bool) -> EmptyResult {
         set_option("starting assets", &mut self.starting_assets, exists)
     }
 
-    // FIXME: To validate
-    pub fn get(self) -> GenericResult<BrokerStatement> {
-        let mut statement = BrokerStatement {
-            broker: self.broker,
-            period: get_option("statement period", self.period)?,
+    pub fn get_starting_assets(&self) -> GenericResult<bool> {
+        get_option("starting assets", self.starting_assets)
+    }
 
-            starting_assets: get_option("starting assets", self.starting_assets)?,
-            cash_flows: self.cash_flows,
-            cash_assets: self.cash_assets,
+    pub fn validate(self) -> GenericResult<PartialBrokerStatement> {
+        let period = self.get_period()?;
+        if period.0 >= period.1 {
+            return Err!("Invalid statement period: {}",
+                        formatting::format_period(period.0, period.1));
+        }
 
-            stock_buys: self.stock_buys,
-            stock_sells: self.stock_sells,
-            dividends: self.dividends,
+        self.get_starting_assets()?;
 
-            open_positions: self.open_positions,
-            instrument_names: self.instrument_names,
-        };
-        statement.validate()?;
-        Ok(statement)
+        if self.cash_assets.is_empty() {
+            return Err!("Unable to find any information about current cash assets");
+        }
+
+        Ok(self)
     }
 }
 

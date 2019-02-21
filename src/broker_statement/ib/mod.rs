@@ -40,7 +40,8 @@ impl BrokerStatementReader for StatementReader {
         file_name.ends_with(".csv")
     }
 
-    fn read(&self, path: &str) -> GenericResult<BrokerStatement> {
+    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
+        // FIXME: Merge with StatementReader
         let parser = StatementParser {
             statement: PartialBrokerStatement::new(self.broker_info.clone()),
             base_currency: None,
@@ -48,7 +49,6 @@ impl BrokerStatementReader for StatementReader {
             tax_changes: HashMap::new(),
             dividends: Vec::new(),
         };
-
         parser.parse(path)
     }
 }
@@ -68,7 +68,7 @@ pub struct StatementParser {
 }
 
 impl StatementParser {
-    fn parse(mut self, path: &str) -> GenericResult<BrokerStatement> {
+    fn parse(mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)
@@ -183,7 +183,7 @@ impl StatementParser {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
-        self.statement.get()
+        self.statement.validate()
     }
 }
 
