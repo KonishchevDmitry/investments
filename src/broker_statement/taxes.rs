@@ -4,8 +4,8 @@ use crate::types::Date;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct TaxId {
-    date: Date,
-    description: String,
+    pub date: Date,
+    pub description: String,
 }
 
 /*

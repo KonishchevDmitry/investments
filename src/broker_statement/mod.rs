@@ -23,7 +23,9 @@ use crate::types::{Date, Decimal};
 use crate::util;
 
 pub use self::dividends::Dividend;
+use self::dividends::DividendWithoutPaidTax;
 use self::partial::PartialBrokerStatement;
+use self::taxes::{TaxId, TaxChanges};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -78,10 +80,40 @@ impl BrokerStatement {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
         let mut joint_statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
+        let mut dividends_without_paid_tax = Vec::new();
+        let mut tax_changes = HashMap::new();
 
-        for statement in statements.drain(..) {
+        for mut statement in statements.drain(..) {
+            dividends_without_paid_tax.extend(statement.dividends_without_paid_tax.drain(..));
+
+            for (tax_id, changes) in statement.tax_changes.drain() {
+                tax_changes.entry(tax_id)
+                    .and_modify(|existing: &mut TaxChanges| existing.merge(&changes))
+                    .or_insert(changes);
+            }
+
             joint_statement.merge(statement).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
+        }
+
+        let mut taxes = HashMap::new();
+        for (tax_id, changes) in tax_changes {
+            taxes.insert(tax_id, changes.get_result_tax()?);
+        }
+
+        for dividend in dividends_without_paid_tax {
+            joint_statement.dividends.push(dividend.upgrade(&mut taxes)?);
+        }
+
+        if !taxes.is_empty() {
+            let taxes = taxes.keys()
+                .map(|tax: &taxes::TaxId| format!(
+                    "* {date}: {description}", date=formatting::format_date(tax.date),
+                    description=tax.description))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
         joint_statement.validate()?;
