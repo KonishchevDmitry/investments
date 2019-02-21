@@ -1,24 +1,14 @@
-use std::collections::HashMap;
-
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
-use crate::broker_statement::Dividend;
-use crate::formatting;
-use crate::types::Date;
+use crate::broker_statement::taxes::TaxId;
+use crate::broker_statement::dividends::{DividendWithoutPaidTax, TaxIdExtractor};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date};
-use super::taxes::TaxId;
-
-pub struct DividendInfo {
-    date: Date,
-    description: String,
-    amount: Cash,
-}
 
 pub struct DividendsParser {}
 
@@ -30,39 +20,21 @@ impl RecordParser for DividendsParser {
         }
 
         let date = parse_date(record.get_value("Date")?)?;
-        let description = record.get_value("Description")?.to_owned();
+        let description = record.get_value("Description")?;
         let amount = Cash::new(
             currency, record.parse_cash("Amount", DecimalRestrictions::StrictlyPositive)?);
 
-        parser.dividends.push(DividendInfo {
+        let (issuer, tax_description) = parse_dividend_description(description)?;
+
+        parser.statement.dividends_without_paid_tax.push(DividendWithoutPaidTax {
             date: date,
-            description: description,
+            issuer: issuer,
             amount: amount,
+            tax_extractor: TaxIdExtractor::new(TaxId::new(date, &tax_description))
         });
 
         Ok(())
     }
-}
-
-pub fn parse_dividends(mut dividends_info: Vec<DividendInfo>, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Vec<Dividend>> {
-    let mut dividends = Vec::with_capacity(dividends_info.len());
-
-    for dividend in dividends_info.drain(..) {
-        let (issuer, tax_description) = parse_dividend_description(&dividend.description)?;
-        let tax_id = (dividend.date, tax_description);
-        let paid_tax = taxes.remove(&tax_id).ok_or_else(|| format!(
-            "Unable to match the following dividend to paid taxes: {} / {:?} ({:?})",
-            formatting::format_date(dividend.date), dividend.description, tax_id.1))?;
-
-        dividends.push(Dividend {
-            date: dividend.date,
-            issuer: issuer,
-            amount: dividend.amount,
-            paid_tax: paid_tax,
-        })
-    }
-
-    Ok(dividends)
 }
 
 fn parse_dividend_description(description: &str) -> GenericResult<(String, String)> {

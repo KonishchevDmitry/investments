@@ -1,17 +1,14 @@
-use std::collections::HashMap;
 use std::iter::Iterator;
 
 use csv::{self, StringRecord};
 use log::trace;
 #[cfg(test)] use rstest::rstest_parametrize;
 
-use crate::broker_statement::taxes::TaxChanges;
 use crate::brokers::{self, BrokerInfo};
 #[cfg(test)] use crate::config::Broker;
 use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::Cash;
-use crate::formatting::format_date;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -46,8 +43,6 @@ impl BrokerStatementReader for StatementReader {
             statement: PartialBrokerStatement::new(self.broker_info.clone()),
             base_currency: None,
             base_currency_summary: None,
-            tax_changes: HashMap::new(),
-            dividends: Vec::new(),
         }.parse(path)
     }
 }
@@ -62,8 +57,6 @@ pub struct StatementParser {
     statement: PartialBrokerStatement,
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
-    tax_changes: HashMap<taxes::TaxId, TaxChanges>,
-    dividends: Vec<dividends::DividendInfo>,
 }
 
 impl StatementParser {
@@ -166,20 +159,6 @@ impl StatementParser {
                 "Unable to find base currency summary")?;
 
             self.statement.cash_assets.deposit(amount);
-        }
-
-        // FIXME: We have to do this on merge stage
-        let mut taxes = taxes::parse_taxes(self.tax_changes)?;
-        self.statement.dividends = dividends::parse_dividends(self.dividends, &mut taxes)?;
-
-        if !taxes.is_empty() {
-            let taxes = taxes.keys()
-                .map(|tax: &taxes::TaxId| format!(
-                    "* {date}: {description}", date=format_date(tax.0), description=tax.1))
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
         self.statement.validate()
