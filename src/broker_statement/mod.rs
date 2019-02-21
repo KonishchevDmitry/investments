@@ -23,7 +23,6 @@ use crate::types::{Date, Decimal};
 use crate::util;
 
 pub use self::dividends::Dividend;
-use self::dividends::DividendWithoutPaidTax;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxChanges};
 
@@ -97,8 +96,13 @@ impl BrokerStatement {
         }
 
         let mut taxes = HashMap::new();
+
         for (tax_id, changes) in tax_changes {
-            taxes.insert(tax_id, changes.get_result_tax()?);
+            let amount = changes.get_result_tax().map_err(|e| format!(
+                "Failed to process {} / {:?} tax: {}",
+                formatting::format_date(tax_id.date), tax_id.description, e))?;
+
+            taxes.insert(tax_id, amount);
         }
 
         for dividend in dividends_without_paid_tax {
