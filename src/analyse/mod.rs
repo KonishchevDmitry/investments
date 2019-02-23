@@ -26,7 +26,7 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     Ok(())
 }
 
-pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &Vec<(u32, String)>) -> EmptyResult {
+pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &Vec<(String, u32)>) -> EmptyResult {
     let (portfolio, statement, converter, quotes) = load(config, portfolio_name)?;
     sell_simulation::simulate_sell(portfolio, statement, converter, quotes, positions)
 }

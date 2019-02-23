@@ -1,9 +1,3 @@
-mod dividends;
-mod ib;
-mod open_broker;
-mod partial;
-mod taxes;
-
 use std::{self, fs};
 use std::collections::HashMap;
 use std::path::Path;
@@ -14,17 +8,23 @@ use log::{debug, warn};
 use crate::brokers::BrokerInfo;
 use crate::config::{Config, Broker};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
-use crate::currency::converter::CurrencyConverter;
+use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::quotes::Quotes;
-use crate::localities::Country;
 use crate::types::{Date, Decimal};
 use crate::util;
 
-pub use self::dividends::Dividend;
+use self::dividends::Dividend;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxChanges};
+use self::trades::{StockBuy, StockSell, StockSellSource};
+
+mod dividends;
+mod ib;
+mod open_broker;
+mod partial;
+mod taxes;
+mod trades;
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -331,6 +331,8 @@ impl BrokerStatement {
             }
 
             let mut remaining_quantity = stock_sell.quantity;
+            let mut sources = Vec::new();
+
             let symbol_buys = unsold_stock_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
                 "Error while processing {} position closing: There are no open positions for it",
                 stock_sell.symbol
@@ -342,11 +344,10 @@ impl BrokerStatement {
                     stock_sell.symbol
                 ))?;
 
-                let available = stock_buy.quantity - stock_buy.sold;
-                let sell_quantity = std::cmp::min(remaining_quantity, available);
+                let sell_quantity = std::cmp::min(remaining_quantity, stock_buy.get_unsold());
                 assert!(sell_quantity > 0);
 
-                stock_sell.sources.push(StockSellSource {
+                sources.push(StockSellSource {
                     quantity: sell_quantity,
                     price: stock_buy.price,
                     commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
@@ -356,7 +357,7 @@ impl BrokerStatement {
                 });
 
                 remaining_quantity -= sell_quantity;
-                stock_buy.sold += sell_quantity;
+                stock_buy.sell(sell_quantity);
 
                 if stock_buy.is_sold() {
                     stock_buys.push(stock_buy);
@@ -364,6 +365,8 @@ impl BrokerStatement {
                     symbol_buys.push(stock_buy);
                 }
             }
+
+            stock_sell.process(sources);
 
             if emulated_sells {
                 self.cash_assets.deposit(stock_sell.price * stock_sell.quantity);
@@ -393,7 +396,7 @@ impl BrokerStatement {
                 continue;
             }
 
-            let quantity = stock_buy.quantity - stock_buy.sold;
+            let quantity = stock_buy.get_unsold();
 
             if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
                 *position += quantity;
@@ -430,101 +433,4 @@ fn get_statement_files(
 pub trait BrokerStatementReader {
     fn is_statement(&self, file_name: &str) -> bool;
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement>;
-}
-
-#[derive(Debug)]
-pub struct StockBuy {
-    pub symbol: String,
-    pub quantity: u32,
-    pub price: Cash,
-    pub commission: Cash,
-
-    pub conclusion_date: Date,
-    pub execution_date: Date,
-
-    sold: u32,
-}
-
-impl StockBuy {
-    pub fn new(
-        symbol: &str, quantity: u32, price: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date,
-    ) -> StockBuy {
-        StockBuy {
-            symbol: symbol.to_owned(), quantity, price, commission,
-            conclusion_date, execution_date, sold: 0,
-        }
-    }
-
-    fn is_sold(&self) -> bool {
-        self.sold == self.quantity
-    }
-}
-
-#[derive(Debug)]
-pub struct StockSell {
-    pub symbol: String,
-    pub quantity: u32,
-    pub price: Cash,
-    pub commission: Cash,
-
-    pub conclusion_date: Date,
-    pub execution_date: Date,
-
-    sources: Vec<StockSellSource>,
-}
-
-impl StockSell {
-    pub fn new(
-        symbol: &str, quantity: u32, price: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date,
-    ) -> StockSell {
-        StockSell {
-            symbol: symbol.to_owned(), quantity, price, commission,
-            conclusion_date, execution_date, sources: Vec::new(),
-        }
-    }
-
-    fn is_processed(&self) -> bool {
-        !self.sources.is_empty()
-    }
-}
-
-#[derive(Debug)]
-pub struct StockSellSource {
-    quantity: u32,
-    price: Cash,
-    commission: Cash,
-
-    conclusion_date: Date,
-    execution_date: Date,
-}
-
-impl StockSell {
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
-        // TODO: We need to use exactly the same rounding logic as is tax statement
-
-        let mut purchase_cost = dec!(0);
-
-        for source in &self.sources {
-            purchase_cost += converter.convert_to(
-                source.execution_date, source.price * source.quantity, country.currency)?;
-
-            purchase_cost += converter.convert_to(
-                source.conclusion_date, source.commission, country.currency)?;
-        }
-
-        let mut sell_revenue = converter.convert_to(
-            self.execution_date, self.price * self.quantity, country.currency)?;
-
-        sell_revenue -= converter.convert_to(
-            self.conclusion_date, self.commission, country.currency)?;
-
-        let income = sell_revenue - purchase_cost;
-        if income.is_sign_negative() {
-            return Ok(dec!(0));
-        }
-
-        Ok(country.tax_to_pay(income, None))
-    }
 }

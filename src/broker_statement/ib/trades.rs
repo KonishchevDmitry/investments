@@ -1,4 +1,4 @@
-use crate::broker_statement::{StockBuy, StockSell};
+use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::util::DecimalRestrictions;

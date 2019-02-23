@@ -6,8 +6,16 @@ use crate::quotes::Quotes;
 
 pub fn simulate_sell(
     portfolio: &PortfolioConfig, statement: BrokerStatement,
-    converter: CurrencyConverter, quotes: Quotes,
-    positions: &Vec<(u32, String)>,
+    converter: CurrencyConverter, mut quotes: Quotes,
+    positions: &Vec<(String, u32)>,
 ) -> EmptyResult {
+    for (symbol, _) in positions {
+        if let None = statement.open_positions.get(symbol) {
+            return Err!("The portfolio has no open {:?} position", symbol);
+        }
+
+        quotes.batch(&symbol);
+    }
+
     Err!("Not implemented yet")
 }

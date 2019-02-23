@@ -5,7 +5,8 @@ use log::{warn, error};
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::broker_statement::{PartialBrokerStatement, StockBuy, StockSell};
+use crate::broker_statement::PartialBrokerStatement;
+use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Date, Decimal};

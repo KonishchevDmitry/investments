@@ -18,7 +18,7 @@ pub enum Action {
     Analyse(String),
     SimulateSell {
         name: String,
-        positions: Vec<(u32, String)>,
+        positions: Vec<(String, u32)>,
     },
 
     Sync(String),
@@ -227,7 +227,7 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
                 let symbol = positions_spec_iter.next().ok_or_else(|| format!(
                     "Invalid positions specification: Even number of arguments is expected"))?;
 
-                positions.push((quantity, symbol.to_owned()));
+                positions.push((symbol.to_owned(), quantity));
             }
 
             SimulateSell {

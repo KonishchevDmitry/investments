@@ -6,8 +6,8 @@ use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::types::Date;
 
-use super::{Dividend, StockBuy, StockSell};
-use super::dividends::DividendWithoutPaidTax;
+use super::dividends::{Dividend, DividendWithoutPaidTax};
+use super::trades::{StockBuy, StockSell};
 use super::taxes::{TaxId, TaxChanges};
 
 pub struct PartialBrokerStatement {
