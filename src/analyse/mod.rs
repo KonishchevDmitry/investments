@@ -16,7 +16,11 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
 
     statement.check_date();
     statement.batch_quotes(&mut quotes);
-    statement.emulate_sellout(&mut quotes)?;
+
+    for (symbol, quantity) in statement.open_positions.drain().collect::<Vec<_>>() {
+        statement.emulate_sell_order(&symbol, quantity, quotes.get(&symbol)?)?;
+    }
+    statement.process_trades()?;
 
     for currency in ["USD", "RUB"].iter() {
         PortfolioPerformanceAnalyser::analyse(
