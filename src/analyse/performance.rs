@@ -480,6 +480,7 @@ fn get_total_activity_duration(periods: &[InterestPeriod]) -> i64 {
 mod tests {
     use super::*;
 
+    // FIXME: More real data
     #[test]
     fn real_deposit() {
         let (interest, difference) = compare_to_bank_deposit(
