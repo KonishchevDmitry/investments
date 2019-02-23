@@ -12,9 +12,14 @@ use crate::config::{Config, load_config};
 use crate::core::GenericResult;
 use crate::types::{Date, Decimal};
 use crate::util;
+use crate::init::Action::SimulateSell;
 
 pub enum Action {
     Analyse(String),
+    SimulateSell {
+        name: String,
+        positions: Vec<(u32, String)>,
+    },
 
     Sync(String),
     Buy(String, u32, String, Decimal),
@@ -40,7 +45,6 @@ pub enum Action {
 pub fn initialize() -> (Action, Config) {
     let default_config_dir_path = "~/.investments";
 
-    // FIXME: Stock selling emulation (taxes, profit)
     let matches = App::new("Investments")
         .about("\nHelps you with managing your investments")
         .arg(Arg::with_name("config")
@@ -100,6 +104,13 @@ pub fn initialize() -> (Action, Config) {
                 .long("flat")
                 .help("Flat view"))
             .arg(portfolio::arg()))
+        // FIXME: Stock selling emulation (taxes, profit)
+        .subcommand(SubCommand::with_name("simulate-sell")
+            .about("Simulates stock selling (calculates revenue, profit and taxes)")
+            .arg(portfolio::arg())
+            .arg(Arg::with_name("POSITIONS")
+                .min_values(2)
+                .help("Positions to sell in $quantity $symbol format")))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
@@ -202,6 +213,28 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             name: portfolio_name,
             flat: matches.is_present("flat"),
         },
+        "simulate-sell" => {
+            let mut positions = Vec::new();
+            let mut positions_spec_iter = matches.values_of("POSITIONS").unwrap();
+
+            loop {
+                let quantity: u32 = match positions_spec_iter.next() {
+                    Some(quantity) => quantity.parse().map_err(|_| format!(
+                        "Invalid positions specification: Invalid quantity: {:?}", quantity))?,
+                    None => break,
+                };
+
+                let symbol = positions_spec_iter.next().ok_or_else(|| format!(
+                    "Invalid positions specification: Even number of arguments is expected"))?;
+
+                positions.push((quantity, symbol.to_owned()));
+            }
+
+            SimulateSell {
+                name: portfolio_name,
+                positions: positions,
+            }
+        }
 
         "tax-statement" => {
             let year = matches.value_of("YEAR").unwrap();

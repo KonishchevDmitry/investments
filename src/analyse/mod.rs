@@ -29,3 +29,7 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
 
     Ok(())
 }
+
+pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &Vec<(u32, String)>) -> EmptyResult {
+    Err!("Not implemented yet")
+}
