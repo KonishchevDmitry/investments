@@ -1,6 +1,6 @@
 use crate::broker_statement::BrokerStatement;
-use crate::config::Config;
-use crate::core::EmptyResult;
+use crate::config::{Config, PortfolioConfig};
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::quotes::Quotes;
@@ -9,15 +9,11 @@ use self::performance::PortfolioPerformanceAnalyser;
 
 mod deposit_emulator;
 mod performance;
+mod sell_simulation;
 
 pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
-    let portfolio = config.get_portfolio(portfolio_name)?;
+    let (portfolio, mut statement, converter, mut quotes) = load(config, portfolio_name)?;
 
-    let database = db::connect(&config.db_path)?;
-    let converter = CurrencyConverter::new(database.clone(), false);
-    let mut quotes = Quotes::new(&config, database.clone());
-
-    let mut statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
     statement.check_date();
     statement.batch_quotes(&mut quotes);
     statement.emulate_sellout(&mut quotes)?;
@@ -31,5 +27,19 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
 }
 
 pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &Vec<(u32, String)>) -> EmptyResult {
-    Err!("Not implemented yet")
+    let (portfolio, statement, converter, quotes) = load(config, portfolio_name)?;
+    sell_simulation::simulate_sell(portfolio, statement, converter, quotes, positions)
+}
+
+fn load<'a>(config: &'a Config, portfolio_name: &str) -> GenericResult<
+    (&'a PortfolioConfig, BrokerStatement, CurrencyConverter, Quotes)
+> {
+    let portfolio = config.get_portfolio(portfolio_name)?;
+    let statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
+
+    let database = db::connect(&config.db_path)?;
+    let converter = CurrencyConverter::new(database.clone(), false);
+    let quotes = Quotes::new(&config, database.clone());
+
+    Ok((portfolio, statement, converter, quotes))
 }
