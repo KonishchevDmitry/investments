@@ -198,10 +198,15 @@ pub fn round_to(amount: Decimal, points: u32) -> Decimal {
     util::round_to(amount, points)
 }
 
-fn format_currency(currency: &str, amount: &str) -> String {
+fn format_currency(currency: &str, mut amount: &str) -> String {
     let mut buffer = String::new();
 
     if currency == "USD" {
+        if amount.starts_with('-') || amount.starts_with('+') {
+            write!(&mut buffer, "{}", &amount[..1]).unwrap();
+            amount = &amount[1..];
+        }
+
         write!(&mut buffer, "$").unwrap();
     }
 
@@ -246,5 +251,17 @@ mod tests {
             assert_eq!(&from.to_string(), from_string);
             assert_eq!(&rounded.to_string(), to_string);
         }
+    }
+
+    #[test]
+    fn formatting() {
+        assert_eq!(Cash::new("USD", dec!(12.345)).format(), "$12.35");
+        assert_eq!(Cash::new("USD", dec!(-12.345)).format(), "-$12.35");
+
+        assert_eq!(Cash::new("RUB", dec!(12.345)).format(), "12.35₽");
+        assert_eq!(Cash::new("RUB", dec!(-12.345)).format(), "-12.35₽");
+
+        assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).format(), "12.35 UNKNOWN");
+        assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).format(), "-12.35 UNKNOWN");
     }
 }
