@@ -1,8 +1,13 @@
 use chrono::Duration;
+use num_traits::ToPrimitive;
+
 use prettytable::{Table, Row, Cell};
 use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
 
-use crate::types::Date;
+use separator::Separatable;
+
+use crate::currency::Cash;
+use crate::types::{Date, Decimal};
 
 pub fn format_date(date: Date) -> String {
     date.format("%d.%m.%Y").to_string()
@@ -10,6 +15,14 @@ pub fn format_date(date: Date) -> String {
 
 pub fn format_period(start: Date, end: Date) -> String {
     format!("{} - {}", format_date(start), format_date(end - Duration::days(1)))
+}
+
+pub fn decimal_cell(amount: Decimal) -> Cell {
+    Cell::new_align(&amount.to_i64().unwrap().separated_string(), Alignment::RIGHT)
+}
+
+pub fn cash_cell(amount: Decimal) -> Cell {
+    Cell::new_align(&amount.to_i64().unwrap().separated_string(), Alignment::RIGHT)
 }
 
 pub fn print_statement(name: &str, titles: Vec<&str>, mut statement: Table) {

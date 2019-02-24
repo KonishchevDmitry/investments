@@ -42,7 +42,7 @@ impl StockBuy {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StockSell {
     pub symbol: String,
     pub quantity: u32,
@@ -52,17 +52,18 @@ pub struct StockSell {
     pub conclusion_date: Date,
     pub execution_date: Date,
 
+    pub emulation: bool,
     sources: Vec<StockSellSource>,
 }
 
 impl StockSell {
     pub fn new(
         symbol: &str, quantity: u32, price: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date,
+        conclusion_date: Date, execution_date: Date, emulation: bool,
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity, price, commission,
-            conclusion_date, execution_date, sources: Vec::new(),
+            conclusion_date, execution_date, emulation, sources: Vec::new(),
         }
     }
 
@@ -77,7 +78,7 @@ impl StockSell {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StockSellSource {
     pub quantity: u32,
     pub price: Cash,

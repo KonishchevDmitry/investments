@@ -1,10 +1,13 @@
 use std;
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Write};
 use std::str::FromStr;
 use std::ops::{Mul, Div, Neg};
 
 use num_traits::identities::Zero;
+use num_traits::ToPrimitive;
+
+use separator::Separatable;
 
 use crate::core::GenericResult;
 use crate::types::{Date, Decimal};
@@ -53,6 +56,11 @@ impl Cash {
     pub fn round(mut self) -> Cash {
         self.amount = round(self.amount);
         self
+    }
+
+    pub fn format_rounded(&self) -> String {
+        format_currency(
+            self.currency, &round_to(self.amount, 0).to_i64().unwrap().separated_string())
     }
 }
 
@@ -168,6 +176,24 @@ pub fn round(amount: Decimal) -> Decimal {
 
 pub fn round_to(amount: Decimal, points: u32) -> Decimal {
     util::round_to(amount, points)
+}
+
+fn format_currency(currency: &str, amount: &str) -> String {
+    let mut buffer = String::new();
+
+    if currency == "USD" {
+        write!(&mut buffer, "$").unwrap();
+    }
+
+    write!(&mut buffer, "{}", amount).unwrap();
+
+    match currency {
+        "USD" => (),
+        "RUB" => write!(&mut buffer, "₽").unwrap(),
+        _ => write!(&mut buffer, " {}", currency).unwrap(),
+    };
+
+    buffer
 }
 
 #[cfg(test)]

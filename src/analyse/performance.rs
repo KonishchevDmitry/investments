@@ -4,10 +4,9 @@ use std::collections::{HashMap, BTreeMap};
 use cast::From as CastFrom;
 use chrono::Duration;
 use log::debug;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::Zero;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
-use separator::Separatable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
@@ -96,11 +95,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
-        let cash_cell = |amount: Decimal| Cell::new_align(
-            &amount.to_i64().unwrap().separated_string(), Alignment::RIGHT);
-
         self.table.add_row(Row::new(vec![
-            Cell::new(name), cash_cell(investments), cash_cell(profit), cash_cell(result),
+            Cell::new(name),
+            formatting::decimal_cell(investments),
+            formatting::decimal_cell(profit),
+            formatting::decimal_cell(result),
             Cell::new_align(&duration, Alignment::RIGHT),
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ]));

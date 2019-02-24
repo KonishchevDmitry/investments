@@ -25,7 +25,7 @@ mod ib;
 mod open_broker;
 mod partial;
 mod taxes;
-mod trades;
+pub mod trades;
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -186,7 +186,7 @@ impl BrokerStatement {
         let commission = self.broker.get_trade_commission(quantity, price)?;
 
         let stock_cell = StockSell::new(
-            symbol, quantity, price, commission, conclusion_date, execution_date);
+            symbol, quantity, price, commission, conclusion_date, execution_date, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = *open_position.get();

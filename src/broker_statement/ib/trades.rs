@@ -63,7 +63,7 @@ impl RecordParser for TradesParser {
                 symbol, quantity as u32, price, commission, date, date));
         } else if quantity < 0 {
             parser.statement.stock_sells.push(StockSell::new(
-                symbol, -quantity as u32, price, commission, date, date));
+                symbol, -quantity as u32, price, commission, date, date, false));
         } else {
             return Err!("Invalid quantity: {}", quantity)
         }
