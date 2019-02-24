@@ -3,7 +3,6 @@ use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::StockSell;
-use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
@@ -12,9 +11,8 @@ use crate::localities;
 use crate::quotes::Quotes;
 
 pub fn simulate_sell(
-    portfolio: &PortfolioConfig, mut statement: BrokerStatement,
-    converter: &CurrencyConverter, mut quotes: Quotes,
-    positions: &Vec<(String, u32)>,
+    mut statement: BrokerStatement, converter: &CurrencyConverter, mut quotes: Quotes,
+    positions: &[(String, u32)],
 ) -> EmptyResult {
     for (symbol, _) in positions {
         if statement.open_positions.get(symbol).is_none() {
@@ -29,7 +27,7 @@ pub fn simulate_sell(
     }
     statement.process_trades()?;
 
-    let mut stock_sells = statement.stock_sells.iter()
+    let stock_sells = statement.stock_sells.iter()
         .filter(|stock_sell| stock_sell.emulation)
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());

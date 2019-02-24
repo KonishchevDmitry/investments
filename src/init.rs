@@ -217,15 +217,12 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             let mut positions = Vec::new();
             let mut positions_spec_iter = matches.values_of("POSITIONS").unwrap();
 
-            loop {
-                let quantity: u32 = match positions_spec_iter.next() {
-                    Some(quantity) => quantity.parse().map_err(|_| format!(
-                        "Invalid positions specification: Invalid quantity: {:?}", quantity))?,
-                    None => break,
-                };
+            while let Some(quantity) = positions_spec_iter.next() {
+                let quantity: u32 = quantity.parse().map_err(|_| format!(
+                    "Invalid positions specification: Invalid quantity: {:?}", quantity))?;
 
-                let symbol = positions_spec_iter.next().ok_or_else(|| format!(
-                    "Invalid positions specification: Even number of arguments is expected"))?;
+                let symbol = positions_spec_iter.next().ok_or(
+                    "Invalid positions specification: Even number of arguments is expected")?;
 
                 positions.push((symbol.to_owned(), quantity));
             }

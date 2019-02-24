@@ -61,12 +61,8 @@ impl Cash {
         Ok(())
     }
 
-    pub fn sub(mut self, amount: Cash) -> GenericResult<Cash> {
+    pub fn sub(self, amount: Cash) -> GenericResult<Cash> {
         self.add(-amount)
-    }
-
-    pub fn sub_assign(&mut self, amount: Cash) -> EmptyResult {
-        self.add_assign(-amount)
     }
 
     pub fn round(mut self) -> Cash {
