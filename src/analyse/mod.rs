@@ -17,8 +17,8 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     statement.check_date();
     statement.batch_quotes(&mut quotes);
 
-    for (symbol, quantity) in statement.open_positions.drain().collect::<Vec<_>>() {
-        statement.emulate_sell_order(&symbol, quantity, quotes.get(&symbol)?)?;
+    for (symbol, &quantity) in statement.open_positions.clone().iter() {
+        statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?)?;
     }
     statement.process_trades()?;
 

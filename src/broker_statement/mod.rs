@@ -1,5 +1,6 @@
 use std::{self, fs};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::Path;
 
 use chrono::Duration;
@@ -173,7 +174,7 @@ impl BrokerStatement {
         }
     }
 
-    pub fn emulate_sell_order(&mut self, symbol: &str, quantity: u32, price: Cash) -> EmptyResult {
+    pub fn emulate_sell(&mut self, symbol: &str, quantity: u32, price: Cash) -> EmptyResult {
         let today = util::today();
 
         let conclusion_date = today;
@@ -186,6 +187,20 @@ impl BrokerStatement {
 
         let stock_cell = StockSell::new(
             symbol, quantity, price, commission, conclusion_date, execution_date);
+
+        if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
+            let available = *open_position.get();
+
+            if available == quantity {
+                open_position.remove();
+            } else if available > quantity {
+                *open_position.get_mut() -= quantity;
+            } else {
+                return Err!("The portfolio has not enough open positions for {}", symbol);
+            }
+        } else {
+            return Err!("The portfolio has no open {} position", symbol);
+        }
 
         self.stock_sells.push(stock_cell);
         self.cash_assets.deposit(price * quantity);
