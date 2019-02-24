@@ -326,19 +326,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
-            if dividend.paid_tax.currency != dividend.amount.currency {
-                return Err!(
-                    "Dividend from {} at {}: The tax is paid in currency different from the dividend currency: {} vs {}",
-                    dividend.issuer, formatting::format_date(dividend.date), dividend.paid_tax.currency,
-                    dividend.amount.currency);
-            }
+            let profit = dividend.amount.sub(dividend.paid_tax).map_err(|e| format!(
+                "Dividend from {} at {}: The tax is paid in currency different from the dividend currency: {}",
+                dividend.issuer, formatting::format_date(dividend.date), e))?;
 
-            let mut amount = dividend.amount;
-            amount.sub(dividend.paid_tax);
-            let amount = self.converter.convert_to(dividend.date, amount, self.currency)?;
-
+            let profit = self.converter.convert_to(dividend.date, profit, self.currency)?;
             self.get_deposit_view(&dividend.issuer)?.transactions.push(
-                Transaction::new(dividend.date, -amount));
+                Transaction::new(dividend.date, -profit));
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
             self.process_tax(dividend.date, &dividend.issuer, tax_to_pay)?;

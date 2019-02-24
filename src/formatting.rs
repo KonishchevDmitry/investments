@@ -21,8 +21,8 @@ pub fn decimal_cell(amount: Decimal) -> Cell {
     Cell::new_align(&amount.to_i64().unwrap().separated_string(), Alignment::RIGHT)
 }
 
-pub fn cash_cell(amount: Decimal) -> Cell {
-    Cell::new_align(&amount.to_i64().unwrap().separated_string(), Alignment::RIGHT)
+pub fn cash_cell(amount: Cash) -> Cell {
+    Cell::new_align(&amount.format(), Alignment::RIGHT)
 }
 
 pub fn print_statement(name: &str, titles: Vec<&str>, mut statement: Table) {

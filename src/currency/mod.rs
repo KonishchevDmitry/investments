@@ -9,7 +9,7 @@ use num_traits::ToPrimitive;
 
 use separator::Separatable;
 
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -48,9 +48,25 @@ impl Cash {
         !self.amount.is_zero() && self.amount.is_sign_positive()
     }
 
-    pub fn sub(&mut self, amount: Cash) {
-        assert_eq!(self.currency, amount.currency);
-        self.amount -= amount.amount;
+    pub fn add(mut self, amount: Cash) -> GenericResult<Cash> {
+        self.add_assign(amount)?;
+        Ok(self)
+    }
+
+    pub fn add_assign(&mut self, amount: Cash) -> EmptyResult {
+        if self.currency != amount.currency {
+            return Err!("Currency mismatch: {} vs {}", self.currency, amount.currency);
+        }
+        self.amount += amount.amount;
+        Ok(())
+    }
+
+    pub fn sub(mut self, amount: Cash) -> GenericResult<Cash> {
+        self.add(-amount)
+    }
+
+    pub fn sub_assign(&mut self, amount: Cash) -> EmptyResult {
+        self.add_assign(-amount)
     }
 
     pub fn round(mut self) -> Cash {
@@ -58,9 +74,13 @@ impl Cash {
         self
     }
 
+    pub fn format(&self) -> String {
+        format_currency(self.currency, &round(self.amount).to_string())
+    }
+
     pub fn format_rounded(&self) -> String {
-        format_currency(
-            self.currency, &round_to(self.amount, 0).to_i64().unwrap().separated_string())
+        let amount = round_to(self.amount, 0).to_i64().unwrap().separated_string();
+        format_currency(self.currency, &amount)
     }
 }
 

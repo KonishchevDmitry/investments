@@ -5,6 +5,7 @@ use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::StockSell;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
+use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::quotes::Quotes;
@@ -37,20 +38,25 @@ pub fn simulate_sell(
 
 fn print_results(stock_sells: Vec<StockSell>) -> EmptyResult {
     let mut table = Table::new();
+//    let mut fifo_details = Vec::new();
 
     for trade in stock_sells {
+        let mut details = Table::new();
+
+
+
         table.add_row(Row::new(vec![
             Cell::new(&trade.symbol),
             Cell::new_align(&trade.quantity.to_string(), Alignment::RIGHT),
-            /*cash_cell(investments), cash_cell(profit), cash_cell(result),
-            Cell::new_align(&duration, Alignment::RIGHT),
-            Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),*/
+            formatting::cash_cell(trade.price),
+            formatting::cash_cell(trade.commission),
+            formatting::cash_cell(trade.price * trade.quantity),
         ]));
     }
 
     formatting::print_statement(
         "Sell simulation results",
-        vec!["Instrument", "Quantity"],
+        vec!["Instrument", "Quantity", "Price", "Commission", "Revenue"],
         table,
     );
 

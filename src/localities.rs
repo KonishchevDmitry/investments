@@ -1,5 +1,7 @@
 use chrono::{Datelike, Duration};
 
+use num_traits::Zero;
+
 use crate::currency;
 use crate::types::{Date, Decimal};
 
@@ -20,7 +22,10 @@ impl Country {
         // round_to(round_to(value, 2), 0) because it rounds 10.64 * 65.4244 * 0.13
         // (which is 90.4956) to 91.
 
-        assert!(!income.is_sign_negative());
+        if income.is_sign_negative() || income.is_zero() {
+            return dec!(0);
+        }
+
         let tax_to_pay = currency::round_to(income * self.tax_rate, self.tax_precision);
 
         if let Some(paid_tax) = paid_tax {

@@ -76,6 +76,68 @@ impl StockSell {
         assert_eq!(sources.iter().map(|source| source.quantity).sum::<u32>(), self.quantity);
         self.sources = sources;
     }
+
+    pub fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
+        // FIXME: We need to use exactly the same rounding logic as in tax statement
+
+        let mut cost = self.commission;
+        let mut local_cost = converter.convert_to(self.conclusion_date, cost, country.currency)?;
+
+        let revenue = self.price * self.quantity;
+        let local_revenue = converter.convert_to(self.execution_date, revenue, country.currency)?;
+
+        let mut fifo = Vec::new();
+
+        for source in &self.sources {
+            let mut purchase_cost = source.price * source.quantity;
+            let mut purchase_local_cost = converter.convert_to(
+                source.execution_date, purchase_cost, country.currency)?;
+
+            purchase_cost.add_assign(source.commission).map_err(|e| format!(
+                "Trade and commission have different currency: {}", e))?;
+
+            purchase_local_cost += converter.convert_to(
+                source.conclusion_date, source.commission, country.currency)?;
+
+            cost.add_assign(purchase_cost).map_err(|e| format!(
+                "Sell and buy trade have different currency: {}", e))?;
+
+            local_cost += purchase_local_cost;
+
+            fifo.push(FifoDetails {
+                quantity: source.quantity,
+                price: source.price,
+
+                purchase_cost,
+                purchase_local_cost: Cash::new(country.currency, purchase_local_cost),
+            });
+        }
+
+        let profit = revenue.sub(cost).map_err(|e| format!(
+            "Sell and buy trade have different currency: {}", e))?;
+
+        let local_profit = local_revenue - local_cost;
+        let tax_to_pay = country.tax_to_pay(local_profit, None);
+
+        Ok(SellDetails {
+            cost,
+            local_cost: Cash::new(country.currency, local_cost),
+
+            revenue,
+            local_revenue: Cash::new(country.currency, local_revenue),
+
+            profit,
+            local_profit: Cash::new(country.currency, local_profit),
+            tax_to_pay: Cash::new(country.currency, tax_to_pay),
+
+            fifo: fifo,
+        })
+    }
+
+    // FIXME: Deprecate
+    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+        Ok(self.calculate(country, converter)?.tax_to_pay.amount)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -88,31 +150,24 @@ pub struct StockSellSource {
     pub execution_date: Date,
 }
 
-impl StockSell {
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
-        // TODO: We need to use exactly the same rounding logic as in tax statement
+pub struct SellDetails {
+    pub cost: Cash,
+    pub local_cost: Cash,
 
-        let mut purchase_cost = dec!(0);
+    pub revenue: Cash,
+    pub local_revenue: Cash,
 
-        for source in &self.sources {
-            purchase_cost += converter.convert_to(
-                source.execution_date, source.price * source.quantity, country.currency)?;
+    pub profit: Cash,
+    pub local_profit: Cash,
+    pub tax_to_pay: Cash,
 
-            purchase_cost += converter.convert_to(
-                source.conclusion_date, source.commission, country.currency)?;
-        }
+    pub fifo: Vec<FifoDetails>,
+}
 
-        let mut sell_revenue = converter.convert_to(
-            self.execution_date, self.price * self.quantity, country.currency)?;
+pub struct FifoDetails {
+    pub quantity: u32,
+    pub price: Cash,
 
-        sell_revenue -= converter.convert_to(
-            self.conclusion_date, self.commission, country.currency)?;
-
-        let income = sell_revenue - purchase_cost;
-        if income.is_sign_negative() {
-            return Ok(dec!(0));
-        }
-
-        Ok(country.tax_to_pay(income, None))
-    }
+    pub purchase_cost: Cash,
+    pub purchase_local_cost: Cash,
 }
