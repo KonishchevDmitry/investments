@@ -71,7 +71,7 @@ impl Cash {
     }
 
     pub fn format(&self) -> String {
-        format_currency(self.currency, &round(self.amount).to_string())
+        format_currency(self.currency, &self.amount.to_string())
     }
 
     pub fn format_rounded(&self) -> String {
@@ -251,13 +251,13 @@ mod tests {
 
     #[test]
     fn formatting() {
-        assert_eq!(Cash::new("USD", dec!(12.345)).format(), "$12.35");
-        assert_eq!(Cash::new("USD", dec!(-12.345)).format(), "-$12.35");
+        assert_eq!(Cash::new("USD", dec!(12.345)).format(), "$12.345");
+        assert_eq!(Cash::new("USD", dec!(-12.345)).format(), "-$12.345");
 
-        assert_eq!(Cash::new("RUB", dec!(12.345)).format(), "12.35₽");
-        assert_eq!(Cash::new("RUB", dec!(-12.345)).format(), "-12.35₽");
+        assert_eq!(Cash::new("RUB", dec!(12.345)).format(), "12.345₽");
+        assert_eq!(Cash::new("RUB", dec!(-12.345)).format(), "-12.345₽");
 
-        assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).format(), "12.35 UNKNOWN");
-        assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).format(), "-12.35 UNKNOWN");
+        assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).format(), "12.345 UNKNOWN");
+        assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).format(), "-12.345 UNKNOWN");
     }
 }
