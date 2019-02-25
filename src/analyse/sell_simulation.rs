@@ -9,6 +9,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities;
 use crate::quotes::Quotes;
+use crate::util;
 
 pub fn simulate_sell(
     mut statement: BrokerStatement, converter: &CurrencyConverter, mut quotes: Quotes,
@@ -35,6 +36,7 @@ pub fn simulate_sell(
     print_results(stock_sells, converter)
 }
 
+// FIXME: Complete the prototype
 fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> EmptyResult {
     let country = localities::russia();
 
@@ -55,6 +57,15 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
         total_profit.deposit(details.profit);
         total_tax_to_pay.deposit(details.tax_to_pay);
 
+        assert_eq!(details.profit.currency, details.cost.currency);
+        let profit_percent = util::round_to(
+            details.profit.amount / details.cost.amount * dec!(100), 1);
+
+        let tax_amount = converter.convert_to(
+            util::today(), details.tax_to_pay, details.profit.currency)?;
+        let real_tax_percent = util::round_to(
+            tax_amount / details.profit.amount * dec!(100), 1);
+
         let mut details_table = Table::new();
 
         for source in &details.fifo {
@@ -72,6 +83,8 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
             formatting::cash_cell(details.revenue),
             formatting::cash_cell(details.profit),
             formatting::cash_cell(details.tax_to_pay),
+            Cell::new_align(&format!("{}%", profit_percent), Alignment::RIGHT),
+            Cell::new_align(&format!("{}%", real_tax_percent), Alignment::RIGHT),
         ]));
 
         fifo_details.push((trade.symbol, details_table));
@@ -93,11 +106,17 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
 
         totals.push(cell);
     }
+    for _ in 0..2 {
+        totals.push(Cell::new_align("", Alignment::RIGHT));
+    }
     table.add_row(Row::new(totals));
 
     formatting::print_statement(
         "Sell simulation results",
-        vec!["Instrument", "Quantity", "Price", "Commission", "Revenue", "Profit", "Tax to pay"],
+        vec![
+            "Instrument", "Quantity", "Price", "Commission", "Revenue", "Profit", "Tax to pay",
+            "Profit %", "Real tax %",
+        ],
         table,
     );
 

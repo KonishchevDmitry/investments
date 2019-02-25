@@ -25,6 +25,7 @@ pub fn cash_cell(amount: Cash) -> Cell {
     Cell::new_align(&amount.format(), Alignment::RIGHT)
 }
 
+// FIXME: slice instead of Vec
 pub fn print_statement(name: &str, titles: Vec<&str>, mut statement: Table) {
     statement.set_format(FormatBuilder::new().padding(1, 1).build());
     statement.set_titles(Row::new(
