@@ -1,12 +1,15 @@
 use std;
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Write};
 use std::str::FromStr;
 use std::ops::{Mul, Div, Neg};
 
 use num_traits::identities::Zero;
+use num_traits::ToPrimitive;
 
-use crate::core::GenericResult;
+use separator::Separatable;
+
+use crate::core::{GenericResult, EmptyResult};
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -45,14 +48,35 @@ impl Cash {
         !self.amount.is_zero() && self.amount.is_sign_positive()
     }
 
-    pub fn sub(&mut self, amount: Cash) {
-        assert_eq!(self.currency, amount.currency);
-        self.amount -= amount.amount;
+    pub fn add(mut self, amount: Cash) -> GenericResult<Cash> {
+        self.add_assign(amount)?;
+        Ok(self)
+    }
+
+    pub fn add_assign(&mut self, amount: Cash) -> EmptyResult {
+        if self.currency != amount.currency {
+            return Err!("Currency mismatch: {} vs {}", self.currency, amount.currency);
+        }
+        self.amount += amount.amount;
+        Ok(())
+    }
+
+    pub fn sub(self, amount: Cash) -> GenericResult<Cash> {
+        self.add(-amount)
     }
 
     pub fn round(mut self) -> Cash {
         self.amount = round(self.amount);
         self
+    }
+
+    pub fn format(&self) -> String {
+        format_currency(self.currency, &self.amount.to_string())
+    }
+
+    pub fn format_rounded(&self) -> String {
+        let amount = round_to(self.amount, 0).to_i64().unwrap().separated_string();
+        format_currency(self.currency, &amount)
     }
 }
 
@@ -114,6 +138,7 @@ pub struct MultiCurrencyCashAccount {
     assets: HashMap<&'static str, Decimal>,
 }
 
+// FIXME: Rename to MultiCurrencyCash + methods?
 impl MultiCurrencyCashAccount {
     pub fn new() -> MultiCurrencyCashAccount {
         MultiCurrencyCashAccount {
@@ -170,6 +195,29 @@ pub fn round_to(amount: Decimal, points: u32) -> Decimal {
     util::round_to(amount, points)
 }
 
+fn format_currency(currency: &str, mut amount: &str) -> String {
+    let mut buffer = String::new();
+
+    if currency == "USD" {
+        if amount.starts_with('-') || amount.starts_with('+') {
+            write!(&mut buffer, "{}", &amount[..1]).unwrap();
+            amount = &amount[1..];
+        }
+
+        write!(&mut buffer, "$").unwrap();
+    }
+
+    write!(&mut buffer, "{}", amount).unwrap();
+
+    match currency {
+        "USD" => (),
+        "RUB" => write!(&mut buffer, "₽").unwrap(),
+        _ => write!(&mut buffer, " {}", currency).unwrap(),
+    };
+
+    buffer
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +248,17 @@ mod tests {
             assert_eq!(&from.to_string(), from_string);
             assert_eq!(&rounded.to_string(), to_string);
         }
+    }
+
+    #[test]
+    fn formatting() {
+        assert_eq!(Cash::new("USD", dec!(12.345)).format(), "$12.345");
+        assert_eq!(Cash::new("USD", dec!(-12.345)).format(), "-$12.345");
+
+        assert_eq!(Cash::new("RUB", dec!(12.345)).format(), "12.345₽");
+        assert_eq!(Cash::new("RUB", dec!(-12.345)).format(), "-12.345₽");
+
+        assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).format(), "12.345 UNKNOWN");
+        assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).format(), "-12.345 UNKNOWN");
     }
 }

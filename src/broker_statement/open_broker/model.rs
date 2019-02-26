@@ -5,7 +5,8 @@ use log::{warn, error};
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::broker_statement::{PartialBrokerStatement, StockBuy, StockSell};
+use crate::broker_statement::PartialBrokerStatement;
+use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Date, Decimal};
@@ -247,7 +248,7 @@ impl ConcludedTrades {
 
                     statement.stock_sells.push(StockSell::new(
                         symbol, quantity, price, commission,
-                        trade.conclusion_date, execution_date));
+                        trade.conclusion_date, execution_date, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };

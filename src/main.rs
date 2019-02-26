@@ -48,6 +48,8 @@ fn main() {
 fn run(action: Action, config: Config) -> EmptyResult {
     match action {
         Action::Analyse(name) => analyse::analyse(&config, &name)?,
+        Action::SimulateSell { name, positions } => analyse::simulate_sell(
+            &config, &name, &positions)?,
 
         Action::Sync(name) => portfolio::sync(&config, &name)?,
         Action::Buy(name, shares, symbol, cash_assets) =>

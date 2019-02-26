@@ -2,8 +2,8 @@ use std::fmt::Write;
 
 use ansi_term::{Style, Color, ANSIString};
 use num_traits::{ToPrimitive, Zero};
-use separator::Separatable;
 
+use crate::currency::Cash;
 use crate::types::Decimal;
 use crate::util;
 
@@ -124,21 +124,7 @@ fn print_asset(asset: AssetAllocation, expected_total_value: Decimal, currency: 
 }
 
 fn format_cash(currency: &str, amount: Decimal) -> String {
-    let mut buffer = String::new();
-
-    if currency == "USD" {
-        write!(&mut buffer, "$").unwrap();
-    }
-
-    write!(&mut buffer, "{}", util::round_to(amount, 0).to_i64().unwrap().separated_string()).unwrap();
-
-    match currency {
-        "USD" => (),
-        "RUB" => write!(&mut buffer, "₽").unwrap(),
-        _ => write!(&mut buffer, " {}", currency).unwrap(),
-    };
-
-    buffer
+    Cash::new(currency, amount).format_rounded()
 }
 
 fn format_shares(shares: i32, with_sign: bool) -> String {

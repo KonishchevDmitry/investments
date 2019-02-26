@@ -4,10 +4,9 @@ use std::collections::{HashMap, BTreeMap};
 use cast::From as CastFrom;
 use chrono::Duration;
 use log::debug;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::Zero;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
-use separator::Separatable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
@@ -73,7 +72,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         formatting::print_statement(
             &format!("Average rate of return from cash investments in {}", currency),
-            vec!["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
+            &["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
             analyser.table,
         );
 
@@ -96,11 +95,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
-        let cash_cell = |amount: Decimal| Cell::new_align(
-            &amount.to_i64().unwrap().separated_string(), Alignment::RIGHT);
-
         self.table.add_row(Row::new(vec![
-            Cell::new(name), cash_cell(investments), cash_cell(profit), cash_cell(result),
+            Cell::new(name),
+            formatting::round_decimal_cell(investments),
+            formatting::round_decimal_cell(profit),
+            formatting::round_decimal_cell(result),
             Cell::new_align(&duration, Alignment::RIGHT),
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ]));
@@ -327,19 +326,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
-            if dividend.paid_tax.currency != dividend.amount.currency {
-                return Err!(
-                    "Dividend from {} at {}: The tax is paid in currency different from the dividend currency: {} vs {}",
-                    dividend.issuer, formatting::format_date(dividend.date), dividend.paid_tax.currency,
-                    dividend.amount.currency);
-            }
+            let profit = dividend.amount.sub(dividend.paid_tax).map_err(|e| format!(
+                "{}: The tax is paid in currency different from the dividend currency: {}",
+                dividend.description(), e))?;
 
-            let mut amount = dividend.amount;
-            amount.sub(dividend.paid_tax);
-            let amount = self.converter.convert_to(dividend.date, amount, self.currency)?;
-
+            let profit = self.converter.convert_to(dividend.date, profit, self.currency)?;
             self.get_deposit_view(&dividend.issuer)?.transactions.push(
-                Transaction::new(dividend.date, -amount));
+                Transaction::new(dividend.date, -profit));
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
             self.process_tax(dividend.date, &dividend.issuer, tax_to_pay)?;

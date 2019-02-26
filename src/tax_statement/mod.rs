@@ -6,7 +6,7 @@ use prettytable::format::Alignment;
 use crate::broker_statement::BrokerStatement;
 use crate::config::Config;
 use crate::core::EmptyResult;
-use crate::currency;
+use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::formatting;
@@ -91,14 +91,13 @@ struct TaxStatementGenerator<'a> {
 impl<'a> TaxStatementGenerator<'a> {
     fn process_dividend_income(&mut self) -> EmptyResult {
         let country = localities::russia();
-        let foreign_country = localities::us();
 
         let mut table = Table::new();
 
-        let mut total_foreign_amount = dec!(0);
+        let mut total_foreign_amount = MultiCurrencyCashAccount::new();
         let mut total_amount = dec!(0);
 
-        let mut total_foreign_paid_tax = dec!(0);
+        let mut total_foreign_paid_tax = MultiCurrencyCashAccount::new();
         let mut total_paid_tax = dec!(0);
         let mut total_tax_to_pay = dec!(0);
 
@@ -109,27 +108,22 @@ impl<'a> TaxStatementGenerator<'a> {
                 continue;
             }
 
-            let currency = dividend.amount.currency;
-            if currency != foreign_country.currency {
-                return Err!("{} dividend currency is not supported", currency);
-            }
-
             let issuer = self.broker_statement.get_instrument_name(&dividend.issuer)?;
 
-            let foreign_amount = dividend.amount.round().amount;
-            total_foreign_amount += foreign_amount;
+            let foreign_amount = dividend.amount.round();
+            total_foreign_amount.deposit(foreign_amount);
 
             // Don't round currency rate. CBR provides currency rates with high precision like
             // 56.3438 and tax statement uses currency rate value for 100 units like 5634.38.
             let precise_currency_rate = self.converter.currency_rate(
-                dividend.date, currency, country.currency)?;
+                dividend.date, foreign_amount.currency, country.currency)?;
 
             let amount = currency::round(self.converter.convert_to(
                 dividend.date, dividend.amount, country.currency)?);
             total_amount += amount;
 
-            let foreign_paid_tax = dividend.paid_tax.amount;
-            total_foreign_paid_tax += foreign_paid_tax;
+            let foreign_paid_tax = dividend.paid_tax;
+            total_foreign_paid_tax.deposit(foreign_paid_tax);
 
             let paid_tax = currency::round(self.converter.convert_to(
                 dividend.date, dividend.paid_tax, country.currency)?);
@@ -142,56 +136,62 @@ impl<'a> TaxStatementGenerator<'a> {
             total_income += income;
 
             table.add_row(Row::new(vec![
-                Cell::new_align(&formatting::format_date(dividend.date), Alignment::CENTER),
+                formatting::date_cell(dividend.date),
                 Cell::new_align(&issuer, Alignment::LEFT),
-                Cell::new_align(currency, Alignment::CENTER),
+                Cell::new_align(foreign_amount.currency, Alignment::CENTER),
 
-                Cell::new_align(&foreign_amount.to_string(), Alignment::RIGHT),
-                Cell::new_align(&precise_currency_rate.normalize().to_string(), Alignment::RIGHT),
-                Cell::new_align(&amount.to_string(), Alignment::RIGHT),
+                formatting::cash_cell(foreign_amount),
+                formatting::decimal_cell(precise_currency_rate),
+                formatting::cash_cell(Cash::new(country.currency, amount)),
 
-                Cell::new_align(&foreign_paid_tax.to_string(), Alignment::RIGHT),
-                Cell::new_align(&paid_tax.to_string(), Alignment::RIGHT),
-                Cell::new_align(&tax_to_pay.to_string(), Alignment::RIGHT),
-                Cell::new_align(&income.to_string(), Alignment::RIGHT),
+                formatting::cash_cell(foreign_paid_tax),
+                formatting::cash_cell(Cash::new(country.currency, paid_tax)),
+                formatting::cash_cell(Cash::new(country.currency, tax_to_pay)),
+                formatting::cash_cell(Cash::new(country.currency, income)),
             ]));
 
             if let Some(ref mut tax_statement) = self.tax_statement {
                 let description = format!(
                     "{}: Дивиденд от {}", self.broker_statement.broker.name, issuer);
 
+                if foreign_paid_tax.currency != foreign_amount.currency {
+                    return Err!(
+                        "{}: Tax currency is different from dividend currency: {} vs {}",
+                        dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
+                }
+
                 tax_statement.add_dividend(
-                    &description, dividend.date, currency, precise_currency_rate,
-                    foreign_amount, foreign_paid_tax, amount, paid_tax
+                    &description, dividend.date, foreign_amount.currency, precise_currency_rate,
+                    foreign_amount.amount, foreign_paid_tax.amount, amount, paid_tax
                 ).map_err(|e| format!(
-                    "Unable to add {:?} dividend to the tax statement: {}", issuer, e
+                    "Unable to add {} to the tax statement: {}", dividend.description(), e
                 ))?;
             }
         }
 
         if !table.is_empty() {
             table.add_row(Row::new(vec![
-                Cell::new(""),
-                Cell::new(""),
-                Cell::new(""),
+                formatting::empty_cell(),
+                formatting::empty_cell(),
+                formatting::empty_cell(),
 
-                Cell::new_align(&total_foreign_amount.to_string(), Alignment::RIGHT),
-                Cell::new(""),
-                Cell::new_align(&total_amount.to_string(), Alignment::RIGHT),
+                formatting::multi_currency_cash_cell(total_foreign_amount),
+                formatting::empty_cell(),
+                formatting::cash_cell(Cash::new(country.currency, total_amount)),
 
-                Cell::new_align(&total_foreign_paid_tax.to_string(), Alignment::RIGHT),
-                Cell::new_align(&total_paid_tax.to_string(), Alignment::RIGHT),
-                Cell::new_align(&total_tax_to_pay.to_string(), Alignment::RIGHT),
-                Cell::new_align(&total_income.to_string(), Alignment::RIGHT),
+                formatting::multi_currency_cash_cell(total_foreign_paid_tax),
+                formatting::cash_cell(Cash::new(country.currency, total_paid_tax)),
+                formatting::cash_cell(Cash::new(country.currency, total_tax_to_pay)),
+                formatting::cash_cell(Cash::new(country.currency, total_income)),
             ]));
 
             formatting::print_statement(
                 &format!("Расчет дохода от дивидендов, полученных через {}",
                          self.broker_statement.broker.name),
-                vec![
+                &[
                     "Дата", "Эмитент", "Валюта",
-                    "Сумма (USD)", "Курс руб.", "Сумма (руб)",
-                    "Уплачено (USD)", "Уплачено (руб)", "К доплате (руб)", "Реальный доход",
+                    "Сумма", "Курс руб.", "Сумма (руб)",
+                    "Уплачено", "Уплачено (руб)", "К доплате", "Реальный доход",
                 ],
                 table,
             );
