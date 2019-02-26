@@ -138,6 +138,7 @@ pub struct MultiCurrencyCashAccount {
     assets: HashMap<&'static str, Decimal>,
 }
 
+// FIXME: Rename to MultiCurrencyCash + methods?
 impl MultiCurrencyCashAccount {
     pub fn new() -> MultiCurrencyCashAccount {
         MultiCurrencyCashAccount {

@@ -23,6 +23,10 @@ impl Dividend {
         let paid_tax = converter.convert_to(self.date, self.paid_tax, country.currency)?;
         Ok(country.tax_to_pay(amount, Some(paid_tax)))
     }
+
+    pub fn description(&self) -> String {
+        format!("{} dividend from {}", self.issuer, formatting::format_date(self.date))
+    }
 }
 
 pub struct DividendWithoutPaidTax {

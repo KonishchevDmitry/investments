@@ -51,6 +51,8 @@ pub fn russia() -> Country {
     }
 }
 
+// FIXME
+/*
 pub fn us() -> Country {
     Country {
         currency: "USD",
@@ -58,6 +60,7 @@ pub fn us() -> Country {
         tax_precision: 2,
     }
 }
+*/
 
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     if today.month() == 1 && today.day() < 10 {

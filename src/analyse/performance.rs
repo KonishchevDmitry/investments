@@ -72,7 +72,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         formatting::print_statement(
             &format!("Average rate of return from cash investments in {}", currency),
-            vec!["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
+            &["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
             analyser.table,
         );
 
@@ -97,9 +97,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         self.table.add_row(Row::new(vec![
             Cell::new(name),
-            formatting::decimal_cell(investments),
-            formatting::decimal_cell(profit),
-            formatting::decimal_cell(result),
+            formatting::round_decimal_cell(investments),
+            formatting::round_decimal_cell(profit),
+            formatting::round_decimal_cell(result),
             Cell::new_align(&duration, Alignment::RIGHT),
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ]));
@@ -327,8 +327,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
             let profit = dividend.amount.sub(dividend.paid_tax).map_err(|e| format!(
-                "Dividend from {} at {}: The tax is paid in currency different from the dividend currency: {}",
-                dividend.issuer, formatting::format_date(dividend.date), e))?;
+                "{}: The tax is paid in currency different from the dividend currency: {}",
+                dividend.description(), e))?;
 
             let profit = self.converter.convert_to(dividend.date, profit, self.currency)?;
             self.get_deposit_view(&dividend.issuer)?.transactions.push(

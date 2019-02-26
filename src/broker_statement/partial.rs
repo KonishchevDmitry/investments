@@ -44,7 +44,7 @@ impl PartialBrokerStatement {
             dividends: Vec::new(),
 
             dividends_without_paid_tax: Vec::new(),
-            tax_changes: HashMap::new(), // FIXME: Fill from statements
+            tax_changes: HashMap::new(),
 
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),

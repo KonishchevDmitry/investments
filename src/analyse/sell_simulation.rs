@@ -113,7 +113,7 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
 
     formatting::print_statement(
         "Sell simulation results",
-        vec![
+        &[
             "Instrument", "Quantity", "Price", "Commission", "Revenue", "Profit", "Tax to pay",
             "Profit %", "Real tax %",
         ],
@@ -123,7 +123,7 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
     for (symbol, details_table) in fifo_details {
         formatting::print_statement(
             &format!("FIFO details for {}", symbol),
-            vec!["Quantity", "Price"],
+            &["Quantity", "Price"],
             details_table,
         );
     }
