@@ -55,7 +55,7 @@ impl RecordParser for TradesParser {
 
         let price = Cash::new(
             currency, record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?);
-        let commission = Cash::new(
+        let commission = -Cash::new(
             currency, record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?);
 
         if quantity > 0 {
