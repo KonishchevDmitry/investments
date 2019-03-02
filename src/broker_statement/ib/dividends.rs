@@ -39,11 +39,11 @@ impl RecordParser for DividendsParser {
 
 fn parse_dividend_description(description: &str) -> GenericResult<(String, String)> {
     lazy_static! {
-        static ref description_regex: Regex = Regex::new(
+        static ref DESCRIPTION_REGEX: Regex = Regex::new(
             r"^(?P<description>(?P<issuer>[A-Z]+)\b.+) \([^)]+\)$").unwrap();
     }
 
-    let captures = description_regex.captures(description).ok_or_else(|| format!(
+    let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
         "Unexpected dividend description: {:?}", description))?;
 
     let issuer = captures.name("issuer").unwrap().as_str().to_owned();

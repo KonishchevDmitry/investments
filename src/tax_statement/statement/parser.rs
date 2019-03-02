@@ -26,10 +26,10 @@ pub struct TaxStatementReader {
 impl TaxStatementReader {
     pub fn read(path: &str) -> GenericResult<TaxStatement> {
         lazy_static! {
-            static ref extension_regex: Regex = Regex::new(r"\.dc(\d)$").unwrap();
+            static ref EXTENSION_REGEX: Regex = Regex::new(r"\.dc(\d)$").unwrap();
         }
 
-        let year = extension_regex.captures(path)
+        let year = EXTENSION_REGEX.captures(path)
             .and_then(|captures| captures.get(1).unwrap().as_str().parse::<u8>().ok())
             .ok_or_else(||"Invalid tax statement file extension: *.dcX is expected")?;
         let year = 2010 + i32::from(year);
