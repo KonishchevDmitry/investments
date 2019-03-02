@@ -49,8 +49,7 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
     let mut fifo_details = Vec::new();
 
     for trade in stock_sells {
-        let details = trade.calculate(&country, &converter).map_err(|e| format!(
-            "Failed calculate results of {} selling order: {}", trade.symbol, e))?;
+        let details = trade.calculate(&country, &converter)?;
 
         total_commissions.deposit(trade.commission);
         total_revenue.deposit(details.revenue);

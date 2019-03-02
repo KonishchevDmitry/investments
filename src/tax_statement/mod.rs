@@ -3,18 +3,19 @@ use log::warn;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::Config;
-use crate::core::EmptyResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::formatting;
+use crate::localities;
 use crate::util;
 
 use self::statement::TaxStatement;
 
 mod dividends;
 mod statement;
+mod trades;
 
-// FIXME: Stock selling support
 // FIXME: Free cash interest support
 pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: i32, tax_statement_path: Option<&str>
@@ -57,11 +58,17 @@ pub fn generate_tax_statement(
         None => None,
     };
 
+    let country = localities::russia();
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, true);
 
-    dividends::process_dividend_income(&broker_statement, year, tax_statement.as_mut(), &converter)
+    // FIXME: Regression tests
+
+    dividends::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
         .map_err(|e| format!("Failed to process dividend income: {}", e))?;
+
+    trades::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
+        .map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
     if let Some(ref tax_statement) = tax_statement {
         tax_statement.save()?;

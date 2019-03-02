@@ -7,16 +7,14 @@ use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::localities;
+use crate::localities::Country;
 
 use super::statement::TaxStatement;
 
-pub fn process_dividend_income(
+pub fn process_income(
     broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
-    converter: &CurrencyConverter,
+    country: &Country, converter: &CurrencyConverter,
 ) -> EmptyResult {
-    let country = localities::russia();
-
     let mut table = Table::new();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
@@ -38,9 +36,7 @@ pub fn process_dividend_income(
         let foreign_amount = dividend.amount.round();
         total_foreign_amount.deposit(foreign_amount);
 
-        // Don't round currency rate. CBR provides currency rates with high precision like
-        // 56.3438 and tax statement uses currency rate value for 100 units like 5634.38.
-        let precise_currency_rate = converter.currency_rate(
+        let precise_currency_rate = converter.precise_currency_rate(
             dividend.date, foreign_amount.currency, country.currency)?;
 
         let amount = currency::round(converter.convert_to(
@@ -110,6 +106,7 @@ pub fn process_dividend_income(
             formatting::cash_cell(Cash::new(country.currency, total_income)),
         ]));
 
+        // FIXME: Validate against real tax statement, add more columns for clarity (tax rounding)
         formatting::print_statement(
             &format!("Расчет дохода от дивидендов, полученных через {}",
                      broker_statement.broker.name),

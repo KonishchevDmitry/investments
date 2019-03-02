@@ -1,6 +1,7 @@
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
+use crate::formatting;
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
@@ -78,6 +79,12 @@ impl StockSell {
     }
 
     pub fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
+        Ok(self.calculate_impl(country, converter).map_err(|e| format!(
+            "Failed calculate results of {} selling order from {}: {}",
+            self.symbol, formatting::format_date(self.conclusion_date), e))?)
+    }
+
+    fn calculate_impl(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
         // FIXME: We need to use exactly the same rounding logic as in tax statement
 
         let mut cost = self.commission;
