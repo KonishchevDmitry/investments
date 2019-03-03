@@ -54,15 +54,23 @@ impl Cash {
     }
 
     pub fn add_assign(&mut self, amount: Cash) -> EmptyResult {
-        if self.currency != amount.currency {
-            return Err!("Currency mismatch: {} vs {}", self.currency, amount.currency);
-        }
+        self.ensure_same_currency(amount)?;
         self.amount += amount.amount;
         Ok(())
     }
 
     pub fn sub(self, amount: Cash) -> GenericResult<Cash> {
         self.add(-amount)
+    }
+
+    pub fn sub_convert(self, date: Date, amount: Cash, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let amount = converter.convert_to_cash(date, amount, self.currency)?;
+        self.sub(amount)
+    }
+
+    pub fn div(self, amount: Cash) -> GenericResult<Decimal> {
+        self.ensure_same_currency(amount)?;
+        Ok(self.amount / amount.amount)
     }
 
     pub fn round(mut self) -> Cash {
@@ -77,6 +85,14 @@ impl Cash {
     pub fn format_rounded(&self) -> String {
         let amount = round_to(self.amount, 0).to_i64().unwrap().separated_string();
         format_currency(self.currency, &amount)
+    }
+
+    fn ensure_same_currency(self, other: Cash) -> EmptyResult {
+        if self.currency == other.currency {
+            Ok(())
+        } else {
+            Err!("Currency mismatch: {} vs {}", self.currency, other.currency)
+        }
     }
 }
 

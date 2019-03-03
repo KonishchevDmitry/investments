@@ -253,10 +253,12 @@ impl BrokerStatement {
                 let sell_quantity = std::cmp::min(remaining_quantity, stock_buy.get_unsold());
                 assert!(sell_quantity > 0);
 
+                let commission = (stock_buy.commission / stock_buy.quantity * sell_quantity).round();
+
                 sources.push(StockSellSource {
                     quantity: sell_quantity,
                     price: stock_buy.price,
-                    commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
+                    commission: commission,
 
                     conclusion_date: stock_buy.conclusion_date,
                     execution_date: stock_buy.execution_date,

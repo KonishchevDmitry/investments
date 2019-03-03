@@ -1,5 +1,5 @@
 use crate::core::GenericResult;
-use crate::currency::Cash;
+use crate::currency::{self, Cash};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
@@ -87,55 +87,64 @@ impl StockSell {
     fn calculate_impl(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
         // FIXME: We need to use exactly the same rounding logic as in tax statement
 
-        let mut cost = self.commission;
-        let mut local_cost = converter.convert_to(self.conclusion_date, cost, country.currency)?;
+        let revenue = (self.price * self.quantity).round();
+        let local_revenue = converter.convert_to_cash(
+            self.execution_date, revenue, country.currency)?.round();
 
-        let revenue = self.price * self.quantity;
-        let local_revenue = converter.convert_to(self.execution_date, revenue, country.currency)?;
+        let local_commission = converter.convert_to_cash(
+            self.conclusion_date, self.commission, country.currency)?.round();
+
+        let mut total_cost = self.commission;
+        let mut total_local_cost = local_commission;
+
+        let mut purchase_cost = Cash::new(total_cost.currency, dec!(0));
+        let mut purchase_local_cost = Cash::new(total_local_cost.currency, dec!(0));
 
         let mut fifo = Vec::new();
 
         for source in &self.sources {
-            let mut purchase_cost = source.price * source.quantity;
-            let mut purchase_local_cost = converter.convert_to(
-                source.execution_date, purchase_cost, country.currency)?;
+            let fifo_details = source.calculate(country, converter)?;
 
-            purchase_cost.add_assign(source.commission).map_err(|e| format!(
-                "Trade and commission have different currency: {}", e))?;
-
-            purchase_local_cost += converter.convert_to(
-                source.conclusion_date, source.commission, country.currency)?;
-
-            cost.add_assign(purchase_cost).map_err(|e| format!(
+            purchase_cost.add_assign(fifo_details.total_cost).map_err(|e| format!(
                 "Sell and buy trade have different currency: {}", e))?;
+            purchase_local_cost.add_assign(fifo_details.total_local_cost).unwrap();
 
-            local_cost += purchase_local_cost;
-
-            fifo.push(FifoDetails {
-                quantity: source.quantity,
-                price: source.price,
-
-                purchase_cost,
-                purchase_local_cost: Cash::new(country.currency, purchase_local_cost),
-            });
+            fifo.push(fifo_details);
         }
 
-        let profit = revenue.sub(cost).map_err(|e| format!(
+        total_cost.add_assign(purchase_cost).map_err(|e| format!(
+            "Sell and buy trade have different currency: {}", e))?;
+        total_local_cost.add_assign(purchase_local_cost).unwrap();
+
+        let profit = revenue.sub(total_cost).map_err(|e| format!(
             "Sell and buy trade have different currency: {}", e))?;
 
-        let local_profit = local_revenue - local_cost;
-        let tax_to_pay = country.tax_to_pay(local_profit, None);
+        let local_profit = local_revenue.sub(total_local_cost).unwrap();
+        let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(local_profit.amount, None));
+
+        let real_profit = profit.sub_convert(self.execution_date, tax_to_pay, converter)?;
+        let real_profit_ratio = real_profit.div(purchase_cost).unwrap();
+
+        let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
+        let real_local_profit_ratio = real_local_profit.div(purchase_local_cost).unwrap();
 
         Ok(SellDetails {
-            cost,
-            local_cost: Cash::new(country.currency, local_cost),
-
             revenue,
-            local_revenue: Cash::new(country.currency, local_revenue),
+            local_revenue: local_revenue,
+            local_commission: local_commission,
+
+            purchase_cost: purchase_cost,
+            purchase_local_cost: purchase_local_cost,
+
+            total_cost: total_cost,
+            total_local_cost: total_local_cost,
 
             profit,
-            local_profit: Cash::new(country.currency, local_profit),
-            tax_to_pay: Cash::new(country.currency, tax_to_pay),
+            local_profit: local_profit,
+            tax_to_pay: tax_to_pay,
+
+            real_profit_ratio,
+            real_local_profit_ratio,
 
             fifo: fifo,
         })
@@ -157,16 +166,58 @@ pub struct StockSellSource {
     pub execution_date: Date,
 }
 
-pub struct SellDetails {
-    pub cost: Cash,
-    pub local_cost: Cash,
+impl StockSellSource {
+    fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
+        let cost = (self.price * self.quantity).round();
+        let local_cost = currency::round(converter.convert_to(
+            self.execution_date, cost, country.currency)?);
 
+        let local_commission = currency::round(converter.convert_to(
+            self.conclusion_date, self.commission, country.currency)?);
+
+        let mut total_cost = cost;
+        let mut total_local_cost = local_cost;
+
+        total_cost.add_assign(self.commission).map_err(|e| format!(
+            "Trade and commission have different currency: {}", e))?;
+        total_local_cost += local_commission;
+
+        Ok(FifoDetails {
+            quantity: self.quantity,
+            price: self.price,
+
+            commission: self.commission,
+            local_commission: Cash::new(country.currency, local_commission),
+
+            conclusion_date: self.conclusion_date,
+            execution_date: self.execution_date,
+
+            cost,
+            local_cost: Cash::new(country.currency, local_cost),
+
+            total_cost,
+            total_local_cost: Cash::new(country.currency, total_local_cost),
+        })
+    }
+}
+
+pub struct SellDetails {
     pub revenue: Cash,
     pub local_revenue: Cash,
+    pub local_commission: Cash,
+
+    pub purchase_cost: Cash,
+    pub purchase_local_cost: Cash,
+
+    pub total_cost: Cash,
+    pub total_local_cost: Cash,
 
     pub profit: Cash,
     pub local_profit: Cash,
     pub tax_to_pay: Cash,
+
+    pub real_profit_ratio: Decimal,
+    pub real_local_profit_ratio: Decimal,
 
     pub fifo: Vec<FifoDetails>,
 }
@@ -175,6 +226,15 @@ pub struct FifoDetails {
     pub quantity: u32,
     pub price: Cash,
 
-    pub purchase_cost: Cash,
-    pub purchase_local_cost: Cash,
+    pub commission: Cash,
+    pub local_commission: Cash,
+
+    pub conclusion_date: Date,
+    pub execution_date: Date,
+
+    pub cost: Cash,
+    pub local_cost: Cash,
+
+    pub total_cost: Cash,
+    pub total_local_cost: Cash,
 }

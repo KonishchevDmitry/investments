@@ -55,8 +55,10 @@ impl RecordParser for TradesParser {
 
         let price = Cash::new(
             currency, record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?);
-        let commission = -Cash::new(
-            currency, record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?);
+        let commission = -record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?;
+
+        // Commission may be 1.06 in *.pdf but 1.0619736 in *.csv, so round it to cents
+        let commission = Cash::new(currency, commission).round();
 
         if quantity > 0 {
             parser.statement.stock_buys.push(StockBuy::new(

@@ -56,9 +56,9 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
         total_profit.deposit(details.profit);
         total_tax_to_pay.deposit(details.tax_to_pay);
 
-        assert_eq!(details.profit.currency, details.cost.currency);
+        assert_eq!(details.profit.currency, details.total_cost.currency);
         let profit_percent = util::round_to(
-            details.profit.amount / details.cost.amount * dec!(100), 1);
+            details.profit.amount / details.total_cost.amount * dec!(100), 1);
 
         let tax_amount = converter.convert_to(
             util::today(), details.tax_to_pay, details.profit.currency)?;

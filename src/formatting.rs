@@ -8,6 +8,7 @@ use separator::Separatable;
 
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::types::{Date, Decimal};
+use crate::util;
 
 pub fn format_date(date: Date) -> String {
     date.format("%d.%m.%Y").to_string()
@@ -51,6 +52,10 @@ pub fn multi_currency_cash_cell(amounts: MultiCurrencyCashAccount) -> Cell {
     Cell::new_align(&result, Alignment::RIGHT)
 }
 
+pub fn ratio_cell(ratio: Decimal) -> Cell {
+    Cell::new_align(&format!("{}%", util::round_to(ratio * dec!(100), 1)), Alignment::RIGHT)
+}
+
 pub fn print_statement(name: &str, titles: &[&str], mut statement: Table) {
     statement.set_format(FormatBuilder::new().padding(1, 1).build());
     statement.set_titles(Row::new(
@@ -66,9 +71,6 @@ pub fn print_statement(name: &str, titles: &[&str], mut statement: Table) {
         Cell::new_align(&("\n".to_owned() + name), Alignment::CENTER),
     ]));
 
-    table.add_row(Row::new(vec![
-        Cell::new_align(&statement.to_string(), Alignment::CENTER),
-    ]));
-
+    table.add_row(Row::new(vec![Cell::new(&statement.to_string())]));
     table.printstd();
 }

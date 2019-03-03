@@ -3,7 +3,7 @@ use log::warn;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::Config;
-use crate::core::{GenericResult, EmptyResult};
+use crate::core::EmptyResult;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::formatting;
