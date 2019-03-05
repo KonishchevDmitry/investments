@@ -239,28 +239,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deposit_emulator() {
-        // FIXME: Replace with real deposit with contributions
-
-        let start_date = date!(28, 7, 2018);
-        let initial_assets = dec!(200_000);
-        let transaction_amount = dec!(400_000);
-        let interest = dec!(7);
-
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets,
-            &[Transaction::new(date!(28, 8, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest, None);
-        assert_eq!(currency::round(result), dec!(604_763.23));
-
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets,
-            &[Transaction::new(date!(14, 8, 2018), transaction_amount)],
-            date!(28, 9, 2018), interest, None);
-        assert_eq!(currency::round(result), dec!(605_843.59));
-    }
-
-    #[test]
     fn real_deposit() {
         test_real_deposit(dec!(600_000), None);
     }
@@ -284,7 +262,7 @@ mod tests {
             transactions.push(Transaction::new(start_date, amount));
         }
 
-        for (end_date, expected_assets) in [
+        for &(capitalization_date, expected_assets) in &[
             (date!(28,  7, 2018), dec!(600_000)),
             (date!(28,  8, 2018), dec!(603_567.12)),
             (date!(28,  9, 2018), dec!(607_155.45)),
@@ -292,21 +270,46 @@ mod tests {
             (date!(28, 11, 2018), dec!(614_279.11)),
             (date!(28, 12, 2018), dec!(617_813.32)),
             (date!(28,  1, 2019), dec!(621_486.34)),
-        ].iter().cloned() {
+        ] {
             let result = DepositEmulator::emulate(
-                start_date, initial_assets, &transactions, end_date, interest, None);
+                start_date, initial_assets, &transactions, capitalization_date, interest, None);
             assert_eq!(currency::round(result), expected_assets);
 
             {
                 // Test deposit closing
 
                 let mut transactions = transactions.clone();
-                transactions.push(Transaction::new(end_date, -expected_assets));
+                transactions.push(Transaction::new(capitalization_date, -expected_assets));
 
                 let result = DepositEmulator::emulate(
-                    start_date, initial_assets, &transactions, end_date, interest, None);
+                    start_date, initial_assets, &transactions, capitalization_date, interest, None);
                 assert_eq!(currency::round(result), dec!(0));
             }
+        }
+    }
+
+    #[test]
+    fn test_real_deposit_with_contributions() {
+        let start_date = date!(31, 1, 2019);
+        let initial_assets = dec!(190_000);
+        let interest = dec!(7);
+
+        let transactions = vec![
+            Transaction::new(date!( 5, 2, 2019), dec!(60_000)),
+            Transaction::new(date!(21, 2, 2019), dec!(50_000)),
+        ];
+
+        for &(capitalization_date, expected_assets) in &[
+            (date!(28, 2, 2019), dec!(301_352.05)),
+            (date!(31, 3, 2019), dec!(303_143.65)),
+            (date!(30, 4, 2019), dec!(304_887.77)),
+            (date!(31, 5, 2019), dec!(306_700.39)),
+            (date!(30, 6, 2019), dec!(308_464.97)),
+            (date!(31, 7, 2019), dec!(310_298.85)),
+        ] {
+            let result = DepositEmulator::emulate(
+                start_date, initial_assets, &transactions, capitalization_date, interest, None);
+            assert_eq!(currency::round(result), expected_assets);
         }
     }
 
@@ -341,19 +344,19 @@ mod tests {
         let result = DepositEmulator::emulate(
             start_date, initial_assets, &transactions, date!(31, 7, 2019),
             interest, Some(&interest_periods));
-        assert_eq!(currency::round(result), dec!(196_691.46)); // FIXME: 46 -> 45
+        assert_eq!(currency::round(result), dec!(196_691.45));
 
         transactions.push(Transaction::new(date!(5, 2, 2019), dec!(60_000)));
         let result = DepositEmulator::emulate(
             start_date, initial_assets, &transactions, date!(31, 7, 2019),
             interest, Some(&interest_periods));
-        assert_eq!(currency::round(result), dec!(258_745.33)); // FIXME: 33 -> 30
+        assert_eq!(currency::round(result), dec!(258_745.30));
 
         transactions.push(Transaction::new(date!(21, 2, 2019), dec!(50_000)));
         let result = DepositEmulator::emulate(
             start_date, initial_assets, &transactions, date!(31, 7, 2019),
             interest, Some(&interest_periods));
-        assert_eq!(currency::round(result), dec!(310_298.93)); // FIXME: 93 -> 85
+        assert_eq!(currency::round(result), dec!(310_298.85));
 
         // Some activity with no interest
         transactions.push(Transaction::new(date!(31, 7, 2019), dec!(100_000) - result));
@@ -365,11 +368,13 @@ mod tests {
 
     #[test]
     fn next_capitalization_date() {
+        // Dec -> Jan
         for day in 1..32 {
             assert_eq!(get_next_capitalization_date(date!(day, 12, 2018), day).unwrap(),
                        date!(day, 1, 2019));
         }
 
+        // Jan -> Feb
         for day in 1..29 {
             assert_eq!(get_next_capitalization_date(date!(day, 1, 2019), day).unwrap(),
                        date!(day, 2, 2019));
@@ -379,6 +384,7 @@ mod tests {
                        date!(28, 2, 2019));
         }
 
+        // Feb -> Mar
         for day in 1..29 {
             assert_eq!(get_next_capitalization_date(date!(day, 2, 2019), day).unwrap(),
                        date!(day, 3, 2019));
