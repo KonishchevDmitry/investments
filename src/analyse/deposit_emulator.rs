@@ -263,7 +263,7 @@ mod tests {
         }
 
         for &(capitalization_date, expected_assets) in &[
-            (date!(28,  7, 2018), dec!(600_000)),
+            (date!(28,  7, 2018), dec!(600_000.00)),
             (date!(28,  8, 2018), dec!(603_567.12)),
             (date!(28,  9, 2018), dec!(607_155.45)),
             (date!(28, 10, 2018), dec!(610_648.68)),
