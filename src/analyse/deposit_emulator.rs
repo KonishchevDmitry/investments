@@ -1,5 +1,6 @@
 use chrono::{Duration, Datelike};
 
+use crate::core::GenericResult;
 #[cfg(test)] use crate::currency;
 use crate::types::{Date, Decimal};
 
@@ -191,7 +192,7 @@ impl ActiveInterestPeriod {
         assert!(self.next_capitalization_date < self.end_date);
 
         self.next_capitalization_date = get_next_capitalization_date(
-            self.next_capitalization_date, self.start_date.day());
+            self.next_capitalization_date, self.start_date.day()).unwrap();
 
         if self.next_capitalization_date > self.end_date {
             self.next_capitalization_date = self.end_date;
@@ -210,27 +211,27 @@ fn get_next_year_month(mut year: i32, mut month: u32) -> (i32, u32) {
     (year, month)
 }
 
-fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Date {
-    let (year, month) = if current.day() == capitalization_day {
-        get_next_year_month(current.year(), current.month())
-    } else {
-        assert!(
-            current.day() == 1 &&
-                (current - Duration::days(1)).day() < capitalization_day
-        );
-        (current.year(), current.month())
-    };
+fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> GenericResult<Date> {
+    if current.day() != capitalization_day && !(
+        current.day() < capitalization_day &&
+        (current + Duration::days(1)).month() != current.month()
+    ) {
+        return Err!(
+            "Got an unexpected current capitalization date for the specified capitalization day");
+    }
 
-    match Date::from_ymd_opt(year, month, capitalization_day) {
+    let (year, month) = get_next_year_month(current.year(), current.month());
+
+    Ok(match Date::from_ymd_opt(year, month, capitalization_day) {
         Some(date) => date,
         None => {
             let (year, month) = get_next_year_month(year, month);
-            let date = Date::from_ymd(year, month, 1);
+            let date = Date::from_ymd(year, month, 1) - Duration::days(1);
             let days = (date - current).num_days();
-            assert!(days >= 29 && days <= 31);
+            assert!(days >= 28 && days <= 31);
             date
         }
-    }
+    })
 }
 
 #[cfg(test)]
@@ -364,9 +365,30 @@ mod tests {
 
     #[test]
     fn next_capitalization_date() {
-        assert_eq!(get_next_capitalization_date(date!(1, 3, 2018), 1), date!(1, 4, 2018));
-        assert_eq!(get_next_capitalization_date(date!(1, 3, 2018), 29), date!(29, 3, 2018));
-        assert_eq!(get_next_capitalization_date(date!(1, 3, 2018), 31), date!(31, 3, 2018));
-        assert_eq!(get_next_capitalization_date(date!(31, 3, 2018), 31), date!(1, 5, 2018));
+        for day in 1..32 {
+            assert_eq!(get_next_capitalization_date(date!(day, 12, 2018), day).unwrap(),
+                       date!(day, 1, 2019));
+        }
+
+        for day in 1..29 {
+            assert_eq!(get_next_capitalization_date(date!(day, 1, 2019), day).unwrap(),
+                       date!(day, 2, 2019));
+        }
+        for day in 29..32 {
+            assert_eq!(get_next_capitalization_date(date!(day, 1, 2019), day).unwrap(),
+                       date!(28, 2, 2019));
+        }
+
+        for day in 1..29 {
+            assert_eq!(get_next_capitalization_date(date!(day, 2, 2019), day).unwrap(),
+                       date!(day, 3, 2019));
+        }
+        for day in 28..32 {
+            assert_eq!(get_next_capitalization_date(date!(28, 2, 2019), day).unwrap(),
+                       date!(day, 3, 2019));
+        }
+        for day in 1..28 {
+            assert!(get_next_capitalization_date(date!(28, 2, 2019), day).is_err());
+        }
     }
 }
