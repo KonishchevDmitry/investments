@@ -11,6 +11,7 @@ use crate::localities::Country;
 use super::statement::TaxStatement;
 
 // FIXME: Validate logic by manual calculations
+#[allow(clippy::cyclomatic_complexity)]
 pub fn process_income(
     broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
     country: &Country, converter: &CurrencyConverter,
@@ -208,11 +209,7 @@ pub fn process_income(
                  broker_statement.broker.name),
         &trade_columns, table,
     );
-
-    formatting::print_statement(
-        &format!("Детализация расчета сделок по ФИФО"),
-        &fifo_columns, fifo_table,
-    );
+    formatting::print_statement("Детализация расчета сделок по ФИФО", &fifo_columns, fifo_table);
 
     Ok(())
 }
