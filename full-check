@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#
+# Run all checks and tests
+#
+
+set -eu
+
+echo "Running clippy checks..."
+./check
+
+echo -e "\nRunning tests..."
+cargo test
