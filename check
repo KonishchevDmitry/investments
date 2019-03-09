@@ -16,11 +16,16 @@ get_lint_args() {
     ' <<< "$lints"
 }
 
-cargo clippy --all-targets --all-features -- $(get_lint_args -A '
-    collapsible_if
-    needless_pass_by_value
-    new_ret_no_self
-    redundant_field_names
-    too_many_arguments
-    unit_arg
-')
+# A workaround to force recheck
+touch src/main.rs
+
+for target in bins tests; do
+    cargo clippy "--$target" --all-features -- -Dwarnings $(get_lint_args -A '
+        collapsible_if
+        needless_pass_by_value
+        new_ret_no_self
+        redundant_field_names
+        too_many_arguments
+        unit_arg
+    ')
+done
