@@ -4,13 +4,13 @@ use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::core::EmptyResult;
+use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 
 use super::statement::TaxStatement;
 
-// FIXME: Validate logic by manual calculations
 #[allow(clippy::cyclomatic_complexity)]
 pub fn process_income(
     broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
@@ -21,7 +21,8 @@ pub fn process_income(
 
     let mut trades = Vec::new();
     let mut same_dates = true;
-    let mut same_currency = true; // FIXME: Check on Open Broker
+    let mut same_currency = true;
+    let mut total_tax = Cash::new(country.currency, dec!(0));
 
     for trade in &broker_statement.stock_sells {
         if trade.execution_date.year() != year {
@@ -51,6 +52,7 @@ pub fn process_income(
 
     for (trade_id, (trade, details)) in trades.iter().enumerate() {
         let security = broker_statement.get_instrument_name(&trade.symbol)?;
+        total_tax.add_assign(details.tax_to_pay).unwrap();
 
         let mut row = vec![
             Cell::new_align(&trade_id.to_string(), Alignment::RIGHT),
@@ -197,12 +199,23 @@ pub fn process_income(
     }
 
     trade_columns.extend_from_slice(&["Затраты на\nпокупку", "Общие\nзатраты", "Прибыль", "Налог"]);
+    let total_tax_index = trade_columns.len() - 1;
     fifo_columns.push("Общие затраты");
 
     trade_columns.push("Реальный\nдоход");
     if !same_currency {
         trade_columns.push("Реальный\nдоход (руб)");
     }
+
+    let mut totals = Vec::new();
+    for index in 0..trade_columns.len() {
+        totals.push(if index == total_tax_index {
+            formatting::cash_cell(total_tax)
+        } else {
+            Cell::new("")
+        });
+    }
+    table.add_row(Row::new(totals));
 
     formatting::print_statement(
         &format!("Расчет прибыли от продажи ценных бумаг, полученной через {}",

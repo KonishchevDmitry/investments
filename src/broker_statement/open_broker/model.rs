@@ -210,7 +210,7 @@ impl ConcludedTrades {
         for trade in &self.trades {
             let symbol = get_symbol(securities, &trade.security_name)?;
             let price = util::validate_decimal(trade.price, DecimalRestrictions::StrictlyPositive)
-                .map_err(|_| format!("Invalid {} price: {}", symbol, trade.price))?;
+                .map_err(|_| format!("Invalid {} price: {}", symbol, trade.price))?.normalize();
             let commission = util::validate_decimal(trade.commission, DecimalRestrictions::PositiveOrZero)
                 .map_err(|_| format!("Invalid commission: {}", trade.commission))?;
 
