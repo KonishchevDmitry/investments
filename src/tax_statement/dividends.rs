@@ -1,4 +1,5 @@
 use chrono::Datelike;
+use num_traits::Zero;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
 
@@ -22,6 +23,7 @@ pub fn process_income(
 
     let mut total_foreign_paid_tax = MultiCurrencyCashAccount::new();
     let mut total_paid_tax = dec!(0);
+    let mut total_tax_deduction = dec!(0);
     let mut total_tax_to_pay = dec!(0);
 
     let mut total_income = dec!(0);
@@ -43,6 +45,8 @@ pub fn process_income(
             dividend.date, dividend.amount, country.currency)?);
         total_amount += amount;
 
+        let tax = dividend.tax(&country, converter)?;
+
         let foreign_paid_tax = dividend.paid_tax;
         total_foreign_paid_tax.deposit(foreign_paid_tax);
 
@@ -52,6 +56,12 @@ pub fn process_income(
 
         let tax_to_pay = dividend.tax_to_pay(&country, converter)?;
         total_tax_to_pay += tax_to_pay;
+
+        let tax_deduction = country.round_tax(paid_tax);
+        if !tax_to_pay.is_zero() {
+            assert_eq!(tax_deduction, tax - tax_to_pay);
+        }
+        total_tax_deduction += tax_deduction;
 
         let income = amount - paid_tax - tax_to_pay;
         total_income += income;
@@ -65,8 +75,10 @@ pub fn process_income(
             formatting::decimal_cell(precise_currency_rate),
             formatting::cash_cell(Cash::new(country.currency, amount)),
 
+            formatting::cash_cell(Cash::new(country.currency, tax)),
             formatting::cash_cell(foreign_paid_tax),
             formatting::cash_cell(Cash::new(country.currency, paid_tax)),
+            formatting::cash_cell(Cash::new(country.currency, tax_deduction)),
             formatting::cash_cell(Cash::new(country.currency, tax_to_pay)),
             formatting::cash_cell(Cash::new(country.currency, income)),
         ]));
@@ -100,20 +112,22 @@ pub fn process_income(
             formatting::empty_cell(),
             formatting::cash_cell(Cash::new(country.currency, total_amount)),
 
+            formatting::empty_cell(),
             formatting::multi_currency_cash_cell(total_foreign_paid_tax),
             formatting::cash_cell(Cash::new(country.currency, total_paid_tax)),
+            formatting::cash_cell(Cash::new(country.currency, total_tax_deduction)),
             formatting::cash_cell(Cash::new(country.currency, total_tax_to_pay)),
             formatting::cash_cell(Cash::new(country.currency, total_income)),
         ]));
 
-        // FIXME: Validate against real tax statement, add more columns for clarity (tax rounding)
         formatting::print_statement(
             &format!("Расчет дохода от дивидендов, полученных через {}",
                      broker_statement.broker.name),
             &[
                 "Дата", "Эмитент", "Валюта",
                 "Сумма", "Курс руб.", "Сумма (руб)",
-                "Уплачено", "Уплачено (руб)", "К доплате", "Реальный доход",
+                "Налог", "Уплачено", "Уплачено (руб)", "К зачету", "К доплате",
+                "Реальный доход",
             ],
             table,
         );

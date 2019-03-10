@@ -18,6 +18,11 @@ pub struct Dividend {
 }
 
 impl Dividend {
+    pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+        let amount = converter.convert_to(self.date, self.amount, country.currency)?;
+        Ok(country.tax_to_pay(amount, None))
+    }
+
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to(self.date, self.amount, country.currency)?;
         let paid_tax = converter.convert_to(self.date, self.paid_tax, country.currency)?;

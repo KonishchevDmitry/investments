@@ -17,20 +17,24 @@ impl Country {
         Date::from_ymd(income_date.year() + 1, 3, 15)
     }
 
-    pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
-        // FIXME: It looks like Декларация program rounds tax amount to rubles as
+    pub fn round_tax(&self, tax: Decimal) -> Decimal {
+        // TODO: It looks like Декларация program rounds tax amount to rubles as
         // round_to(round_to(value, 2), 0) because it rounds 10.64 * 65.4244 * 0.13
-        // (which is 90.4956) to 91. Check it on new version.
+        // (which is 90.4956) to 91. Don't follow this logic for now - look into the next version.
 
+        currency::round_to(tax, self.tax_precision)
+    }
+
+    pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
         if income.is_sign_negative() || income.is_zero() {
             return dec!(0);
         }
 
-        let tax_to_pay = currency::round_to(income * self.tax_rate, self.tax_precision);
+        let tax_to_pay = self.round_tax(income * self.tax_rate);
 
         if let Some(paid_tax) = paid_tax {
             assert!(!paid_tax.is_sign_negative());
-            let tax_deduction = currency::round_to(paid_tax, self.tax_precision);
+            let tax_deduction = self.round_tax(paid_tax);
 
             if tax_deduction < tax_to_pay {
                 tax_to_pay - tax_deduction
@@ -50,17 +54,6 @@ pub fn russia() -> Country {
         tax_precision: 0,
     }
 }
-
-// FIXME
-/*
-pub fn us() -> Country {
-    Country {
-        currency: "USD",
-        tax_rate: Decimal::new(10, 2),
-        tax_precision: 2,
-    }
-}
-*/
 
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     if today.month() == 1 && today.day() < 10 {
