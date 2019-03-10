@@ -5,11 +5,13 @@
 Helps you with managing your investments:
 * **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your asset
   allocation.
+* **Stock selling simulation:** calculates revenue, profit, taxes and real profit percent which considers taxes into
+  account.
 * **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program named
   Декларация) by adding all required information about income from paid dividends.
-* **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to performance of
-  a bank deposit with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends
-  and tax deductions when calculates portfolio performance.
+* **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to
+  performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
+  Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
 
 Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
 [Открытие Брокер](https://open-broker.ru).
@@ -45,7 +47,8 @@ For now only the following broker statements are supported:
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:
-* Analyse commands (`analyse`, `tax-statement`) that read your broker statements and produce some results.
+* Analyse commands (`analyse`, `simulate-sell`, `tax-statement`) that read your broker statements and produce some
+  results.
 * `sync` command that reads your broker statements and stores your current positions to the local database.
 * Portfolio rebalancing commands (`show`, `rebalance`, `cash`, `buy`, `sell`) that work only with local database.
 

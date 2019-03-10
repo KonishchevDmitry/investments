@@ -18,7 +18,7 @@ pub enum Action {
     Analyse(String),
     SimulateSell {
         name: String,
-        positions: Vec<(String, u32)>,
+        positions: Vec<(String, Option<u32>)>,
     },
 
     Sync(String),
@@ -104,13 +104,12 @@ pub fn initialize() -> (Action, Config) {
                 .long("flat")
                 .help("Flat view"))
             .arg(portfolio::arg()))
-        // FIXME: Stock selling emulation (taxes, profit)
-//        .subcommand(SubCommand::with_name("simulate-sell")
-//            .about("Simulates stock selling (calculates revenue, profit and taxes)")
-//            .arg(portfolio::arg())
-//            .arg(Arg::with_name("POSITIONS")
-//                .min_values(2)
-//                .help("Positions to sell in $quantity $symbol format")))
+        .subcommand(SubCommand::with_name("simulate-sell")
+            .about("Simulates stock selling (calculates revenue, profit and taxes)")
+            .arg(portfolio::arg())
+            .arg(Arg::with_name("POSITIONS")
+                .min_values(2)
+                .help("Positions to sell in $quantity|all $symbol format")))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
@@ -218,8 +217,21 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             let mut positions_spec_iter = matches.values_of("POSITIONS").unwrap();
 
             while let Some(quantity) = positions_spec_iter.next() {
-                let quantity: u32 = quantity.parse().map_err(|_| format!(
-                    "Invalid positions specification: Invalid quantity: {:?}", quantity))?;
+                let quantity = if quantity == "all" {
+                    None
+                } else {
+                    Some(
+                        quantity.parse::<u32>().ok().and_then(|quantity| {
+                            if quantity > 0 {
+                                Some(quantity)
+                            } else {
+                                None
+                            }
+                        }).ok_or_else(|| format!(
+                            "Invalid positions specification: Invalid quantity: {:?}", quantity)
+                        )?
+                    )
+                };
 
                 let symbol = positions_spec_iter.next().ok_or(
                     "Invalid positions specification: Even number of arguments is expected")?;

@@ -108,7 +108,7 @@ fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>>
         }
 
         let price = util::parse_decimal(&quote.price, DecimalRestrictions::StrictlyPositive)
-            .map_err(|_| format!("Invalid price: {:?}", quote.price))?;
+            .map_err(|_| format!("Invalid price: {:?}", quote.price))?.normalize();
 
         quotes.insert(quote.symbol, Cash::new("USD", price));
     };

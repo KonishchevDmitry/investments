@@ -122,6 +122,9 @@ impl StockSell {
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
         let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(local_profit.amount, None));
 
+        let real_tax_ratio =
+            converter.convert_to(self.execution_date, tax_to_pay, profit.currency)? / profit.amount;
+
         let real_profit = profit.sub_convert(self.execution_date, tax_to_pay, converter)?;
         let real_profit_ratio = real_profit.div(purchase_cost).unwrap();
 
@@ -143,6 +146,7 @@ impl StockSell {
             local_profit: local_profit,
             tax_to_pay: tax_to_pay,
 
+            real_tax_ratio,
             real_profit_ratio,
             real_local_profit_ratio,
 
@@ -216,6 +220,7 @@ pub struct SellDetails {
     pub local_profit: Cash,
     pub tax_to_pay: Cash,
 
+    pub real_tax_ratio: Decimal,
     pub real_profit_ratio: Decimal,
     pub real_local_profit_ratio: Decimal,
 
