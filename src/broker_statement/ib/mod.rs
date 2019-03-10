@@ -17,6 +17,7 @@ use self::common::{Record, RecordParser, format_record};
 
 mod common;
 mod dividends;
+mod interest;
 mod parsers;
 mod taxes;
 mod trades;
@@ -104,6 +105,7 @@ impl StatementParser {
                         "Deposits & Withdrawals" => Box::new(parsers::DepositsAndWithdrawalsParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
+                        "Interest" => Box::new(interest::InterestParser {}),
                         "Financial Instrument Information" => Box::new(parsers::FinancialInstrumentInformationParser {}),
                         _ => Box::new(parsers::UnknownRecordParser {}),
                     };
@@ -182,7 +184,7 @@ mod tests {
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
-        assert!(statement.idle_cash_interest.is_empty());
+        assert!(!statement.idle_cash_interest.is_empty());
 
         assert!(!statement.stock_buys.is_empty());
         assert!(!statement.stock_sells.is_empty());
