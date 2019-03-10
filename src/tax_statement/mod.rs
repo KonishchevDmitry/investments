@@ -62,8 +62,6 @@ pub fn generate_tax_statement(
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, true);
 
-    // FIXME: Regression tests
-
     dividends::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
         .map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
