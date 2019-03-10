@@ -13,6 +13,7 @@ use crate::util;
 use self::statement::TaxStatement;
 
 mod dividends;
+mod interest;
 mod statement;
 mod trades;
 
@@ -62,11 +63,14 @@ pub fn generate_tax_statement(
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, true);
 
+    trades::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
+        .map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
+
     dividends::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
         .map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
-    trades::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
-        .map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
+    interest::process_income(&broker_statement, year, tax_statement.as_mut(), &country, &converter)
+        .map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
     if let Some(ref tax_statement) = tax_statement {
         tax_statement.save()?;

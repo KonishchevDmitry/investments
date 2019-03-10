@@ -110,6 +110,7 @@ pub fn initialize() -> (Action, Config) {
             .arg(Arg::with_name("POSITIONS")
                 .min_values(2)
                 .help("Positions to sell in $quantity|all $symbol format")))
+        // FIXME: Update description (interest + trades)
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(

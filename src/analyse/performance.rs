@@ -324,6 +324,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
+    // FIXME: Idle cach interest processing
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
             let profit = dividend.amount.sub(dividend.paid_tax).map_err(|e| format!(
