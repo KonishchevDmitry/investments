@@ -16,12 +16,14 @@ use crate::types::{Date, Decimal};
 use crate::util;
 
 use self::dividends::Dividend;
+use self::interest::IdleCashInterest;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxChanges};
 use self::trades::{StockBuy, StockSell, StockSellSource};
 
 mod dividends;
 mod ib;
+mod interest;
 mod open_broker;
 mod partial;
 mod taxes;
@@ -34,6 +36,7 @@ pub struct BrokerStatement {
 
     pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
+    pub idle_cash_interest: Vec<IdleCashInterest>,
 
     pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
@@ -141,6 +144,7 @@ impl BrokerStatement {
 
             cash_flows: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
+            idle_cash_interest: Vec::new(),
 
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
@@ -304,6 +308,7 @@ impl BrokerStatement {
 
         self.cash_flows.extend(statement.cash_flows.drain(..));
         self.cash_assets = statement.cash_assets;
+        self.idle_cash_interest.extend(statement.idle_cash_interest.drain(..));
 
         self.stock_buys.extend(statement.stock_buys.drain(..));
         self.stock_sells.extend(statement.stock_sells.drain(..));
@@ -317,6 +322,7 @@ impl BrokerStatement {
 
     fn validate(&mut self) -> EmptyResult {
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
+        self.idle_cash_interest.sort_by_key(|interest| interest.date);
         self.dividends.sort_by_key(|dividend| dividend.date);
 
         self.order_stock_buys()?;
@@ -342,6 +348,12 @@ impl BrokerStatement {
             let first_date = self.cash_flows.first().unwrap().date;
             let last_date = self.cash_flows.last().unwrap().date;
             validate_date("cash flow", first_date, last_date)?;
+        }
+
+        if !self.idle_cash_interest.is_empty() {
+            let first_date = self.idle_cash_interest.first().unwrap().date;
+            let last_date = self.idle_cash_interest.last().unwrap().date;
+            validate_date("idle cash interest", first_date, last_date)?;
         }
 
         if !self.stock_buys.is_empty() {

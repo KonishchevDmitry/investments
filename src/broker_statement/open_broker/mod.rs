@@ -67,6 +67,7 @@ mod tests {
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
+        assert!(statement.idle_cash_interest.is_empty());
 
         assert!(!statement.stock_buys.is_empty());
         assert!(!statement.stock_sells.is_empty());
