@@ -153,11 +153,6 @@ impl StockSell {
             fifo: fifo,
         })
     }
-
-    // FIXME: Deprecate
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
-        Ok(self.calculate(country, converter)?.tax_to_pay.amount)
-    }
 }
 
 #[derive(Clone, Debug)]

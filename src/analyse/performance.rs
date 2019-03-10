@@ -317,7 +317,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 deposit_view.last_sell_volume.replace(assets);
             }
 
-            let tax_to_pay = stock_sell.tax_to_pay(&self.country, self.converter)?;
+            let tax_to_pay = stock_sell.calculate(&self.country, self.converter)?.tax_to_pay.amount;
             self.process_tax(stock_sell.execution_date, &stock_sell.symbol, tax_to_pay)?;
         }
 
