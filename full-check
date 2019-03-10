@@ -10,3 +10,6 @@ echo "Running clippy checks..."
 
 echo -e "\nRunning tests..."
 cargo test
+
+echo -e "\nRunning regression tests..."
+./regression-test

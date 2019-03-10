@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+#
+# Runs regression tests
+#
+# Use `retest generate` to generate the regression tests data.
+#
+
+set -eu
+
+which -s retest || cargo install qtrac-retest
+
+if ! retest; then
+    echo && git diff --no-index testdata/rt_expected testdata/rt_actual
+    exit 1
+fi
