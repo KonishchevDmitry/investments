@@ -31,10 +31,12 @@ Use the following command to recompile the project after update to a new version
 cargo install --force --path .
 ```
 
-### Configuration and usage
+### Configuration
 
 Create `~/.investments/config.yaml` configuration file ([example](config-example.yaml)). Don't forget to obtain API
 token for Alpha Vantage (see the comments in example config).
+
+### Usage
 
 Investments is designed to work with your broker statements - there is no need to enter all trades and transactions
 manually, but it requires you to have all broker statements starting from account opening day. It may be either one
@@ -56,9 +58,15 @@ Local database is required for portfolio rebalancing because during rebalancing 
 broker that modify your portfolio (free assets, open positions) and this information have to be saved somewhere until at
 least tomorrow when you'll be able to download a new broker statement which will include the changes.
 
-I don't provide an example of `analyse` or `tax-statement` result here for privacy reasons since they require a real
-broker statement, but I can emulate `sync` command by executing the following commands with a random fake data to
-provide an example of `show` and `rebalance` commands:
+Here is an example of main commands output:
+
+![investments analyse](/images/analyse.png?raw=true "investments analyse")
+![investments simulate-sell](/images/simulate-sell.png?raw=true "investments simulate-sell")
+![investments tax-statement](/images/tax-statement.png?raw=true "investments tax-statement")
+
+The screenshots are blurred for privacy reasons since they require a real broker statement, but I can emulate `sync`
+command by executing the following commands with a random fake data to provide a full example of `show` and `rebalance`
+commands:
 ```
 $ investments buy ib 100 VTI 4000
 $ investments buy ib 30 VXUS 4000
