@@ -60,8 +60,10 @@ least tomorrow when you'll be able to download a new broker statement which will
 
 Here is an example of main commands output:
 
-![investments analyse](/images/analyse.png?raw=true "investments analyse")
+<img src="/images/analyse.png?raw=true" width="70%" height="70%" alt="investments analyse" title="investments analyse">
+
 ![investments simulate-sell](/images/simulate-sell.png?raw=true "investments simulate-sell")
+
 ![investments tax-statement](/images/tax-statement.png?raw=true "investments tax-statement")
 
 The screenshots are blurred for privacy reasons since they require a real broker statement, but I can emulate `sync`
