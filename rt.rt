@@ -1,21 +1,31 @@
 [ENV]
-APP: $HOME/.cargo/bin/cargo
-     run
-     --
-     tax-statement
 EXPECTED_PATH: testdata/rt_expected
 ACTUAL_PATH: testdata/rt_actual
 
 [1]
 NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
-APP: $APP
+APP: $HOME/.cargo/bin/cargo
+     run
+     --
+     tax-statement
      ib
      2018
 
 [2]
 NAME: Open Broker tax statement 2018
 STDOUT: open-tax-statement-2018
-APP: $APP
+APP: $HOME/.cargo/bin/cargo
+     run
+     --
+     tax-statement
      open
      2018
+
+[3]
+NAME: IB tax statement generation 2018
+APP: ./regression-test-tax-statement
+     ib
+     2018
+     $OUT_PATH/ib-tax-statement-2018.dc8
+DIFF: rt-binary

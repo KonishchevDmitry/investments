@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+#
+# Tax statement generation regression test
+#
+
+set -eu
+
+broker="$1"
+year="$2"
+statement_path="$3"
+
+cp src/tax_statement/statement/testdata/filled.dc8 "$statement_path"
+cargo run -- tax-statement "$broker" "$year" "$statement_path"

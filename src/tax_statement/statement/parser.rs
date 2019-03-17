@@ -258,7 +258,6 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        // FIXME: Provide real data
         test_parsing(&get_path("statement"));
     }
 
