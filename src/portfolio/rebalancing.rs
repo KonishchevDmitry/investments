@@ -6,16 +6,10 @@ use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use crate::brokers::BrokerInfo;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::CurrencyConverter;
-use crate::types::Decimal;
+use crate::types::{Decimal, TradeType};
 use crate::util;
 
 use super::asset_allocation::{Portfolio, AssetAllocation, Holding, StockHolding};
-
-#[derive(Clone, Copy)]
-enum Action {
-    Sell,
-    Buy,
-}
 
 pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
     // The first step is bottom-up and calculates strict limits on asset min/max value
@@ -236,12 +230,12 @@ impl<'a> AssetGroupRebalancer<'a> {
     fn correct_balance(&mut self) {
         let state = self.get_current_state();
 
-        for action in [Action::Sell, Action::Buy].iter().cloned() {
+        for trade_type in [TradeType::Sell, TradeType::Buy].iter().cloned() {
             let mut correctable_assets: HashSet<usize> = (0..self.assets.len()).collect();
 
-            while match action {
-                Action::Sell => self.balance.is_sign_negative(),
-                Action::Buy => self.balance.is_sign_positive(),
+            while match trade_type {
+                TradeType::Sell => self.balance.is_sign_negative(),
+                TradeType::Buy => self.balance.is_sign_positive(),
             } {
                 let mut best_trade: Option<PossibleTrade> = None;
 
@@ -249,12 +243,12 @@ impl<'a> AssetGroupRebalancer<'a> {
                     let asset = &mut self.assets[index];
                     let expected_value = self.target_total_value * asset.expected_weight;
                     let possible_trade = calculate_min_trade_volume(
-                        action, asset, expected_value, self.balance, self.min_trade_volume);
+                        trade_type, asset, expected_value, self.balance, self.min_trade_volume);
 
                     match possible_trade {
                         Some(mut trade) => {
                             trade.path.push(index);
-                            best_trade = Some(get_best_trade(action, best_trade, trade));
+                            best_trade = Some(get_best_trade(trade_type, best_trade, trade));
                         },
                         None => {
                             correctable_assets.remove(&index);
@@ -366,13 +360,13 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
     debug!("");
     debug!("Cash assets distribution:");
 
-    for action in [Action::Sell, Action::Buy].iter().cloned() {
+    for trade_type in [TradeType::Sell, TradeType::Buy].iter().cloned() {
         loop {
             let free_cash_assets = portfolio.target_cash_assets - portfolio.min_cash_assets;
 
-            if !match action {
-                Action::Sell => free_cash_assets.is_sign_negative(),
-                Action::Buy => free_cash_assets.is_sign_positive(),
+            if !match trade_type {
+                TradeType::Sell => free_cash_assets.is_sign_negative(),
+                TradeType::Buy => free_cash_assets.is_sign_positive(),
             } {
                 break;
             }
@@ -380,7 +374,7 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
             let expected_total_value = portfolio.total_value - portfolio.min_cash_assets;
 
             let trade = find_assets_for_cash_distribution(
-                action, &portfolio.assets, expected_total_value, free_cash_assets,
+                trade_type, &portfolio.assets, expected_total_value, free_cash_assets,
                 portfolio.min_trade_volume);
 
             let trade = match trade {
@@ -408,7 +402,7 @@ struct PossibleTrade {
 }
 
 fn find_assets_for_cash_distribution(
-    action: Action, assets: &[AssetAllocation], expected_total_value: Decimal,
+    trade_type: TradeType, assets: &[AssetAllocation], expected_total_value: Decimal,
     cash_assets: Decimal, min_trade_volume: Decimal
 ) -> Option<PossibleTrade> {
     let mut best_trade: Option<PossibleTrade> = None;
@@ -419,11 +413,11 @@ fn find_assets_for_cash_distribution(
         let trade = match asset.holding {
             Holding::Stock(_) => {
                 calculate_min_trade_volume(
-                    action, asset, expected_value, cash_assets, min_trade_volume)
+                    trade_type, asset, expected_value, cash_assets, min_trade_volume)
             },
             Holding::Group(ref holdings) => {
                 let mut trade = find_assets_for_cash_distribution(
-                    action, holdings, expected_value, cash_assets, min_trade_volume);
+                    trade_type, holdings, expected_value, cash_assets, min_trade_volume);
 
                 if let Some(ref mut trade) = trade {
                     trade.result = calculate_trade_result(
@@ -442,7 +436,7 @@ fn find_assets_for_cash_distribution(
             None => continue,
         };
 
-        best_trade = Some(get_best_trade(action, best_trade, trade));
+        best_trade = Some(get_best_trade(trade_type, best_trade, trade));
     }
 
     best_trade
@@ -479,12 +473,12 @@ fn process_trade(
 }
 
 fn calculate_min_trade_volume(
-    action: Action, asset: &AssetAllocation, expected_value: Decimal,
+    trade_type: TradeType, asset: &AssetAllocation, expected_value: Decimal,
     cash_assets: Decimal, min_trade_volume: Decimal
 ) -> Option<PossibleTrade> {
-    let trade_volume = match action {
-        Action::Sell => calculate_min_sell_volume(asset, min_trade_volume),
-        Action::Buy => {
+    let trade_volume = match trade_type {
+        TradeType::Sell => calculate_min_sell_volume(asset, min_trade_volume),
+        TradeType::Buy => {
             match calculate_min_buy_volume(asset, min_trade_volume) {
                 Some(trade_volume) if trade_volume <= cash_assets => Some(trade_volume),
                 _ => None,
@@ -493,9 +487,9 @@ fn calculate_min_trade_volume(
     };
 
     let trade_volume = match trade_volume {
-        Some(trade_volume) => match action {
-            Action::Sell => -trade_volume,
-            Action::Buy => trade_volume,
+        Some(trade_volume) => match trade_type {
+            TradeType::Sell => -trade_volume,
+            TradeType::Buy => trade_volume,
         },
         None => return None,
     };
@@ -521,7 +515,7 @@ fn calculate_trade_result(expected_value: Decimal, target_value: Decimal, trade_
     }
 }
 
-fn get_best_trade(action: Action, best_trade: Option<PossibleTrade>, trade: PossibleTrade) -> PossibleTrade {
+fn get_best_trade(trade_type: TradeType, best_trade: Option<PossibleTrade>, trade: PossibleTrade) -> PossibleTrade {
     match best_trade {
         Some(best_trade) => {
             if best_trade.result == trade.result {
@@ -531,9 +525,9 @@ fn get_best_trade(action: Action, best_trade: Option<PossibleTrade>, trade: Poss
                     trade
                 }
             } else {
-                if match action {
-                    Action::Sell => best_trade.result > trade.result,
-                    Action::Buy => best_trade.result < trade.result,
+                if match trade_type {
+                    TradeType::Sell => best_trade.result > trade.result,
+                    TradeType::Buy => best_trade.result < trade.result,
                 } {
                     best_trade
                 } else {
@@ -574,13 +568,13 @@ fn calculate_target_commission(
         return Ok(dec!(0))
     }
 
-    let shares = if target_shares > holding.current_shares {
-        target_shares - holding.current_shares
+    let (trade_type, shares) = if target_shares > holding.current_shares {
+        (TradeType::Buy, target_shares - holding.current_shares)
     } else {
-        holding.current_shares - target_shares
+        (TradeType::Sell, holding.current_shares - target_shares)
     };
 
-    let commission = broker.get_trade_commission(shares, holding.currency_price)
+    let commission = broker.get_trade_commission(trade_type, shares, holding.currency_price)
         .map_err(|e| format!("{}: {}", name, e))?;
 
     Ok(converter.convert_to(util::today(), commission, currency)?)

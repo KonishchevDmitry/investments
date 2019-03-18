@@ -2,7 +2,7 @@
 #[cfg(test)] use crate::config::Config;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
-use crate::types::Decimal;
+use crate::types::{Decimal, TradeType};
 
 #[derive(Debug, Clone)]
 pub struct CommissionSpec {
@@ -13,7 +13,11 @@ pub struct CommissionSpec {
 }
 
 impl CommissionSpec {
-    pub fn calculate(&self, shares: u32, price: Cash) -> GenericResult<Cash> {
+    pub fn calculate(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        Ok(self.calculate_precise(trade_type, shares, price)?.round())
+    }
+
+    fn calculate_precise(&self, _trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let validate_currency = |a: Cash, b: Cash| -> EmptyResult {
             if a.currency != b.currency {
                 return Err!(concat!(
@@ -51,7 +55,7 @@ impl CommissionSpec {
                 }
             },
             None => commissions,
-        }.round())
+        })
     }
 }
 
@@ -109,24 +113,27 @@ mod tests {
     fn interactive_brokers_commission() {
         let commission_spec = brokers::interactive_brokers(&Config::mock()).unwrap().commission_spec;
 
+        // FIXME: HERE
+        let trade_type = TradeType::Buy;
+
         // Minimum commission > per share commission
-        assert_eq!(commission_spec.calculate(199, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(trade_type, 199, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", dec!(1)));
 
         // Minimum commission == per share commission
-        assert_eq!(commission_spec.calculate(200, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(trade_type, 200, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", dec!(1)));
 
         // Per share commission > minimum commission
-        assert_eq!(commission_spec.calculate(201, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(trade_type, 201, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", dec!(1.01)));
 
         // Per share commission > minimum commission
-        assert_eq!(commission_spec.calculate(300, Cash::new("USD", dec!(100))).unwrap(),
+        assert_eq!(commission_spec.calculate(trade_type, 300, Cash::new("USD", dec!(100))).unwrap(),
                    Cash::new("USD", dec!(1.5)));
 
         // Per share commission > maximum commission
-        assert_eq!(commission_spec.calculate(300, Cash::new("USD", dec!(0.4))).unwrap(),
+        assert_eq!(commission_spec.calculate(trade_type, 300, Cash::new("USD", dec!(0.4))).unwrap(),
                    Cash::new("USD", dec!(1.2)));
     }
 
@@ -134,12 +141,18 @@ mod tests {
     fn open_broker_commission() {
         let commission_spec = brokers::open_broker(&Config::mock()).unwrap().commission_spec;
 
-        // Percent commission > minimum commission
-        assert_eq!(commission_spec.calculate(73, Cash::new("RUB", dec!(2758))).unwrap(),
-                   Cash::new("RUB", dec!(114.76)));
+        for &trade_type in &[TradeType::Buy, TradeType::Sell] {
+            // Percent commission > minimum commission
+            assert_eq!(
+                commission_spec.calculate(trade_type, 73, Cash::new("RUB", dec!(2758))).unwrap(),
+                Cash::new("RUB", dec!(114.76)),
+            );
 
-        // Percent commission < minimum commission
-        assert_eq!(commission_spec.calculate(1, Cash::new("RUB", dec!(1))).unwrap(),
-                   Cash::new("RUB", dec!(0.04)));
+            // Percent commission < minimum commission
+            assert_eq!(
+                commission_spec.calculate(trade_type, 1, Cash::new("RUB", dec!(1))).unwrap(),
+                Cash::new("RUB", dec!(0.04)),
+            );
+        }
     }
 }

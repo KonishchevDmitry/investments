@@ -12,7 +12,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::quotes::Quotes;
-use crate::types::{Date, Decimal};
+use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
 use self::dividends::Dividend;
@@ -187,7 +187,7 @@ impl BrokerStatement {
             _ => today,
         };
 
-        let commission = self.broker.get_trade_commission(quantity, price)?;
+        let commission = self.broker.get_trade_commission(TradeType::Sell, quantity, price)?;
 
         let stock_cell = StockSell::new(
             symbol, quantity, price, commission, conclusion_date, execution_date, true);

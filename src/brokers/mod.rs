@@ -1,7 +1,7 @@
 use crate::config::{Config, Broker, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
-use crate::types::Decimal;
+use crate::types::{Decimal, TradeType};
 
 use self::commissions::{CommissionSpec, CommissionSpecBuilder};
 
@@ -35,8 +35,8 @@ impl BrokerInfo {
         Ok(commission_spec.fixed_amount)
     }
 
-    pub fn get_trade_commission(&self, shares: u32, price: Cash) -> GenericResult<Cash> {
-        self.commission_spec.calculate(shares, price)
+    pub fn get_trade_commission(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        self.commission_spec.calculate(trade_type, shares, price)
     }
 }
 
