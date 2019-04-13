@@ -50,6 +50,17 @@ pub fn interactive_brokers(config: &Config) -> GenericResult<BrokerInfo> {
             .minimum(Cash::new("USD", dec!(1)))
             .per_share(Cash::new("USD", dec!(0.005)))
             .maximum_percent(dec!(1))
+
+            // Stock selling fee
+            .transaction_fee(TradeType::Sell, CommissionSpecBuilder::new()
+                .percent(dec!(0.0013))
+                .build().unwrap())
+
+            // FINRA trading activity fee
+            .transaction_fee(TradeType::Sell, CommissionSpecBuilder::new()
+                .per_share(Cash::new("USD", dec!(0.000119)))
+                .build().unwrap())
+
             .build().unwrap(),
     })
 }

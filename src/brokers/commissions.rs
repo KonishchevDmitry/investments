@@ -10,6 +10,7 @@ pub struct CommissionSpec {
     per_share: Option<Cash>,
     percent: Option<Decimal>,
     maximum_percent: Option<Decimal>,
+    transaction_fees: Vec<(TradeType, CommissionSpec)>,
 }
 
 impl CommissionSpec {
@@ -17,7 +18,7 @@ impl CommissionSpec {
         Ok(self.calculate_precise(trade_type, shares, price)?.round())
     }
 
-    fn calculate_precise(&self, _trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let validate_currency = |a: Cash, b: Cash| -> EmptyResult {
             if a.currency != b.currency {
                 return Err!(concat!(
@@ -44,18 +45,22 @@ impl CommissionSpec {
             }
         }
 
-        Ok(match self.minimum {
-            Some(minimum) => {
-                validate_currency(minimum, commissions)?;
+        if let Some(minimum) = self.minimum {
+            validate_currency(minimum, commissions)?;
+            if commissions.amount < minimum.amount {
+                commissions = minimum
+            }
+        }
 
-                if commissions.amount < minimum.amount {
-                    minimum
-                } else {
-                    commissions
-                }
-            },
-            None => commissions,
-        })
+        for (transaction_type, fee_spec) in &self.transaction_fees {
+            if *transaction_type == trade_type {
+                let fee = fee_spec.calculate_precise(trade_type, shares, price)?;
+                validate_currency(fee, commissions)?;
+                commissions.add_assign(fee)?;
+            }
+        }
+
+        Ok(commissions)
     }
 }
 
@@ -71,6 +76,7 @@ impl CommissionSpecBuilder {
                 per_share: None,
                 percent: None,
                 maximum_percent: None,
+                transaction_fees: Vec::new(),
             }
         }
     }
@@ -95,6 +101,11 @@ impl CommissionSpecBuilder {
         self
     }
 
+    pub fn transaction_fee(mut self, trade_type: TradeType, fee: CommissionSpec) -> CommissionSpecBuilder {
+        self.spec.transaction_fees.push((trade_type, fee));
+        self
+    }
+
     pub fn build(self) -> GenericResult<CommissionSpec> {
         match (self.spec.per_share, self.spec.percent) {
             (Some(_), None) | (None, Some(_)) => (),
@@ -113,7 +124,6 @@ mod tests {
     fn interactive_brokers_commission() {
         let commission_spec = brokers::interactive_brokers(&Config::mock()).unwrap().commission_spec;
 
-        // FIXME: HERE
         let trade_type = TradeType::Buy;
 
         // Minimum commission > per share commission
@@ -135,6 +145,14 @@ mod tests {
         // Per share commission > maximum commission
         assert_eq!(commission_spec.calculate(trade_type, 300, Cash::new("USD", dec!(0.4))).unwrap(),
                    Cash::new("USD", dec!(1.2)));
+
+        let trade_type = TradeType::Sell;
+
+        assert_eq!(commission_spec.calculate_precise(trade_type, 26, Cash::new("USD", dec!(174.2))).unwrap(),
+                   Cash::new("USD", dec!(1.0619736)));
+
+        assert_eq!(commission_spec.calculate(trade_type, 26, Cash::new("USD", dec!(174.2))).unwrap(),
+                   Cash::new("USD", dec!(1.06)));
     }
 
     #[test]

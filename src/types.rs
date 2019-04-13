@@ -2,7 +2,7 @@ pub use chrono::NaiveDate as Date;
 pub use chrono::NaiveDateTime as DateTime;
 pub use rust_decimal::Decimal as Decimal;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TradeType {
     Buy,
     Sell,
