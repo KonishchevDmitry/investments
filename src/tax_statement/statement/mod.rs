@@ -1,10 +1,10 @@
 use std::fs;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency;
 use crate::types::{Date, Decimal};
 
-use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, IncomeType};
+use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, IncomeType,
+                           ControlledForeignCompanyInfo};
 use self::record::Record;
 use self::parser::{TaxStatementReader, TaxStatementWriter};
 
@@ -47,13 +47,7 @@ impl TaxStatement {
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
-        let (country_code, currency_code, currency_name) = match currency {
-            "USD" => (840, 840, "Доллар сша"),
-            _ => return Err!("{} currency is not supported yet", currency),
-        };
-
-        let currency_rate_units = 100;
-        let currency_rate = currency::round(currency_rate * Decimal::from(currency_rate_units));
+        let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
 
         let incomes = self.get_foreign_incomes()?.ok_or(
             "Foreign income must be enabled in the tax statement to add dividend income")?;
@@ -65,18 +59,7 @@ impl TaxStatement {
 
             date: date,
             tax_payment_date: date,
-            currency: CurrencyInfo {
-                automatic_convertion: true,
-                code: currency_code,
-
-                income_date_rate: currency_rate,
-                income_date_units: currency_rate_units,
-
-                tax_payment_date_rate: currency_rate,
-                tax_payment_date_units: currency_rate_units,
-
-                name: currency_name.to_owned(),
-            },
+            currency: currency_info,
 
             amount: amount,
             local_amount: local_amount,
@@ -87,10 +70,7 @@ impl TaxStatement {
             deduction_code: 0,
             deduction_value: dec!(0),
 
-            unknown: 0,
-            controlled_foreign_company_profit_calculation_method: 0,
-            controlled_foreign_company_number: String::new(),
-            controlled_foreign_company_tax: 0,
+            controlled_foreign_company: ControlledForeignCompanyInfo::new_empty(),
         });
 
         Ok(())

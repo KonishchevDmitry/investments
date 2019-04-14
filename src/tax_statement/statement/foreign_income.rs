@@ -1,49 +1,13 @@
 use std::any::Any;
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency;
 use crate::types::{Date, Decimal};
 
 use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
 use super::types::Integer;
-
-tax_statement_array_record!(CurrencyIncome {
-    type_: IncomeType,
-    description: String,
-    county_code: Integer,
-
-    date: Date,
-    tax_payment_date: Date,
-    currency: CurrencyInfo,
-
-    amount: Decimal,
-    local_amount: Decimal,
-
-    paid_tax: Decimal,
-    local_paid_tax: Decimal,
-
-    deduction_code: Integer,
-    deduction_value: Decimal,
-
-    unknown: Integer,
-    controlled_foreign_company_profit_calculation_method: Integer,
-    controlled_foreign_company_number: String,
-    controlled_foreign_company_tax: Integer,
-}, index_length=3);
-
-tax_statement_inner_record!(CurrencyInfo {
-    automatic_convertion: bool,
-    code: Integer,
-
-    income_date_rate: Decimal,
-    income_date_units: Integer,
-
-    tax_payment_date_rate: Decimal,
-    tax_payment_date_units: Integer,
-
-    name: String,
-});
 
 #[derive(Debug)]
 pub struct ForeignIncome {
@@ -85,6 +49,83 @@ impl Record for ForeignIncome {
         Ok(())
     }
 
+}
+
+tax_statement_array_record!(CurrencyIncome {
+    type_: IncomeType,
+    description: String,
+    county_code: Integer,
+
+    date: Date,
+    tax_payment_date: Date,
+    currency: CurrencyInfo,
+
+    amount: Decimal,
+    local_amount: Decimal,
+
+    paid_tax: Decimal,
+    local_paid_tax: Decimal,
+
+    deduction_code: Integer,
+    deduction_value: Decimal,
+
+    controlled_foreign_company: ControlledForeignCompanyInfo,
+}, index_length=3);
+
+tax_statement_inner_record!(CurrencyInfo {
+    automatic_convertion: bool,
+    code: Integer,
+
+    income_date_rate: Decimal,
+    income_date_units: Integer,
+
+    tax_payment_date_rate: Decimal,
+    tax_payment_date_units: Integer,
+
+    name: String,
+});
+
+impl CurrencyInfo {
+    pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<(Integer, CurrencyInfo)> {
+        let (country_code, currency_code, currency_name) = match currency {
+            "USD" => (840, 840, "Доллар сша"),
+            _ => return Err!("{} currency is not supported yet", currency),
+        };
+
+        let currency_rate_units = 100;
+        let currency_rate = currency::round(precise_currency_rate * Decimal::from(currency_rate_units));
+
+        Ok((country_code, CurrencyInfo {
+            automatic_convertion: true,
+            code: currency_code,
+
+            income_date_rate: currency_rate,
+            income_date_units: currency_rate_units,
+
+            tax_payment_date_rate: currency_rate,
+            tax_payment_date_units: currency_rate_units,
+
+            name: currency_name.to_owned(),
+        }))
+    }
+}
+
+tax_statement_inner_record!(ControlledForeignCompanyInfo {
+    unknown: Integer,
+    profit_calculation_method: Integer,
+    number: String,
+    paid_tax: Integer,
+});
+
+impl ControlledForeignCompanyInfo {
+    pub fn new_empty() -> ControlledForeignCompanyInfo {
+        ControlledForeignCompanyInfo {
+            unknown: 0,
+            profit_calculation_method: 0,
+            number: String::new(),
+            paid_tax: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
