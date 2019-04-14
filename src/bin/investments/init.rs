@@ -8,11 +8,10 @@ use easy_logging;
 use log::{self, debug, error};
 use shellexpand;
 
-use crate::config::{Config, load_config};
-use crate::core::GenericResult;
-use crate::types::{Date, Decimal};
-use crate::util;
-use crate::init::Action::SimulateSell;
+use investments::config::{Config, load_config};
+use investments::core::GenericResult;
+use investments::types::{Date, Decimal};
+use investments::util;
 
 pub enum Action {
     Analyse(String),
@@ -240,7 +239,7 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
                 positions.push((symbol.to_owned(), quantity));
             }
 
-            SimulateSell {
+            Action::SimulateSell {
                 name: portfolio_name,
                 positions: positions,
             }
