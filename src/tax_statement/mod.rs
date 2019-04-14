@@ -10,7 +10,7 @@ use crate::formatting;
 use crate::localities;
 use crate::util;
 
-use self::statement::TaxStatement;
+pub use self::statement::TaxStatement;
 
 mod dividends;
 mod interest;
