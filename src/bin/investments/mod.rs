@@ -1,31 +1,18 @@
-#[macro_use] extern crate diesel;
-#[macro_use] extern crate diesel_migrations;
-// FIXME: A temporary workaround for IntelliJ Rust plugin
-//#[macro_use] extern crate rust_decimal_macros;
-
-#[macro_use] mod core;
-#[macro_use] mod types;
-mod analyse;
-mod broker_statement;
-mod brokers;
-mod config;
-mod currency;
-mod db;
-mod formatting;
-mod init;
-mod portfolio;
-mod quotes;
-mod localities;
-mod tax_statement;
-mod util;
+extern crate investments;
 
 use std::process;
 
 use log::error;
 
-use crate::config::Config;
-use crate::core::EmptyResult;
-use crate::init::{Action, initialize};
+use investments::analyse;
+use investments::config::Config;
+use investments::core::EmptyResult;
+use investments::portfolio;
+use investments::tax_statement;
+
+use self::init::{Action, initialize};
+
+mod init;
 
 // TODO: Features to implement:
 // * Stock split support
