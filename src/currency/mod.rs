@@ -48,6 +48,7 @@ impl Cash {
         !self.amount.is_zero() && self.amount.is_sign_positive()
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, amount: Cash) -> GenericResult<Cash> {
         self.add_assign(amount)?;
         Ok(self)
@@ -59,6 +60,7 @@ impl Cash {
         Ok(())
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, amount: Cash) -> GenericResult<Cash> {
         self.add(-amount)
     }
@@ -68,6 +70,7 @@ impl Cash {
         self.sub(amount)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn div(self, amount: Cash) -> GenericResult<Decimal> {
         self.ensure_same_currency(amount)?;
         Ok(self.amount / amount.amount)
