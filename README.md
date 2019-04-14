@@ -23,12 +23,12 @@ Targeted for Russian investors who use [Interactive Brokers](http://interactiveb
 ```
 $ git clone https://github.com/KonishchevDmitry/investments.git
 $ cd investments
-$ cargo install --path .
+$ cargo install --path . --bin investments
 ```
 
 Use the following command to recompile the project after update to a new version:
 ```
-cargo install --force --path .
+cargo install --force --path . --bin investments
 ```
 
 ### Configuration
