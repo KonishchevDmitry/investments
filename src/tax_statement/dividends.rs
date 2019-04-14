@@ -93,7 +93,7 @@ pub fn process_income(
                         dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
             }
 
-            tax_statement.add_dividend(
+            tax_statement.add_dividend_income(
                 &description, dividend.date, foreign_amount.currency, precise_currency_rate,
                 foreign_amount.amount, foreign_paid_tax.amount, amount, paid_tax
             ).map_err(|e| format!(

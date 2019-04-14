@@ -235,26 +235,27 @@ mod tests {
 
         let mut incomes = Vec::new();
         incomes.extend(statement.get_foreign_incomes().unwrap().drain(..));
-        assert_eq!(incomes.len(), 2);
+        assert_eq!(incomes.len(), 3);
 
         let date = date!(1, 1, year);
         let currency = "USD";
+
         let currency_rate = dec!(57.6002);
         let amount = dec!(100);
         let local_amount = dec!(5760.02);
+        let paid_tax = dec!(10);
+        let local_paid_tax = dec!(576);
+        let purchase_local_cost = dec!(10);
 
-        {
-            let description = "Дивиденд";
-            let paid_tax = dec!(10);
-            let local_paid_tax = dec!(576);
+        statement.add_dividend_income(
+            "Дивиденд", date, currency, currency_rate,
+            amount, paid_tax, local_amount, local_paid_tax).unwrap();
 
-            statement.add_dividend(
-                description, date, currency, currency_rate,
-                amount, paid_tax, local_amount, local_paid_tax).unwrap();
-        }
-
-        statement.add_interest(
+        statement.add_interest_income(
             "Проценты", date, currency, currency_rate, amount, local_amount).unwrap();
+
+        statement.add_stock_income(
+            "Акции", date, currency, currency_rate, amount, local_amount, purchase_local_cost).unwrap();
 
         assert_eq!(*statement.get_foreign_incomes().unwrap(), incomes);
         compare_to(&statement, &data);

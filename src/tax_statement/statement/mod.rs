@@ -3,7 +3,7 @@ use std::fs;
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
 
-use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, IncomeType,
+use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, DeductionInfo, IncomeType,
                            ControlledForeignCompanyInfo};
 use self::record::Record;
 use self::parser::{TaxStatementReader, TaxStatementWriter};
@@ -43,7 +43,7 @@ impl TaxStatement {
         Ok(())
     }
 
-    pub fn add_dividend(
+    pub fn add_dividend_income(
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
@@ -63,17 +63,15 @@ impl TaxStatement {
 
             paid_tax: paid_tax,
             local_paid_tax: local_paid_tax,
+            deduction: DeductionInfo::new_none(),
 
-            deduction_code: 0,
-            deduction_value: dec!(0),
-
-            controlled_foreign_company: ControlledForeignCompanyInfo::new_empty(),
+            controlled_foreign_company: ControlledForeignCompanyInfo::new_none(),
         });
 
         Ok(())
     }
 
-    pub fn add_interest(
+    pub fn add_interest_income(
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, local_amount: Decimal,
     ) -> EmptyResult {
@@ -93,11 +91,40 @@ impl TaxStatement {
 
             paid_tax: dec!(0),
             local_paid_tax: dec!(0),
+            deduction: DeductionInfo::new_none(),
 
-            deduction_code: 0,
-            deduction_value: dec!(0),
+            controlled_foreign_company: ControlledForeignCompanyInfo::new_none(),
+        });
 
-            controlled_foreign_company: ControlledForeignCompanyInfo::new_empty(),
+        Ok(())
+    }
+
+    pub fn add_stock_income(
+        &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
+        amount: Decimal, local_amount: Decimal, purchase_local_cost: Decimal,
+    ) -> EmptyResult {
+        let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
+
+        self.get_foreign_incomes()?.push(CurrencyIncome {
+            type_: IncomeType::Stock,
+            description: description.to_owned(),
+            county_code: country_code,
+
+            date: date,
+            tax_payment_date: date,
+            currency: currency_info,
+
+            amount: amount,
+            local_amount: local_amount,
+
+            paid_tax: dec!(0),
+            local_paid_tax: dec!(0),
+            deduction: DeductionInfo {
+                code: 201,
+                amount: purchase_local_cost,
+            },
+
+            controlled_foreign_company: ControlledForeignCompanyInfo::new_none(),
         });
 
         Ok(())

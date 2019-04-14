@@ -65,9 +65,7 @@ tax_statement_array_record!(CurrencyIncome {
 
     paid_tax: Decimal,
     local_paid_tax: Decimal,
-
-    deduction_code: Integer,
-    deduction_value: Decimal,
+    deduction: DeductionInfo,
 
     controlled_foreign_company: ControlledForeignCompanyInfo,
 }, index_length=3);
@@ -110,6 +108,20 @@ impl CurrencyInfo {
     }
 }
 
+tax_statement_inner_record!(DeductionInfo {
+    code: Integer,
+    amount: Decimal,
+});
+
+impl DeductionInfo {
+    pub fn new_none() -> DeductionInfo {
+        DeductionInfo {
+            code: 0,
+            amount: dec!(0),
+        }
+    }
+}
+
 tax_statement_inner_record!(ControlledForeignCompanyInfo {
     unknown: Integer,
     profit_calculation_method: Integer,
@@ -118,7 +130,7 @@ tax_statement_inner_record!(ControlledForeignCompanyInfo {
 });
 
 impl ControlledForeignCompanyInfo {
-    pub fn new_empty() -> ControlledForeignCompanyInfo {
+    pub fn new_none() -> ControlledForeignCompanyInfo {
         ControlledForeignCompanyInfo {
             unknown: 0,
             profit_calculation_method: 0,
@@ -133,6 +145,7 @@ impl ControlledForeignCompanyInfo {
 pub enum IncomeType {
     Dividend,
     Interest,
+    Stock,
     Unknown {unknown: Integer, code: Integer, name: String},
 }
 
@@ -141,6 +154,7 @@ impl IncomeType {
         let (unknown, code, name) = match self {
             IncomeType::Dividend => (14, 1010, "Дивиденды"),
             IncomeType::Interest => (13, 1011, "Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)"),
+            IncomeType::Stock => (13, 1530, "(01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)"),
             IncomeType::Unknown {unknown, code, name} => return (*unknown, *code, name.clone()),
         };
 
@@ -154,7 +168,7 @@ impl TaxStatementType for IncomeType {
         let code = reader.read_value()?;
         let name = reader.read_value()?;
 
-        for income_type in &[IncomeType::Dividend, IncomeType::Interest] {
+        for income_type in &[IncomeType::Dividend, IncomeType::Interest, IncomeType::Stock] {
             let (other_unknown, other_code, other_name) = income_type.decouple();
             if unknown == other_unknown && code == other_code && name == other_name {
                 return Ok(income_type.clone());
