@@ -107,6 +107,31 @@ macro_rules! tax_statement_record {
     }
 }
 
+macro_rules! tax_statement_inner_record {
+    (
+        $name:ident {
+            $($field_name:ident: $field_type:ty,)*
+        }
+    ) => {
+        declare_tax_statement_record_struct!($name {
+            $($field_name: $field_type,)*
+        });
+
+        impl $crate::tax_statement::statement::encoding::TaxStatementType for $name {
+            fn read(reader: &mut $crate::tax_statement::statement::parser::TaxStatementReader) -> GenericResult<$name> {
+                Ok($name {
+                    $($field_name: reader.read_value()?,)*
+                })
+            }
+
+            fn write(&self, writer: &mut $crate::tax_statement::statement::parser::TaxStatementWriter) -> EmptyResult {
+                $(writer.write_value(&self.$field_name)?;)*
+                Ok(())
+            }
+        }
+    }
+}
+
 macro_rules! tax_statement_array_record {
     (
         $name:ident {
@@ -172,14 +197,26 @@ macro_rules! declare_tax_statement_record {
             $($field_name:ident: $field_type:ty,)*
         }
     ) => {
+        declare_tax_statement_record_struct!($name {
+            $($field_name: $field_type,)*
+        });
+
+        impl $name {
+            pub const RECORD_NAME: &'static str = concat!("@", stringify!($name));
+        }
+    }
+}
+
+macro_rules! declare_tax_statement_record_struct {
+    (
+        $name:ident {
+            $($field_name:ident: $field_type:ty,)*
+        }
+    ) => {
         #[derive(Debug)]
         #[cfg_attr(test, derive(PartialEq, Eq))]
         pub struct $name {
             $(pub $field_name: $field_type,)*
-        }
-
-        impl $name {
-            pub const RECORD_NAME: &'static str = concat!("@", stringify!($name));
         }
     }
 }

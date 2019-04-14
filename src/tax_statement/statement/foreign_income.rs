@@ -15,14 +15,7 @@ tax_statement_array_record!(CurrencyIncome {
 
     date: Date,
     tax_payment_date: Date,
-
-    automatic_currency_convertion: bool,
-    currency_code: Integer,
-    currency_rate_for_income_date: Decimal,
-    currency_rate_units_for_income_date: Integer,
-    currency_rate_for_tax_payment_date: Decimal,
-    currency_rate_units_for_tax_payment_date: Integer,
-    currency_name: String,
+    currency: CurrencyInfo,
 
     amount: Decimal,
     local_amount: Decimal,
@@ -38,6 +31,19 @@ tax_statement_array_record!(CurrencyIncome {
     controlled_foreign_company_number: String,
     controlled_foreign_company_tax: Integer,
 }, index_length=3);
+
+tax_statement_inner_record!(CurrencyInfo {
+    automatic_convertion: bool,
+    code: Integer,
+
+    income_date_rate: Decimal,
+    income_date_units: Integer,
+
+    tax_payment_date_rate: Decimal,
+    tax_payment_date_units: Integer,
+
+    name: String,
+});
 
 #[derive(Debug)]
 pub struct ForeignIncome {

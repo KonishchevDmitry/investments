@@ -4,7 +4,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency;
 use crate::types::{Date, Decimal};
 
-use self::foreign_income::{ForeignIncome, CurrencyIncome, IncomeType};
+use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, IncomeType};
 use self::record::Record;
 use self::parser::{TaxStatementReader, TaxStatementWriter};
 
@@ -65,14 +65,18 @@ impl TaxStatement {
 
             date: date,
             tax_payment_date: date,
+            currency: CurrencyInfo {
+                automatic_convertion: true,
+                code: currency_code,
 
-            automatic_currency_convertion: true,
-            currency_code: currency_code,
-            currency_rate_for_income_date: currency_rate,
-            currency_rate_units_for_income_date: currency_rate_units,
-            currency_rate_for_tax_payment_date: currency_rate,
-            currency_rate_units_for_tax_payment_date: currency_rate_units,
-            currency_name: currency_name.to_owned(),
+                income_date_rate: currency_rate,
+                income_date_units: currency_rate_units,
+
+                tax_payment_date_rate: currency_rate,
+                tax_payment_date_units: currency_rate_units,
+
+                name: currency_name.to_owned(),
+            },
 
             amount: amount,
             local_amount: local_amount,
