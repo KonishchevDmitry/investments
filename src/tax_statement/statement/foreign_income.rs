@@ -132,6 +132,7 @@ impl ControlledForeignCompanyInfo {
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum IncomeType {
     Dividend,
+    Interest,
     Unknown {unknown: Integer, code: Integer, name: String},
 }
 
@@ -139,6 +140,7 @@ impl IncomeType {
     fn decouple(&self) -> (Integer, Integer, String) {
         let (unknown, code, name) = match self {
             IncomeType::Dividend => (14, 1010, "Дивиденды"),
+            IncomeType::Interest => (13, 1011, "Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)"),
             IncomeType::Unknown {unknown, code, name} => return (*unknown, *code, name.clone()),
         };
 
@@ -152,7 +154,7 @@ impl TaxStatementType for IncomeType {
         let code = reader.read_value()?;
         let name = reader.read_value()?;
 
-        for income_type in [IncomeType::Dividend].iter() {
+        for income_type in &[IncomeType::Dividend, IncomeType::Interest] {
             let (other_unknown, other_code, other_name) = income_type.decouple();
             if unknown == other_unknown && code == other_code && name == other_name {
                 return Ok(income_type.clone());

@@ -49,10 +49,7 @@ impl TaxStatement {
     ) -> EmptyResult {
         let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
 
-        let incomes = self.get_foreign_incomes()?.ok_or(
-            "Foreign income must be enabled in the tax statement to add dividend income")?;
-
-        incomes.push(CurrencyIncome {
+        self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Dividend,
             description: description.to_owned(),
             county_code: country_code,
@@ -76,9 +73,40 @@ impl TaxStatement {
         Ok(())
     }
 
-    fn get_foreign_incomes(&mut self) -> GenericResult<Option<&mut Vec<CurrencyIncome>>> {
+    pub fn add_interest(
+        &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
+        amount: Decimal, local_amount: Decimal,
+    ) -> EmptyResult {
+        let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
+
+        self.get_foreign_incomes()?.push(CurrencyIncome {
+            type_: IncomeType::Interest,
+            description: description.to_owned(),
+            county_code: country_code,
+
+            date: date,
+            tax_payment_date: date,
+            currency: currency_info,
+
+            amount: amount,
+            local_amount: local_amount,
+
+            paid_tax: dec!(0),
+            local_paid_tax: dec!(0),
+
+            deduction_code: 0,
+            deduction_value: dec!(0),
+
+            controlled_foreign_company: ControlledForeignCompanyInfo::new_empty(),
+        });
+
+        Ok(())
+    }
+
+    fn get_foreign_incomes(&mut self) -> GenericResult<&mut Vec<CurrencyIncome>> {
         Ok(self.get_mut_record(ForeignIncome::RECORD_NAME)?
-            .map(|record: &mut ForeignIncome| &mut record.incomes))
+            .map(|record: &mut ForeignIncome| &mut record.incomes)
+            .ok_or("Foreign income must be enabled in the tax statement")?)
     }
 
     fn get_mut_record<T: 'static + Record>(&mut self, name: &str) -> GenericResult<Option<&mut T>> {
