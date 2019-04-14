@@ -87,9 +87,7 @@ impl Portfolio {
         check_weights(&portfolio.name, &portfolio.assets)?;
 
         if !stocks.is_empty() {
-            let mut missing_symbols: Vec<String> = stocks.keys()
-                .map(|symbol| symbol.to_owned()).collect();
-
+            let mut missing_symbols: Vec<String> = stocks.keys().cloned().collect();
             missing_symbols.sort();
 
             return Err!(

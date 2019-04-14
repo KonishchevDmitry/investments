@@ -24,6 +24,7 @@ for target in bins tests; do
         collapsible_if
         needless_pass_by_value
         new_ret_no_self
+        redundant_closure
         redundant_field_names
         too_many_arguments
         unit_arg

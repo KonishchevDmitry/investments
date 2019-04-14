@@ -57,10 +57,10 @@ impl Assets {
         let portfolio_symbols = portfolio.get_stock_symbols();
 
         let mut assets_symbols = HashSet::new();
-        assets_symbols.extend(self.stocks.keys().map(|symbol| symbol.to_owned()));
+        assets_symbols.extend(self.stocks.keys().cloned());
 
         let mut missing_symbols: Vec<String> = assets_symbols.difference(&portfolio_symbols)
-            .map(|symbol| symbol.to_owned()).collect();
+            .cloned().collect();
         missing_symbols.sort();
 
         if !missing_symbols.is_empty() {

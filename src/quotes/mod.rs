@@ -51,8 +51,7 @@ impl Quotes {
         let mut price = None;
 
         for provider in &self.providers {
-            let symbols: Vec<String> = self.batched_symbols.iter()
-                .map(|symbol| symbol.to_owned()).collect();
+            let symbols: Vec<String> = self.batched_symbols.iter().cloned().collect();
 
             debug!("Getting quotes from {} for the following symbols: {}...",
                    provider.name(), symbols.join(", "));
@@ -73,8 +72,7 @@ impl Quotes {
         }
 
         if !self.batched_symbols.is_empty() {
-            let symbols = self.batched_symbols.iter()
-                .map(|symbol| symbol.to_owned()).collect::<Vec<String>>();
+            let symbols = self.batched_symbols.iter().cloned().collect::<Vec<String>>();
             return Err!("Unable to find quotes for following symbols: {}", symbols.join(", "));
         }
 
