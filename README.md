@@ -28,7 +28,7 @@ $ cargo install --path . --bin investments
 
 Use the following command to recompile the project after update to a new version:
 ```
-cargo install --force --path . --bin investments
+cargo install --path . --bin investments --force
 ```
 
 ### Configuration

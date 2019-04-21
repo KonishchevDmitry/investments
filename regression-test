@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 #
 # Runs regression tests
 #
@@ -6,10 +6,56 @@
 #
 
 set -eu
+shopt -s nullglob
+
+temp_dir=""
+project_path="$PWD"
+expected_dir="$project_path/testdata/rt_expected"
+actual_dir="$project_path/testdata/rt_actual"
+
+show-diff() {
+    echo && git diff --no-index "$@"
+}
+
+parse-tax-statement() {
+    cargo run --manifest-path "$project_path/Cargo.toml" --bin tax-statement-parser -- "$@"
+}
+
+prepare-temp-dir() {
+    cleanup-temp-dir
+    temp_dir="$(mktemp -d /var/tmp/investments-regression-test.XXXXXX)"
+}
+
+cleanup-temp-dir() {
+    [ -z "$temp_dir" ] || rm -rf "$temp_dir"
+    temp_dir=""
+}
+
+trap cleanup-temp-dir EXIT
+trap "exit 1" INT TERM QUIT
 
 which -s retest || cargo install qtrac-retest
-
-if ! retest; then
-    echo && git diff --no-index testdata/rt_expected testdata/rt_actual
-    exit 1
+if retest; then
+    exit 0
 fi
+
+for tax_statement in "$expected_dir"/*.dc[[:digit:]]; do
+    tax_statement="$(basename "$tax_statement")"
+    prepare-temp-dir && (
+        cd "$temp_dir"
+        mkdir expected actual
+
+        # Both statements should have the same parse path to produce zero diff
+
+        cp "$expected_dir/$tax_statement" "$tax_statement"
+        parse-tax-statement "$tax_statement" > "expected/$tax_statement"
+
+        cp "$actual_dir/$tax_statement" "$tax_statement"
+        parse-tax-statement "$tax_statement" > "actual/$tax_statement"
+
+        show-diff expected actual ||:
+    )
+done
+
+show-diff "$expected_dir" "$actual_dir"
+exit 1
