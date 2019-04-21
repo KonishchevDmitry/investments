@@ -59,12 +59,20 @@ impl TaxChanges {
             withheld.remove(index);
         }
 
-        match withheld.len() {
-            // It's may be ok, but for now return an error until we'll see it in the real life
-            0 => Err!("Got a fully refunded tax"),
+        let mut result = match withheld.pop() {
+            Some(amount) => amount,
 
-            1 => Ok(withheld.pop().unwrap()),
-            _ => Err!("Got {} withheld taxes without refund", withheld.len()),
+            // It's may be ok, but for now return an error until we'll see it in the real life
+            None => return Err!("Got a fully refunded tax"),
+        };
+
+        for amount in withheld {
+            result.add_assign(amount).ok().ok_or_else(|| format!(
+                "Got a few withheld taxes in different currency: {} and {}",
+                result.currency, amount.currency
+            ))?;
         }
+
+        Ok(result)
     }
 }
