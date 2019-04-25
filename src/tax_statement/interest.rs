@@ -54,8 +54,16 @@ pub fn process_income(
         ]));
 
         if let Some(ref mut tax_statement) = tax_statement {
-            // FIXME: Support idle cash interest
-            let _ = tax_statement;
+            let description = format!(
+                "{}: Проценты на остаток по брокерскому счету", broker_statement.broker.name);
+
+            tax_statement.add_interest_income(
+                &description, interest.date, foreign_amount.currency, precise_currency_rate,
+                foreign_amount.amount, amount
+            ).map_err(|e| format!(
+                "Unable to add interest income from {} to the tax statement: {}",
+                formatting::format_date(interest.date), e
+            ))?;
         }
     }
 

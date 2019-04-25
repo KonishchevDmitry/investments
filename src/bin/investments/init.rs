@@ -109,13 +109,12 @@ pub fn initialize() -> (Action, Config) {
             .arg(Arg::with_name("POSITIONS")
                 .min_values(2)
                 .help("Positions to sell in $quantity|all $symbol format")))
-        // FIXME: Update description (interest + trades)
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
                 "\nReads broker statements and alters *.dcX file (created by Russian tax program ",
-                "named Декларация) by adding all required information about income from paid ",
-                "dividends.\n",
+                "named Декларация) by adding all required information about income from stock ",
+                "selling, paid dividends and idle cash interest.\n",
                 "\nIf tax statement file is not specified only outputs the data which is going to ",
                 "be declared."))
             .arg(portfolio::arg())

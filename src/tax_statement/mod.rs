@@ -17,7 +17,6 @@ mod interest;
 mod statement;
 mod trades;
 
-// FIXME: Free cash interest support
 pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: i32, tax_statement_path: Option<&str>
 ) -> EmptyResult {

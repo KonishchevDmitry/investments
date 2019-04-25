@@ -11,6 +11,7 @@ use crate::localities::Country;
 
 use super::statement::TaxStatement;
 
+// FIXME: Net loss calculation + in analysis
 #[allow(clippy::cyclomatic_complexity)]
 pub fn process_income(
     broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
@@ -155,8 +156,20 @@ pub fn process_income(
         }
 
         if let Some(ref mut tax_statement) = tax_statement {
-            // FIXME: Stock selling support
-            let _ = tax_statement;
+            let name = broker_statement.get_instrument_name(&trade.symbol)?;
+            let description = format!("{}: Продажа {}", broker_statement.broker.name, name);
+
+            let precise_currency_rate = converter.precise_currency_rate(
+                trade.execution_date, details.revenue.currency, country.currency)?;
+
+            tax_statement.add_stock_income(
+                &description, trade.execution_date, details.revenue.currency, precise_currency_rate,
+                details.revenue.amount, details.local_revenue.amount,
+                details.total_local_cost.amount
+            ).map_err(|e| format!(
+                "Unable to add income from selling {} on {} to the tax statement: {}",
+                trade.symbol, formatting::format_date(trade.execution_date), e
+            ))?;
         }
     }
 

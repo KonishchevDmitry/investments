@@ -71,7 +71,6 @@ impl TaxStatement {
         Ok(())
     }
 
-    #[allow(dead_code)] // FIXME: Remove after use
     pub fn add_interest_income(
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, local_amount: Decimal,
@@ -100,7 +99,6 @@ impl TaxStatement {
         Ok(())
     }
 
-    #[allow(dead_code)] // FIXME: Remove after use
     pub fn add_stock_income(
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, local_amount: Decimal, purchase_local_cost: Decimal,

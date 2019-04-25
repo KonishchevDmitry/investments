@@ -84,8 +84,7 @@ pub fn process_income(
         ]));
 
         if let Some(ref mut tax_statement) = tax_statement {
-            let description = format!(
-                "{}: Дивиденд от {}", broker_statement.broker.name, issuer);
+            let description = format!("{}: Дивиденд от {}", broker_statement.broker.name, issuer);
 
             if foreign_paid_tax.currency != foreign_amount.currency {
                 return Err!(

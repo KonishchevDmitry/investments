@@ -8,7 +8,7 @@ Helps you with managing your investments:
 * **Stock selling simulation:** calculates revenue, profit, taxes and real profit percent which considers taxes into
   account.
 * **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program named
-  Декларация) by adding all required information about income from paid dividends.
+  Декларация) by adding all required information about income from stock selling, paid dividends and idle cash interest.
 * **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to
   performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
   Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
