@@ -56,6 +56,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         analyser.calculate_open_position_periods()?;
 
+        trace!("Deposit emulator transactions:");
         analyser.process_deposits_and_withdrawals()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
@@ -295,6 +296,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
 
             let amount = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.currency)?;
+
+            trace!("* {} {}: {}", if amount.is_sign_positive() {
+                "Deposit"
+            } else {
+                "Withdrawal"
+            }, formatting::format_date(cash_flow.date), amount.normalize());
+
             self.transactions.push(Transaction::new(cash_flow.date, amount));
         }
 
@@ -362,6 +370,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let amount = self.converter.convert_to(
                 tax_deduction.date, tax_deduction.cash, self.currency)?;
 
+            trace!("* Tax deduction {}: {}", formatting::format_date(tax_deduction.date), -amount);
             self.transactions.push(Transaction::new(tax_deduction.date, -amount));
         }
 
@@ -393,8 +402,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.get_deposit_view(symbol)?.transactions.push(
             Transaction::new(tax_payment_date, deposit_amount));
 
-        self.transactions.push(
-            Transaction::new(tax_payment_date, deposit_amount));
+        trace!("* {} tax {}: {}", symbol, formatting::format_date(tax_payment_date), deposit_amount);
+        self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
 
         Ok(())
     }
