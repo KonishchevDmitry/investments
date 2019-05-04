@@ -3,7 +3,7 @@ use std::collections::{HashMap, BTreeMap};
 
 use cast::From as CastFrom;
 use chrono::Duration;
-use log::debug;
+use log::{self, debug, log_enabled, trace};
 use num_traits::Zero;
 use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
@@ -55,6 +55,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         analyser.calculate_open_position_periods()?;
+
         analyser.process_deposits_and_withdrawals()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
@@ -211,6 +212,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             quantity: i32,
         }
 
+        trace!("Open positions periods:");
+
         for (symbol, symbol_trades) in &trades {
             let symbol = *symbol;
             let mut open_position = None;
@@ -260,6 +263,18 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
 
             assert!(!open_periods.is_empty());
+
+            if log_enabled!(log::Level::Trace) {
+                let periods = open_periods.iter()
+                    .map(|period| format!(
+                        "{} - {}", formatting::format_date(period.start),
+                        formatting::format_date(period.end)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                trace!("* {}: {}", symbol, periods);
+            }
+
             let deposit_view = StockDepositView {
                 transactions: Vec::new(),
                 interest_periods: open_periods,
