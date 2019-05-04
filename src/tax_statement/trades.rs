@@ -12,7 +12,7 @@ use crate::localities::Country;
 
 use super::statement::TaxStatement;
 
-// FIXME: Net loss calculation + in analysis
+// FIXME: Net loss calculation in analysis and sell simulation
 pub fn process_income(
     broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
     country: &Country, converter: &CurrencyConverter,
@@ -57,7 +57,7 @@ pub fn process_income(
 
         same_dates,
         same_currency,
-        total_tax: Cash::new(country.currency, dec!(0)),
+        total_local_profit: Cash::new(country.currency, dec!(0)),
     };
 
     for (trade_id, (trade, details)) in trades.iter().enumerate() {
@@ -83,7 +83,7 @@ struct TradesProcessor<'a> {
 
     same_dates: bool,
     same_currency: bool,
-    total_tax: Cash,
+    total_local_profit: Cash,
 }
 
 impl<'a> TradesProcessor<'a> {
@@ -108,7 +108,7 @@ impl<'a> TradesProcessor<'a> {
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
         let security = self.broker_statement.get_instrument_name(&trade.symbol)?;
-        self.total_tax.add_assign(details.tax_to_pay).unwrap();
+        self.total_local_profit.add_assign(details.local_profit).unwrap();
 
         let mut row = vec![
             Cell::new_align(&trade_id.to_string(), Alignment::RIGHT),
@@ -220,6 +220,9 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn print(mut self) {
+        let tax_to_pay = Cash::new(
+            self.country.currency, self.country.tax_to_pay(self.total_local_profit.amount, None));
+
         let mut trade_columns = vec!["№", "Дата сделки"];
         let mut fifo_columns = trade_columns.clone();
 
@@ -258,8 +261,14 @@ impl<'a> TradesProcessor<'a> {
             }
         }
 
-        trade_columns.extend_from_slice(&["Затраты на\nпокупку", "Общие\nзатраты", "Прибыль", "Налог"]);
-        let total_tax_index = trade_columns.len() - 1;
+        trade_columns.extend_from_slice(&["Затраты на\nпокупку", "Общие\nзатраты"]);
+
+        let total_local_profit_index = trade_columns.len();
+        trade_columns.push("Прибыль");
+
+        let total_tax_index = trade_columns.len();
+        trade_columns.push("Налог");
+
         fifo_columns.push("Общие затраты");
 
         trade_columns.push("Реальный\nдоход");
@@ -269,8 +278,10 @@ impl<'a> TradesProcessor<'a> {
 
         let mut totals = Vec::new();
         for index in 0..trade_columns.len() {
-            totals.push(if index == total_tax_index {
-                formatting::cash_cell(self.total_tax)
+            totals.push(if index == total_local_profit_index {
+                formatting::cash_cell(self.total_local_profit)
+            } else if index == total_tax_index {
+                formatting::cash_cell(tax_to_pay)
             } else {
                 Cell::new("")
             });
