@@ -61,6 +61,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         analyser.process_deposits_and_withdrawals()?;
         analyser.process_positions()?;
         analyser.process_dividends()?;
+        analyser.process_interest()?;
         analyser.process_tax_deductions(tax_deductions)?;
 
         let mut instruments = analyser.instruments.take().unwrap();
@@ -376,7 +377,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    // FIXME: Idle cash interest processing
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
             let profit = dividend.amount.sub(dividend.paid_tax).map_err(|e| format!(
@@ -391,11 +391,29 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let tax_payment_date = self.country.get_tax_payment_date(dividend.date);
 
             if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
-                trace!("* {} dividend {} tax: {}",
-                       dividend.issuer, formatting::format_date(tax_payment_date), deposit_amount);
+                trace!("* {} {} dividend {} tax: {}",
+                       dividend.issuer, formatting::format_date(dividend.date),
+                       formatting::format_date(tax_payment_date), deposit_amount);
 
                 self.get_deposit_view(&dividend.issuer)?.transactions.push(
                     Transaction::new(tax_payment_date, deposit_amount));
+
+                self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn process_interest(&mut self) -> EmptyResult {
+        for interest in &self.statement.idle_cash_interest {
+            let tax_to_pay = interest.tax_to_pay(&self.country, self.converter)?;
+            let tax_payment_date = self.country.get_tax_payment_date(interest.date);
+
+            if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+                trace!("* {} idle cash interest {} tax: {}",
+                       formatting::format_date(interest.date),
+                       formatting::format_date(tax_payment_date), deposit_amount);
 
                 self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
             }
