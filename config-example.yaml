@@ -43,6 +43,11 @@ portfolios:
     broker: open-broker
     statements: ~/Brokerage/Open Broker/Statements
 
+    # Specifies the day when tax is paid. Used in portfolio performance analysis. Accepted values:
+    # * Date in DD.MM format
+    # * on-close - for accounts that are taxable on their close
+    tax_payment_day: on-close
+
     # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
     tax_deductions:
       25.09.2018: 52000

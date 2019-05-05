@@ -1,8 +1,24 @@
 use std::collections::{HashMap, HashSet};
+use std::default::Default;
 
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
 use chrono::Datelike;
+
+#[derive(Debug, Clone, Copy)]
+pub enum TaxPaymentDay {
+    Day {month: u32, day: u32},
+    OnClose,
+}
+
+impl Default for TaxPaymentDay {
+    fn default() -> TaxPaymentDay {
+        TaxPaymentDay::Day {
+            month: 3,
+            day: 15,
+        }
+    }
+}
 
 pub struct NetTaxCalculator {
     country: Country,

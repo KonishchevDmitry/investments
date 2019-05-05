@@ -2,8 +2,9 @@ use std::collections::{HashSet, HashMap};
 use std::fs::File;
 use std::io::Read;
 
-use chrono::Duration;
+use chrono::{Duration, Datelike};
 use num_traits::FromPrimitive;
+use regex::Regex;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 use serde_yaml;
@@ -11,7 +12,8 @@ use shellexpand;
 
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
-use crate::types::Decimal;
+use crate::taxes::TaxPaymentDay;
+use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
 #[derive(Deserialize, Debug)]
@@ -70,6 +72,9 @@ pub struct PortfolioConfig {
 
     #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,
+
+    #[serde(default, deserialize_with = "deserialize_tax_payment_day")]
+    pub tax_payment_day: TaxPaymentDay,
 
     #[serde(default, deserialize_with = "deserialize_tax_deductions")]
     pub tax_deductions: Vec<CashAssets>,
@@ -211,6 +216,30 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
 
 fn default_expire_time() -> Duration {
     Duration::minutes(1)
+}
+
+fn deserialize_tax_payment_day<'de, D>(deserializer: D) -> Result<TaxPaymentDay, D::Error>
+    where D: Deserializer<'de>
+{
+    let tax_payment_day: String = Deserialize::deserialize(deserializer)?;
+    if tax_payment_day == "on-close" {
+        return Ok(TaxPaymentDay::OnClose);
+    }
+
+    Ok(Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {
+        let day = captures.name("day").unwrap().as_str().parse::<u32>().ok();
+        let month = captures.name("month").unwrap().as_str().parse::<u32>().ok();
+        let (day, month) = match (day, month) {
+            (Some(day), Some(month)) => (day, month),
+            _ => return None,
+        };
+
+        if Date::from_ymd_opt(util::today().year(), month, day).is_none() && (day, month) != (29, 2) {
+            return None;
+        }
+
+        Some(TaxPaymentDay::Day {month, day})
+    }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))?)
 }
 
 fn deserialize_tax_deductions<'de, D>(deserializer: D) -> Result<Vec<CashAssets>, D::Error>
