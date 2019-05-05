@@ -5,6 +5,7 @@ use num_traits::Zero;
 use crate::currency;
 use crate::types::{Date, Decimal};
 
+#[derive(Clone, Copy)]
 pub struct Country {
     pub currency: &'static str,
     tax_rate: Decimal,
