@@ -14,4 +14,5 @@ pub mod portfolio;
 pub mod quotes;
 pub mod localities;
 pub mod tax_statement;
+pub mod taxes;
 pub mod util;
