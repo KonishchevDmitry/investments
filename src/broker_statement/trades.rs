@@ -85,8 +85,6 @@ impl StockSell {
     }
 
     fn calculate_impl(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
-        // FIXME: We need to use exactly the same rounding logic as in tax statement
-
         let revenue = (self.price * self.quantity).round();
         let local_revenue = converter.convert_to_cash(
             self.execution_date, revenue, country.currency)?.round();
