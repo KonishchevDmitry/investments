@@ -43,6 +43,7 @@ impl Country {
     }
 }
 
+// FIXME: Deprecate direct initialization
 pub fn russia() -> Country {
     Country {
         currency: "RUB",

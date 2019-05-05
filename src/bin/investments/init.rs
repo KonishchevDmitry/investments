@@ -36,7 +36,7 @@ pub enum Action {
 
     TaxStatement {
         name: String,
-        year: i32,
+        year: Option<i32>,
         tax_statement_path: Option<String>,
     },
 }
@@ -119,8 +119,7 @@ pub fn initialize() -> (Action, Config) {
                 "be declared."))
             .arg(portfolio::arg())
             .arg(Arg::with_name("YEAR")
-                .help("Year to generate the statement for")
-                .required(true))
+                .help("Year to generate the statement for"))
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
         .global_setting(AppSettings::DisableVersion)
@@ -245,10 +244,14 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
         }
 
         "tax-statement" => {
-            let year = matches.value_of("YEAR").unwrap();
-            let year = year.trim().parse::<i32>().ok()
-                .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
-                .ok_or_else(|| format!("Invalid year: {}", year))?;
+            let year = match matches.value_of("YEAR") {
+                Some(year) => {
+                    Some(year.trim().parse::<i32>().ok()
+                        .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
+                        .ok_or_else(|| format!("Invalid year: {}", year))?)
+                },
+                None => None,
+            };
 
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 

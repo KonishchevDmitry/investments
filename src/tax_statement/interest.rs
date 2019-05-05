@@ -3,19 +3,20 @@ use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
+use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::localities::Country;
 
 use super::statement::TaxStatement;
 
 pub fn process_income(
-    broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
-    country: &Country, converter: &CurrencyConverter,
+    portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
+    mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> EmptyResult {
     let mut table = Table::new();
+    let country = portfolio.get_tax_country();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
     let mut total_amount = dec!(0);
@@ -23,8 +24,10 @@ pub fn process_income(
     let mut total_income = dec!(0);
 
     for interest in &broker_statement.idle_cash_interest {
-        if interest.date.year() != year {
-            continue;
+        if let Some(year) = year {
+            if interest.date.year() != year {
+                continue;
+            }
         }
 
         let foreign_amount = interest.amount.round();

@@ -4,25 +4,31 @@ use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::{StockSell, SellDetails, FifoDetails};
+use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
+use crate::taxes::TaxPaymentDay;
 
 use super::statement::TaxStatement;
 
 pub fn process_income(
-    broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
-    country: &Country, converter: &CurrencyConverter,
+    portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
+    mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> EmptyResult {
+    let country = portfolio.get_tax_country();
+
     let mut trades = Vec::new();
     let mut same_dates = true;
     let mut same_currency = true;
 
     for trade in &broker_statement.stock_sells {
-        if trade.execution_date.year() != year {
-            continue;
+        if let Some(year) = year {
+            if trade.execution_date.year() != year {
+                continue;
+            }
         }
 
         same_dates &= trade.execution_date == trade.conclusion_date;
@@ -30,7 +36,7 @@ pub fn process_income(
             trade.price.currency == country.currency &&
                 trade.commission.currency == country.currency;
 
-        let details = trade.calculate(country, converter)?;
+        let details = trade.calculate(&country, converter)?;
 
         for buy_trade in &details.fifo {
             same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
@@ -47,7 +53,10 @@ pub fn process_income(
     }
 
     let mut processor = TradesProcessor {
+        portfolio,
         broker_statement,
+        year,
+
         country,
         converter,
 
@@ -73,8 +82,11 @@ pub fn process_income(
 }
 
 struct TradesProcessor<'a> {
+    portfolio: &'a PortfolioConfig,
     broker_statement: &'a BrokerStatement,
-    country: &'a Country,
+    year: Option<i32>,
+
+    country: Country,
     converter: &'a CurrencyConverter,
 
     table: Table,
@@ -280,7 +292,16 @@ impl<'a> TradesProcessor<'a> {
             totals.push(if index == total_local_profit_index {
                 formatting::cash_cell(self.total_local_profit)
             } else if index == total_tax_index {
-                formatting::cash_cell(tax_to_pay)
+                let show_net_tax = match self.portfolio.tax_payment_day {
+                    TaxPaymentDay::Day {month: _, day: _} => self.year.is_some(),
+                    TaxPaymentDay::OnClose => self.year.is_none(),
+                };
+
+                if show_net_tax {
+                    formatting::cash_cell(tax_to_pay)
+                } else {
+                    Cell::new("")
+                }
             } else {
                 Cell::new("")
             });
