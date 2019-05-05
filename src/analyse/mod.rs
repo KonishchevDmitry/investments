@@ -23,8 +23,7 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     statement.process_trades()?;
 
     for currency in ["USD", "RUB"].iter() {
-        PortfolioPerformanceAnalyser::analyse(
-            &statement, &portfolio.tax_deductions, *currency, &converter)?;
+        PortfolioPerformanceAnalyser::analyse(&statement, &portfolio, *currency, &converter)?;
     }
 
     Ok(())

@@ -12,6 +12,7 @@ use shellexpand;
 
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
+use crate::localities::{self, Country};
 use crate::taxes::TaxPaymentDay;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
@@ -89,6 +90,10 @@ impl PortfolioConfig {
         }
 
         symbols
+    }
+
+    pub fn get_tax_country(&self) -> Country {
+        localities::russia()
     }
 }
 

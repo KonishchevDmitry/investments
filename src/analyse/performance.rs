@@ -9,11 +9,12 @@ use prettytable::{Table, Row, Cell};
 use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
+use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{Cash, CashAssets};
+use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::localities::{self, Country};
+use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
 use crate::util;
@@ -24,6 +25,8 @@ use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub struct PortfolioPerformanceAnalyser<'a> {
     statement: &'a BrokerStatement,
+    portfolio: &'a PortfolioConfig,
+
     currency: &'a str,
     converter: &'a CurrencyConverter,
 
@@ -35,15 +38,17 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn analyse(
-        statement: &BrokerStatement, tax_deductions: &[CashAssets], currency: &str,
+        statement: &BrokerStatement, portfolio: &PortfolioConfig, currency: &str,
         converter: &CurrencyConverter
     ) -> EmptyResult {
         let mut analyser = PortfolioPerformanceAnalyser {
-            statement: statement,
-            currency: currency,
-            converter: converter,
+            statement,
+            portfolio,
 
-            country: localities::russia(),
+            currency,
+            converter,
+
+            country: portfolio.get_tax_country(),
             transactions: Vec::new(),
             instruments: Some(HashMap::new()),
             table: Table::new(),
@@ -62,7 +67,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         analyser.process_positions()?;
         analyser.process_dividends()?;
         analyser.process_interest()?;
-        analyser.process_tax_deductions(tax_deductions)?;
+        analyser.process_tax_deductions()?;
 
         let mut instruments = analyser.instruments.take().unwrap();
         let mut instruments = instruments.drain().collect::<Vec<_>>();
@@ -422,8 +427,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn process_tax_deductions(&mut self, tax_deductions: &[CashAssets]) -> EmptyResult {
-        for tax_deduction in tax_deductions {
+    fn process_tax_deductions(&mut self) -> EmptyResult {
+        for tax_deduction in &self.portfolio.tax_deductions {
             let amount = self.converter.convert_to(
                 tax_deduction.date, tax_deduction.cash, self.currency)?;
 
