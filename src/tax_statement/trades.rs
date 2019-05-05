@@ -293,7 +293,7 @@ impl<'a> TradesProcessor<'a> {
                 formatting::cash_cell(self.total_local_profit)
             } else if index == total_tax_index {
                 let show_net_tax = match self.portfolio.tax_payment_day {
-                    TaxPaymentDay::Day {month: _, day: _} => self.year.is_some(),
+                    TaxPaymentDay::Day {..} => self.year.is_some(),
                     TaxPaymentDay::OnClose => self.year.is_none(),
                 };
 
