@@ -388,7 +388,17 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 Transaction::new(dividend.date, -profit));
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
-            self.process_tax(dividend.date, &dividend.issuer, tax_to_pay)?;
+            let tax_payment_date = self.country.get_tax_payment_date(dividend.date);
+
+            if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+                trace!("* {} dividend {} tax: {}",
+                       dividend.issuer, formatting::format_date(tax_payment_date), deposit_amount);
+
+                self.get_deposit_view(&dividend.issuer)?.transactions.push(
+                    Transaction::new(tax_payment_date, deposit_amount));
+
+                self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+            }
         }
 
         Ok(())
@@ -401,21 +411,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
             trace!("* Tax deduction {}: {}", formatting::format_date(tax_deduction.date), -amount);
             self.transactions.push(Transaction::new(tax_deduction.date, -amount));
-        }
-
-        Ok(())
-    }
-
-    // FIXME: Deprecate
-    fn process_tax(&mut self, income_date: Date, symbol: &str, tax_to_pay: Decimal) -> EmptyResult {
-        let tax_payment_date = self.country.get_tax_payment_date(income_date);
-
-        if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
-            self.get_deposit_view(symbol)?.transactions.push(
-                Transaction::new(tax_payment_date, deposit_amount));
-
-            trace!("* {} tax {}: {}", symbol, formatting::format_date(tax_payment_date), deposit_amount);
-            self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
         }
 
         Ok(())
