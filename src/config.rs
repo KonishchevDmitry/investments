@@ -239,7 +239,7 @@ fn deserialize_tax_payment_day<'de, D>(deserializer: D) -> Result<TaxPaymentDay,
             _ => return None,
         };
 
-        if Date::from_ymd_opt(util::today().year(), month, day).is_none() && (day, month) != (29, 2) {
+        if Date::from_ymd_opt(util::today().year(), month, day).is_none() || (day, month) == (29, 2) {
             return None;
         }
 

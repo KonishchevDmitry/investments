@@ -1,9 +1,12 @@
 use std::collections::{HashMap, HashSet};
 use std::default::Default;
 
+use chrono::Datelike;
+use lazy_static::lazy_static;
+
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
-use chrono::Datelike;
+use crate::util;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TaxPaymentDay {
@@ -22,9 +25,15 @@ impl Default for TaxPaymentDay {
 
 impl TaxPaymentDay {
     /// Returns an approximate date when tax is going to be paid for the specified income
-    /// FIXME: Implement
     pub fn get(&self, income_date: Date) -> Date {
-        Date::from_ymd(income_date.year() + 1, 3, 15)
+        lazy_static! {
+            static ref ACCOUNT_CLOSE_DATE: Date = Date::from_ymd(util::today().year() + 10, 1, 1);
+        }
+
+        match *self {
+            TaxPaymentDay::Day {month, day} => Date::from_ymd(income_date.year() + 1, month, day),
+            TaxPaymentDay::OnClose => *ACCOUNT_CLOSE_DATE,
+        }
     }
 }
 
