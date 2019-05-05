@@ -14,6 +14,7 @@ use crate::currency::{Cash, CashAssets};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::{self, Country};
+use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -310,6 +311,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_positions(&mut self) -> EmptyResult {
+        let mut taxes = NetTaxCalculator::new(self.country);
+        let mut stock_taxes = HashMap::new();
+
         for stock_buy in &self.statement.stock_buys {
             let mut assets = self.converter.convert_to(
                 stock_buy.conclusion_date, stock_buy.price * stock_buy.quantity, self.currency)?;
@@ -340,14 +344,39 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 deposit_view.last_sell_volume.replace(assets);
             }
 
-            let tax_to_pay = stock_sell.calculate(&self.country, self.converter)?.tax_to_pay.amount;
-            self.process_tax(stock_sell.execution_date, &stock_sell.symbol, tax_to_pay)?;
+            let local_profit = stock_sell.calculate(&self.country, self.converter)?.local_profit.amount;
+
+            stock_taxes.entry(&stock_sell.symbol)
+                .or_insert_with(|| NetTaxCalculator::new(self.country))
+                .add_profit(stock_sell.execution_date, local_profit);
+
+            taxes.add_profit(stock_sell.execution_date, local_profit);
+        }
+
+        for (&symbol, symbol_taxes) in stock_taxes.iter() {
+            for (&tax_payment_date, &tax_to_pay) in symbol_taxes.get_taxes().iter() {
+                if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+                    trace!("* {} selling {} tax: {}",
+                           symbol, formatting::format_date(tax_payment_date), deposit_amount);
+
+                    self.get_deposit_view(symbol)?.transactions.push(Transaction::new(
+                        tax_payment_date, deposit_amount));
+                }
+            }
+        }
+
+        for (&tax_payment_date, &tax_to_pay) in taxes.get_taxes().iter() {
+            if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+                trace!("* Stock selling {} tax: {}",
+                       formatting::format_date(tax_payment_date), deposit_amount);
+                self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+            }
         }
 
         Ok(())
     }
 
-    // FIXME: Idle cach interest processing
+    // FIXME: Idle cash interest processing
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.statement.dividends {
             let profit = dividend.amount.sub(dividend.paid_tax).map_err(|e| format!(
@@ -377,18 +406,31 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    // FIXME: Net tax calculation
+    // FIXME: Deprecate
     fn process_tax(&mut self, income_date: Date, symbol: &str, tax_to_pay: Decimal) -> EmptyResult {
+        let tax_payment_date = self.country.get_tax_payment_date(income_date);
+
+        if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+            self.get_deposit_view(symbol)?.transactions.push(
+                Transaction::new(tax_payment_date, deposit_amount));
+
+            trace!("* {} tax {}: {}", symbol, formatting::format_date(tax_payment_date), deposit_amount);
+            self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
+        }
+
+        Ok(())
+    }
+
+    fn map_tax_to_deposit_amount(&self, tax_payment_date: Date, tax_to_pay: Decimal) -> GenericResult<Option<Decimal>> {
         // Treat tax payment as an ordinary deposit which we transfer to the account at tax payment
         // day.
 
         if tax_to_pay.is_zero() {
-            return Ok(());
+            return Ok(None);
         }
         assert!(tax_to_pay.is_sign_positive());
 
         let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
-        let tax_payment_date = self.country.get_tax_payment_date(income_date);
 
         let today = util::today();
         let conversion_date = if tax_payment_date > today {
@@ -397,16 +439,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             tax_payment_date
         };
 
-        let deposit_amount = self.converter.convert_to(
-            conversion_date, tax_to_pay, self.currency)?;
-
-        self.get_deposit_view(symbol)?.transactions.push(
-            Transaction::new(tax_payment_date, deposit_amount));
-
-        trace!("* {} tax {}: {}", symbol, formatting::format_date(tax_payment_date), deposit_amount);
-        self.transactions.push(Transaction::new(tax_payment_date, deposit_amount));
-
-        Ok(())
+        Ok(Some(self.converter.convert_to(conversion_date, tax_to_pay, self.currency)?))
     }
 }
 
