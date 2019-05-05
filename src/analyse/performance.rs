@@ -317,7 +317,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_positions(&mut self) -> EmptyResult {
-        let mut taxes = NetTaxCalculator::new(self.country);
+        let mut taxes = NetTaxCalculator::new(self.country, self.portfolio.tax_payment_day);
         let mut stock_taxes = HashMap::new();
 
         for stock_buy in &self.statement.stock_buys {
@@ -353,7 +353,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let local_profit = stock_sell.calculate(&self.country, self.converter)?.local_profit.amount;
 
             stock_taxes.entry(&stock_sell.symbol)
-                .or_insert_with(|| NetTaxCalculator::new(self.country))
+                .or_insert_with(|| NetTaxCalculator::new(self.country, self.portfolio.tax_payment_day))
                 .add_profit(stock_sell.execution_date, local_profit);
 
             taxes.add_profit(stock_sell.execution_date, local_profit);
@@ -393,7 +393,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 Transaction::new(dividend.date, -profit));
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
-            let tax_payment_date = self.country.get_tax_payment_date(dividend.date);
+            let tax_payment_date = self.portfolio.tax_payment_day.get(dividend.date);
 
             if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} {} dividend {} tax: {}",
@@ -413,7 +413,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_interest(&mut self) -> EmptyResult {
         for interest in &self.statement.idle_cash_interest {
             let tax_to_pay = interest.tax_to_pay(&self.country, self.converter)?;
-            let tax_payment_date = self.country.get_tax_payment_date(interest.date);
+            let tax_payment_date = self.portfolio.tax_payment_day.get(interest.date);
 
             if let Some(deposit_amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} idle cash interest {} tax: {}",

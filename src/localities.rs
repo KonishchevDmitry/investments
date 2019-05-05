@@ -13,11 +13,6 @@ pub struct Country {
 }
 
 impl Country {
-    /// Returns an approximate date when tax is going to be paid for the specified income
-    pub fn get_tax_payment_date(&self, income_date: Date) -> Date {
-        Date::from_ymd(income_date.year() + 1, 3, 15)
-    }
-
     pub fn round_tax(&self, tax: Decimal) -> Decimal {
         // TODO: It looks like Декларация program rounds tax amount to rubles as
         // round_to(round_to(value, 2), 0) because it rounds 10.64 * 65.4244 * 0.13

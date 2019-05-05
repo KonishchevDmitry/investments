@@ -20,22 +20,31 @@ impl Default for TaxPaymentDay {
     }
 }
 
+impl TaxPaymentDay {
+    /// Returns an approximate date when tax is going to be paid for the specified income
+    /// FIXME: Implement
+    pub fn get(&self, income_date: Date) -> Date {
+        Date::from_ymd(income_date.year() + 1, 3, 15)
+    }
+}
+
 pub struct NetTaxCalculator {
     country: Country,
+    tax_payment_day: TaxPaymentDay,
     profit: HashMap<Date, Decimal>,
 }
 
 impl NetTaxCalculator {
-    pub fn new(country: Country) -> NetTaxCalculator {
+    pub fn new(country: Country, tax_payment_day: TaxPaymentDay) -> NetTaxCalculator {
         NetTaxCalculator {
             country,
+            tax_payment_day,
             profit: HashMap::new(),
         }
     }
 
     pub fn add_profit(&mut self, date: Date, amount: Decimal) {
-        let tax_payment_date = self.country.get_tax_payment_date(date);
-        self.profit.entry(tax_payment_date)
+        self.profit.entry(self.tax_payment_day.get(date))
             .and_modify(|profit| *profit += amount)
             .or_insert(amount);
     }
