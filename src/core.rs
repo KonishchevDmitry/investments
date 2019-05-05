@@ -7,7 +7,7 @@ macro_rules! s {
     ($e:expr) => ($e.to_owned())
 }
 
-// FIXME: A temporary workaround for IntelliJ Rust plugin
+// TODO: A workaround for IntelliJ Rust plugin
 macro_rules! dec {
     ($e:expr) => (::rust_decimal_macros::dec!($e))
 }

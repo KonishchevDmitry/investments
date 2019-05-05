@@ -1,7 +1,5 @@
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
-// FIXME: A temporary workaround for IntelliJ Rust plugin
-//#[macro_use] extern crate rust_decimal_macros;
 
 #[macro_use] pub mod core;
 #[macro_use] pub mod types;
