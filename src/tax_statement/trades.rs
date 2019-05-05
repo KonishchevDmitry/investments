@@ -12,7 +12,6 @@ use crate::localities::Country;
 
 use super::statement::TaxStatement;
 
-// FIXME: Net loss calculation in analysis and sell simulation
 pub fn process_income(
     broker_statement: &BrokerStatement, year: i32, mut tax_statement: Option<&mut TaxStatement>,
     country: &Country, converter: &CurrencyConverter,

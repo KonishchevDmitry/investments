@@ -377,6 +377,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
+    // FIXME: Net tax calculation
     fn process_tax(&mut self, income_date: Date, symbol: &str, tax_to_pay: Decimal) -> EmptyResult {
         // Treat tax payment as an ordinary deposit which we transfer to the account at tax payment
         // day.

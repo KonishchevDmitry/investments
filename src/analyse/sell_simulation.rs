@@ -56,7 +56,7 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
     let mut total_commissions = MultiCurrencyCashAccount::new();
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_profit = MultiCurrencyCashAccount::new();
-    let mut total_tax_to_pay = MultiCurrencyCashAccount::new();
+    let mut total_local_profit = Cash::new(country.currency, dec!(0));
 
     let mut table = Table::new();
     let mut fifo_table = Table::new();
@@ -68,7 +68,7 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
         total_commissions.deposit(trade.commission);
         total_revenue.deposit(details.revenue);
         total_profit.deposit(details.profit);
-        total_tax_to_pay.deposit(details.tax_to_pay);
+        total_local_profit.add_assign(details.local_profit).unwrap();
 
         for (buy_trade_id, buy_trade) in details.fifo.iter().enumerate() {
             total_purchase_cost.deposit(buy_trade.price * buy_trade.quantity);
@@ -111,6 +111,8 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
         table.add_row(Row::new(row));
     }
 
+    let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(total_local_profit.amount, None));
+
     let mut columns = vec![
         "Symbol", "Quantity", "Buy price", "Sell Price", "Commission", "Revenue",
         "Profit", "Tax to pay", "Real profit %",
@@ -124,9 +126,10 @@ fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> 
     for _ in 0..4 {
         totals.push(Cell::new(""));
     }
-    for total in vec![total_commissions, total_revenue, total_profit, total_tax_to_pay] {
+    for total in vec![total_commissions, total_revenue, total_profit] {
         totals.push(formatting::multi_currency_cash_cell(total));
     }
+    totals.push(formatting::cash_cell(tax_to_pay));
     while totals.len() < columns.len() {
         totals.push(Cell::new_align("", Alignment::RIGHT));
     }
