@@ -1,8 +1,8 @@
 use chrono::Duration;
 use num_traits::ToPrimitive;
 
-use prettytable::{Table, Row, Cell};
-use prettytable::format::{Alignment, FormatBuilder, LinePosition, LineSeparator};
+use prettytable::{Row as RawRow, Cell as RawCell};
+use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
 
 use separator::Separatable;
 
@@ -10,12 +10,33 @@ use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::types::{Date, Decimal};
 use crate::util;
 
+pub use prettytable::{Table, format::Alignment};
+
 pub fn format_date(date: Date) -> String {
     date.format("%d.%m.%Y").to_string()
 }
 
 pub fn format_period(start: Date, end: Date) -> String {
     format!("{} - {}", format_date(start), format_date(end - Duration::days(1)))
+}
+
+#[derive(Clone)]
+pub struct Cell {
+    text: String,
+    align: Alignment,
+}
+
+impl Cell {
+    pub fn new(text: &str) -> Cell {
+        Cell::new_align(text, Alignment::LEFT)
+    }
+
+    pub fn new_align(text: &str, align: Alignment) -> Cell {
+        Cell {
+            text: text.to_owned(),
+            align: align,
+        }
+    }
 }
 
 pub fn empty_cell() -> Cell {
@@ -56,10 +77,25 @@ pub fn ratio_cell(ratio: Decimal) -> Cell {
     Cell::new_align(&format!("{}%", util::round_to(ratio * dec!(100), 1)), Alignment::RIGHT)
 }
 
+pub struct Row {
+}
+
+impl Row {
+    pub fn new(row: &[Cell]) -> RawRow {
+        let mut cells = Vec::with_capacity(row.len());
+
+        for cell in row {
+            cells.push(RawCell::new_align(&cell.text, cell.align));
+        }
+
+        RawRow::new(cells)
+    }
+}
+
 pub fn print_statement(name: &str, titles: &[&str], mut statement: Table) {
     statement.set_format(FormatBuilder::new().padding(1, 1).build());
-    statement.set_titles(Row::new(
-        titles.iter().map(|name| Cell::new_align(*name, Alignment::CENTER)).collect()));
+    statement.set_titles(RawRow::new(
+        titles.iter().map(|name| RawCell::new_align(*name, Alignment::CENTER)).collect()));
 
     let mut table = Table::new();
 
@@ -67,10 +103,10 @@ pub fn print_statement(name: &str, titles: &[&str], mut statement: Table) {
         .separator(LinePosition::Title, LineSeparator::new(' ', ' ', ' ', ' '))
         .build());
 
-    table.set_titles(Row::new(vec![
-        Cell::new_align(&("\n".to_owned() + name), Alignment::CENTER),
+    table.set_titles(RawRow::new(vec![
+        RawCell::new_align(&("\n".to_owned() + name), Alignment::CENTER),
     ]));
 
-    table.add_row(Row::new(vec![Cell::new(&statement.to_string())]));
+    table.add_row(RawRow::new(vec![RawCell::new(&statement.to_string())]));
     table.printstd();
 }

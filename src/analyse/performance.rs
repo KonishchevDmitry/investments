@@ -5,15 +5,13 @@ use cast::From as CastFrom;
 use chrono::Duration;
 use log::{self, debug, log_enabled, trace};
 use num_traits::Zero;
-use prettytable::{Table, Row, Cell};
-use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting;
+use crate::formatting::{self, Table, Row, Cell, Alignment};
 use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
@@ -104,14 +102,16 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
-        self.table.add_row(Row::new(vec![
+        let row = vec![
             Cell::new(name),
             formatting::round_decimal_cell(investments),
             formatting::round_decimal_cell(profit),
             formatting::round_decimal_cell(result),
             Cell::new_align(&duration, Alignment::RIGHT),
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
-        ]));
+        ];
+
+        self.table.add_row(Row::new(&row));
     }
 
     fn analyse_instrument_performance(&mut self, symbol: &str, mut deposit_view: StockDepositView) -> EmptyResult {

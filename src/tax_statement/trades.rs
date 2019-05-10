@@ -1,6 +1,4 @@
 use chrono::Datelike;
-use prettytable::{Table, Row, Cell};
-use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::{StockSell, SellDetails, FifoDetails};
@@ -8,7 +6,7 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting;
+use crate::formatting::{self, Table, Row, Cell, Alignment};
 use crate::localities::Country;
 use crate::taxes::TaxPaymentDay;
 
@@ -171,7 +169,7 @@ impl<'a> TradesProcessor<'a> {
             row.push(formatting::ratio_cell(details.real_local_profit_ratio));
         }
 
-        self.table.add_row(Row::new(row));
+        self.table.add_row(Row::new(&row));
 
         for (buy_trade_id, buy_trade) in details.fifo.iter().enumerate() {
             self.process_fifo(&security, trade_id, buy_trade_id, buy_trade)?;
@@ -225,7 +223,7 @@ impl<'a> TradesProcessor<'a> {
 
         row.push(formatting::cash_cell(buy_trade.total_local_cost));
 
-        self.fifo_table.add_row(Row::new(row));
+        self.fifo_table.add_row(Row::new(&row));
 
         Ok(())
     }
@@ -306,7 +304,7 @@ impl<'a> TradesProcessor<'a> {
                 Cell::new("")
             });
         }
-        self.table.add_row(Row::new(totals));
+        self.table.add_row(Row::new(&totals));
 
         formatting::print_statement(
             &format!("Расчет прибыли от продажи ценных бумаг, полученной через {}",

@@ -1,14 +1,12 @@
 use chrono::Datelike;
 use num_traits::Zero;
-use prettytable::{Table, Row, Cell};
-use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting;
+use crate::formatting::{self, Table, Row, Cell, Alignment};
 
 use super::statement::TaxStatement;
 
@@ -69,7 +67,7 @@ pub fn process_income(
         let income = amount - paid_tax - tax_to_pay;
         total_income += income;
 
-        table.add_row(Row::new(vec![
+        table.add_row(Row::new(&[
             formatting::date_cell(dividend.date),
             Cell::new_align(&issuer, Alignment::LEFT),
             Cell::new_align(foreign_amount.currency, Alignment::CENTER),
@@ -105,7 +103,7 @@ pub fn process_income(
     }
 
     if !table.is_empty() {
-        table.add_row(Row::new(vec![
+        table.add_row(Row::new(&[
             formatting::empty_cell(),
             formatting::empty_cell(),
             formatting::empty_cell(),

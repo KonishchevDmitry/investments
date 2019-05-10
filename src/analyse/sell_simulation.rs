@@ -1,13 +1,10 @@
-use prettytable::{Table, Row, Cell};
-use prettytable::format::Alignment;
-
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::StockSell;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting;
+use crate::formatting::{self, Table, Row, Cell, Alignment};
 use crate::localities::Country;
 use crate::quotes::Quotes;
 
@@ -71,7 +68,7 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
 
         for (buy_trade_id, buy_trade) in details.fifo.iter().enumerate() {
             total_purchase_cost.deposit(buy_trade.price * buy_trade.quantity);
-            fifo_table.add_row(Row::new(vec![
+            fifo_table.add_row(Row::new(&[
                 Cell::new(if buy_trade_id == 0 {
                     &trade.symbol
                 } else {
@@ -107,7 +104,7 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
             ]);
         }
 
-        table.add_row(Row::new(row));
+        table.add_row(Row::new(&row));
     }
 
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(total_local_profit.amount, None));
@@ -132,7 +129,7 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
     while totals.len() < columns.len() {
         totals.push(Cell::new_align("", Alignment::RIGHT));
     }
-    table.add_row(Row::new(totals));
+    table.add_row(Row::new(&totals));
 
     formatting::print_statement("Sell simulation results", &columns, table);
     formatting::print_statement("FIFO details", &["Symbol", "Quantity", "Price"], fifo_table);
