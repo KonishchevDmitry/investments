@@ -12,7 +12,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
+use crate::formatting::table::{Table, Row, Cell, Alignment, Style, print_table};
 use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
@@ -87,34 +87,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn add_results(&mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal, days: i64) {
-        let investments = util::round_to(investments, 0);
-        let result = util::round_to(result, 0);
-        let profit = result - investments;
-
-        let (duration_name, duration_days) = if days >= 365 {
-            ("y", 365)
-        } else if days >= 30 {
-            ("m", 30)
-        } else {
-            ("d", 1)
-        };
-        let duration = format!(
-            "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
-            duration_name);
-
-        let row = vec![
-            Cell::new(name),
-            Cell::new_round_decimal(investments),
-            Cell::new_round_decimal(profit),
-            Cell::new_round_decimal(result),
-            Cell::new_align(&duration, Alignment::RIGHT),
-            Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
-        ];
-
-        self.table.add_row(Row::new(&row));
-    }
-
     fn analyse_instrument_performance(&mut self, symbol: &str, mut deposit_view: StockDepositView) -> EmptyResult {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
@@ -138,8 +110,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let name = self.statement.get_instrument_name(symbol)?;
         let days = get_total_activity_duration(&deposit_view.interest_periods);
+        let active = self.statement.stock_sells.iter()
+            .any(|trade| trade.symbol == symbol && trade.emulation);
 
-        self.add_results(&name, investments, result, interest, days);
+        self.add_results(&name, investments, result, interest, days, !active);
 
         Ok(())
     }
@@ -168,9 +142,46 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             &format!("portfolio {}", self.currency), current_assets, difference)?;
 
         let days = get_total_activity_duration(&activity_periods);
-        self.add_results("", investments, current_assets, interest, days);
+        self.add_results("", investments, current_assets, interest, days, false);
 
         Ok(())
+    }
+
+    fn add_results(
+        &mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal,
+        days: i64, inactive: bool
+    ) {
+        let investments = util::round_to(investments, 0);
+        let result = util::round_to(result, 0);
+        let profit = result - investments;
+
+        let (duration_name, duration_days) = if days >= 365 {
+            ("y", 365)
+        } else if days >= 30 {
+            ("m", 30)
+        } else {
+            ("d", 1)
+        };
+        let duration = format!(
+            "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
+            duration_name);
+
+        let mut row = [
+            Cell::new(name),
+            Cell::new_round_decimal(investments),
+            Cell::new_round_decimal(profit),
+            Cell::new_round_decimal(result),
+            Cell::new_align(&duration, Alignment::RIGHT),
+            Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
+        ];
+
+        if inactive {
+            for cell in &mut row {
+                cell.set_style(Style::new().dimmed());
+            }
+        }
+
+        self.table.add_row(Row::new(&row));
     }
 
     fn get_deposit_view(&mut self, symbol: &str) -> GenericResult<&mut StockDepositView> {

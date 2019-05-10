@@ -4,22 +4,23 @@
 //! supports) has not enough functionality - for example it doesn't support dimming style on Mac.
 
 use num_traits::ToPrimitive;
-
 use prettytable::{Row as RawRow, Cell as RawCell};
 use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
-
 use separator::Separatable;
+use term;
 
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::types::{Date, Decimal};
 use crate::util;
 
+pub use ansi_term::Style;
 pub use prettytable::{Table, format::Alignment};
 
 #[derive(Clone)]
 pub struct Cell {
     text: String,
     align: Alignment,
+    style: Option<Style>,
 }
 
 impl Cell {
@@ -35,6 +36,7 @@ impl Cell {
         Cell {
             text: text.to_owned(),
             align: align,
+            style: None,
         }
     }
 
@@ -71,6 +73,20 @@ impl Cell {
     pub fn new_ratio(ratio: Decimal) -> Cell {
         Cell::new_align(&format!("{}%", util::round_to(ratio * dec!(100), 1)), Alignment::RIGHT)
     }
+
+    pub fn set_style(&mut self, style: Style) {
+        self.style = Some(style);
+    }
+
+    fn to_raw_cell(&self) -> RawCell {
+        match self.style {
+            Some(style) => {
+                let text = style.paint(&self.text).to_string();
+                RawCell::new_align(&text, self.align)
+            },
+            None => RawCell::new_align(&self.text, self.align),
+        }
+    }
 }
 
 pub struct Row {
@@ -78,13 +94,7 @@ pub struct Row {
 
 impl Row {
     pub fn new(row: &[Cell]) -> RawRow {
-        let mut cells = Vec::with_capacity(row.len());
-
-        for cell in row {
-            cells.push(RawCell::new_align(&cell.text, cell.align));
-        }
-
-        RawRow::new(cells)
+        RawRow::new(row.iter().map(Cell::to_raw_cell).collect())
     }
 }
 
@@ -100,7 +110,7 @@ pub fn print_table(name: &str, titles: &[&str], mut table: Table) {
         .build());
 
     wrapping_table.set_titles(RawRow::new(vec![
-        RawCell::new_align(&("\n".to_owned() + name), Alignment::CENTER),
+        RawCell::new_align(&("\n".to_owned() + name), Alignment::CENTER).with_style(term::Attr::Bold),
     ]));
 
     wrapping_table.add_row(RawRow::new(vec![RawCell::new(&table.to_string())]));
