@@ -30,8 +30,8 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
 }
 
 pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<u32>)]) -> EmptyResult {
-    let (_portfolio, statement, converter, quotes) = load(config, portfolio_name)?;
-    sell_simulation::simulate_sell(statement, &converter, quotes, positions)
+    let (portfolio, statement, converter, quotes) = load(config, portfolio_name)?;
+    sell_simulation::simulate_sell(portfolio, statement, &converter, quotes, positions)
 }
 
 fn load<'a>(config: &'a Config, portfolio_name: &str) -> GenericResult<

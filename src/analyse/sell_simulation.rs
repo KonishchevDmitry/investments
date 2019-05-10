@@ -3,16 +3,17 @@ use prettytable::format::Alignment;
 
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::StockSell;
+use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::localities;
+use crate::localities::Country;
 use crate::quotes::Quotes;
 
 pub fn simulate_sell(
-    mut statement: BrokerStatement, converter: &CurrencyConverter, mut quotes: Quotes,
-    positions: &[(String, Option<u32>)],
+    portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
+    mut quotes: Quotes, positions: &[(String, Option<u32>)],
 ) -> EmptyResult {
     for (symbol, _) in positions {
         if statement.open_positions.get(symbol).is_none() {
@@ -40,12 +41,10 @@ pub fn simulate_sell(
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(stock_sells, converter)
+    print_results(stock_sells, &portfolio.get_tax_country(), converter)
 }
 
-fn print_results(stock_sells: Vec<StockSell>, converter: &CurrencyConverter) -> EmptyResult {
-    let country = localities::russia();
-
+fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &CurrencyConverter) -> EmptyResult {
     let mut same_currency = true;
     for trade in &stock_sells {
         same_currency &=
