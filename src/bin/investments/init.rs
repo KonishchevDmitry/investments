@@ -14,7 +14,10 @@ use investments::types::{Date, Decimal};
 use investments::util;
 
 pub enum Action {
-    Analyse(String),
+    Analyse {
+        name: String,
+        show_closed_positions: bool,
+    },
     SimulateSell {
         name: String,
         positions: Vec<(String, Option<u32>)>,
@@ -65,6 +68,10 @@ pub fn initialize() -> (Action, Config) {
             .help("Sets the level of verbosity"))
         .subcommand(SubCommand::with_name("analyse")
             .about("Analyze portfolio performance")
+            .arg(Arg::with_name("all")
+                .short("a")
+                .long("all")
+                .help("Don't hide closed positions"))
             .long_about(concat!(
                 "\nCalculates average rate of return from cash investments by comparing portfolio ",
                 "performance to performance of a bank deposit with exactly the same investments ",
@@ -181,7 +188,10 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
     let portfolio_name = portfolio::get(matches);
 
     Ok(match command {
-        "analyse" => Action::Analyse(portfolio_name),
+        "analyse" => Action::Analyse {
+            name: portfolio_name,
+            show_closed_positions: matches.is_present("all"),
+        },
 
         "sync" => Action::Sync(portfolio_name),
         "buy" | "sell" | "cash" => {

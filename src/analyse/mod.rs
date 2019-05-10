@@ -11,7 +11,7 @@ mod deposit_emulator;
 mod performance;
 mod sell_simulation;
 
-pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
+pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: bool) -> EmptyResult {
     let (portfolio, mut statement, converter, mut quotes) = load(config, portfolio_name)?;
 
     statement.check_date();
@@ -23,7 +23,8 @@ pub fn analyse(config: &Config, portfolio_name: &str) -> EmptyResult {
     statement.process_trades()?;
 
     for currency in ["USD", "RUB"].iter() {
-        PortfolioPerformanceAnalyser::analyse(&statement, &portfolio, *currency, &converter)?;
+        PortfolioPerformanceAnalyser::analyse(
+            &statement, &portfolio, *currency, &converter, show_closed_positions)?;
     }
 
     Ok(())

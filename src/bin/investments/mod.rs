@@ -20,7 +20,6 @@ mod init;
 // * Tax agent support
 // * XLS for tax inspector
 // * Free commissions (considering monthly minimum fee)
-// * Shadow sold positions in analyse output
 // * T+2 mode support for IB tax statement? (Trade Confirmations broker statement shows the info)
 
 fn main() {
@@ -34,8 +33,9 @@ fn main() {
 
 fn run(action: Action, config: Config) -> EmptyResult {
     match action {
-        Action::Analyse(name) => analyse::analyse(&config, &name)?,
-        Action::SimulateSell { name, positions } => analyse::simulate_sell(
+        Action::Analyse {name, show_closed_positions} => analyse::analyse(
+            &config, &name, show_closed_positions)?,
+        Action::SimulateSell {name, positions} => analyse::simulate_sell(
             &config, &name, &positions)?,
 
         Action::Sync(name) => portfolio::sync(&config, &name)?,

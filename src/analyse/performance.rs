@@ -28,6 +28,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 
     currency: &'a str,
     converter: &'a CurrencyConverter,
+    show_closed_positions: bool,
 
     country: Country,
     transactions: Vec<Transaction>,
@@ -38,7 +39,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn analyse(
         statement: &BrokerStatement, portfolio: &PortfolioConfig, currency: &str,
-        converter: &CurrencyConverter
+        converter: &CurrencyConverter, show_closed_positions: bool
     ) -> EmptyResult {
         let mut analyser = PortfolioPerformanceAnalyser {
             statement,
@@ -46,6 +47,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
             currency,
             converter,
+            show_closed_positions,
 
             country: portfolio.get_tax_country(),
             transactions: Vec::new(),
@@ -88,6 +90,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn analyse_instrument_performance(&mut self, symbol: &str, mut deposit_view: StockDepositView) -> EmptyResult {
+        let active = self.statement.stock_sells.iter()
+            .any(|trade| trade.symbol == symbol && trade.emulation);
+
+        if !active && !self.show_closed_positions {
+            return Ok(());
+        }
+
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
         let (interest, difference) = compare_to_bank_deposit(
@@ -110,8 +119,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let name = self.statement.get_instrument_name(symbol)?;
         let days = get_total_activity_duration(&deposit_view.interest_periods);
-        let active = self.statement.stock_sells.iter()
-            .any(|trade| trade.symbol == symbol && trade.emulation);
 
         self.add_results(&name, investments, result, interest, days, !active);
 
