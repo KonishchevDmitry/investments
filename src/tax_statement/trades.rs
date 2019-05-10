@@ -6,7 +6,8 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::{self, Table, Row, Cell, Alignment};
+use crate::formatting;
+use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
 use crate::localities::Country;
 use crate::taxes::TaxPaymentDay;
 
@@ -121,17 +122,17 @@ impl<'a> TradesProcessor<'a> {
 
         let mut row = vec![
             Cell::new_align(&trade_id.to_string(), Alignment::RIGHT),
-            formatting::date_cell(trade.conclusion_date),
+            Cell::new_date(trade.conclusion_date),
         ];
 
         if !self.same_dates {
-            row.push(formatting::date_cell(trade.execution_date));
+            row.push(Cell::new_date(trade.execution_date));
         }
 
         row.extend_from_slice(&[
             Cell::new(&security),
             Cell::new_align(&trade.quantity.to_string(), Alignment::RIGHT),
-            formatting::cash_cell(trade.price),
+            Cell::new_cash(trade.price),
         ]);
 
         if !self.same_currency {
@@ -141,32 +142,32 @@ impl<'a> TradesProcessor<'a> {
             let execution_precise_currency_rate = self.converter.precise_currency_rate(
                 trade.execution_date, trade.price.currency, self.country.currency)?;
 
-            row.push(formatting::decimal_cell(conclusion_precise_currency_rate));
+            row.push(Cell::new_decimal(conclusion_precise_currency_rate));
             if !self.same_dates {
-                row.push(formatting::decimal_cell(execution_precise_currency_rate));
+                row.push(Cell::new_decimal(execution_precise_currency_rate));
             }
         }
 
-        row.push(formatting::cash_cell(details.revenue));
+        row.push(Cell::new_cash(details.revenue));
         if !self.same_currency {
-            row.push(formatting::cash_cell(details.local_revenue));
+            row.push(Cell::new_cash(details.local_revenue));
         }
 
-        row.push(formatting::cash_cell(trade.commission));
+        row.push(Cell::new_cash(trade.commission));
         if !self.same_currency {
-            row.push(formatting::cash_cell(details.local_commission));
+            row.push(Cell::new_cash(details.local_commission));
         }
 
         row.extend_from_slice(&[
-            formatting::cash_cell(details.purchase_local_cost),
-            formatting::cash_cell(details.total_local_cost),
-            formatting::cash_cell(details.local_profit),
-            formatting::cash_cell(details.tax_to_pay),
+            Cell::new_cash(details.purchase_local_cost),
+            Cell::new_cash(details.total_local_cost),
+            Cell::new_cash(details.local_profit),
+            Cell::new_cash(details.tax_to_pay),
         ]);
 
-        row.push(formatting::ratio_cell(details.real_profit_ratio));
+        row.push(Cell::new_ratio(details.real_profit_ratio));
         if !self.same_currency {
-            row.push(formatting::ratio_cell(details.real_local_profit_ratio));
+            row.push(Cell::new_ratio(details.real_local_profit_ratio));
         }
 
         self.table.add_row(Row::new(&row));
@@ -187,15 +188,15 @@ impl<'a> TradesProcessor<'a> {
             Cell::new("")
         });
 
-        row.push(formatting::date_cell(buy_trade.conclusion_date));
+        row.push(Cell::new_date(buy_trade.conclusion_date));
         if !self.same_dates {
-            row.push(formatting::date_cell(buy_trade.execution_date));
+            row.push(Cell::new_date(buy_trade.execution_date));
         }
 
         row.extend_from_slice(&[
             Cell::new(&security),
             Cell::new_align(&buy_trade.quantity.to_string(), Alignment::RIGHT),
-            formatting::cash_cell(buy_trade.price),
+            Cell::new_cash(buy_trade.price),
         ]);
 
         if !self.same_currency {
@@ -205,23 +206,23 @@ impl<'a> TradesProcessor<'a> {
             let execution_precise_currency_rate = self.converter.precise_currency_rate(
                 buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?;
 
-            row.push(formatting::decimal_cell(conclusion_precise_currency_rate));
+            row.push(Cell::new_decimal(conclusion_precise_currency_rate));
             if !self.same_dates {
-                row.push(formatting::decimal_cell(execution_precise_currency_rate));
+                row.push(Cell::new_decimal(execution_precise_currency_rate));
             }
         }
 
-        row.push(formatting::cash_cell(buy_trade.cost));
+        row.push(Cell::new_cash(buy_trade.cost));
         if !self.same_currency {
-            row.push(formatting::cash_cell(buy_trade.local_cost));
+            row.push(Cell::new_cash(buy_trade.local_cost));
         }
 
-        row.push(formatting::cash_cell(buy_trade.commission));
+        row.push(Cell::new_cash(buy_trade.commission));
         if !self.same_currency {
-            row.push(formatting::cash_cell(buy_trade.local_commission));
+            row.push(Cell::new_cash(buy_trade.local_commission));
         }
 
-        row.push(formatting::cash_cell(buy_trade.total_local_cost));
+        row.push(Cell::new_cash(buy_trade.total_local_cost));
 
         self.fifo_table.add_row(Row::new(&row));
 
@@ -288,7 +289,7 @@ impl<'a> TradesProcessor<'a> {
         let mut totals = Vec::new();
         for index in 0..trade_columns.len() {
             totals.push(if index == total_local_profit_index {
-                formatting::cash_cell(self.total_local_profit)
+                Cell::new_cash(self.total_local_profit)
             } else if index == total_tax_index {
                 let show_net_tax = match self.portfolio.tax_payment_day {
                     TaxPaymentDay::Day {..} => self.year.is_some(),
@@ -296,7 +297,7 @@ impl<'a> TradesProcessor<'a> {
                 };
 
                 if show_net_tax {
-                    formatting::cash_cell(tax_to_pay)
+                    Cell::new_cash(tax_to_pay)
                 } else {
                     Cell::new("")
                 }
@@ -306,13 +307,13 @@ impl<'a> TradesProcessor<'a> {
         }
         self.table.add_row(Row::new(&totals));
 
-        formatting::print_statement(
+        print_table(
             &format!("Расчет прибыли от продажи ценных бумаг, полученной через {}",
                      self.broker_statement.broker.name),
             &trade_columns, self.table,
         );
 
-        formatting::print_statement(
+        print_table(
             "Детализация расчета сделок по ФИФО", &fifo_columns, self.fifo_table);
     }
 }

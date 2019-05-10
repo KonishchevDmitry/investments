@@ -5,7 +5,8 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::{self, Table, Row, Cell, Alignment};
+use crate::formatting;
+use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
 
 use super::statement::TaxStatement;
 
@@ -45,13 +46,13 @@ pub fn process_income(
         total_income += income;
 
         table.add_row(Row::new(&[
-            formatting::date_cell(interest.date),
+            Cell::new_date(interest.date),
             Cell::new_align(foreign_amount.currency, Alignment::CENTER),
-            formatting::cash_cell(foreign_amount),
-            formatting::decimal_cell(precise_currency_rate),
-            formatting::cash_cell(Cash::new(country.currency, amount)),
-            formatting::cash_cell(Cash::new(country.currency, tax_to_pay)),
-            formatting::cash_cell(Cash::new(country.currency, income)),
+            Cell::new_cash(foreign_amount),
+            Cell::new_decimal(precise_currency_rate),
+            Cell::new_cash(Cash::new(country.currency, amount)),
+            Cell::new_cash(Cash::new(country.currency, tax_to_pay)),
+            Cell::new_cash(Cash::new(country.currency, income)),
         ]));
 
         if let Some(ref mut tax_statement) = tax_statement {
@@ -70,16 +71,16 @@ pub fn process_income(
 
     if !table.is_empty() {
         table.add_row(Row::new(&[
-            formatting::empty_cell(),
-            formatting::empty_cell(),
-            formatting::multi_currency_cash_cell(total_foreign_amount),
-            formatting::empty_cell(),
-            formatting::cash_cell(Cash::new(country.currency, total_amount)),
-            formatting::cash_cell(Cash::new(country.currency, total_tax_to_pay)),
-            formatting::cash_cell(Cash::new(country.currency, total_income)),
+            Cell::new_empty(),
+            Cell::new_empty(),
+            Cell::new_multi_currency_cash(total_foreign_amount),
+            Cell::new_empty(),
+            Cell::new_cash(Cash::new(country.currency, total_amount)),
+            Cell::new_cash(Cash::new(country.currency, total_tax_to_pay)),
+            Cell::new_cash(Cash::new(country.currency, total_income)),
         ]));
 
-        formatting::print_statement(
+        print_table(
             &format!(
                 "Расчет дохода от процентов на остаток по брокерскому счету, полученных через {}",
                 broker_statement.broker.name

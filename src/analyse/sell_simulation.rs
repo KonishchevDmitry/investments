@@ -4,7 +4,7 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::{self, Table, Row, Cell, Alignment};
+use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
 use crate::localities::Country;
 use crate::quotes::Quotes;
 
@@ -75,7 +75,7 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
                     ""
                 }),
                 Cell::new_align(&buy_trade.quantity.to_string(), Alignment::RIGHT),
-                formatting::cash_cell(buy_trade.price),
+                Cell::new_cash(buy_trade.price),
             ]));
         }
 
@@ -88,19 +88,19 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
         let mut row = vec![
             Cell::new(&trade.symbol),
             Cell::new_align(&trade.quantity.to_string(), Alignment::RIGHT),
-            formatting::cash_cell(average_buy_price),
-            formatting::cash_cell(trade.price),
-            formatting::cash_cell(trade.commission),
-            formatting::cash_cell(details.revenue),
-            formatting::cash_cell(details.profit),
-            formatting::cash_cell(details.tax_to_pay),
-            formatting::ratio_cell(details.real_profit_ratio),
+            Cell::new_cash(average_buy_price),
+            Cell::new_cash(trade.price),
+            Cell::new_cash(trade.commission),
+            Cell::new_cash(details.revenue),
+            Cell::new_cash(details.profit),
+            Cell::new_cash(details.tax_to_pay),
+            Cell::new_ratio(details.real_profit_ratio),
         ];
 
         if !same_currency {
             row.extend_from_slice(&[
-                formatting::ratio_cell(details.real_tax_ratio),
-                formatting::ratio_cell(details.real_local_profit_ratio),
+                Cell::new_ratio(details.real_tax_ratio),
+                Cell::new_ratio(details.real_local_profit_ratio),
             ]);
         }
 
@@ -123,16 +123,16 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
         totals.push(Cell::new(""));
     }
     for total in vec![total_commissions, total_revenue, total_profit] {
-        totals.push(formatting::multi_currency_cash_cell(total));
+        totals.push(Cell::new_multi_currency_cash(total));
     }
-    totals.push(formatting::cash_cell(tax_to_pay));
+    totals.push(Cell::new_cash(tax_to_pay));
     while totals.len() < columns.len() {
         totals.push(Cell::new_align("", Alignment::RIGHT));
     }
     table.add_row(Row::new(&totals));
 
-    formatting::print_statement("Sell simulation results", &columns, table);
-    formatting::print_statement("FIFO details", &["Symbol", "Quantity", "Price"], fifo_table);
+    print_table("Sell simulation results", &columns, table);
+    print_table("FIFO details", &["Symbol", "Quantity", "Price"], fifo_table);
 
     Ok(())
 }

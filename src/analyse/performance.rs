@@ -11,7 +11,8 @@ use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::{self, Table, Row, Cell, Alignment};
+use crate::formatting;
+use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
 use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
@@ -77,7 +78,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         analyser.analyse_portfolio_performance()?;
 
-        formatting::print_statement(
+        print_table(
             &format!("Average rate of return from cash investments in {}", currency),
             &["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
             analyser.table,
@@ -104,9 +105,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let row = vec![
             Cell::new(name),
-            formatting::round_decimal_cell(investments),
-            formatting::round_decimal_cell(profit),
-            formatting::round_decimal_cell(result),
+            Cell::new_round_decimal(investments),
+            Cell::new_round_decimal(profit),
+            Cell::new_round_decimal(result),
             Cell::new_align(&duration, Alignment::RIGHT),
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ];
