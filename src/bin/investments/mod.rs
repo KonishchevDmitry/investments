@@ -16,8 +16,8 @@ mod init;
 
 // TODO: Features to implement:
 // * Stock split support
-// * Declare loss in tax statement
-// * Tax payment modes (https://ndflka.ru/question/728378-oplata_naloga_po_iis_1_go_tipa)
+// * Declare losses in tax statement: commissions and loss from previous years
+// * Tax agent support
 // * XLS for tax inspector
 // * Free commissions (considering monthly minimum fee)
 // * Shadow sold positions in analyse output
