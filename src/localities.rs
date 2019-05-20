@@ -54,7 +54,9 @@ pub fn russia() -> Country {
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     if today.month() == 1 && today.day() < 10 {
         Date::from_ymd(today.year() - 1, 12, 30)
-    } else if (today.month() == 3 || today.month() == 5) && today.day() < 13 {
+    } else if today.month() == 3 && today.day() == 12 {
+        today - Duration::days(4)
+    } else if today.month() == 5 && today.day() >= 3 && today.day() <= 13 {
         today - Duration::days(5)
     } else {
         today - Duration::days(3)
