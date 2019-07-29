@@ -13,6 +13,7 @@ pub mod formatting;
 pub mod portfolio;
 pub mod quotes;
 pub mod localities;
+mod static_table;
 pub mod tax_statement;
 pub mod taxes;
 pub mod util;

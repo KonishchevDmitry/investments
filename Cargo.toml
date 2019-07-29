@@ -45,7 +45,7 @@ term = "*"
 attribution = "*"
 attribution-macros = "*"
 darling = "*"
-static_table_derive = { path = "src/formatting/static_table_derive" }
+static_table_derive = { path = "src/static_table/static_table_derive" }
 
 [dev-dependencies]
 matches = "*"
