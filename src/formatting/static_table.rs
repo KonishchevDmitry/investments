@@ -10,7 +10,12 @@ pub trait HelloMacro {
 }
 
 #[derive(StaticTable)]
-struct Pancakes;
+#[table(name="my table")]
+struct Pancakes {
+    a: String,
+    #[cell(name="some-name", description="A B C",)]
+    b: String,
+}
 
 #[cfg(test)]
 mod tests {
