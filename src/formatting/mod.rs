@@ -2,6 +2,7 @@ use chrono::Duration;
 
 use crate::types::Date;
 
+pub mod static_table;
 pub mod table;
 
 pub fn format_date(date: Date) -> String {

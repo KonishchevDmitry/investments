@@ -39,6 +39,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "*"
 serde-xml-rs = "0.3"
 shellexpand = "*"
+static_table_derive = { path = "src/formatting/static_table_derive" }  # FIXME
 term = "*"
 
 [dev-dependencies]
