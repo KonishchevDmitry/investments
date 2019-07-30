@@ -107,6 +107,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             &["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
             analyser.old_table,
         );
+        analyser.table.print(&format!(
+            "Average rate of return from cash investments in {}", currency));
 
         Ok(())
     }

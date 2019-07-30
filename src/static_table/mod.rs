@@ -2,12 +2,13 @@
 #![allow(dead_code, unused_imports)]  // FIXME: Remove
 
 use num_traits::ToPrimitive;
-use prettytable::{Row as RawRow, Cell as RawCell};
+use prettytable::{Table as RawTable, Row as RawRow, Cell as RawCell};
 use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
 use separator::Separatable;
 use term;
 
 use crate::currency::{Cash, MultiCurrencyCashAccount};
+use crate::formatting::table::print_table;
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -31,6 +32,11 @@ impl Table {
         assert_eq!(row.len(), self.columns.len());
         self.rows.push(row);
         self.rows.last_mut().unwrap()
+    }
+
+    pub fn print(&self, title: &str) {
+        let column_names: Vec<&str> = self.columns.iter().map(|column| column.name).collect();
+        print_table(title, &column_names, RawTable::new());
     }
 }
 
