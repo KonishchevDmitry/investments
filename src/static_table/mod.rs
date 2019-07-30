@@ -3,26 +3,26 @@
 // https://doc.rust-lang.org/book/ch19-06-macros.html
 // Reference - https://doc.rust-lang.org/reference/macros.html
 
-use static_table_derive::StaticTable;
-
-pub trait HelloMacro {
-    fn hello_macro();
-}
-
-#[derive(StaticTable)]
-#[table(name="my table")]
-struct Pancakes {
-    a: String,
-    #[cell(name="some-name", description="A B C",)]
-    b: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use static_table_derive::StaticTable;
+
+    pub trait HelloMacro {
+        fn hello_macro();
+    }
+
+    #[derive(StaticTable)]
+    #[table(name="TestTable")]
+    struct TestRow {
+        a: String,
+        #[cell(name="some-name", description="A B C",)]
+        b: String,
+    }
+
     #[test]
     fn test() {
-        Pancakes::hello_macro();
+        TestRow::hello_macro();
     }
 }
