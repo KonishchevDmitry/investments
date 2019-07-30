@@ -7,7 +7,7 @@ use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
+use crate::formatting::old_table::{Table, Row, Cell, Alignment, print_table};
 use crate::localities::Country;
 use crate::taxes::TaxPaymentDay;
 

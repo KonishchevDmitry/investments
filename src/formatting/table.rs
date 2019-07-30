@@ -1,119 +1,136 @@
-//! This module provides a thin wrapper around prettytable.
-//!
-//! The main reason for it is to support ansi_term styling because term (which prettytable natively
-//! supports) has not enough functionality - for example it doesn't support dimming style on Mac.
-// FIXME: Move to static table ^
+// FIXME: Rename module
+#![allow(dead_code, unused_imports)]  // FIXME: Remove
 
 use num_traits::ToPrimitive;
-use prettytable::{Row as RawRow, Cell as RawCell};
+use prettytable::{Table as RawTable, Row as RawRow, Cell as RawCell};
 use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
 use separator::Separatable;
 use term;
 
 use crate::currency::{Cash, MultiCurrencyCashAccount};
+use crate::formatting::old_table::print_table;
 use crate::types::{Date, Decimal};
 use crate::util;
 
 pub use ansi_term::Style;
-pub use prettytable::{Table, format::Alignment};
+pub use prettytable::format::Alignment;
 
-#[derive(Clone)]
+pub struct Table {
+    columns: Vec<Column>,
+    rows: Vec<Vec<Cell>>,
+}
+
+impl Table {
+    pub fn new(columns: Vec<Column>) -> Table {
+        Table {
+            columns,
+            rows: Vec::new(),
+        }
+    }
+
+    pub fn add_row(&mut self, row: Row) -> &mut Row {
+        assert_eq!(row.len(), self.columns.len());
+        self.rows.push(row);
+        self.rows.last_mut().unwrap()
+    }
+
+    // FIXME: Rewrite
+    pub fn print(&self, title: &str) {
+        let mut table = RawTable::new();
+        for row in &self.rows {
+            table.add_row(RawRow::new(row.iter().enumerate().map(|(column_id, cell)| {
+                let column = &self.columns[column_id];
+                cell.render(column)
+            }).collect()));
+        }
+
+        let column_names: Vec<&str> = self.columns.iter().map(|column| column.name).collect();
+        print_table(title, &column_names, table);
+    }
+}
+
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct Column {
+    name: &'static str,
+    alignment: Option<Alignment>,
+}
+
+impl Column {
+    pub fn new(name: &'static str, alignment: Option<Alignment>) -> Column {
+        Column {name, alignment}
+    }
+}
+
+pub type Row = Vec<Cell>;
+
 pub struct Cell {
     text: String,
-    align: Alignment,
+    default_alignment: Alignment,
     style: Option<Style>,
 }
 
 impl Cell {
-    pub fn new(text: &str) -> Cell {
-        Cell::new_align(text, Alignment::LEFT)
-    }
-
-    pub fn new_empty() -> Cell {
-        Cell::new("")
-    }
-
-    pub fn new_align(text: &str, align: Alignment) -> Cell {
-        Cell {
-            text: text.to_owned(),
-            align: align,
-            style: None,
-        }
-    }
-
-    pub fn new_date(date: Date) -> Cell {
-        Cell::new_align(&super::format_date(date), Alignment::CENTER)
-    }
-
-    pub fn new_decimal(value: Decimal) -> Cell {
-        Cell::new_align(&value.to_string(), Alignment::RIGHT)
+    fn new(text: String, default_alignment: Alignment) -> Cell {
+        Cell {text, default_alignment, style: None}
     }
 
     pub fn new_round_decimal(value: Decimal) -> Cell {
-        Cell::new_align(&value.to_i64().unwrap().separated_string(), Alignment::RIGHT)
+        Cell::new(value.to_i64().unwrap().separated_string(), Alignment::RIGHT)
     }
 
-    pub fn new_cash(amount: Cash) -> Cell {
-        Cell::new_align(&amount.format(), Alignment::RIGHT)
-    }
-
-    pub fn new_multi_currency_cash(amounts: MultiCurrencyCashAccount) -> Cell {
-        let mut amounts: Vec<_> = amounts.iter()
-            .map(|(currency, amount)| Cash::new(*currency, *amount))
-            .collect();
-        amounts.sort_by_key(|amount| amount.currency);
-
-        let result = amounts.iter()
-            .map(|amount| amount.format())
-            .collect::<Vec<_>>()
-            .join(" + ");
-
-        Cell::new_align(&result, Alignment::RIGHT)
-    }
-
-    pub fn new_ratio(ratio: Decimal) -> Cell {
-        Cell::new_align(&format!("{}%", util::round_to(ratio * dec!(100), 1)), Alignment::RIGHT)
-    }
-
-    pub fn set_style(&mut self, style: Style) {
+    pub fn style(&mut self, style: Style) -> &mut Cell {
         self.style = Some(style);
+        self
     }
 
-    fn to_raw_cell(&self) -> RawCell {
+    fn render(&self, column: &Column) -> RawCell {
+        let alignment = column.alignment.unwrap_or(self.default_alignment);
         match self.style {
             Some(style) => {
                 let text = style.paint(&self.text).to_string();
-                RawCell::new_align(&text, self.align)
+                RawCell::new_align(&text, alignment)
             },
-            None => RawCell::new_align(&self.text, self.align),
+            None => RawCell::new_align(&self.text, alignment),
         }
     }
 }
 
-pub struct Row {
-}
-
-impl Row {
-    pub fn new(row: &[Cell]) -> RawRow {
-        RawRow::new(row.iter().map(Cell::to_raw_cell).collect())
+impl Into<Cell> for String {
+    fn into(self) -> Cell {
+        Cell::new(self, Alignment::LEFT)
     }
 }
 
-pub fn print_table(name: &str, titles: &[&str], mut table: Table) {
-    table.set_format(FormatBuilder::new().padding(1, 1).build());
-    table.set_titles(RawRow::new(
-        titles.iter().map(|name| RawCell::new_align(*name, Alignment::CENTER)).collect()));
+#[cfg(test)]
+mod tests {
+    use static_table_derive::StaticTable;
+    use super::*;
 
-    let mut wrapping_table = Table::new();
+    #[derive(StaticTable)]
+    #[table(name="TestTable")]
+    struct TestRow {
+        a: String,
+        #[column(name="Колонка B")]
+        b: String,
+        #[column(align="center")]
+        c: String,
+    }
 
-    wrapping_table.set_format(FormatBuilder::new()
-        .separator(LinePosition::Title, LineSeparator::new(' ', ' ', ' ', ' '))
-        .build());
+    #[test]
+    fn test() {
+        let mut table = TestTable::new();
 
-    wrapping_table.set_titles(RawRow::new(vec![
-        RawCell::new_align(&("\n".to_owned() + name), Alignment::CENTER).with_style(term::Attr::Bold),
-    ]));
+        assert_eq!(table.raw_table.columns, vec![
+            Column {name: "a", alignment: None},
+            Column {name: "Колонка B", alignment: None},
+            Column {name: "c", alignment: Some(Alignment::CENTER)},
+        ]);
 
-    wrapping_table.add_row(RawRow::new(vec![RawCell::new(&table.to_string())]));
-    wrapping_table.printstd();
+        // FIXME: Delete / something else?
+        table.add_row(TestRow {
+            a: s!("A"),
+            b: s!("B"),
+            c: s!("C"),
+        });
+    }
 }

@@ -38,7 +38,7 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let table_name = get_table_params(&ast)?;
     let columns = get_table_columns(&ast)?;
 
-    let mod_ident = quote!(crate::static_table);
+    let mod_ident = quote!(crate::formatting::table);
     let table_ident = Ident::new(&table_name, span);
     let row_ident = &ast.ident;
 

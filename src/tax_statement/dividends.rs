@@ -6,7 +6,7 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::table::{Table, Row, Cell, Alignment, print_table};
+use crate::formatting::old_table::{Table, Row, Cell, Alignment, print_table};
 
 use super::statement::TaxStatement;
 
