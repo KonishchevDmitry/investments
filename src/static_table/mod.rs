@@ -34,9 +34,18 @@ impl Table {
         self.rows.last_mut().unwrap()
     }
 
+    // FIXME: Rewrite
     pub fn print(&self, title: &str) {
+        let mut table = RawTable::new();
+        for row in &self.rows {
+            table.add_row(RawRow::new(row.iter().enumerate().map(|(column_id, cell)| {
+                let column = &self.columns[column_id];
+                cell.render(column)
+            }).collect()));
+        }
+
         let column_names: Vec<&str> = self.columns.iter().map(|column| column.name).collect();
-        print_table(title, &column_names, RawTable::new());
+        print_table(title, &column_names, table);
     }
 }
 
@@ -73,6 +82,17 @@ impl Cell {
         self.style = Some(style);
         self
     }
+
+    fn render(&self, column: &Column) -> RawCell {
+        let alignment = column.alignment.unwrap_or(self.default_alignment);
+        match self.style {
+            Some(style) => {
+                let text = style.paint(&self.text).to_string();
+                RawCell::new_align(&text, alignment)
+            },
+            None => RawCell::new_align(&self.text, alignment),
+        }
+    }
 }
 
 impl Into<Cell> for String {
@@ -106,6 +126,7 @@ mod tests {
             Column {name: "c", alignment: Some(Alignment::CENTER)},
         ]);
 
+        // FIXME: Delete / something else?
         table.add_row(TestRow {
             a: s!("A"),
             b: s!("B"),

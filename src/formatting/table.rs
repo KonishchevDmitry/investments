@@ -2,6 +2,7 @@
 //!
 //! The main reason for it is to support ansi_term styling because term (which prettytable natively
 //! supports) has not enough functionality - for example it doesn't support dimming style on Mac.
+// FIXME: Move to static table ^
 
 use num_traits::ToPrimitive;
 use prettytable::{Row as RawRow, Cell as RawCell};
