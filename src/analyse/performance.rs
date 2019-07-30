@@ -13,19 +13,16 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::formatting::table::{Table, Row, Cell as OldCell, Alignment, Style, print_table};
 use crate::localities::Country;
-use crate::static_table::Cell;
+use crate::static_table::{Cell, Style};
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
 use crate::util;
 
 use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 
-// FIXME: Rename
 #[derive(StaticTable)]
-#[table(name="NewTable")]
-struct NewRow {
+struct Row {
     #[column(name="Instrument")]
     instrument: String,
     #[column(name="Investments")]
@@ -53,8 +50,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     country: Country,
     transactions: Vec<Transaction>,
     instruments: Option<HashMap<String, StockDepositView>>,
-    table: NewTable,
-    old_table: Table,
+    table: Table,
 }
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
@@ -73,8 +69,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             country: portfolio.get_tax_country(),
             transactions: Vec::new(),
             instruments: Some(HashMap::new()),
-            table: NewTable::new(),
-            old_table: Table::new(),
+            table: Table::new(),
         };
 
         // Assume that the caller has simulated sellout and just check it here
@@ -101,12 +96,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         analyser.analyse_portfolio_performance()?;
-
-        print_table(
-            &format!("Average rate of return from cash investments in {}", currency),
-            &["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
-            analyser.old_table,
-        );
         analyser.table.print(&format!(
             "Average rate of return from cash investments in {}", currency));
 
@@ -197,24 +186,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
-        let mut old_row = [
-            OldCell::new(name),
-            OldCell::new_round_decimal(investments),
-            OldCell::new_round_decimal(profit),
-            OldCell::new_round_decimal(result),
-            OldCell::new_align(&duration, Alignment::RIGHT),
-            OldCell::new_align(&format!("{}%", interest), Alignment::RIGHT),
-        ];
-
-        if inactive {
-            for cell in &mut old_row {
-                cell.set_style(Style::new().dimmed());
-            }
-        }
-
-        self.old_table.add_row(Row::new(&old_row));
-
-        let row = self.table.add_row(NewRow {
+        let row = self.table.add_row(Row {
             instrument: name.to_owned(),
             investments: Cell::new_round_decimal(investments),
             profit: Cell::new_round_decimal(profit),
