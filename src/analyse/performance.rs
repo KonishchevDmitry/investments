@@ -5,6 +5,7 @@ use cast::From as CastFrom;
 use chrono::Duration;
 use log::{self, debug, log_enabled, trace};
 use num_traits::Zero;
+use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
@@ -20,6 +21,24 @@ use crate::util;
 
 use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 
+// FIXME: Rename
+#[derive(StaticTable)]
+#[table(name="NewTable")]
+struct NewRow {
+    #[column(name="Instrument")]
+    instrument: String,
+//    #[column(name="Investments")]
+//    investments: String,
+//    #[column(name="Profit")]
+//    profit: String,
+//    #[column(name="Result")]
+//    result: String,
+//    #[column(name="Duration")]
+//    duration: String,
+//    #[column(name="Interest")]
+//    interest: String,
+}
+
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub struct PortfolioPerformanceAnalyser<'a> {
@@ -33,7 +52,8 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     country: Country,
     transactions: Vec<Transaction>,
     instruments: Option<HashMap<String, StockDepositView>>,
-    table: Table,
+    table: NewTable,
+    old_table: Table,
 }
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
@@ -52,7 +72,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             country: portfolio.get_tax_country(),
             transactions: Vec::new(),
             instruments: Some(HashMap::new()),
-            table: Table::new(),
+            table: NewTable::new(),
+            old_table: Table::new(),
         };
 
         // Assume that the caller has simulated sellout and just check it here
@@ -83,7 +104,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         print_table(
             &format!("Average rate of return from cash investments in {}", currency),
             &["Instrument", "Investments", "Profit", "Result", "Duration", "Interest"],
-            analyser.table,
+            analyser.old_table,
         );
 
         Ok(())
@@ -173,7 +194,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
-        let mut row = [
+        let mut old_row = [
             Cell::new(name),
             Cell::new_round_decimal(investments),
             Cell::new_round_decimal(profit),
@@ -182,13 +203,17 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ];
 
+        // FIXME: Support
         if inactive {
-            for cell in &mut row {
+            for cell in &mut old_row {
                 cell.set_style(Style::new().dimmed());
             }
         }
 
-        self.table.add_row(Row::new(&row));
+        self.old_table.add_row(Row::new(&old_row));
+        self.table.add_row(NewRow {
+            instrument: name.to_owned(),
+        });
     }
 
     fn get_deposit_view(&mut self, symbol: &str) -> GenericResult<&mut StockDepositView> {

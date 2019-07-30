@@ -44,17 +44,9 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     });
 
     let columns_init_code = columns.iter().map(|column| {
-        let id = &column.id;
-        let name = match column.name {
-            Some(ref name) => quote!(Some(#name)),
-            None => quote!(None),
-        };
-
+        let name = column.name.as_ref().unwrap_or(&column.id);
         quote! {
-            #mod_ident::Column {
-                id: #id,
-                name: #name,
-            }
+            #mod_ident::Column::new(#name)
         }
     });
 
@@ -65,11 +57,9 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
         impl #table_ident {
             fn new() -> #table_ident {
+                let columns = vec![#(#columns_init_code,)*];
                 #table_ident {
-                    raw_table: #mod_ident::Table {
-                        columns: vec![#(#columns_init_code,)*],
-                        rows: Vec::new(),
-                    }
+                    raw_table: #mod_ident::Table::new(columns),
                 }
             }
 
