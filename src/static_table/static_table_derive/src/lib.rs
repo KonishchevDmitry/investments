@@ -76,16 +76,14 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
                 }
             }
 
-            fn add_row(&mut self, row: &#row_ident) {
-                self.raw_table.add_row(row);
+            fn add_row(&mut self, row: #row_ident) {
+                self.raw_table.add_row(#mod_ident::Row::render(row));
             }
         }
 
         impl #mod_ident::Row for #row_ident {
-            fn render(&self) -> Vec<String> {
-                vec![
-                    #(self.#field_idents.to_string(),)*
-                ]
+            fn render(self) -> Vec<#mod_ident::Cell> {
+                vec![#(self.#field_idents.into(),)*]
             }
         }
     }.into())

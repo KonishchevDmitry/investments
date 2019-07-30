@@ -1,16 +1,10 @@
-// FIXME: https://github.com/Calmynt/Tablefy
-// rust procedural macros and attributes tutorial
-// https://doc.rust-lang.org/book/ch19-06-macros.html
-// Reference - https://doc.rust-lang.org/reference/macros.html
-
 struct Table {
     columns: Vec<Column>,
-    rows: Vec<Vec<String>>,
+    rows: Vec<Vec<Cell>>,
 }
 
 impl Table {
-    fn add_row(&mut self, row: &dyn Row) {
-        let row = row.render();
+    fn add_row(&mut self, row: Vec<Cell>) {
         assert_eq!(row.len(), self.columns.len());
         self.rows.push(row);
     }
@@ -22,8 +16,25 @@ struct Column {
     name: Option<&'static str>,
 }
 
+// FIXME: Do we need it?
 trait Row {
-    fn render(&self) -> Vec<String>;
+    fn render(self) -> Vec<Cell>;
+}
+
+struct Cell {
+    value: String,
+}
+
+impl Cell {
+    fn new(value: String) -> Cell {
+        Cell {value}
+    }
+}
+
+impl Into<Cell> for String {
+    fn into(self) -> Cell {
+        Cell::new(self)
+    }
 }
 
 #[cfg(test)]
@@ -49,7 +60,7 @@ mod tests {
             id: "b", name: Some("Колонка B"),
         }]);
 
-        table.add_row(&TestRow {
+        table.add_row(TestRow {
             a: s!("A"),
             b: s!("B"),
         });
