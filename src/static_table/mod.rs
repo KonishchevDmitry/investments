@@ -1,4 +1,18 @@
-#![allow(dead_code)]  // FIXME: Remove
+// FIXME: Rename module
+#![allow(dead_code, unused_imports)]  // FIXME: Remove
+
+use num_traits::ToPrimitive;
+use prettytable::{Row as RawRow, Cell as RawCell};
+use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
+use separator::Separatable;
+use term;
+
+use crate::currency::{Cash, MultiCurrencyCashAccount};
+use crate::types::{Date, Decimal};
+use crate::util;
+
+pub use ansi_term::Style;
+pub use prettytable::format::Alignment;
 
 pub struct Table {
     columns: Vec<Column>,
@@ -22,29 +36,35 @@ impl Table {
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Column {
     name: &'static str,
+    alignment: Option<Alignment>,
 }
 
 impl Column {
-    pub fn new(name: &'static str) -> Column {
-        Column {name}
+    pub fn new(name: &'static str, alignment: Option<Alignment>) -> Column {
+        Column {name, alignment}
     }
 }
 
 pub type Row = Vec<Cell>;
 
 pub struct Cell {
-    value: String,
+    text: String,
+    default_alignment: Alignment,
 }
 
 impl Cell {
-    fn new(value: String) -> Cell {
-        Cell {value}
+    pub fn new_round_decimal(value: Decimal) -> Cell {
+        Cell::new(value.to_i64().unwrap().separated_string(), Alignment::RIGHT)
+    }
+
+    fn new(text: String, default_alignment: Alignment) -> Cell {
+        Cell {text, default_alignment}
     }
 }
 
 impl Into<Cell> for String {
     fn into(self) -> Cell {
-        Cell::new(self)
+        Cell::new(self, Alignment::LEFT)
     }
 }
 
@@ -59,6 +79,8 @@ mod tests {
         a: String,
         #[column(name="Колонка B")]
         b: String,
+        #[column(align="center")]
+        c: String,
     }
 
     #[test]
@@ -66,13 +88,15 @@ mod tests {
         let mut table = TestTable::new();
 
         assert_eq!(table.raw_table.columns, vec![
-            Column {name: "a"},
-            Column {name: "Колонка B"},
+            Column {name: "a", alignment: None},
+            Column {name: "Колонка B", alignment: None},
+            Column {name: "c", alignment: Some(Alignment::CENTER)},
         ]);
 
         table.add_row(TestRow {
             a: s!("A"),
             b: s!("B"),
+            c: s!("C"),
         });
     }
 }

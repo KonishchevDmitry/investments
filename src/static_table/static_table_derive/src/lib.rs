@@ -13,6 +13,7 @@ type GenericResult<T> = Result<T, GenericError>;
 struct Column {
     id: String,
     name: Option<String>,
+    alignment: Option<String>,
 }
 
 const TABLE_ATTR_NAME: &str = "table";
@@ -32,21 +33,30 @@ pub fn static_table_derive(input: TokenStream) -> TokenStream {
 
 fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
+    let span = Span::call_site();
+
     let table_name = get_table_params(&ast)?;
     let columns = get_table_columns(&ast)?;
 
     let mod_ident = quote!(crate::static_table);
-    let table_ident = Ident::new(&table_name, Span::call_site());
+    let table_ident = Ident::new(&table_name, span);
     let row_ident = &ast.ident;
 
     let field_idents = columns.iter().map(|column| {
-        Ident::new(&column.id, Span::call_site())
+        Ident::new(&column.id, span)
     });
 
     let columns_init_code = columns.iter().map(|column| {
         let name = column.name.as_ref().unwrap_or(&column.id);
+        let alignment = match column.alignment {
+            Some(ref alignment) => {
+                let alignment_ident = Ident::new(&alignment.to_uppercase(), span);
+                quote!(Some(#mod_ident::Alignment::#alignment_ident))
+            },
+            None => quote!(None),
+        };
         quote! {
-            #mod_ident::Column::new(#name)
+            #mod_ident::Column::new(#name, #alignment)
         }
     });
 
@@ -107,10 +117,12 @@ fn get_table_params(ast: &DeriveInput) -> GenericResult<String> {
 }
 
 fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
-    #[derive(FromMeta)]
+    #[derive(FromMeta, Default)]
     struct ColumnParams {
         #[darling(default)]
         name: Option<String>,
+        #[darling(default)]
+        align: Option<String>,
     }
 
     let mut columns = Vec::new();
@@ -139,18 +151,22 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             let params = ColumnParams::from_meta(&meta).map_err(|e| format!(
                 "{:?} attribute on {:?} field validation error: {}", COLUMN_ATTR_NAME, field_name, e))?;
 
+            match params.align.as_ref().map(|value| value.as_str()) {
+                Some("left") | Some("center") | Some("right") | None => {},
+                _ => return Err!("Invalid alignment of {:?}: {:?}",
+                                 field_name, params.align.unwrap()),
+            };
+
             if field_params.replace(params).is_some() {
                 return Err!("Duplicated {:?} attribute on {:?} field", COLUMN_ATTR_NAME, field_name);
             }
         }
 
-        let column_params = field_params.unwrap_or_else(|| ColumnParams {
-            name: None,
-        });
-
+        let column_params = field_params.unwrap_or_default();
         columns.push(Column {
             id: field_name,
             name: column_params.name,
+            alignment: column_params.align,
         })
     }
 

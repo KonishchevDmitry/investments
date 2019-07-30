@@ -13,8 +13,9 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::formatting::table::{Table, Row, Cell, Alignment, Style, print_table};
+use crate::formatting::table::{Table, Row, Cell as OldCell, Alignment, Style, print_table};
 use crate::localities::Country;
+use crate::static_table::Cell;
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
 use crate::util;
@@ -27,16 +28,16 @@ use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 struct NewRow {
     #[column(name="Instrument")]
     instrument: String,
-//    #[column(name="Investments")]
-//    investments: String,
-//    #[column(name="Profit")]
-//    profit: String,
-//    #[column(name="Result")]
-//    result: String,
-//    #[column(name="Duration")]
-//    duration: String,
-//    #[column(name="Interest")]
-//    interest: String,
+    #[column(name="Investments")]
+    investments: Cell,
+    #[column(name="Profit")]
+    profit: Cell,
+    #[column(name="Result")]
+    result: Cell,
+    #[column(name="Duration", align="right")]
+    duration: String,
+    #[column(name="Interest", align="right")]
+    interest: String,
 }
 
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
@@ -195,12 +196,12 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             duration_name);
 
         let mut old_row = [
-            Cell::new(name),
-            Cell::new_round_decimal(investments),
-            Cell::new_round_decimal(profit),
-            Cell::new_round_decimal(result),
-            Cell::new_align(&duration, Alignment::RIGHT),
-            Cell::new_align(&format!("{}%", interest), Alignment::RIGHT),
+            OldCell::new(name),
+            OldCell::new_round_decimal(investments),
+            OldCell::new_round_decimal(profit),
+            OldCell::new_round_decimal(result),
+            OldCell::new_align(&duration, Alignment::RIGHT),
+            OldCell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ];
 
         // FIXME: Support
@@ -213,6 +214,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.old_table.add_row(Row::new(&old_row));
         self.table.add_row(NewRow {
             instrument: name.to_owned(),
+            investments: Cell::new_round_decimal(investments),
+            profit: Cell::new_round_decimal(profit),
+            result: Cell::new_round_decimal(result),
+            duration: duration,
+            interest: format!("{}%", interest),
         });
     }
 
