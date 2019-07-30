@@ -73,8 +73,8 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
                 }
             }
 
-            fn add_row(&mut self, row: #row_ident) {
-                self.raw_table.add_row(row.into());
+            fn add_row(&mut self, row: #row_ident) -> &mut #mod_ident::Row {
+                self.raw_table.add_row(row.into())
             }
         }
 

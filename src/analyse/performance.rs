@@ -204,7 +204,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             OldCell::new_align(&format!("{}%", interest), Alignment::RIGHT),
         ];
 
-        // FIXME: Support
         if inactive {
             for cell in &mut old_row {
                 cell.set_style(Style::new().dimmed());
@@ -212,7 +211,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         self.old_table.add_row(Row::new(&old_row));
-        self.table.add_row(NewRow {
+
+        let row = self.table.add_row(NewRow {
             instrument: name.to_owned(),
             investments: Cell::new_round_decimal(investments),
             profit: Cell::new_round_decimal(profit),
@@ -220,6 +220,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             duration: duration,
             interest: format!("{}%", interest),
         });
+
+        if inactive {
+            let style = Style::new().dimmed();
+            for cell in row {
+                cell.style(style);
+            }
+        }
     }
 
     fn get_deposit_view(&mut self, symbol: &str) -> GenericResult<&mut StockDepositView> {

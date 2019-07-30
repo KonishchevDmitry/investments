@@ -27,9 +27,10 @@ impl Table {
         }
     }
 
-    pub fn add_row(&mut self, row: Row) {
+    pub fn add_row(&mut self, row: Row) -> &mut Row {
         assert_eq!(row.len(), self.columns.len());
         self.rows.push(row);
+        self.rows.last_mut().unwrap()
     }
 }
 
@@ -50,15 +51,21 @@ pub type Row = Vec<Cell>;
 pub struct Cell {
     text: String,
     default_alignment: Alignment,
+    style: Option<Style>,
 }
 
 impl Cell {
+    fn new(text: String, default_alignment: Alignment) -> Cell {
+        Cell {text, default_alignment, style: None}
+    }
+
     pub fn new_round_decimal(value: Decimal) -> Cell {
         Cell::new(value.to_i64().unwrap().separated_string(), Alignment::RIGHT)
     }
 
-    fn new(text: String, default_alignment: Alignment) -> Cell {
-        Cell {text, default_alignment}
+    pub fn style(&mut self, style: Style) -> &mut Cell {
+        self.style = Some(style);
+        self
     }
 }
 
