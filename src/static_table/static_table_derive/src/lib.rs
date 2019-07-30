@@ -16,19 +16,16 @@ struct Column {
 }
 
 const TABLE_ATTR_NAME: &str = "table";
-const CELL_ATTR_NAME: &str = "cell";
+const COLUMN_ATTR_NAME: &str = "column";
 
 macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
 }
 
-#[proc_macro_derive(StaticTable, attributes(table, cell))]
+#[proc_macro_derive(StaticTable, attributes(table, column))]
 pub fn static_table_derive(input: TokenStream) -> TokenStream {
     match static_table_derive_impl(input) {
-        Ok(output) => {
-            println!(">>> {}", output); // FIXME
-            output
-        },
+        Ok(output) => output,
         Err(err) => panic!("{}", err),
     }
 }
@@ -77,12 +74,12 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
             }
 
             fn add_row(&mut self, row: #row_ident) {
-                self.raw_table.add_row(#mod_ident::Row::render(row));
+                self.raw_table.add_row(row.into());
             }
         }
 
-        impl #mod_ident::Row for #row_ident {
-            fn render(self) -> Vec<#mod_ident::Cell> {
+        impl Into<#mod_ident::Row> for #row_ident {
+            fn into(self) -> #mod_ident::Row {
                 vec![#(self.#field_idents.into(),)*]
             }
         }
@@ -102,8 +99,8 @@ fn get_table_params(ast: &DeriveInput) -> GenericResult<String> {
             "Failed to parse `{:#?}`: {}", attr, e))?;
 
         let ident = get_attribute_ident(&meta);
-        if ident == CELL_ATTR_NAME {
-            return Err!("{:?} attribute is allowed on struct fields only", CELL_ATTR_NAME);
+        if ident == COLUMN_ATTR_NAME {
+            return Err!("{:?} attribute is allowed on struct fields only", COLUMN_ATTR_NAME);
         } else if ident != TABLE_ATTR_NAME {
             continue;
         }
@@ -145,15 +142,15 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             let ident = get_attribute_ident(&meta);
             if ident == TABLE_ATTR_NAME {
                 return Err!("{:?} attribute is allowed on struct definition only", TABLE_ATTR_NAME);
-            } else if ident != CELL_ATTR_NAME {
+            } else if ident != COLUMN_ATTR_NAME {
                 continue;
             }
 
             let params = ColumnParams::from_meta(&meta).map_err(|e| format!(
-                "{:?} attribute on {:?} field validation error: {}", CELL_ATTR_NAME, field_name, e))?;
+                "{:?} attribute on {:?} field validation error: {}", COLUMN_ATTR_NAME, field_name, e))?;
 
             if field_params.replace(params).is_some() {
-                return Err!("Duplicated {:?} attribute on {:?} field", CELL_ATTR_NAME, field_name);
+                return Err!("Duplicated {:?} attribute on {:?} field", COLUMN_ATTR_NAME, field_name);
             }
         }
 

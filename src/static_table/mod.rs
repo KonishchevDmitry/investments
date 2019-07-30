@@ -4,7 +4,7 @@ struct Table {
 }
 
 impl Table {
-    fn add_row(&mut self, row: Vec<Cell>) {
+    fn add_row(&mut self, row: Row) {
         assert_eq!(row.len(), self.columns.len());
         self.rows.push(row);
     }
@@ -16,10 +16,7 @@ struct Column {
     name: Option<&'static str>,
 }
 
-// FIXME: Do we need it?
-trait Row {
-    fn render(self) -> Vec<Cell>;
-}
+type Row = Vec<Cell>;
 
 struct Cell {
     value: String,
@@ -46,7 +43,7 @@ mod tests {
     #[table(name="TestTable")]
     struct TestRow {
         a: String,
-        #[cell(name="Колонка B")]
+        #[column(name="Колонка B")]
         b: String,
     }
 

@@ -1,10 +1,8 @@
-# FIXME
-
 [package]
 name = "static_table_derive"
 version = "0.1.0"
-authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
 edition = "2018"
+authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
 
 [lib]
 proc-macro = true
@@ -12,5 +10,5 @@ proc-macro = true
 [dependencies]
 darling = "*"
 proc-macro2 = "*"
-syn = "*"
 quote = "*"
+syn = "*"
