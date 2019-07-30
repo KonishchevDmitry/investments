@@ -2,17 +2,14 @@ extern crate proc_macro;
 
 use darling::FromMeta;
 use proc_macro::TokenStream;
+use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{self, DeriveInput, Fields, Data, Meta, MetaList, MetaNameValue, Ident};
+use syn::{self, DeriveInput, Fields, Data, DataStruct, Meta, MetaList, MetaNameValue};
 
-// FIXME
-type EmptyResult = GenericResult<()>;
+type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type GenericResult<T> = Result<T, GenericError>;
-type GenericError = Box<::std::error::Error + Send + Sync>;
-macro_rules! Err {
-    ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
-}
 
+#[cfg_attr(test, derive(Debug))]
 struct Column {
     id: String,
     name: Option<String>,
@@ -21,31 +18,77 @@ struct Column {
 const TABLE_ATTR_NAME: &str = "table";
 const CELL_ATTR_NAME: &str = "cell";
 
+macro_rules! Err {
+    ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
+}
+
 #[proc_macro_derive(StaticTable, attributes(table, cell))]
 pub fn static_table_derive(input: TokenStream) -> TokenStream {
     match static_table_derive_impl(input) {
-        Ok(output) => output,
+        Ok(output) => {
+            println!(">>> {}", output); // FIXME
+            output
+        },
         Err(err) => panic!("{}", err),
     }
 }
 
 fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
-
-    // FIXME: HERE
     let table_name = get_table_params(&ast)?;
     let columns = get_table_columns(&ast)?;
 
-    let name = &ast.ident;
-    let gen = quote! {
-        impl HelloMacro for #name {
-            fn hello_macro() {
-                println!("Hello, Macro! My name is {}", stringify!(#name));
+    let mod_ident = quote!(crate::static_table);
+    let table_ident = Ident::new(&table_name, Span::call_site());
+    let row_ident = &ast.ident;
+
+    let field_idents = columns.iter().map(|column| {
+        Ident::new(&column.id, Span::call_site())
+    });
+
+    let columns_init_code = columns.iter().map(|column| {
+        let id = &column.id;
+        let name = match column.name {
+            Some(ref name) => quote!(Some(#name)),
+            None => quote!(None),
+        };
+
+        quote! {
+            #mod_ident::Column {
+                id: #id,
+                name: #name,
             }
         }
-    };
+    });
 
-    Ok(gen.into())
+    Ok(quote! {
+        struct #table_ident {
+            raw_table: #mod_ident::Table,
+        }
+
+        impl #table_ident {
+            fn new() -> #table_ident {
+                #table_ident {
+                    raw_table: #mod_ident::Table {
+                        columns: vec![#(#columns_init_code,)*],
+                        rows: Vec::new(),
+                    }
+                }
+            }
+
+            fn add_row(&mut self, row: &#row_ident) {
+                self.raw_table.add_row(row);
+            }
+        }
+
+        impl #mod_ident::Row for #row_ident {
+            fn render(&self) -> Vec<String> {
+                vec![
+                    #(self.#field_idents.to_string(),)*
+                ]
+            }
+        }
+    }.into())
 }
 
 fn get_table_params(ast: &DeriveInput) -> GenericResult<String> {
@@ -88,16 +131,11 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     let mut columns = Vec::new();
 
     let fields = match ast.data {
-        Data::Struct(ref row_struct) => {
-            match row_struct.fields {
-                Fields::Named(ref fields) => fields,
-                _ => return Err!("A struct with named fields is expected"),
-            }
-        },
-        _ => return Err!("A struct is expected"),
+        Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
+        _ => return Err!("A struct with named fields is expected"),
     };
 
-    for field in &fields.named {
+    for field in fields {
         let field_name = field.ident.as_ref()
             .ok_or_else(|| "A struct with named fields is expected")?.to_string();
         let mut field_params = None;

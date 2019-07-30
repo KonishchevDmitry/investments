@@ -11,5 +11,6 @@ proc-macro = true
 
 [dependencies]
 darling = "*"
+proc-macro2 = "*"
 syn = "*"
 quote = "*"
