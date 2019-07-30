@@ -17,7 +17,7 @@ mod tests {
     #[table(name="TestTable")]
     struct TestRow {
         a: String,
-        #[cell(name="some-name", description="A B C",)]
+        #[cell(name="some-name")]
         b: String,
     }
 
