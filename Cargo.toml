@@ -39,7 +39,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "*"
 serde-xml-rs = "0.3"
 shellexpand = "*"
-term = "*"
+term = "^0.5" # prettytable-rs restriction
 
 [dev-dependencies]
 matches = "*"
