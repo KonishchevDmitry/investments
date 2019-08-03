@@ -439,7 +439,7 @@ impl BrokerStatement {
 }
 
 fn get_statement_files(
-    statement_dir_path: &str, statement_reader: &BrokerStatementReader
+    statement_dir_path: &str, statement_reader: &dyn BrokerStatementReader
 ) -> GenericResult<Vec<String>> {
     let mut file_names = Vec::new();
 

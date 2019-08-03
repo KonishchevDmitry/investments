@@ -7,7 +7,7 @@ use super::parser::{TaxStatementReader, TaxStatementWriter};
 
 pub trait Record: Debug {
     fn name(&self) -> &str;
-    fn as_mut_any(&mut self) -> &mut Any;
+    fn as_mut_any(&mut self) -> &mut dyn Any;
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult;
 }
 
@@ -47,7 +47,7 @@ impl Record for UnknownRecord {
         &self.name
     }
 
-    fn as_mut_any(&mut self) -> &mut Any {
+    fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
 

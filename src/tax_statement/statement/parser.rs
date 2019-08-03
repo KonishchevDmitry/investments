@@ -64,7 +64,7 @@ impl TaxStatementReader {
                 },
             };
 
-            let record: Box<Record> = match record_name.as_str() {
+            let record: Box<dyn Record> = match record_name.as_str() {
                 ForeignIncome::RECORD_NAME => Box::new(ForeignIncome::read(&mut reader)?),
                 _ => {
                     let (record, read_next_record_name) = UnknownRecord::read(&mut reader, record_name)?;

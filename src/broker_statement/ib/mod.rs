@@ -27,7 +27,7 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(config: &Config) -> GenericResult<Box<BrokerStatementReader>> {
+    pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info: brokers::interactive_brokers(config)?,
         }))
@@ -95,7 +95,7 @@ impl StatementParser {
                 State::Header(record) => {
                     let (name, fields) = parse_header(&record)?;
 
-                    let parser: Box<RecordParser> = match name {
+                    let parser: Box<dyn RecordParser> = match name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Account Information" => Box::new(parsers::AccountInformationParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),

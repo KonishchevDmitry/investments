@@ -10,7 +10,7 @@ use crate::localities;
 use crate::types::{Date, Decimal};
 
 pub struct CurrencyConverter {
-    backend: Box<CurrencyConverterBackend>,
+    backend: Box<dyn CurrencyConverterBackend>,
 }
 
 impl CurrencyConverter {
@@ -20,7 +20,7 @@ impl CurrencyConverter {
         CurrencyConverter::new_with_backend(backend)
     }
 
-    pub fn new_with_backend(source: Box<CurrencyConverterBackend>) -> CurrencyConverter {
+    pub fn new_with_backend(source: Box<dyn CurrencyConverterBackend>) -> CurrencyConverter {
         CurrencyConverter { backend: source }
     }
 
@@ -57,7 +57,7 @@ struct CurrencyRateCacheBackend {
 }
 
 impl CurrencyRateCacheBackend {
-    pub fn new(rate_cache: CurrencyRateCache, strict_mode: bool) -> Box<CurrencyConverterBackend> {
+    pub fn new(rate_cache: CurrencyRateCache, strict_mode: bool) -> Box<dyn CurrencyConverterBackend> {
         Box::new(CurrencyRateCacheBackend {
             rate_cache: rate_cache,
             strict_mode: strict_mode,

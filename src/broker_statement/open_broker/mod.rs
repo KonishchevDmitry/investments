@@ -22,7 +22,7 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(config: &Config) -> GenericResult<Box<BrokerStatementReader>> {
+    pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info: brokers::open_broker(config)?,
         }))
