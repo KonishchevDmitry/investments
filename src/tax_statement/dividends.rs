@@ -1,14 +1,45 @@
 use chrono::Datelike;
 use num_traits::Zero;
+use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::old_table::{Table, Row, Cell, Alignment, print_table};
+use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
+
+#[derive(StaticTable)]
+struct Row {
+    #[column(name="Дата")]
+    date: Date,
+    #[column(name="Эмитент")]
+    issuer: String,
+    #[column(name="Валюта", align="center")]
+    currency: String,
+
+    #[column(name="Сумма")]
+    foreign_amount: Cash,
+    #[column(name="Курс руб.")]
+    currency_rate: Decimal,
+    #[column(name="Сумма (руб)")]
+    amount: Cash,
+
+    #[column(name="Налог")]
+    tax: Cash,
+    #[column(name="Уплачено")]
+    foreign_paid_tax: Cash,
+    #[column(name="Уплачено (руб)")]
+    paid_tax: Cash,
+    #[column(name="К зачету")]
+    tax_deduction: Cash,
+    #[column(name="К доплате")]
+    tax_to_pay: Cash,
+    #[column(name="Реальный доход")]
+    income: Cash,
+}
 
 pub fn process_income(
     portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
@@ -67,30 +98,30 @@ pub fn process_income(
         let income = amount - paid_tax - tax_to_pay;
         total_income += income;
 
-        table.add_row(Row::new(&[
-            Cell::new_date(dividend.date),
-            Cell::new_align(&issuer, Alignment::LEFT),
-            Cell::new_align(foreign_amount.currency, Alignment::CENTER),
+        table.add_row(Row {
+            date: dividend.date,
+            issuer: issuer.to_owned(),
+            currency: foreign_amount.currency.to_owned(),
 
-            Cell::new_cash(foreign_amount),
-            Cell::new_decimal(precise_currency_rate),
-            Cell::new_cash(Cash::new(country.currency, amount)),
+            foreign_amount: foreign_amount,
+            currency_rate: precise_currency_rate,
+            amount: Cash::new(country.currency, amount),
 
-            Cell::new_cash(Cash::new(country.currency, tax)),
-            Cell::new_cash(foreign_paid_tax),
-            Cell::new_cash(Cash::new(country.currency, paid_tax)),
-            Cell::new_cash(Cash::new(country.currency, tax_deduction)),
-            Cell::new_cash(Cash::new(country.currency, tax_to_pay)),
-            Cell::new_cash(Cash::new(country.currency, income)),
-        ]));
+            tax: Cash::new(country.currency, tax),
+            foreign_paid_tax: foreign_paid_tax,
+            paid_tax: Cash::new(country.currency, paid_tax),
+            tax_deduction: Cash::new(country.currency, tax_deduction),
+            tax_to_pay: Cash::new(country.currency, tax_to_pay),
+            income: Cash::new(country.currency, income),
+        });
 
         if let Some(ref mut tax_statement) = tax_statement {
             let description = format!("{}: Дивиденд от {}", broker_statement.broker.name, issuer);
 
             if foreign_paid_tax.currency != foreign_amount.currency {
                 return Err!(
-                        "{}: Tax currency is different from dividend currency: {} vs {}",
-                        dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
+                    "{}: Tax currency is different from dividend currency: {} vs {}",
+                    dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
             }
 
             tax_statement.add_dividend_income(
@@ -103,34 +134,19 @@ pub fn process_income(
     }
 
     if !table.is_empty() {
-        table.add_row(Row::new(&[
-            Cell::new_empty(),
-            Cell::new_empty(),
-            Cell::new_empty(),
+        let mut totals = table.add_empty_row();
 
-            Cell::new_multi_currency_cash(total_foreign_amount),
-            Cell::new_empty(),
-            Cell::new_cash(Cash::new(country.currency, total_amount)),
+        totals.set_foreign_amount(total_foreign_amount);
+        totals.set_amount(Cash::new(country.currency, total_amount));
 
-            Cell::new_empty(),
-            Cell::new_multi_currency_cash(total_foreign_paid_tax),
-            Cell::new_cash(Cash::new(country.currency, total_paid_tax)),
-            Cell::new_cash(Cash::new(country.currency, total_tax_deduction)),
-            Cell::new_cash(Cash::new(country.currency, total_tax_to_pay)),
-            Cell::new_cash(Cash::new(country.currency, total_income)),
-        ]));
+        totals.set_foreign_paid_tax(total_foreign_paid_tax);
+        totals.set_paid_tax(Cash::new(country.currency, total_paid_tax));
+        totals.set_tax_deduction(Cash::new(country.currency, total_tax_deduction));
+        totals.set_tax_to_pay(Cash::new(country.currency, total_tax_to_pay));
+        totals.set_income(Cash::new(country.currency, total_income));
 
-        print_table(
-            &format!("Расчет дохода от дивидендов, полученных через {}",
-                     broker_statement.broker.name),
-            &[
-                "Дата", "Эмитент", "Валюта",
-                "Сумма", "Курс руб.", "Сумма (руб)",
-                "Налог", "Уплачено", "Уплачено (руб)", "К зачету", "К доплате",
-                "Реальный доход",
-            ],
-            table,
-        );
+        table.print(&format!(
+            "Расчет дохода от дивидендов, полученных через {}", broker_statement.broker.name));
     }
 
     Ok(())

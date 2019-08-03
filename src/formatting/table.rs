@@ -43,6 +43,10 @@ impl Table {
         self.columns[index].hidden = true;
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
     // FIXME: Rewrite
     pub fn print(&self, title: &str) {
         let mut table = RawTable::new();
@@ -130,6 +134,7 @@ macro_rules! impl_from_number_to_cell {
     };
 }
 impl_from_number_to_cell!(u32);
+impl_from_number_to_cell!(Decimal);
 
 impl From<String> for Cell {
     fn from(text: String) -> Cell {
@@ -143,6 +148,12 @@ impl<T: Into<Cell>> From<Option<T>> for Cell {
             Some(value) => value.into(),
             None => Cell::new_empty(),
         }
+    }
+}
+
+impl From<Date> for Cell {
+    fn from(date: Date) -> Cell {
+        Cell::new(super::format_date(date), Alignment::RIGHT)
     }
 }
 

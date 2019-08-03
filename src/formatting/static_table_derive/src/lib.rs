@@ -104,6 +104,10 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
                 #row_proxy_ident {row: row}
             }
 
+            fn is_empty(&self) -> bool {
+                self.table.is_empty()
+            }
+
             #(#column_hide_code)*
 
             fn print(&self, title: &str) {
