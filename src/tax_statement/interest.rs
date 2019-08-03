@@ -1,4 +1,5 @@
 use chrono::Datelike;
+use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
@@ -6,9 +7,27 @@ use crate::core::EmptyResult;
 use crate::currency::{self, Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::formatting::old_table::{Table, Row, Cell, Alignment, print_table};
+use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
+
+#[derive(StaticTable)]
+struct Row {
+    #[column(name="Дата")]
+    date: Date,
+    #[column(name="Валюта", align="center")]
+    currency: String,
+    #[column(name="Сумма")]
+    foreign_amount: Cash,
+    #[column(name="Курс руб.")]
+    currency_rate: Decimal,
+    #[column(name="Сумма (руб)")]
+    amount: Cash,
+    #[column(name="К уплате")]
+    tax_to_pay: Cash,
+    #[column(name="Реальный доход")]
+    income: Cash,
+}
 
 pub fn process_income(
     portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
@@ -45,15 +64,15 @@ pub fn process_income(
         let income = amount - tax_to_pay;
         total_income += income;
 
-        table.add_row(Row::new(&[
-            Cell::new_date(interest.date),
-            Cell::new_align(foreign_amount.currency, Alignment::CENTER),
-            Cell::new_cash(foreign_amount),
-            Cell::new_decimal(precise_currency_rate),
-            Cell::new_cash(Cash::new(country.currency, amount)),
-            Cell::new_cash(Cash::new(country.currency, tax_to_pay)),
-            Cell::new_cash(Cash::new(country.currency, income)),
-        ]));
+        table.add_row(Row {
+            date: interest.date,
+            currency: foreign_amount.currency.to_owned(),
+            foreign_amount: foreign_amount,
+            currency_rate: precise_currency_rate,
+            amount: Cash::new(country.currency, amount),
+            tax_to_pay: Cash::new(country.currency, tax_to_pay),
+            income: Cash::new(country.currency, income),
+        });
 
         if let Some(ref mut tax_statement) = tax_statement {
             let description = format!(
@@ -70,24 +89,15 @@ pub fn process_income(
     }
 
     if !table.is_empty() {
-        table.add_row(Row::new(&[
-            Cell::new_empty(),
-            Cell::new_empty(),
-            Cell::new_multi_currency_cash(total_foreign_amount),
-            Cell::new_empty(),
-            Cell::new_cash(Cash::new(country.currency, total_amount)),
-            Cell::new_cash(Cash::new(country.currency, total_tax_to_pay)),
-            Cell::new_cash(Cash::new(country.currency, total_income)),
-        ]));
+        let mut totals = table.add_empty_row();
+        totals.set_foreign_amount(total_foreign_amount);
+        totals.set_amount(Cash::new(country.currency, total_amount));
+        totals.set_tax_to_pay(Cash::new(country.currency, total_tax_to_pay));
+        totals.set_income(Cash::new(country.currency, total_income));
 
-        print_table(
-            &format!(
-                "Расчет дохода от процентов на остаток по брокерскому счету, полученных через {}",
-                broker_statement.broker.name
-            ),
-            &["Дата", "Валюта", "Сумма", "Курс руб.", "Сумма (руб)", "К уплате", "Реальный доход"],
-            table,
-        );
+        table.print(&format!(
+            "Расчет дохода от процентов на остаток по брокерскому счету, полученных через {}",
+            broker_statement.broker.name));
     }
 
     Ok(())
