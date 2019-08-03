@@ -1,4 +1,3 @@
-// FIXME: Rename module
 #![allow(dead_code, unused_imports)]  // FIXME: Remove
 
 use num_traits::ToPrimitive;
@@ -34,12 +33,23 @@ impl Table {
         self.rows.last_mut().unwrap()
     }
 
+    pub fn hide_column(&mut self, index: usize) {
+        self.columns[index].hidden = true;
+    }
+
     // FIXME: Rewrite
     pub fn print(&self, title: &str) {
         let mut table = RawTable::new();
+        let columns: Vec<_> = self.columns.iter().enumerate().filter_map(|(index, column)| if column.hidden {
+            None
+        } else {
+            Some(index)
+        }).collect();
+
         for row in &self.rows {
-            table.add_row(RawRow::new(row.iter().enumerate().map(|(column_id, cell)| {
-                let column = &self.columns[column_id];
+            table.add_row(RawRow::new(columns.iter().map(|&index| {
+                let column = &self.columns[index];
+                let cell = &row[index];
                 cell.render(column)
             }).collect()));
         }
@@ -53,11 +63,12 @@ impl Table {
 pub struct Column {
     name: &'static str,
     alignment: Option<Alignment>,
+    hidden: bool,
 }
 
 impl Column {
     pub fn new(name: &'static str, alignment: Option<Alignment>) -> Column {
-        Column {name, alignment}
+        Column {name, alignment, hidden: false}
     }
 }
 
@@ -120,17 +131,21 @@ mod tests {
     fn test() {
         let mut table = TestTable::new();
 
-        assert_eq!(table.raw_table.columns, vec![
-            Column {name: "a", alignment: None},
-            Column {name: "Колонка B", alignment: None},
-            Column {name: "c", alignment: Some(Alignment::CENTER)},
+        assert_eq!(table.table.columns, vec![
+            Column {name: "a", alignment: None, hidden: false},
+            Column {name: "Колонка B", alignment: None, hidden: false},
+            Column {name: "c", alignment: Some(Alignment::CENTER), hidden: false},
         ]);
 
-        // FIXME: Delete / something else?
-        table.add_row(TestRow {
+        table.hide_b();
+        assert!(table.table.columns[1].hidden);
+
+        let mut row = table.add_row(TestRow {
             a: s!("A"),
             b: s!("B"),
             c: s!("C"),
         });
+        row.set_b(Cell::new(s!("BB"), Alignment::RIGHT));
+        assert_eq!(table.table.rows.last().unwrap()[1].text, "BB");
     }
 }

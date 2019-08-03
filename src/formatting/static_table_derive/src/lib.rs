@@ -28,10 +28,7 @@ macro_rules! Err {
 #[proc_macro_derive(StaticTable, attributes(table, column))]
 pub fn static_table_derive(input: TokenStream) -> TokenStream {
     match static_table_derive_impl(input) {
-        Ok(output) => {
-            println!("{}", output); // FIXME
-            output
-        },
+        Ok(output) => output,
         Err(err) => panic!("{}", err),
     }
 }
@@ -66,6 +63,24 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
         }
     });
 
+    let column_hide_code = columns.iter().enumerate().map(|(index, column)| {
+        let method_ident = Ident::new(&format!("hide_{}", column.id), span);
+        quote! {
+            fn #method_ident(&mut self) {
+                self.table.hide_column(#index);
+            }
+        }
+    });
+
+    let cell_set_code = columns.iter().enumerate().map(|(index, column)| {
+        let method_ident = Ident::new(&format!("set_{}", column.id), span);
+        quote! {
+            fn #method_ident(&mut self, cell: #mod_ident::Cell) {
+                self.row[#index] = cell;
+            }
+        }
+    });
+
     Ok(quote! {
         struct #table_ident {
             table: #mod_ident::Table,
@@ -84,6 +99,8 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
                 #row_proxy_ident {row: row}
             }
 
+            #(#column_hide_code)*
+
             fn print(&self, title: &str) {
                 self.table.print(title);
             }
@@ -93,14 +110,9 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
             row: &'a mut #mod_ident::Row,
         }
 
-        // FIXME
-        /*
         impl<'a> #row_proxy_ident<'a> {
-            fn test(&mut self, cell: #mod_ident::Cell) {
-                self.row[1] = cell;
-            }
+            #(#cell_set_code)*
         }
-        */
 
         impl<'a, 'b> ::core::iter::IntoIterator for &'a mut #row_proxy_ident<'b> {
             type Item = &'a mut #mod_ident::Cell;
