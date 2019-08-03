@@ -34,7 +34,7 @@ impl Record for ForeignIncome {
         ForeignIncome::RECORD_NAME
     }
 
-    fn as_mut_any(&mut self) -> &mut Any {
+    fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
 

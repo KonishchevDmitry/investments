@@ -18,7 +18,7 @@ mod types;
 pub struct TaxStatement {
     path: String,
     pub year: i32,
-    records: Vec<Box<Record>>,
+    records: Vec<Box<dyn Record>>,
 }
 
 impl TaxStatement {

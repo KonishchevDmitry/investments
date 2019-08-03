@@ -18,7 +18,7 @@ mod moex;
 
 pub struct Quotes {
     cache: Cache,
-    providers: Vec<Box<QuotesProvider>>,
+    providers: Vec<Box<dyn QuotesProvider>>,
     batched_symbols: HashSet<String>,
 }
 
@@ -30,7 +30,7 @@ impl Quotes {
         ])
     }
 
-    fn new_with(cache: Cache, providers: Vec<Box<QuotesProvider>>) -> Quotes {
+    fn new_with(cache: Cache, providers: Vec<Box<dyn QuotesProvider>>) -> Quotes {
         Quotes {
             cache: cache,
             providers: providers,

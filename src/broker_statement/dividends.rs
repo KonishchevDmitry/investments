@@ -38,7 +38,7 @@ pub struct DividendWithoutPaidTax {
     pub date: Date,
     pub issuer: String,
     pub amount: Cash,
-    pub tax_extractor: Box<DividendPaidTaxExtractor>,
+    pub tax_extractor: Box<dyn DividendPaidTaxExtractor>,
 }
 
 impl DividendWithoutPaidTax {
@@ -65,7 +65,7 @@ pub struct TaxIdExtractor {
 }
 
 impl TaxIdExtractor {
-    pub fn new(tax_id: TaxId) -> Box<DividendPaidTaxExtractor> {
+    pub fn new(tax_id: TaxId) -> Box<dyn DividendPaidTaxExtractor> {
         Box::new(TaxIdExtractor {tax_id: tax_id})
     }
 }
