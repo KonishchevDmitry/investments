@@ -75,8 +75,8 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let cell_set_code = columns.iter().enumerate().map(|(index, column)| {
         let method_ident = Ident::new(&format!("set_{}", column.id), span);
         quote! {
-            fn #method_ident(&mut self, cell: #mod_ident::Cell) {
-                self.row[#index] = cell;
+            fn #method_ident<C: ::std::convert::Into<#mod_ident::Cell>>(&mut self, cell: C) {
+                self.row[#index] = cell.into();
             }
         }
     });
@@ -96,6 +96,11 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
             fn add_row(&mut self, row: #row_ident) -> #row_proxy_ident {
                 let row = self.table.add_row(row.into());
+                #row_proxy_ident {row: row}
+            }
+
+            fn add_empty_row(&mut self) -> #row_proxy_ident {
+                let row = self.table.add_empty_row();
                 #row_proxy_ident {row: row}
             }
 

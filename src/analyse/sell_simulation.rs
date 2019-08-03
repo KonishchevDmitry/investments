@@ -1,10 +1,12 @@
+use static_table_derive::StaticTable;
+
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::StockSell;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::old_table::{Table, Row, Cell, Alignment, print_table};
+use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
 
@@ -41,6 +43,44 @@ pub fn simulate_sell(
     print_results(stock_sells, &portfolio.get_tax_country(), converter)
 }
 
+#[derive(StaticTable)]
+#[table(name="TradesTable")]
+struct TradeRow {
+    #[column(name="Symbol")]
+    symbol: String,
+    #[column(name="Quantity")]
+    quantity: u32,
+    #[column(name="Buy price")]
+    buy_price: Cash,
+    #[column(name="Sell price")]
+    sell_price: Cash,
+    #[column(name="Commission")]
+    commission: Cash,
+    #[column(name="Revenue")]
+    revenue: Cash,
+    #[column(name="Profit")]
+    profit: Cash,
+    #[column(name="Tax to pay")]
+    tax_to_pay: Cash,
+    #[column(name="Real profit %")]
+    real_profit: Cell,
+    #[column(name="Real tax %")]
+    real_tax: Cell,
+    #[column(name="Real local profit %")]
+    real_local_profit: Cell,
+}
+
+#[derive(StaticTable)]
+#[table(name="FifoTable")]
+struct FifoRow {
+    #[column(name="Symbol")]
+    symbol: Option<String>,
+    #[column(name="Quantity")]
+    quantity: u32,
+    #[column(name="Price")]
+    price: Cash,
+}
+
 fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &CurrencyConverter) -> EmptyResult {
     let mut same_currency = true;
     for trade in &stock_sells {
@@ -49,34 +89,39 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
                 trade.commission.currency == country.currency;
     }
 
-    let mut total_commissions = MultiCurrencyCashAccount::new();
+    let mut total_commission = MultiCurrencyCashAccount::new();
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_profit = MultiCurrencyCashAccount::new();
     let mut total_local_profit = Cash::new(country.currency, dec!(0));
 
-    let mut table = Table::new();
-    let mut fifo_table = Table::new();
+    let mut trades_table = TradesTable::new();
+    if same_currency {
+        trades_table.hide_real_tax();
+        trades_table.hide_real_local_profit();
+    }
+
+    let mut fifo_table = FifoTable::new();
 
     for trade in stock_sells {
         let details = trade.calculate(&country, &converter)?;
         let mut total_purchase_cost = MultiCurrencyCashAccount::new();
 
-        total_commissions.deposit(trade.commission);
+        total_commission.deposit(trade.commission);
         total_revenue.deposit(details.revenue);
         total_profit.deposit(details.profit);
         total_local_profit.add_assign(details.local_profit).unwrap();
 
-        for (buy_trade_id, buy_trade) in details.fifo.iter().enumerate() {
+        for (index, buy_trade) in details.fifo.iter().enumerate() {
             total_purchase_cost.deposit(buy_trade.price * buy_trade.quantity);
-            fifo_table.add_row(Row::new(&[
-                Cell::new(if buy_trade_id == 0 {
-                    &trade.symbol
+            fifo_table.add_row(FifoRow {
+                symbol: if index == 0 {
+                   Some(trade.symbol.clone())
                 } else {
-                    ""
-                }),
-                Cell::new_align(&buy_trade.quantity.to_string(), Alignment::RIGHT),
-                Cell::new_cash(buy_trade.price),
-            ]));
+                   None
+                },
+                quantity: buy_trade.quantity,
+                price: buy_trade.price,
+            });
         }
 
         let total_purchase_cost = Cash::new(
@@ -85,54 +130,31 @@ fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &Cur
 
         let average_buy_price = (total_purchase_cost / trade.quantity).round();
 
-        let mut row = vec![
-            Cell::new(&trade.symbol),
-            Cell::new_align(&trade.quantity.to_string(), Alignment::RIGHT),
-            Cell::new_cash(average_buy_price),
-            Cell::new_cash(trade.price),
-            Cell::new_cash(trade.commission),
-            Cell::new_cash(details.revenue),
-            Cell::new_cash(details.profit),
-            Cell::new_cash(details.tax_to_pay),
-            Cell::new_ratio(details.real_profit_ratio),
-        ];
-
-        if !same_currency {
-            row.extend_from_slice(&[
-                Cell::new_ratio(details.real_tax_ratio),
-                Cell::new_ratio(details.real_local_profit_ratio),
-            ]);
-        }
-
-        table.add_row(Row::new(&row));
+        trades_table.add_row(TradeRow {
+            symbol: trade.symbol,
+            quantity: trade.quantity,
+            buy_price: average_buy_price,
+            sell_price: trade.price,
+            commission: trade.commission,
+            revenue: details.revenue,
+            profit: details.profit,
+            tax_to_pay: details.tax_to_pay,
+            real_profit: Cell::new_ratio(details.real_profit_ratio),
+            real_tax: Cell::new_ratio(details.real_tax_ratio),
+            real_local_profit: Cell::new_ratio(details.real_local_profit_ratio),
+        });
     }
 
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(total_local_profit.amount, None));
 
-    let mut columns = vec![
-        "Symbol", "Quantity", "Buy price", "Sell Price", "Commission", "Revenue",
-        "Profit", "Tax to pay", "Real profit %",
-    ];
+    let mut totals = trades_table.add_empty_row();
+    totals.set_commission(total_commission);
+    totals.set_revenue(total_revenue);
+    totals.set_profit(total_profit);
+    totals.set_tax_to_pay(tax_to_pay);
 
-    if !same_currency {
-        columns.extend(&["Real tax %", "Real local profit %"]);
-    }
-
-    let mut totals = Vec::new();
-    for _ in 0..4 {
-        totals.push(Cell::new(""));
-    }
-    for total in vec![total_commissions, total_revenue, total_profit] {
-        totals.push(Cell::new_multi_currency_cash(total));
-    }
-    totals.push(Cell::new_cash(tax_to_pay));
-    while totals.len() < columns.len() {
-        totals.push(Cell::new_align("", Alignment::RIGHT));
-    }
-    table.add_row(Row::new(&totals));
-
-    print_table("Sell simulation results", &columns, table);
-    print_table("FIFO details", &["Symbol", "Quantity", "Price"], fifo_table);
+    trades_table.print("Sell simulation results");
+    fifo_table.print("FIFO details");
 
     Ok(())
 }

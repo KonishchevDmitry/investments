@@ -33,6 +33,12 @@ impl Table {
         self.rows.last_mut().unwrap()
     }
 
+    pub fn add_empty_row(&mut self) -> &mut Row {
+        let row = (0..self.columns.len()).map(|_| Cell::new_empty()).collect();
+        self.rows.push(row);
+        self.rows.last_mut().unwrap()
+    }
+
     pub fn hide_column(&mut self, index: usize) {
         self.columns[index].hidden = true;
     }
@@ -85,6 +91,14 @@ impl Cell {
         Cell {text, default_alignment, style: None}
     }
 
+    fn new_empty() -> Cell {
+        Cell::new(String::new(), Alignment::LEFT)
+    }
+
+    pub fn new_ratio(ratio: Decimal) -> Cell {
+        Cell::new(format!("{}%", util::round_to(ratio * dec!(100), 1)), Alignment::RIGHT)
+    }
+
     pub fn new_round_decimal(value: Decimal) -> Cell {
         Cell::new(value.to_i64().unwrap().separated_string(), Alignment::RIGHT)
     }
@@ -106,9 +120,51 @@ impl Cell {
     }
 }
 
-impl Into<Cell> for String {
-    fn into(self) -> Cell {
-        Cell::new(self, Alignment::LEFT)
+macro_rules! impl_from_number_to_cell {
+    ($T:ty) => {
+        impl From<$T> for Cell {
+            fn from(value: $T) -> Cell {
+                Cell::new(value.to_string(), Alignment::RIGHT)
+            }
+        }
+    };
+}
+impl_from_number_to_cell!(u32);
+
+impl From<String> for Cell {
+    fn from(text: String) -> Cell {
+        Cell::new(text, Alignment::LEFT)
+    }
+}
+
+impl<T: Into<Cell>> From<Option<T>> for Cell {
+    fn from(value: Option<T>) -> Cell {
+        match value {
+            Some(value) => value.into(),
+            None => Cell::new_empty(),
+        }
+    }
+}
+
+impl From<Cash> for Cell {
+    fn from(amount: Cash) -> Cell {
+        Cell::new(amount.format(), Alignment::RIGHT)
+    }
+}
+
+impl From<MultiCurrencyCashAccount> for Cell {
+    fn from(amounts: MultiCurrencyCashAccount) -> Cell {
+        let mut amounts: Vec<_> = amounts.iter()
+            .map(|(currency, amount)| Cash::new(*currency, *amount))
+            .collect();
+        amounts.sort_by_key(|amount| amount.currency);
+
+        let result = amounts.iter()
+            .map(|amount| amount.format())
+            .collect::<Vec<_>>()
+            .join(" + ");
+
+        Cell::new(result, Alignment::RIGHT)
     }
 }
 
