@@ -40,7 +40,7 @@ serde_yaml = "*"
 serde-xml-rs = "0.3"
 shellexpand = "*"
 static_table_derive = { path = "src/formatting/static_table_derive" }
-term = "*"
+term = "^0.5" # prettytable-rs restriction
 
 [dev-dependencies]
 matches = "*"
