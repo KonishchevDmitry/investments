@@ -1,3 +1,5 @@
+#![recursion_limit="128"]
+
 extern crate proc_macro;
 
 use darling::FromMeta;
@@ -26,7 +28,10 @@ macro_rules! Err {
 #[proc_macro_derive(StaticTable, attributes(table, column))]
 pub fn static_table_derive(input: TokenStream) -> TokenStream {
     match static_table_derive_impl(input) {
-        Ok(output) => output,
+        Ok(output) => {
+            println!("{}", output); // FIXME
+            output
+        },
         Err(err) => panic!("{}", err),
     }
 }
@@ -40,6 +45,7 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
     let mod_ident = quote!(crate::formatting::table);
     let table_ident = Ident::new(&table_name, span);
+    let row_proxy_ident = Ident::new(&(table_name + "RowProxy"), span);
     let row_ident = &ast.ident;
 
     let field_idents = columns.iter().map(|column| {
@@ -62,27 +68,50 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
     Ok(quote! {
         struct #table_ident {
-            raw_table: #mod_ident::Table,
+            table: #mod_ident::Table,
         }
 
         impl #table_ident {
             fn new() -> #table_ident {
                 let columns = vec![#(#columns_init_code,)*];
                 #table_ident {
-                    raw_table: #mod_ident::Table::new(columns),
+                    table: #mod_ident::Table::new(columns),
                 }
             }
 
-            fn add_row(&mut self, row: #row_ident) -> &mut #mod_ident::Row {
-                self.raw_table.add_row(row.into())
+            fn add_row(&mut self, row: #row_ident) -> #row_proxy_ident {
+                let row = self.table.add_row(row.into());
+                #row_proxy_ident {row: row}
             }
 
             fn print(&self, title: &str) {
-                self.raw_table.print(title);
+                self.table.print(title);
             }
         }
 
-        impl Into<#mod_ident::Row> for #row_ident {
+        struct #row_proxy_ident<'a> {
+            row: &'a mut #mod_ident::Row,
+        }
+
+        // FIXME
+        /*
+        impl<'a> #row_proxy_ident<'a> {
+            fn test(&mut self, cell: #mod_ident::Cell) {
+                self.row[1] = cell;
+            }
+        }
+        */
+
+        impl<'a, 'b> ::core::iter::IntoIterator for &'a mut #row_proxy_ident<'b> {
+            type Item = &'a mut #mod_ident::Cell;
+            type IntoIter = ::std::slice::IterMut<'a, #mod_ident::Cell>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.row.iter_mut()
+            }
+        }
+
+        impl ::std::convert::Into<#mod_ident::Row> for #row_ident {
             fn into(self) -> #mod_ident::Row {
                 vec![#(self.#field_idents.into(),)*]
             }

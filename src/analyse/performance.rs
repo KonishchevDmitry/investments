@@ -185,7 +185,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
-        let row = self.table.add_row(Row {
+        let mut row = self.table.add_row(Row {
             instrument: name.to_owned(),
             investments: Cell::new_round_decimal(investments),
             profit: Cell::new_round_decimal(profit),
@@ -196,7 +196,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         if inactive {
             let style = Style::new().dimmed();
-            for cell in row {
+            for cell in &mut row {
                 cell.style(style);
             }
         }

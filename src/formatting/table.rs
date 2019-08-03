@@ -17,7 +17,7 @@ pub use prettytable::format::Alignment;
 
 pub struct Table {
     columns: Vec<Column>,
-    rows: Vec<Vec<Cell>>,
+    rows: Vec<Row>,
 }
 
 impl Table {
