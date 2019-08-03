@@ -6,10 +6,17 @@ cache: cargo
 rust:
   - stable
   - beta
+  - nightly
 
 env:
   - UPDATE_DEPENDENCIES=false
   - UPDATE_DEPENDENCIES=true
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+  fast_finish: true
 
 install:
   - test $UPDATE_DEPENDENCIES != true || cargo update
