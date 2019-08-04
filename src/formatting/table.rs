@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]  // FIXME: Remove
-
 use num_traits::ToPrimitive;
 use prettytable::{Table as RawTable, Row as RawRow, Cell as RawCell};
 use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
@@ -7,7 +5,6 @@ use separator::Separatable;
 use term;
 
 use crate::currency::{Cash, MultiCurrencyCashAccount};
-use crate::formatting::old_table::print_table;
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -51,14 +48,20 @@ impl Table {
         self.rows.is_empty()
     }
 
-    // FIXME: Rewrite
     pub fn print(&self, title: &str) {
         let mut table = RawTable::new();
-        let columns: Vec<_> = self.columns.iter().enumerate().filter_map(|(index, column)| if column.hidden {
-            None
-        } else {
-            Some(index)
-        }).collect();
+        let mut columns = Vec::new();
+        let mut titles = Vec::new();
+
+        for (index, column) in self.columns.iter().enumerate() {
+            if !column.hidden {
+                columns.push(index);
+                titles.push(RawCell::new_align(&column.name, Alignment::CENTER));
+            }
+        }
+
+        table.set_format(FormatBuilder::new().padding(1, 1).build());
+        table.set_titles(RawRow::new(titles));
 
         for row in &self.rows {
             table.add_row(RawRow::new(columns.iter().map(|&index| {
@@ -68,9 +71,26 @@ impl Table {
             }).collect()));
         }
 
-        let column_names: Vec<&str> = columns.iter().map(|&index| self.columns[index].name).collect();
-        print_table(title, &column_names, table);
+        print_table(title, &table);
     }
+}
+
+fn print_table(title: &str, table: &RawTable) {
+    let contents = table.to_string();
+
+    let mut table = RawTable::new();
+
+    table.set_format(FormatBuilder::new()
+        .separator(LinePosition::Title, LineSeparator::new(' ', ' ', ' ', ' '))
+        .build());
+
+    table.set_titles(RawRow::new(vec![
+        RawCell::new_align(&("\n".to_owned() + title), Alignment::CENTER)
+            .with_style(term::Attr::Bold),
+    ]));
+
+    table.add_row(RawRow::new(vec![RawCell::new(&contents)]));
+    table.printstd();
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
@@ -120,6 +140,9 @@ impl Cell {
         let alignment = column.alignment.unwrap_or(self.default_alignment);
         match self.style {
             Some(style) => {
+                // We implement styling manually using ansi_term because term (which prettytable
+                // natively supports) has not enough functionality - for example it doesn't support
+                // dimming style on Mac.
                 let text = style.paint(&self.text).to_string();
                 RawCell::new_align(&text, alignment)
             },
@@ -158,7 +181,7 @@ impl<T: Into<Cell>> From<Option<T>> for Cell {
 
 impl From<Date> for Cell {
     fn from(date: Date) -> Cell {
-        Cell::new(super::format_date(date), Alignment::CENTER)  // FIXME
+        Cell::new(super::format_date(date), Alignment::CENTER)
     }
 }
 
