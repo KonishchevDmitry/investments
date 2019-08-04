@@ -39,6 +39,10 @@ impl Table {
         self.rows.last_mut().unwrap()
     }
 
+    pub fn rename_column(&mut self, index: usize, name: &'static str) {
+        self.columns[index].name = name;
+    }
+
     pub fn hide_column(&mut self, index: usize) {
         self.columns[index].hidden = true;
     }
@@ -64,7 +68,7 @@ impl Table {
             }).collect()));
         }
 
-        let column_names: Vec<&str> = self.columns.iter().map(|column| column.name).collect();
+        let column_names: Vec<&str> = columns.iter().map(|&index| self.columns[index].name).collect();
         print_table(title, &column_names, table);
     }
 }
@@ -134,6 +138,7 @@ macro_rules! impl_from_number_to_cell {
     };
 }
 impl_from_number_to_cell!(u32);
+impl_from_number_to_cell!(usize);
 impl_from_number_to_cell!(Decimal);
 
 impl From<String> for Cell {
@@ -153,7 +158,7 @@ impl<T: Into<Cell>> From<Option<T>> for Cell {
 
 impl From<Date> for Cell {
     fn from(date: Date) -> Cell {
-        Cell::new(super::format_date(date), Alignment::RIGHT)
+        Cell::new(super::format_date(date), Alignment::CENTER)  // FIXME
     }
 }
 

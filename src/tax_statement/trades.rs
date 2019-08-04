@@ -1,4 +1,5 @@
 use chrono::Datelike;
+use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::{StockSell, SellDetails, FifoDetails};
@@ -6,10 +7,10 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting;
-use crate::formatting::old_table::{Table, Row, Cell, Alignment, print_table};
+use crate::formatting::{self, table::Cell};
 use crate::localities::Country;
 use crate::taxes::TaxPaymentDay;
+use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
 
@@ -18,39 +19,6 @@ pub fn process_income(
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> EmptyResult {
     let country = portfolio.get_tax_country();
-
-    let mut trades = Vec::new();
-    let mut same_dates = true;
-    let mut same_currency = true;
-
-    for trade in &broker_statement.stock_sells {
-        if let Some(year) = year {
-            if trade.execution_date.year() != year {
-                continue;
-            }
-        }
-
-        same_dates &= trade.execution_date == trade.conclusion_date;
-        same_currency &=
-            trade.price.currency == country.currency &&
-                trade.commission.currency == country.currency;
-
-        let details = trade.calculate(&country, converter)?;
-
-        for buy_trade in &details.fifo {
-            same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
-            same_currency &=
-                buy_trade.price.currency == country.currency &&
-                    buy_trade.commission.currency == country.currency;
-        }
-
-        trades.push((trade, details));
-    }
-
-    if trades.is_empty() {
-        return Ok(());
-    }
-
     let mut processor = TradesProcessor {
         portfolio,
         broker_statement,
@@ -59,23 +27,36 @@ pub fn process_income(
         country,
         converter,
 
-        table: Table::new(),
-        fifo_table: Table::new(),
+        trades_table: TradesTable::new(),
+        fifo_table: FifoTable::new(),
 
-        same_dates,
-        same_currency,
+        same_dates: true,
+        same_currency: true,
         total_local_profit: Cash::new(country.currency, dec!(0)),
     };
 
-    for (trade_id, (trade, details)) in trades.iter().enumerate() {
-        processor.process_trade(trade_id, trade, details)?;
+    let mut trade_id = 0;
+
+    for trade in &broker_statement.stock_sells {
+        if let Some(year) = year {
+            if trade.execution_date.year() != year {
+                continue;
+            }
+        }
+
+        let details = trade.calculate(&country, converter)?;
+        processor.process_trade(trade_id, trade, &details)?;
 
         if let Some(ref mut tax_statement) = tax_statement {
-            processor.add_income(tax_statement, trade, details)?;
+            processor.add_income(tax_statement, trade, &details)?;
         }
+
+        trade_id += 1;
     }
 
-    processor.print();
+    if trade_id != 0 {
+        processor.print();
+    }
 
     Ok(())
 }
@@ -88,12 +69,84 @@ struct TradesProcessor<'a> {
     country: Country,
     converter: &'a CurrencyConverter,
 
-    table: Table,
-    fifo_table: Table,
+    trades_table: TradesTable,
+    fifo_table: FifoTable,
 
     same_dates: bool,
     same_currency: bool,
     total_local_profit: Cash,
+}
+
+#[derive(StaticTable)]
+#[table(name="TradesTable")]
+struct TradeRow {
+    #[column(name="№")]
+    id: usize,
+    #[column(name="Дата сделки")]
+    conclusion_date: Date,
+    #[column(name="Дата расчета")]
+    execution_date: Date,
+    #[column(name="Ценная бумага")]
+    security: String,
+    #[column(name="Кол.")]
+    quantity: u32,
+    #[column(name="Цена")]
+    price: Cash,
+    #[column(name="Курс руб.\nна дату сделки")]
+    conclusion_currency_rate: Decimal,
+    #[column(name="Курс руб.\nна дату расчета")]
+    execution_currency_rate: Decimal,
+    #[column(name="Доход от\nпродажи")]
+    revenue: Cash,
+    #[column(name="Доход от\nпродажи (руб)")]
+    local_revenue: Cash,
+    #[column(name="Комиссия")]
+    commission: Cash,
+    #[column(name="Комиссия\n(руб)")]
+    local_commission: Cash,
+    #[column(name="Затраты на\nпокупку")]
+    purchase_local_cost: Cash,
+    #[column(name="Общие\nзатраты")]
+    total_local_cost: Cash,
+    #[column(name="Прибыль")]
+    local_profit: Cash,
+    #[column(name="Налог")]
+    tax_to_pay: Cash,
+    #[column(name="Реальный\nдоход")]
+    real_profit_ratio: Cell,
+    #[column(name="Реальный\nдоход (руб)")]
+    real_local_profit_ratio: Cell,
+}
+
+#[derive(StaticTable)]
+#[table(name="FifoTable")]
+struct FifoRow {
+    #[column(name="№")]
+    id: Option<usize>,
+    #[column(name="Дата сделки")]
+    conclusion_date: Date,
+    #[column(name="Дата расчета")]
+    execution_date: Date,
+    #[column(name="Ценная бумага")]
+    security: String,
+    #[column(name="Кол.")]
+    quantity: u32,
+    #[column(name="Цена")]
+    price: Cash,
+    #[column(name="Курс руб.\nна дату сделки")]
+    conclusion_currency_rate: Decimal,
+    #[column(name="Курс руб.\nна дату расчета")]
+    execution_currency_rate: Decimal,
+    #[column(name="Расходы")]
+    cost: Cash,
+    #[column(name="Расходы (руб)")]
+    local_cost: Cash,
+    #[column(name="Комиссия")]
+    commission: Cash,
+    #[column(name="Комиссия\n(руб)")]
+    local_commission: Cash,
+    #[column(name="Общие затраты")]
+    total_local_cost: Cash,
 }
 
 impl<'a> TradesProcessor<'a> {
@@ -118,202 +171,123 @@ impl<'a> TradesProcessor<'a> {
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
         let security = self.broker_statement.get_instrument_name(&trade.symbol)?;
+
+        self.same_dates &= trade.execution_date == trade.conclusion_date;
+        self.same_currency &=
+            trade.price.currency == self.country.currency &&
+                trade.commission.currency == self.country.currency;
         self.total_local_profit.add_assign(details.local_profit).unwrap();
 
-        let mut row = vec![
-            Cell::new_align(&trade_id.to_string(), Alignment::RIGHT),
-            Cell::new_date(trade.conclusion_date),
-        ];
+        let conclusion_currency_rate = self.converter.precise_currency_rate(
+            trade.conclusion_date, trade.commission.currency, self.country.currency)?;
 
-        if !self.same_dates {
-            row.push(Cell::new_date(trade.execution_date));
-        }
+        let execution_currency_rate = self.converter.precise_currency_rate(
+            trade.execution_date, trade.price.currency, self.country.currency)?;
 
-        row.extend_from_slice(&[
-            Cell::new(&security),
-            Cell::new_align(&trade.quantity.to_string(), Alignment::RIGHT),
-            Cell::new_cash(trade.price),
-        ]);
+        self.trades_table.add_row(TradeRow {
+            id: trade_id,
+            conclusion_date: trade.conclusion_date,
+            execution_date: trade.execution_date,
+            security: security.to_owned(),
+            quantity: trade.quantity,
+            price: trade.price,
+            conclusion_currency_rate: conclusion_currency_rate,
+            execution_currency_rate: execution_currency_rate,
+            revenue: details.revenue,
+            local_revenue: details.local_revenue,
+            commission: trade.commission,
+            local_commission: details.local_commission,
+            purchase_local_cost: details.purchase_local_cost,
+            total_local_cost: details.total_local_cost,
+            local_profit: details.local_profit,
+            tax_to_pay: details.tax_to_pay,
+            real_profit_ratio: Cell::new_ratio(details.real_profit_ratio),
+            real_local_profit_ratio: Cell::new_ratio(details.real_local_profit_ratio),
+        });
 
-        if !self.same_currency {
-            let conclusion_precise_currency_rate = self.converter.precise_currency_rate(
-                trade.conclusion_date, trade.commission.currency, self.country.currency)?;
-
-            let execution_precise_currency_rate = self.converter.precise_currency_rate(
-                trade.execution_date, trade.price.currency, self.country.currency)?;
-
-            row.push(Cell::new_decimal(conclusion_precise_currency_rate));
-            if !self.same_dates {
-                row.push(Cell::new_decimal(execution_precise_currency_rate));
-            }
-        }
-
-        row.push(Cell::new_cash(details.revenue));
-        if !self.same_currency {
-            row.push(Cell::new_cash(details.local_revenue));
-        }
-
-        row.push(Cell::new_cash(trade.commission));
-        if !self.same_currency {
-            row.push(Cell::new_cash(details.local_commission));
-        }
-
-        row.extend_from_slice(&[
-            Cell::new_cash(details.purchase_local_cost),
-            Cell::new_cash(details.total_local_cost),
-            Cell::new_cash(details.local_profit),
-            Cell::new_cash(details.tax_to_pay),
-        ]);
-
-        row.push(Cell::new_ratio(details.real_profit_ratio));
-        if !self.same_currency {
-            row.push(Cell::new_ratio(details.real_local_profit_ratio));
-        }
-
-        self.table.add_row(Row::new(&row));
-
-        for (buy_trade_id, buy_trade) in details.fifo.iter().enumerate() {
-            self.process_fifo(&security, trade_id, buy_trade_id, buy_trade)?;
+        for (index, buy_trade) in details.fifo.iter().enumerate() {
+            self.process_fifo(&security, trade_id, buy_trade, index == 0)?;
         }
 
         Ok(())
     }
 
-    fn process_fifo(&mut self, security: &str, trade_id: usize, buy_trade_id: usize, buy_trade: &FifoDetails) -> EmptyResult {
-        let mut row = Vec::new();
+    fn process_fifo(&mut self, security: &str, trade_id: usize, buy_trade: &FifoDetails, first: bool) -> EmptyResult {
+        self.same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
+        self.same_currency &=
+            buy_trade.price.currency == self.country.currency &&
+                buy_trade.commission.currency == self.country.currency;
 
-        row.push(if buy_trade_id == 0 {
-            Cell::new_align(&trade_id.to_string(), Alignment::RIGHT)
-        } else {
-            Cell::new("")
+        let conclusion_currency_rate = self.converter.precise_currency_rate(
+            buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?;
+
+        let execution_currency_rate = self.converter.precise_currency_rate(
+            buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?;
+
+        self.fifo_table.add_row(FifoRow {
+            id: if first {
+                Some(trade_id)
+            } else {
+                None
+            },
+            conclusion_date: buy_trade.conclusion_date,
+            execution_date: buy_trade.execution_date,
+            security: security.to_owned(),
+            quantity: buy_trade.quantity,
+            price: buy_trade.price,
+            conclusion_currency_rate: conclusion_currency_rate,
+            execution_currency_rate: execution_currency_rate,
+            cost: buy_trade.cost,
+            local_cost: buy_trade.local_cost,
+            commission: buy_trade.commission,
+            local_commission: buy_trade.local_commission,
+            total_local_cost: buy_trade.total_local_cost,
         });
-
-        row.push(Cell::new_date(buy_trade.conclusion_date));
-        if !self.same_dates {
-            row.push(Cell::new_date(buy_trade.execution_date));
-        }
-
-        row.extend_from_slice(&[
-            Cell::new(&security),
-            Cell::new_align(&buy_trade.quantity.to_string(), Alignment::RIGHT),
-            Cell::new_cash(buy_trade.price),
-        ]);
-
-        if !self.same_currency {
-            let conclusion_precise_currency_rate = self.converter.precise_currency_rate(
-                buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?;
-
-            let execution_precise_currency_rate = self.converter.precise_currency_rate(
-                buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?;
-
-            row.push(Cell::new_decimal(conclusion_precise_currency_rate));
-            if !self.same_dates {
-                row.push(Cell::new_decimal(execution_precise_currency_rate));
-            }
-        }
-
-        row.push(Cell::new_cash(buy_trade.cost));
-        if !self.same_currency {
-            row.push(Cell::new_cash(buy_trade.local_cost));
-        }
-
-        row.push(Cell::new_cash(buy_trade.commission));
-        if !self.same_currency {
-            row.push(Cell::new_cash(buy_trade.local_commission));
-        }
-
-        row.push(Cell::new_cash(buy_trade.total_local_cost));
-
-        self.fifo_table.add_row(Row::new(&row));
 
         Ok(())
     }
 
     fn print(mut self) {
-        let tax_to_pay = Cash::new(
-            self.country.currency, self.country.tax_to_pay(self.total_local_profit.amount, None));
+        if self.same_dates {
+            self.trades_table.hide_execution_date();
+            self.trades_table.rename_conclusion_currency_rate("Курс руб.");
+            self.trades_table.hide_execution_currency_rate();
 
-        let mut trade_columns = vec!["№", "Дата сделки"];
-        let mut fifo_columns = trade_columns.clone();
-
-        for columns in &mut [&mut trade_columns, &mut fifo_columns] {
-            if !self.same_dates {
-                columns.push("Дата расчета");
-            }
-            columns.extend_from_slice(&["Ценная бумага", "Кол.", "Цена"]);
-
-            if !self.same_currency {
-                if self.same_dates {
-                    columns.push("Курс руб.");
-                } else {
-                    columns.extend_from_slice(&[
-                        "Курс руб.\nна дату сделки",
-                        "Курс руб.\nна дату расчета",
-                    ]);
-                }
-            }
+            self.fifo_table.hide_execution_date();
+            self.fifo_table.rename_conclusion_currency_rate("Курс руб.");
+            self.fifo_table.hide_execution_currency_rate();
         }
 
-        trade_columns.push("Доход от\nпродажи");
-        if !self.same_currency {
-            trade_columns.push("Доход от\nпродажи (руб)");
+        if self.same_currency {
+            self.trades_table.hide_conclusion_currency_rate();
+            self.trades_table.hide_execution_currency_rate();
+            self.trades_table.hide_local_commission();
+            self.trades_table.hide_local_revenue();
+            self.trades_table.hide_real_local_profit_ratio();
+
+            self.fifo_table.hide_conclusion_currency_rate();
+            self.fifo_table.hide_execution_currency_rate();
+            self.fifo_table.hide_local_cost();
+            self.fifo_table.hide_local_commission();
         }
 
-        fifo_columns.push("Расходы");
-        if !self.same_currency {
-            fifo_columns.push("Расходы (руб)");
+        let mut totals = self.trades_table.add_empty_row();
+        totals.set_local_profit(self.total_local_profit);
+
+        let show_net_tax = match self.portfolio.tax_payment_day {
+            TaxPaymentDay::Day {..} => self.year.is_some(),
+            TaxPaymentDay::OnClose => self.year.is_none(),
+        };
+
+        if show_net_tax {
+            let tax_to_pay = self.country.tax_to_pay(self.total_local_profit.amount, None);
+            totals.set_tax_to_pay(Cash::new(self.country.currency, tax_to_pay));
         }
 
-        for columns in &mut [&mut trade_columns, &mut fifo_columns] {
-            columns.push("Комиссия");
-            if !self.same_currency {
-                columns.push("Комиссия\n(руб)");
-            }
-        }
+        self.trades_table.print(&format!(
+            "Расчет прибыли от продажи ценных бумаг, полученной через {}",
+            self.broker_statement.broker.name));
 
-        trade_columns.extend_from_slice(&["Затраты на\nпокупку", "Общие\nзатраты"]);
-
-        let total_local_profit_index = trade_columns.len();
-        trade_columns.push("Прибыль");
-
-        let total_tax_index = trade_columns.len();
-        trade_columns.push("Налог");
-
-        fifo_columns.push("Общие затраты");
-
-        trade_columns.push("Реальный\nдоход");
-        if !self.same_currency {
-            trade_columns.push("Реальный\nдоход (руб)");
-        }
-
-        let mut totals = Vec::new();
-        for index in 0..trade_columns.len() {
-            totals.push(if index == total_local_profit_index {
-                Cell::new_cash(self.total_local_profit)
-            } else if index == total_tax_index {
-                let show_net_tax = match self.portfolio.tax_payment_day {
-                    TaxPaymentDay::Day {..} => self.year.is_some(),
-                    TaxPaymentDay::OnClose => self.year.is_none(),
-                };
-
-                if show_net_tax {
-                    Cell::new_cash(tax_to_pay)
-                } else {
-                    Cell::new("")
-                }
-            } else {
-                Cell::new("")
-            });
-        }
-        self.table.add_row(Row::new(&totals));
-
-        print_table(
-            &format!("Расчет прибыли от продажи ценных бумаг, полученной через {}",
-                     self.broker_statement.broker.name),
-            &trade_columns, self.table,
-        );
-
-        print_table(
-            "Детализация расчета сделок по ФИФО", &fifo_columns, self.fifo_table);
+        self.fifo_table.print("Детализация расчета сделок по ФИФО");
     }
 }

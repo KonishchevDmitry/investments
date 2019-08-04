@@ -63,10 +63,15 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
         }
     });
 
-    let column_hide_code = columns.iter().enumerate().map(|(index, column)| {
-        let method_ident = Ident::new(&format!("hide_{}", column.id), span);
+    let column_modify_code = columns.iter().enumerate().map(|(index, column)| {
+        let rename_method_ident = Ident::new(&format!("rename_{}", column.id), span);
+        let hide_method_ident = Ident::new(&format!("hide_{}", column.id), span);
         quote! {
-            fn #method_ident(&mut self) {
+            fn #rename_method_ident(&mut self, name: &'static str) {
+                self.table.rename_column(#index, name);
+            }
+
+            fn #hide_method_ident(&mut self) {
                 self.table.hide_column(#index);
             }
         }
@@ -108,7 +113,7 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
                 self.table.is_empty()
             }
 
-            #(#column_hide_code)*
+            #(#column_modify_code)*
 
             fn print(&self, title: &str) {
                 self.table.print(title);
