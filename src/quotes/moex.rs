@@ -1,16 +1,13 @@
 use std::collections::HashMap;
-#[cfg(test)] use std::fs::File;
-#[cfg(test)] use std::path::Path;
 
 use log::error;
-#[cfg(test)] use mockito::{self, Mock, mock};
 use num_traits::Zero;
 use reqwest::{Client, Url};
 use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
-#[cfg(not(test))]use crate::localities;
+#[cfg(not(test))] use crate::localities;
 use crate::types::{Decimal, Date};
 use crate::util;
 
@@ -186,25 +183,27 @@ fn is_outdated(_date: Date) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::ToOwned;
+    use std::collections::HashSet;
+    use std::fs::File;
     use std::io::Read;
+    use std::iter::FromIterator;
+    use std::path::Path;
+
+    use mockito::{self, Mock, mock};
+    use url;
+
     use super::*;
 
     #[test]
     fn no_quotes() {
-        let _mock = mock_response(
-            "/iss/engines/stock/markets/shares/boards/TQTF/securities.xml?securities=FXUS%2CFXIT",
-            "testdata/moex-empty.xml",
-        );
-
+        let _mock = mock_response(&["FXUS", "FXIT"], "moex-empty.xml");
         assert_eq!(Moex::new().get_quotes(&[s!("FXUS"), s!("FXIT")]).unwrap(), HashMap::new());
     }
 
     #[test]
     fn quotes() {
-        let _mock = mock_response(
-            "/iss/engines/stock/markets/shares/boards/TQTF/securities.xml?securities=FXUS%2CFXIT%2CINVALID",
-            "testdata/moex.xml",
-        );
+        let _mock = mock_response(&["FXUS", "FXIT", "INVALID"], "moex.xml");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
@@ -215,13 +214,43 @@ mod tests {
         ]).unwrap(), quotes);
     }
 
-    fn mock_response(path: &str, body_path: &str) -> Mock {
-        let body_path = Path::new(file!()).parent().unwrap().join(body_path);
+    #[test]
+    fn exchange_closed() {
+        test_exchange_status("closed")
+    }
+
+// FIXME: Support
+//    #[test]
+//    fn exchange_opening() {
+//        test_exchange_status("opening")
+//    }
+
+    #[test]
+    fn exchange_open() {
+        test_exchange_status("open")
+    }
+
+    fn test_exchange_status(status: &str) {
+        let securities = ["FXAU", "FXCN", "FXDE", "FXIT", "FXJP", "FXRB", "FXRL", "FXRU", "FXUK", "FXUS"];
+        let _mock = mock_response(&securities, &format!("moex-{}.xml", status));
+
+        let securities = securities.iter().map(ToString::to_string).collect::<Vec<_>>();
+        let quotes = Moex::new().get_quotes(&securities).unwrap();
+
+        assert_eq!(HashSet::<&String>::from_iter(&securities), HashSet::from_iter(quotes.keys()));
+    }
+
+    fn mock_response(securities: &[&str], body_path: &str) -> Mock {
+        let path = format!(
+            "/iss/engines/stock/markets/shares/boards/TQTF/securities.xml?securities={}",
+            url::form_urlencoded::byte_serialize(securities.join(",").as_bytes()).collect::<String>()
+        );
+        let body_path = Path::new(file!()).parent().unwrap().join("testdata").join(body_path);
 
         let mut body = String::new();
         File::open(body_path).unwrap().read_to_string(&mut body).unwrap();
 
-        mock("GET", path)
+        mock("GET", path.as_str())
             .with_status(200)
             .with_header("Content-Type", "application/xml; charset=utf-8")
             .with_body(body)
