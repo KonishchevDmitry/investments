@@ -113,7 +113,7 @@ impl StatementParser {
                     let data_types = parser.data_types();
                     let skip_data_types = parser.skip_data_types();
 
-                    while let Some(result) = records.next() {
+                    for result in &mut records {
                         let record = result?;
 
                         if record.len() < 2 {
