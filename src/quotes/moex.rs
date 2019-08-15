@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use log::error;
 use num_traits::Zero;
 use reqwest::{Client, Url};
 use serde::Deserialize;
+use serde::de::{Deserializer, Error};
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
@@ -73,21 +75,42 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
 
     #[derive(Deserialize)]
     struct Row {
+        // Common fields
+
         #[serde(rename = "SECID")]
         symbol: Option<String>,
+
+        // Security fields
 
         #[serde(rename = "LOTSIZE")]
         lot_size: Option<u32>,
 
-        #[serde(rename = "LAST")]
-        price: Option<Decimal>,
-
         #[serde(rename = "CURRENCYID")]
         currency: Option<String>,
+
+        /// Previous trade day date
+        #[serde(rename = "PREVDATE")]
+        prev_date: Option<String>,
+
+        /// Previous trade day close price
+        #[serde(rename = "PREVLEGALCLOSEPRICE")]
+        prev_price: Option<Decimal>,
+
+        // Market data fields
+
+        #[serde(rename = "NUMTRADES")]
+        trades: Option<u64>,
+
+        #[serde(default, rename = "LAST", deserialize_with = "deserialize_optional_decimal")]
+        price: Option<Decimal>,
 
         // Time columns behaviour:
         // * 10.11.2018 closed session: UPDATETIME="19:18:26" TIME="18:41:07" SYSTIME="2018-11-09 19:33:27"
         // * 13.11.2018 open session: UPDATETIME="13:00:50" TIME="13:00:30" SYSTIME="2018-11-13 13:15:50"
+        //
+        // TIME - last trade time
+        // UPDATETIME - data update time
+        // SYSTIME - data fetch time
         #[serde(rename = "SYSTIME")]
         time: Option<String>,
     }
@@ -95,18 +118,16 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     let result: Document = serde_xml_rs::from_str(data).map_err(|e| e.to_string())?;
     let (mut securities, mut market_data) = (None, None);
 
-    for data in &result.data {
+    for data in result.data {
         let data_ref = match data.id.as_str() {
             "securities" => &mut securities,
             "marketdata" => &mut market_data,
             _ => continue,
         };
 
-        if data_ref.is_some() {
+        if data_ref.replace(data.table.rows).is_some() {
             return Err!("Duplicated {:?} data", data.id);
         }
-
-        *data_ref = Some(&data.table.rows);
     }
 
     let (securities, market_data) = match (securities, market_data) {
@@ -117,11 +138,13 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     let mut symbols = HashMap::new();
 
     for row in securities {
-        let symbol = get_value(&row.symbol)?;
-        let lot_size = get_value(&row.lot_size)?;
-        let currency = get_value(&row.currency)?;
+        let symbol = get_value(row.symbol)?;
+        let lot_size = get_value(row.lot_size)?;
+        let currency = get_value(row.currency)?;
+        let prev_date = get_value(row.prev_date)?;
+        let prev_price = get_value(row.prev_price)?;
 
-        if *lot_size != 1 {
+        if lot_size != 1 {
             return Err!("{} has lot = {} which is not supported yet", symbol, lot_size);
         }
 
@@ -130,7 +153,12 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
             _ => return Err!("{} is nominated in an unsupported currency: {}", symbol, currency),
         };
 
-        if symbols.insert(symbol, currency).is_some() {
+        let prev_date = util::parse_date(&prev_date, "%Y-%m-%d")?;
+        if prev_price.is_zero() || prev_price.is_sign_negative() {
+            return Err!("Invalid price: {}", prev_price);
+        }
+
+        if symbols.insert(symbol.clone(), (currency, prev_date, prev_price)).is_some() {
             return Err!("Duplicated symbol: {}", symbol);
         }
     }
@@ -139,23 +167,41 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     let mut outdated = Vec::new();
 
     for row in market_data {
-        let symbol = get_value(&row.symbol)?;
+        let symbol = get_value(row.symbol)?;
 
-        let date = util::parse_date_time(&get_value(&row.time)?, "%Y-%m-%d %H:%M:%S")?.date();
+        let date = util::parse_date_time(&get_value(row.time)?, "%Y-%m-%d %H:%M:%S")?.date();
         if is_outdated(date) {
-            outdated.push(symbol.clone());
+            outdated.push(symbol);
             continue;
         }
 
-        let currency = symbols.get(symbol).ok_or_else(|| format!(
+        let trades = get_value(row.trades)?;
+        let &(currency, prev_date, prev_price) = symbols.get(&symbol).ok_or_else(|| format!(
             "There is market data for {} but security info is missing", symbol))?;
 
-        let price = get_value(&row.price)?;
-        if price.is_zero() || price.is_sign_negative() {
-            return Err!("Invalid price: {}", price);
-        }
+        let price = match row.price {
+            Some(price) => {
+                if price.is_zero() || price.is_sign_negative() {
+                    return Err!("Invalid price: {}", price);
+                }
 
-        if quotes.insert(symbol.clone(), Cash::new(currency, *price)).is_some() {
+                price
+            },
+            None => {
+                if trades != 0 {
+                    return Err!("There is no last price for {}", symbol);
+                }
+
+                if is_outdated(prev_date) {
+                    outdated.push(symbol);
+                    continue;
+                }
+
+                prev_price
+            },
+        };
+
+        if quotes.insert(symbol.clone(), Cash::new(currency, price)).is_some() {
             return Err!("Duplicated symbol: {}", symbol);
         }
     }
@@ -167,8 +213,8 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     Ok(quotes)
 }
 
-fn get_value<T>(value: &Option<T>) -> GenericResult<&T> {
-    Ok(value.as_ref().ok_or_else(|| "Got an unexpected response from server")?)
+fn get_value<T>(value: Option<T>) -> GenericResult<T> {
+    Ok(value.ok_or_else(|| "Got an unexpected response from server")?)
 }
 
 #[cfg(not(test))]
@@ -179,6 +225,18 @@ fn is_outdated(date: Date) -> bool {
 #[cfg(test)]
 fn is_outdated(_date: Date) -> bool {
     false
+}
+
+fn deserialize_optional_decimal<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
+    where D: Deserializer<'de>
+{
+    let value: String = Deserialize::deserialize(deserializer)?;
+    if value == "" {
+        return Ok(None);
+    }
+
+    Ok(Some(Decimal::from_str(&value)
+        .map_err(|_| D::Error::custom(format!("Invalid decimal value: {:?}", value)))?))
 }
 
 #[cfg(test)]
@@ -219,11 +277,10 @@ mod tests {
         test_exchange_status("closed")
     }
 
-// FIXME: Support
-//    #[test]
-//    fn exchange_opening() {
-//        test_exchange_status("opening")
-//    }
+    #[test]
+    fn exchange_opening() {
+        test_exchange_status("opening")
+    }
 
     #[test]
     fn exchange_open() {
