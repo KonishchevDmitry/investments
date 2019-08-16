@@ -27,24 +27,23 @@ easy-logging = "*"
 encoding_rs = "*"
 indoc = "*"
 lazy_static = "*"
-log = "0.4"
+log = "*"
 num-traits = "*"
-prettytable-rs = "0.8"
+prettytable-rs = "*"
 regex = "*"
 reqwest = "*"
 rust_decimal = "*"
 rust_decimal_macros = "*"
 separator = "*"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
-serde-xml-rs = "0.3"
+serde-xml-rs = "*"
 shellexpand = "*"
 static_table_derive = { path = "src/formatting/static_table_derive" }
-term = "^0.5" # prettytable-rs restriction
 
 [dev-dependencies]
 matches = "*"
 mockito = "*"
-rstest = "0.2"
+rstest = "*"
 tempfile = "*"
 url = "*"

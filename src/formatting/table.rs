@@ -1,8 +1,7 @@
 use num_traits::ToPrimitive;
-use prettytable::{Table as RawTable, Row as RawRow, Cell as RawCell};
+use prettytable::{Table as RawTable, Row as RawRow, Cell as RawCell, Attr};
 use prettytable::format::{FormatBuilder, LinePosition, LineSeparator};
 use separator::Separatable;
-use term;
 
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::types::{Date, Decimal};
@@ -86,7 +85,7 @@ fn print_table(title: &str, table: &RawTable) {
 
     table.set_titles(RawRow::new(vec![
         RawCell::new_align(&("\n".to_owned() + title), Alignment::CENTER)
-            .with_style(term::Attr::Bold),
+            .with_style(Attr::Bold),
     ]));
 
     table.add_row(RawRow::new(vec![RawCell::new(&contents)]));
