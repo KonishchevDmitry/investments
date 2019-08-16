@@ -157,10 +157,9 @@ fn get_table_params(ast: &DeriveInput) -> GenericResult<String> {
         let meta = attr.parse_meta().map_err(|e| format!(
             "Failed to parse `{:#?}`: {}", attr, e))?;
 
-        let ident = get_attribute_ident(&meta);
-        if ident == COLUMN_ATTR_NAME {
+        if match_attribute_name(&meta, COLUMN_ATTR_NAME) {
             return Err!("{:?} attribute is allowed on struct fields only", COLUMN_ATTR_NAME);
-        } else if ident != TABLE_ATTR_NAME {
+        } else if !match_attribute_name(&meta, TABLE_ATTR_NAME) {
             continue;
         }
 
@@ -200,10 +199,9 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             let meta = attr.parse_meta().map_err(|e| format!(
                 "Failed to parse `{:#?}` on {:?} field: {}", attr, field_name, e))?;
 
-            let ident = get_attribute_ident(&meta);
-            if ident == TABLE_ATTR_NAME {
+            if match_attribute_name(&meta, TABLE_ATTR_NAME) {
                 return Err!("{:?} attribute is allowed on struct definition only", TABLE_ATTR_NAME);
-            } else if ident != COLUMN_ATTR_NAME {
+            } else if !match_attribute_name(&meta, COLUMN_ATTR_NAME) {
                 continue;
             }
 
@@ -232,10 +230,12 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     Ok(columns)
 }
 
-fn get_attribute_ident(meta: &Meta) -> &Ident {
-    match meta {
-        Meta::Word(ident) => ident,
-        Meta::List(MetaList{ident, ..}) => ident,
-        Meta::NameValue(MetaNameValue{ident, ..}) => ident,
-    }
+fn match_attribute_name(meta: &Meta, name: &str) -> bool {
+    let path = match meta {
+        Meta::Path(path) => path,
+        Meta::List(MetaList{path, ..}) => path,
+        Meta::NameValue(MetaNameValue{path, ..}) => path,
+    };
+
+    path.segments.len() == 1 && path.segments.first().unwrap().ident == name
 }
