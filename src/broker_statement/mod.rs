@@ -26,6 +26,7 @@ mod ib;
 mod interest;
 mod open_broker;
 mod partial;
+mod payments;
 mod taxes;
 pub mod trades;
 

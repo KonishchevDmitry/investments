@@ -14,6 +14,7 @@ impl TaxId {
     }
 }
 
+// FIXME: Replace with payments API
 // Calculates result tax from a series of withholds and refunds. Doesn't require withholds and
 // refunds to be in order because Interactive Brokers' statements don't guarantee the order.
 pub struct TaxChanges {
