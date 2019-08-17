@@ -24,7 +24,9 @@ impl RecordParser for DividendsParser {
         let amount = Cash::new(
             currency, record.parse_cash("Amount", DecimalRestrictions::StrictlyPositive)?);
 
+        /*
         let (issuer, tax_description) = parse_dividend_description(description)?;
+        Some(description + " - US Tax")
 
         if let Some(tax_description) = tax_description {
             parser.statement.dividends_without_paid_tax.push(DividendWithoutPaidTax {
@@ -41,15 +43,25 @@ impl RecordParser for DividendsParser {
                 paid_tax: Cash::new(amount.currency, dec!(0)),
             })
         }
+        */
 
         Ok(())
     }
 }
 
-fn parse_dividend_description(description: &str) -> GenericResult<(String, Option<String>)> {
+fn parse_dividend_description(description: &str) -> GenericResult<(String, String, bool, bool)> {
     lazy_static! {
-        static ref DESCRIPTION_REGEX: Regex = Regex::new(
-            r"^(?P<description>(?P<issuer>[A-Z]+)\b.+) \((?P<type>[^)]+)\)$").unwrap();
+        static ref DESCRIPTION_REGEX: Regex = Regex::new(r"^(?x)
+            (?P<description>
+                (?P<issuer>[A-Z]+)\b
+                .+?
+            )
+            (?P<reversal>(?-x) - Reversal)?
+            \s\(
+                (?P<type>[^)]+)
+            \)
+            $
+        ").unwrap();
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
@@ -57,15 +69,12 @@ fn parse_dividend_description(description: &str) -> GenericResult<(String, Optio
 
     let issuer = captures.name("issuer").unwrap().as_str().to_owned();
     let income_type = captures.name("type").unwrap().as_str().to_owned();
+    let short_description = captures.name("description").unwrap().as_str().to_owned();
 
-    let tax_description = if income_type == "Return of Capital" {
-        None
-    } else {
-        let description = captures.name("description").unwrap().as_str().to_owned();
-        Some(description + " - US Tax")
-    };
+    let taxable = income_type != "Return of Capital";
+    let reversal = captures.name("reversal").is_some();
 
-    Ok((issuer, tax_description))
+    Ok((issuer, short_description, taxable, reversal))
 }
 
 #[cfg(test)]
@@ -73,25 +82,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dividend_description_parsing() {
-        assert_eq!(parse_dividend_description(
-            "VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)").unwrap(),
-            (s!("VNQ"), Some(s!("VNQ (US9229085538) Cash Dividend USD 0.7318 - US Tax"))),
+    fn dividend_parsing() {
+        test_dividend_parsing(
+            "VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)",
+            "VNQ", "VNQ (US9229085538) Cash Dividend USD 0.7318", true, false,
         );
 
-        assert_eq!(parse_dividend_description(
-            "IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)").unwrap(),
-            (s!("IEMG"), Some(s!("IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share - US Tax"))),
+        test_dividend_parsing(
+            "IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)",
+            "IEMG", "IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share", true, false,
         );
 
-        assert_eq!(parse_dividend_description(
-            "BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)").unwrap(),
-            (s!("BND"), Some(s!("BND(US9219378356) Cash Dividend 0.18685800 USD per Share - US Tax"))),
+        test_dividend_parsing(
+            "BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)",
+            "BND", "BND(US9219378356) Cash Dividend 0.18685800 USD per Share", true, false,
+        );
+    }
+
+    #[test]
+    fn non_taxable_dividend_parsing() {
+        test_dividend_parsing(
+            "VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital)",
+            "VNQ", "VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share", false, false,
+        );
+    }
+
+    #[test]
+    fn dividend_reversal_parsing() {
+        test_dividend_parsing(
+            "BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)",
+            "BND", "BND(US9219378356) Cash Dividend USD 0.193413 per Share", true, false,
         );
 
-        assert_eq!(parse_dividend_description(
-            "VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital)").unwrap(),
-            (s!("VNQ"), None),
+        test_dividend_parsing(
+            "BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)",
+            "BND", "BND(US9219378356) Cash Dividend USD 0.193413 per Share", true, true,
+        );
+    }
+
+    fn test_dividend_parsing(input: &str, symbol: &str, description: &str, taxable: bool, reversal: bool) {
+        assert_eq!(
+            parse_dividend_description(input).unwrap(),
+            (symbol.to_owned(), description.to_owned(), taxable, reversal),
         );
     }
 }
