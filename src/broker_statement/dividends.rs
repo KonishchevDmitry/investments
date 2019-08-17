@@ -8,6 +8,7 @@ use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
 use super::TaxId;
+use super::payments::Payments;
 
 #[derive(Debug)]
 pub struct Dividend {
@@ -54,6 +55,42 @@ impl DividendWithoutPaidTax {
             paid_tax: paid_tax,
         })
     }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+pub struct DividendId {
+    pub date: Date,
+    pub issuer: String,
+    pub description: String,
+    pub tax_id: Option<TaxId>,
+}
+
+pub fn process_dividends(dividend: DividendId, changes: Payments, taxes: &mut HashMap<TaxId, Payments>) -> GenericResult<Option<Dividend>> {
+    let paid_tax = dividend.tax_id.as_ref().map_or(Ok(None), |tax_id| {
+        let tax_changes = taxes.remove(&tax_id).ok_or_else(|| format!(
+            "There is no tax with {:?} expected description", tax_id.description
+        ))?;
+
+        tax_changes.get_result().map_err(|e| format!(
+            "Failed to process {} / {:?} tax: {}",
+            formatting::format_date(tax_id.date), tax_id.description, e))
+    }).map_err(|e| format!(
+        "Unable to match {} dividend from {} to paid taxes: {}",
+        dividend.issuer, formatting::format_date(dividend.date), e)
+    )?;
+
+    let amount = changes.get_result().map_err(|e| format!(
+        "Failed to process {} dividend from {}: {}",
+        dividend.issuer, formatting::format_date(dividend.date), e))?;
+
+    Ok(amount.map(|amount| {
+        Dividend {
+            date: dividend.date,
+            issuer: dividend.issuer,
+            amount: amount,
+            paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
+        }
+    }))
 }
 
 pub trait DividendPaidTaxExtractor {
