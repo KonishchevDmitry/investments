@@ -39,46 +39,39 @@ impl Dividend {
 pub struct DividendId {
     pub date: Date,
     pub issuer: String,
-    pub description: String,
-    pub tax_description: Option<String>,
 }
 
 pub type DividendAccruals = Payments;
 
-pub fn process_dividends(
+pub fn process_dividend_accruals(
     dividend: DividendId, accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>
 ) -> GenericResult<Option<Dividend>> {
-    let paid_tax = dividend.tax_description.as_ref().map_or(Ok(None), |tax_description| {
-        let tax_id = TaxId::new(dividend.date, &tax_description);
-        let tax_accruals = taxes.remove(&tax_id).ok_or_else(|| format!(
-            "There is no tax with {:?} expected description", tax_description
-        ))?;
-
+    let tax_id = TaxId::new(dividend.date, &dividend.issuer);
+    let paid_tax = taxes.remove(&tax_id).map_or(Ok(None), |tax_accruals| {
         tax_accruals.get_result().map_err(|e| format!(
-            "Failed to process {} / {:?} tax: {}",
-            formatting::format_date(dividend.date), tax_description, e))
-    }).map_err(|e| format!(
-        "Unable to match {} dividend from {} to paid taxes: {}",
-        dividend.issuer, formatting::format_date(dividend.date), e)
-    )?;
+            "Failed to process {} tax from {}: {}",
+            tax_id.issuer, formatting::format_date(tax_id.date), e))
+    })?;
 
-    let amount = accruals.get_result().map_err(|e| format!(
+    let amount = match accruals.get_result().map_err(|e| format!(
         "Failed to process {} dividend from {}: {}",
-        dividend.issuer, formatting::format_date(dividend.date), e))?;
+        dividend.issuer, formatting::format_date(dividend.date), e
+    ))? {
+        Some(amount) => amount,
+        None => {
+            if paid_tax.is_some() {
+                return Err!("Got paid tax for reversed {} dividend from {}",
+                            dividend.issuer, formatting::format_date(dividend.date));
+            }
 
-    // FIXME: Ensure zero tax on None
-    Ok(if let Some(amount) = amount {
-        Some(Dividend {
-            date: dividend.date,
-            issuer: dividend.issuer,
-            amount: amount,
-            paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
-        })
-    } else {
-        if paid_tax.is_some() {
-            return Err!("Got paid tax for reversed {} dividend from {}",
-                        dividend.issuer, formatting::format_date(dividend.date));
+            return Ok(None);
         }
-        None
-    })
+    };
+
+    Ok(Some(Dividend {
+        date: dividend.date,
+        issuer: dividend.issuer,
+        amount: amount,
+        paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
+    }))
 }

@@ -15,7 +15,7 @@ use crate::quotes::Quotes;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
-use self::dividends::{Dividend, DividendAccruals, process_dividends};
+use self::dividends::{Dividend, DividendAccruals, process_dividend_accruals};
 use self::interest::IdleCashInterest;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
@@ -105,7 +105,7 @@ impl BrokerStatement {
         }
 
         for (dividend_id, accruals) in dividend_accruals {
-            if let Some(dividend) = process_dividends(dividend_id, accruals, &mut tax_accruals)? {
+            if let Some(dividend) = process_dividend_accruals(dividend_id, accruals, &mut tax_accruals)? {
                 statement.dividends.push(dividend);
             }
         }
