@@ -19,8 +19,8 @@ impl RecordParser for WithholdingTaxParser {
         }
 
         let date = parse_date(record.get_value("Date")?)?;
-        let description = record.get_value("Description")?;
-        let tax_id = TaxId::new(date, description);
+        let issuer = parse_tax_description(record.get_value("Description")?)?;
+        let tax_id = TaxId::new(date, &issuer);
 
         // Tax amount is represented as a negative number.
         //

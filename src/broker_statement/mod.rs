@@ -113,8 +113,8 @@ impl BrokerStatement {
         if !tax_accruals.is_empty() {
             let taxes = tax_accruals.keys()
                 .map(|tax: &TaxId| format!(
-                    "* {date}: {description}", date=formatting::format_date(tax.date),
-                    description=tax.description))
+                    "* {date}: {issuer}", date=formatting::format_date(tax.date),
+                    issuer=tax.issuer))
                 .collect::<Vec<_>>()
                 .join("\n");
 

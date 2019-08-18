@@ -4,12 +4,12 @@ use crate::types::Date;
 #[derive(PartialEq, Eq, Hash)]
 pub struct TaxId {
     pub date: Date,
-    pub description: String,
+    pub issuer: String,
 }
 
 impl TaxId {
-    pub fn new(date: Date, description: &str) -> TaxId {
-        TaxId { date, description: description.to_owned() }
+    pub fn new(date: Date, issuer: &str) -> TaxId {
+        TaxId { date, issuer: issuer.to_owned() }
     }
 }
 
