@@ -83,30 +83,30 @@ impl BrokerStatement {
     fn new_from(mut statements: Vec<PartialBrokerStatement>) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
-        let mut joint_statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
+        let mut statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
-        for mut statement in statements.drain(..) {
-            for (dividend_id, accruals) in statement.dividend_accruals.drain() {
+        for mut partial in statements.drain(..) {
+            for (dividend_id, accruals) in partial.dividend_accruals.drain() {
                 dividend_accruals.entry(dividend_id)
                     .and_modify(|existing: &mut DividendAccruals| existing.merge(&accruals))
                     .or_insert(accruals);
             }
 
-            for (tax_id, accruals) in statement.tax_accruals.drain() {
+            for (tax_id, accruals) in partial.tax_accruals.drain() {
                 tax_accruals.entry(tax_id)
                     .and_modify(|existing: &mut TaxAccruals| existing.merge(&accruals))
                     .or_insert(accruals);
             }
 
-            joint_statement.merge(statement).map_err(|e| format!(
+            statement.merge(partial).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
         }
 
         for (dividend_id, accruals) in dividend_accruals {
             if let Some(dividend) = process_dividends(dividend_id, accruals, &mut tax_accruals)? {
-                joint_statement.dividends.push(dividend);
+                statement.dividends.push(dividend);
             }
         }
 
@@ -121,10 +121,11 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
-        joint_statement.validate()?;
-        joint_statement.process_trades()?;
+        statement.sort()?;
+        statement.validate()?;
+        statement.process_trades()?;
 
-        Ok(joint_statement)
+        Ok(statement)
     }
 
     fn new_empty_from(statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
@@ -285,7 +286,7 @@ impl BrokerStatement {
 
         assert_eq!(stock_buys.len(), stock_buys_num);
         self.stock_buys = stock_buys;
-        self.order_stock_buys()?;
+        self.sort_stock_buys()?;
 
         self.validate_open_positions()?;
 
@@ -317,14 +318,52 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn validate(&mut self) -> EmptyResult {
+    fn sort(&mut self) -> EmptyResult {
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.idle_cash_interest.sort_by_key(|interest| interest.date);
-        self.dividends.sort_by_key(|dividend| dividend.date);
+        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+        self.sort_stock_buys()?;
+        self.sort_stock_sells()?;
+        Ok(())
+    }
 
-        self.order_stock_buys()?;
-        self.order_stock_sells()?;
+    fn sort_stock_buys(&mut self) -> EmptyResult {
+        self.stock_buys.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
 
+        let mut prev_execution_date = None;
+
+        for stock_buy in &self.stock_buys {
+            if let Some(prev_execution_date) = prev_execution_date {
+                if stock_buy.execution_date < prev_execution_date {
+                    return Err!("Got an unexpected execution order for buy trades");
+                }
+            }
+
+            prev_execution_date = Some(stock_buy.execution_date);
+        }
+
+        Ok(())
+    }
+
+    fn sort_stock_sells(&mut self) -> EmptyResult {
+        self.stock_sells.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
+
+        let mut prev_execution_date = None;
+
+        for stock_sell in &self.stock_sells {
+            if let Some(prev_execution_date) = prev_execution_date {
+                if stock_sell.execution_date < prev_execution_date {
+                    return Err!("Got an unexpected execution order for sell trades");
+                }
+            }
+
+            prev_execution_date = Some(stock_sell.execution_date);
+        }
+
+        Ok(())
+    }
+
+    fn validate(&self) -> EmptyResult {
         let min_date = self.period.0;
         let max_date = self.period.1 - Duration::days(1);
         let validate_date = |name, first_date, last_date| -> EmptyResult {
@@ -369,42 +408,6 @@ impl BrokerStatement {
             let first_date = self.dividends.first().unwrap().date;
             let last_date = self.dividends.last().unwrap().date;
             validate_date("dividend", first_date, last_date)?;
-        }
-
-        Ok(())
-    }
-
-    fn order_stock_buys(&mut self) -> EmptyResult {
-        self.stock_buys.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
-
-        let mut prev_execution_date = None;
-
-        for stock_buy in &self.stock_buys {
-            if let Some(prev_execution_date) = prev_execution_date {
-                if stock_buy.execution_date < prev_execution_date {
-                    return Err!("Got an unexpected execution order for buy trades");
-                }
-            }
-
-            prev_execution_date = Some(stock_buy.execution_date);
-        }
-
-        Ok(())
-    }
-
-    fn order_stock_sells(&mut self) -> EmptyResult {
-        self.stock_sells.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
-
-        let mut prev_execution_date = None;
-
-        for stock_sell in &self.stock_sells {
-            if let Some(prev_execution_date) = prev_execution_date {
-                if stock_sell.execution_date < prev_execution_date {
-                    return Err!("Got an unexpected execution order for sell trades");
-                }
-            }
-
-            prev_execution_date = Some(stock_sell.execution_date);
         }
 
         Ok(())
