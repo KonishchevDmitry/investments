@@ -66,12 +66,19 @@ pub fn process_dividends(
         "Failed to process {} dividend from {}: {}",
         dividend.issuer, formatting::format_date(dividend.date), e))?;
 
-    Ok(amount.map(|amount| {
-        Dividend {
+    // FIXME: Ensure zero tax on None
+    Ok(if let Some(amount) = amount {
+        Some(Dividend {
             date: dividend.date,
             issuer: dividend.issuer,
             amount: amount,
             paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
+        })
+    } else {
+        if paid_tax.is_some() {
+            return Err!("Got paid tax for reversed {} dividend from {}",
+                        dividend.issuer, formatting::format_date(dividend.date));
         }
-    }))
+        None
+    })
 }

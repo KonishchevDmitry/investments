@@ -38,7 +38,16 @@ impl RecordParser for DividendsParser {
             tax_description: if taxable {
                 Some(short_description + " - US Tax")
             } else {
-                None
+                // FIXME: HERE
+
+                // VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital),36.41
+                // VNQ(US9229085538) Cash Dividend USD 0.8274 per Share - US Tax
+
+                if short_description == "VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share" {
+                    Some("VNQ(US9229085538) Cash Dividend USD 0.8274 per Share - US Tax".to_owned())
+                } else {
+                    None
+                }
             },
         }).or_insert_with(DividendAccruals::new);
 
