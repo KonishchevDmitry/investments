@@ -62,18 +62,19 @@ pub struct DividendId {
     pub date: Date,
     pub issuer: String,
     pub description: String,
-    pub tax_id: Option<TaxId>,
+    pub tax_description: Option<String>,
 }
 
 pub fn process_dividends(dividend: DividendId, changes: Payments, taxes: &mut HashMap<TaxId, Payments>) -> GenericResult<Option<Dividend>> {
-    let paid_tax = dividend.tax_id.as_ref().map_or(Ok(None), |tax_id| {
+    let paid_tax = dividend.tax_description.as_ref().map_or(Ok(None), |tax_description| {
+        let tax_id = TaxId::new(dividend.date, &tax_description);
         let tax_changes = taxes.remove(&tax_id).ok_or_else(|| format!(
-            "There is no tax with {:?} expected description", tax_id.description
+            "There is no tax with {:?} expected description", tax_description
         ))?;
 
         tax_changes.get_result().map_err(|e| format!(
             "Failed to process {} / {:?} tax: {}",
-            formatting::format_date(tax_id.date), tax_id.description, e))
+            formatting::format_date(dividend.date), tax_description, e))
     }).map_err(|e| format!(
         "Unable to match {} dividend from {} to paid taxes: {}",
         dividend.issuer, formatting::format_date(dividend.date), e)

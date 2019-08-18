@@ -4,7 +4,9 @@ use regex::Regex;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::broker_statement::taxes::TaxId;
-use crate::broker_statement::dividends::{Dividend, DividendWithoutPaidTax, TaxIdExtractor};
+use crate::broker_statement::dividends::DividendId;
+use crate::broker_statement::payments::Payments;
+use crate::formatting;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -21,29 +23,32 @@ impl RecordParser for DividendsParser {
 
         let date = parse_date(record.get_value("Date")?)?;
         let description = record.get_value("Description")?;
-        let amount = Cash::new(
-            currency, record.parse_cash("Amount", DecimalRestrictions::StrictlyPositive)?);
+        let (issuer, short_description, taxable, reversal) =
+            parse_dividend_description(description)?;
+        let amount = Cash::new(currency, record.parse_cash(
+            "Amount", DecimalRestrictions::NonZero)?);
 
-        /*
-        let (issuer, tax_description) = parse_dividend_description(description)?;
-        Some(description + " - US Tax")
-
-        if let Some(tax_description) = tax_description {
-            parser.statement.dividends_without_paid_tax.push(DividendWithoutPaidTax {
-                date: date,
-                issuer: issuer,
-                amount: amount,
-                tax_extractor: TaxIdExtractor::new(TaxId::new(date, &tax_description))
-            });
-        } else {
-            parser.statement.dividends.push(Dividend {
-                date: date,
-                issuer: issuer,
-                amount: amount,
-                paid_tax: Cash::new(amount.currency, dec!(0)),
-            })
+        if amount.is_negative() != reversal {
+            return Err!("{} dividend from {}: Got an unexpected amount: {}",
+                        issuer, formatting::format_date(date), amount);
         }
-        */
+
+        parser.statement.dividend_changes.entry(DividendId {
+            date: date,
+            issuer: issuer,
+            description: short_description.clone(),
+            tax_description: if taxable {
+                Some(short_description + " - US Tax")
+            } else {
+                None
+            },
+        }).and_modify(|changes| {
+            if reversal {
+                changes.reverse(-amount)
+            } else {
+                changes.add(amount)
+            }
+        }).or_insert_with(Payments::new);
 
         Ok(())
     }

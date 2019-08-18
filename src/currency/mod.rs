@@ -48,6 +48,10 @@ impl Cash {
         !self.amount.is_zero() && self.amount.is_sign_positive()
     }
 
+    pub fn is_negative(&self) -> bool {
+        !self.amount.is_zero() && self.amount.is_sign_negative()
+    }
+
     #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, amount: Cash) -> GenericResult<Cash> {
         self.add_assign(amount)?;
