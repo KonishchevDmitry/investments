@@ -15,7 +15,7 @@ use crate::quotes::Quotes;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
-use self::dividends::{Dividend, DividendAccruals};
+use self::dividends::{Dividend, DividendAccruals, process_dividends};
 use self::interest::IdleCashInterest;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
@@ -104,28 +104,15 @@ impl BrokerStatement {
                 "Failed to merge broker statements: {}", e))?;
         }
 
-        let mut taxes = HashMap::new();
-
-        // FIXME: HERE
-//        for (tax_id, accruals) in tax_accruals {
-//            let amount = accruals.get_result_tax().map_err(|e| format!(
-//                "Failed to process {} / {:?} tax: {}",
-//                formatting::format_date(tax_id.date), tax_id.description, e))?;
-//
-//            taxes.insert(tax_id, amount);
-//        }
-//
-//        for dividend in dividends_without_paid_tax {
-//            joint_statement.dividends.push(dividend.upgrade(&mut taxes)?);
-//        }
-
         for (dividend_id, accruals) in dividend_accruals {
-            // FIXME: HERE
+            if let Some(dividend) = process_dividends(dividend_id, accruals, &mut tax_accruals)? {
+                joint_statement.dividends.push(dividend);
+            }
         }
 
-        if !taxes.is_empty() {
-            let taxes = taxes.keys()
-                .map(|tax: &taxes::TaxId| format!(
+        if !tax_accruals.is_empty() {
+            let taxes = tax_accruals.keys()
+                .map(|tax: &TaxId| format!(
                     "* {date}: {description}", date=formatting::format_date(tax.date),
                     description=tax.description))
                 .collect::<Vec<_>>()

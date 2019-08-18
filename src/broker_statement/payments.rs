@@ -1,6 +1,5 @@
 use crate::core::GenericResult;
 use crate::currency::Cash;
-use crate::types::Date;
 
 /// Calculates result amount from a series of payments and reversals. Doesn't require payments and
 /// reversals to be in order because Interactive Brokers' statement does't guarantee the order.
