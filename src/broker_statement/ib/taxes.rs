@@ -1,5 +1,8 @@
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use crate::broker_statement::taxes::{TaxId, TaxAccruals};
-use crate::core::EmptyResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::util::DecimalRestrictions;
 
@@ -35,5 +38,34 @@ impl RecordParser for WithholdingTaxParser {
         }
 
         Ok(())
+    }
+}
+
+fn parse_tax_description(description: &str) -> GenericResult<String> {
+    lazy_static! {
+        static ref DESCRIPTION_REGEX: Regex = Regex::new(
+            r"^(?P<issuer>[A-Z]+) ?\([A-Z0-9]+\) Cash Dividend .+? - US Tax$").unwrap();
+    }
+
+    let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
+        "Unexpected tax description: {:?}", description))?;
+
+    Ok(captures.name("issuer").unwrap().as_str().to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tax_parsing() {
+        test_tax_parsing("BND (US9219378356) Cash Dividend USD 0.181007 - US Tax", "BND");
+        test_tax_parsing("BND(US9219378356) Cash Dividend USD 0.193413 per Share - US Tax", "BND");
+        test_tax_parsing("BND(US9219378356) Cash Dividend 0.18366600 USD per Share - US Tax", "BND");
+        test_tax_parsing("BND(43645828) Cash Dividend 0.19446400 USD per Share - US Tax", "BND");
+    }
+
+    fn test_tax_parsing(description: &str, symbol: &str) {
+        assert_eq!(parse_tax_description(description).unwrap(), symbol.to_owned());
     }
 }
