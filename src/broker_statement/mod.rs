@@ -84,13 +84,10 @@ impl BrokerStatement {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
         let mut joint_statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
-        let mut dividends_without_paid_tax = Vec::new();
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
         for mut statement in statements.drain(..) {
-            dividends_without_paid_tax.extend(statement.dividends_without_paid_tax.drain(..));
-
             for (dividend_id, accruals) in statement.dividend_accruals.drain() {
                 dividend_accruals.entry(dividend_id)
                     .and_modify(|existing: &mut DividendAccruals| existing.merge(&accruals))
@@ -117,10 +114,10 @@ impl BrokerStatement {
 //
 //            taxes.insert(tax_id, amount);
 //        }
-
-        for dividend in dividends_without_paid_tax {
-            joint_statement.dividends.push(dividend.upgrade(&mut taxes)?);
-        }
+//
+//        for dividend in dividends_without_paid_tax {
+//            joint_statement.dividends.push(dividend.upgrade(&mut taxes)?);
+//        }
 
         for (dividend_id, accruals) in dividend_accruals {
             // FIXME: HERE

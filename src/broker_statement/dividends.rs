@@ -35,28 +35,6 @@ impl Dividend {
     }
 }
 
-pub struct DividendWithoutPaidTax {
-    pub date: Date,
-    pub issuer: String,
-    pub amount: Cash,
-    pub tax_extractor: Box<dyn DividendPaidTaxExtractor>,
-}
-
-impl DividendWithoutPaidTax {
-    pub fn upgrade(self, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Dividend> {
-        let paid_tax = self.tax_extractor.get_paid_tax(taxes).map_err(|e| format!(
-            "Unable to match {} dividend from {} to paid taxes: {}",
-            self.issuer, formatting::format_date(self.date), e))?;
-
-        Ok(Dividend {
-            date: self.date,
-            issuer: self.issuer,
-            amount: self.amount,
-            paid_tax: paid_tax,
-        })
-    }
-}
-
 #[derive(PartialEq, Eq, Hash)]
 pub struct DividendId {
     pub date: Date,
@@ -96,26 +74,4 @@ pub fn process_dividends(
             paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
         }
     }))
-}
-
-pub trait DividendPaidTaxExtractor {
-    fn get_paid_tax(&self, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Cash>;
-}
-
-pub struct TaxIdExtractor {
-    tax_id: TaxId,
-}
-
-impl TaxIdExtractor {
-    pub fn new(tax_id: TaxId) -> Box<dyn DividendPaidTaxExtractor> {
-        Box::new(TaxIdExtractor {tax_id: tax_id})
-    }
-}
-
-impl DividendPaidTaxExtractor for TaxIdExtractor {
-    fn get_paid_tax(&self, taxes: &mut HashMap<TaxId, Cash>) -> GenericResult<Cash> {
-        Ok(taxes.remove(&self.tax_id).ok_or_else(|| format!(
-            "There is no tax with {:?} expected description", self.tax_id.description
-        ))?)
-    }
 }
