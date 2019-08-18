@@ -2,18 +2,6 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::types::Date;
 
-#[derive(PartialEq, Eq, Hash)]
-pub struct PaymentId {
-    pub date: Date,
-    pub description: String,
-}
-
-impl PaymentId {
-    pub fn new(date: Date, description: &str) -> PaymentId {
-        PaymentId { date, description: description.to_owned() }
-    }
-}
-
 /// Calculates result amount from a series of payments and reversals. Doesn't require payments and
 /// reversals to be in order because Interactive Brokers' statement does't guarantee the order.
 pub struct Payments {

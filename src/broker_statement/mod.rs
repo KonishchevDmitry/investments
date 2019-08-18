@@ -15,11 +15,10 @@ use crate::quotes::Quotes;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
-use self::dividends::Dividend;
+use self::dividends::{Dividend, DividendAccruals};
 use self::interest::IdleCashInterest;
 use self::partial::PartialBrokerStatement;
-use self::payments::Payments;
-use self::taxes::{TaxId, TaxChanges};
+use self::taxes::{TaxId, TaxAccruals};
 use self::trades::{StockBuy, StockSell, StockSellSource};
 
 mod dividends;
@@ -86,22 +85,22 @@ impl BrokerStatement {
 
         let mut joint_statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
         let mut dividends_without_paid_tax = Vec::new();
-        let mut dividend_changes = HashMap::new();
-        let mut tax_changes = HashMap::new();
+        let mut dividend_accruals = HashMap::new();
+        let mut tax_accruals = HashMap::new();
 
         for mut statement in statements.drain(..) {
             dividends_without_paid_tax.extend(statement.dividends_without_paid_tax.drain(..));
 
-            for (dividend_id, changes) in statement.dividend_changes.drain() {
-                dividend_changes.entry(dividend_id)
-                    .and_modify(|existing: &mut Payments| existing.merge(&changes))
-                    .or_insert(changes);
+            for (dividend_id, accruals) in statement.dividend_accruals.drain() {
+                dividend_accruals.entry(dividend_id)
+                    .and_modify(|existing: &mut DividendAccruals| existing.merge(&accruals))
+                    .or_insert(accruals);
             }
 
-            for (tax_id, changes) in statement.tax_changes.drain() {
-                tax_changes.entry(tax_id)
-                    .and_modify(|existing: &mut TaxChanges| existing.merge(&changes))
-                    .or_insert(changes);
+            for (tax_id, accruals) in statement.tax_accruals.drain() {
+                tax_accruals.entry(tax_id)
+                    .and_modify(|existing: &mut TaxAccruals| existing.merge(&accruals))
+                    .or_insert(accruals);
             }
 
             joint_statement.merge(statement).map_err(|e| format!(
@@ -110,19 +109,20 @@ impl BrokerStatement {
 
         let mut taxes = HashMap::new();
 
-        for (tax_id, changes) in tax_changes {
-            let amount = changes.get_result_tax().map_err(|e| format!(
-                "Failed to process {} / {:?} tax: {}",
-                formatting::format_date(tax_id.date), tax_id.description, e))?;
-
-            taxes.insert(tax_id, amount);
-        }
+        // FIXME: HERE
+//        for (tax_id, accruals) in tax_accruals {
+//            let amount = accruals.get_result_tax().map_err(|e| format!(
+//                "Failed to process {} / {:?} tax: {}",
+//                formatting::format_date(tax_id.date), tax_id.description, e))?;
+//
+//            taxes.insert(tax_id, amount);
+//        }
 
         for dividend in dividends_without_paid_tax {
             joint_statement.dividends.push(dividend.upgrade(&mut taxes)?);
         }
 
-        for (dividend_id, changes) in dividend_changes {
+        for (dividend_id, accruals) in dividend_accruals {
             // FIXME: HERE
         }
 

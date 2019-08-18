@@ -7,8 +7,8 @@ use crate::formatting;
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
-use super::TaxId;
 use super::payments::Payments;
+use super::taxes::{TaxId, TaxAccruals};
 
 #[derive(Debug)]
 pub struct Dividend {
@@ -65,14 +65,18 @@ pub struct DividendId {
     pub tax_description: Option<String>,
 }
 
-pub fn process_dividends(dividend: DividendId, changes: Payments, taxes: &mut HashMap<TaxId, Payments>) -> GenericResult<Option<Dividend>> {
+pub type DividendAccruals = Payments;
+
+pub fn process_dividends(
+    dividend: DividendId, accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>
+) -> GenericResult<Option<Dividend>> {
     let paid_tax = dividend.tax_description.as_ref().map_or(Ok(None), |tax_description| {
         let tax_id = TaxId::new(dividend.date, &tax_description);
-        let tax_changes = taxes.remove(&tax_id).ok_or_else(|| format!(
+        let tax_accruals = taxes.remove(&tax_id).ok_or_else(|| format!(
             "There is no tax with {:?} expected description", tax_description
         ))?;
 
-        tax_changes.get_result().map_err(|e| format!(
+        tax_accruals.get_result().map_err(|e| format!(
             "Failed to process {} / {:?} tax: {}",
             formatting::format_date(dividend.date), tax_description, e))
     }).map_err(|e| format!(
@@ -80,7 +84,7 @@ pub fn process_dividends(dividend: DividendId, changes: Payments, taxes: &mut Ha
         dividend.issuer, formatting::format_date(dividend.date), e)
     )?;
 
-    let amount = changes.get_result().map_err(|e| format!(
+    let amount = accruals.get_result().map_err(|e| format!(
         "Failed to process {} dividend from {}: {}",
         dividend.issuer, formatting::format_date(dividend.date), e))?;
 

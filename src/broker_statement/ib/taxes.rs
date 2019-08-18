@@ -1,4 +1,4 @@
-use crate::broker_statement::taxes::{TaxId, TaxChanges};
+use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::util::DecimalRestrictions;
@@ -25,13 +25,13 @@ impl RecordParser for WithholdingTaxParser {
         // negative number.
         let tax = Cash::new(currency, record.parse_cash("Amount", DecimalRestrictions::NonZero)?);
 
-        let tax_changes = parser.statement.tax_changes.entry(tax_id)
-            .or_insert_with(TaxChanges::new);
+        let accruals = parser.statement.tax_accruals.entry(tax_id)
+            .or_insert_with(TaxAccruals::new);
 
         if tax.is_positive() {
-            tax_changes.refund(tax);
+            accruals.reverse(tax);
         } else {
-            tax_changes.withhold(-tax);
+            accruals.add(-tax);
         }
 
         Ok(())

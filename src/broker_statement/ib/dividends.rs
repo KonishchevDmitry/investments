@@ -4,8 +4,7 @@ use regex::Regex;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::broker_statement::taxes::TaxId;
-use crate::broker_statement::dividends::DividendId;
-use crate::broker_statement::payments::Payments;
+use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::formatting;
 use crate::util::DecimalRestrictions;
 
@@ -33,7 +32,7 @@ impl RecordParser for DividendsParser {
                         issuer, formatting::format_date(date), amount);
         }
 
-        parser.statement.dividend_changes.entry(DividendId {
+        parser.statement.dividend_accruals.entry(DividendId {
             date: date,
             issuer: issuer,
             description: short_description.clone(),
@@ -42,13 +41,13 @@ impl RecordParser for DividendsParser {
             } else {
                 None
             },
-        }).and_modify(|changes| {
+        }).and_modify(|accruals| {
             if reversal {
-                changes.reverse(-amount)
+                accruals.reverse(-amount)
             } else {
-                changes.add(amount)
+                accruals.add(amount)
             }
-        }).or_insert_with(Payments::new);
+        }).or_insert_with(DividendAccruals::new);
 
         Ok(())
     }

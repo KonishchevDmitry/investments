@@ -6,11 +6,10 @@ use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::types::Date;
 
-use super::dividends::{Dividend, DividendWithoutPaidTax, DividendId};
+use super::dividends::{Dividend, DividendWithoutPaidTax, DividendId, DividendAccruals};
 use super::interest::IdleCashInterest;
-use super::payments::Payments;
 use super::trades::{StockBuy, StockSell};
-use super::taxes::{TaxId, TaxChanges};
+use super::taxes::{TaxId, TaxAccruals};
 
 pub struct PartialBrokerStatement {
     pub broker: BrokerInfo,
@@ -25,9 +24,9 @@ pub struct PartialBrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
-    pub dividend_changes: HashMap<DividendId, Payments>,
+    pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub dividends_without_paid_tax: Vec<DividendWithoutPaidTax>,
-    pub tax_changes: HashMap<TaxId, TaxChanges>,
+    pub tax_accruals: HashMap<TaxId, TaxAccruals>,
 
     pub open_positions: HashMap<String, u32>,
     pub instrument_names: HashMap<String, String>,
@@ -46,11 +45,11 @@ impl PartialBrokerStatement {
 
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
-            dividends: Vec::new(),
+            dividends: Vec::new(), // FIXME
 
-            dividends_without_paid_tax: Vec::new(),
-            dividend_changes: HashMap::new(),
-            tax_changes: HashMap::new(),
+            dividends_without_paid_tax: Vec::new(), // FIXME
+            dividend_accruals: HashMap::new(),
+            tax_accruals: HashMap::new(),
 
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
