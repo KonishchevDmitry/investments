@@ -179,6 +179,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parse_real_empty() {
+        let statement = parse_full("empty");
+
+        assert!(statement.cash_flows.is_empty());
+        assert!(!statement.cash_assets.is_empty());
+        assert!(statement.idle_cash_interest.is_empty());
+
+        assert!(statement.stock_buys.is_empty());
+        assert!(statement.stock_sells.is_empty());
+        assert!(statement.dividends.is_empty());
+
+        assert!(statement.open_positions.is_empty());
+        assert!(statement.instrument_names.is_empty());
+    }
+
+    #[test]
     fn parse_real_current() {
         let statement = parse_full("current");
 
@@ -196,20 +212,12 @@ mod tests {
         assert!(!statement.instrument_names.is_empty());
     }
 
-    #[test]
-    fn parse_real_empty() {
-        let statement = parse_full("empty");
-
-        assert!(statement.cash_flows.is_empty());
-        assert!(!statement.cash_assets.is_empty());
-        assert!(statement.idle_cash_interest.is_empty());
-
-        assert!(statement.stock_buys.is_empty());
-        assert!(statement.stock_sells.is_empty());
-        assert!(statement.dividends.is_empty());
-
-        assert!(statement.open_positions.is_empty());
-        assert!(statement.instrument_names.is_empty());
+    #[rstest_parametrize(name,
+        case("return-of-capital-with-tax"),
+        case("return-of-capital-without-tax"),
+    )]
+    fn parse_real(name: &str) {
+        parse_full(name);
     }
 
     fn parse_full(name: &str) -> BrokerStatement {
