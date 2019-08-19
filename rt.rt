@@ -8,8 +8,6 @@ NAME: Open Broker tax statement
 STDOUT: open-tax-statement
 APP: $HOME/.cargo/bin/cargo
      run
-     --bin
-     investments
      --
      tax-statement
      open
@@ -20,8 +18,6 @@ NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
 APP: $HOME/.cargo/bin/cargo
      run
-     --bin
-     investments
      --
      tax-statement
      ib
@@ -41,8 +37,6 @@ NAME: IB tax statement 2019
 STDOUT: ib-tax-statement-2019
 APP: $HOME/.cargo/bin/cargo
      run
-     --bin
-     investments
      --
      tax-statement
      ib

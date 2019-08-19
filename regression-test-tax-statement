@@ -10,4 +10,4 @@ year="$2"
 statement_path="$3"
 
 cp "src/tax_statement/statement/testdata/filled.dc$year" "$statement_path"
-cargo run --bin investments -- tax-statement "$broker" "201$year" "$statement_path"
+cargo run -- tax-statement "$broker" "201$year" "$statement_path"

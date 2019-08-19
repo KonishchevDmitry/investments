@@ -3,7 +3,7 @@ name = "investments"
 version = "0.1.0"
 edition = "2018"
 authors = ["Dmitry Konishchev"]
-# TODO: Use https://doc.rust-lang.org/cargo/reference/unstable.html#default-run when it become stable
+default-run = "investments"
 
 [[bin]]
 name = "investments"
