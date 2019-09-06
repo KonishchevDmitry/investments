@@ -12,6 +12,12 @@ portfolios:
     # Base currency of your account
     currency: USD
 
+    # Specifies which instruments' performance should be merged into the specified instrument during performance
+    # analysis. This may be useful for example when you replace one ETF by another but very similar and want to know how
+    # performant is your choice over the all elapsed time.
+    #merge_performance:
+    #  IGM: [VGT]
+
     # When investments tries to rebalance your portfolio according to the specified weights it may lead to orders like
     # "buy 1 XXX stock, sell 1 YYY stock" which may be too expensive in terms of commissions. This option sets minimum
     # trade volume per stock which solves the issue.

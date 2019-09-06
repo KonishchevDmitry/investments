@@ -21,6 +21,8 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
         statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?)?;
     }
     statement.process_trades()?;
+    statement.merge_symbols(&portfolio.merge_performance).map_err(|e| format!(
+        "Invalid performance merging configuration: {}", e))?;
 
     for currency in ["USD", "RUB"].iter() {
         PortfolioPerformanceAnalyser::analyse(

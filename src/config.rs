@@ -72,6 +72,9 @@ pub struct PortfolioConfig {
     pub restrict_selling: Option<bool>,
 
     #[serde(default)]
+    pub merge_performance: HashMap<String, HashSet<String>>,
+
+    #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,
 
     #[serde(default, deserialize_with = "deserialize_tax_payment_day")]
@@ -208,6 +211,23 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
                     "RUB" | "USD" => (),
                     _ => return Err!("Unsupported portfolio currency: {}", currency),
                 };
+            }
+
+            let mut symbols_to_merge: HashSet<&String> = HashSet::new();
+            for (master_symbol, slave_symbols) in &portfolio.merge_performance {
+                if !symbols_to_merge.insert(master_symbol) {
+                    return Err!(
+                        "Invalid performance merging configuration: Duplicated {} symbol",
+                        master_symbol);
+                }
+
+                for slave_symbol in slave_symbols {
+                    if !symbols_to_merge.insert(slave_symbol) {
+                        return Err!(
+                            "Invalid performance merging configuration: Duplicated {} symbol",
+                            slave_symbol);
+                    }
+                }
             }
         }
     }

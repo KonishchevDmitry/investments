@@ -1,5 +1,5 @@
 use std::{self, fs};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::path::Path;
 
@@ -233,7 +233,7 @@ impl BrokerStatement {
             symbol_buys.push(stock_buy);
         }
 
-        for stock_sell in self.stock_sells.iter_mut() {
+        for stock_sell in &mut self.stock_sells {
             if stock_sell.is_processed() {
                 continue;
             }
@@ -289,6 +289,46 @@ impl BrokerStatement {
         self.sort_stock_buys()?;
 
         self.validate_open_positions()?;
+
+        Ok(())
+    }
+
+    pub fn merge_symbols(&mut self, symbols_to_merge: &HashMap<String, HashSet<String>>) -> EmptyResult {
+        assert!(self.open_positions.is_empty());
+        assert!(!self.stock_buys.iter().any(|stock_buy| !stock_buy.is_sold()));
+        assert!(!self.stock_sells.iter().any(|stock_sell| !stock_sell.is_processed()));
+
+        let mut symbol_mapping: HashMap<&String, &String> = HashMap::new();
+
+        for (master_symbol, slave_symbols) in symbols_to_merge {
+            for slave_symbol in slave_symbols {
+                symbol_mapping.insert(slave_symbol, master_symbol);
+            }
+        }
+
+        for &symbol in symbol_mapping.keys() {
+            if self.instrument_names.remove(symbol).is_none() {
+                return Err!("The broker statement has no any activity for {:?} symbol", symbol);
+            }
+        }
+
+        for stock_buy in &mut self.stock_buys {
+            if let Some(&symbol) = symbol_mapping.get(&stock_buy.symbol) {
+                stock_buy.symbol = symbol.clone();
+            }
+        }
+
+        for stock_sell in &mut self.stock_sells {
+            if let Some(&symbol) = symbol_mapping.get(&stock_sell.symbol) {
+                stock_sell.symbol = symbol.clone();
+            }
+        }
+
+        for dividend in &mut self.dividends {
+            if let Some(&issuer) = symbol_mapping.get(&dividend.issuer) {
+                dividend.issuer = issuer.clone();
+            }
+        }
 
         Ok(())
     }
