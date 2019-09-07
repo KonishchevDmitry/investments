@@ -117,7 +117,7 @@ fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
     match env::var(name) {
         Ok(value) => {
             let timezone = chrono::Local::now().timezone();
-            if let Ok(now) = timezone.datetime_from_str(&value, "%Y-%m-%d %H:%M:%S") {
+            if let Ok(now) = timezone.datetime_from_str(&value, "%Y.%m.%d %H:%M:%S") {
                 return Ok(Some(now));
             }
         },
