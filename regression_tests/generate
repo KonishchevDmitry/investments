@@ -11,4 +11,4 @@ for broker in ib open; do
     ./regression_tests/investments sync "$broker"
 done
 
-retest generate regression_tests/rt.rt
+retest verbose cpus=1 generate regression_tests/rt.rt

@@ -2,43 +2,100 @@
 EXPECTED_PATH: testdata/rt_expected
 ACTUAL_PATH: testdata/rt_actual
 
-
-[1]
-NAME: Open Broker tax statement
-STDOUT: open-tax-statement
+[10]
+NAME: IB portfolio
+STDOUT: ib-show
 APP: regression_tests/investments
-     tax-statement
+     show
+     ib
+[20]
+NAME: Open Broker portfolio
+STDOUT: open-show
+APP: regression_tests/investments
+     show
      open
 
+[11]
+NAME: IB analyse
+STDOUT: ib-analyse
+APP: regression_tests/investments
+     analyse
+     ib
+     --all
+[21]
+NAME: Open Broker analyse
+STDOUT: open-analyse
+APP: regression_tests/investments
+     analyse
+     open
+     --all
 
-[2]
+[12]
+NAME: IB simulate sell
+STDOUT: ib-simulate-sell
+APP: regression_tests/investments
+     simulate-sell
+     ib
+     all
+     VTI
+     all
+     BND
+[22]
+NAME: Open Broker simulate sell
+STDOUT: open-simulate-sell
+APP: regression_tests/investments
+     simulate-sell
+     open
+     all
+     FXUS
+     all
+     FXRU
+
+[13]
+NAME: IB rebalance
+STDOUT: ib-rebalance
+APP: regression_tests/investments
+     rebalance
+     ib
+[23]
+NAME: Open Broker rebalance
+STDOUT: open-rebalance
+APP: regression_tests/investments
+     rebalance
+     open
+
+[14]
 NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
 APP: regression_tests/investments
      tax-statement
      ib
      2018
-
-[3]
+[15]
 NAME: IB tax statement generation 2018
 APP: regression_tests/test-tax-statement
      ib
      8
      $OUT_PATH/ib-tax-statement-2018.dc8
 DIFF: rt-binary
-
-[4]
+[16]
 NAME: IB tax statement 2019
 STDOUT: ib-tax-statement-2019
 APP: regression_tests/investments
      tax-statement
      ib
      2019
-
-[5]
+[17]
 NAME: IB tax statement generation 2019
 APP: regression_tests/test-tax-statement
      ib
      9
      $OUT_PATH/ib-tax-statement-2019.dc9
 DIFF: rt-binary
+
+[24]
+NAME: Open Broker tax statement
+STDOUT: open-tax-statement
+APP: regression_tests/investments
+     tax-statement
+     open
