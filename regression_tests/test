@@ -2,8 +2,6 @@
 #
 # Runs regression tests
 #
-# Use `retest generate` to generate the regression tests data.
-#
 
 set -eu
 shopt -s nullglob
