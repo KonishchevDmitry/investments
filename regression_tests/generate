@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#
+# Generates regression tests data
+#
+
+set -eu
+
+(cd testdata && ./update)
+
+for broker in ib open; do
+    ./regression_tests/investments sync "$broker"
+done
+
+retest generate regression_tests/rt.rt
