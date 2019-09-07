@@ -1,4 +1,4 @@
-use chrono::{self, Duration};
+use chrono::Duration;
 use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
 
@@ -27,7 +27,7 @@ impl Cache {
     }
 
     pub fn get(&self, symbol: &str) -> GenericResult<Option<Cash>> {
-        let expire_time = chrono::Local::now().naive_local() - self.expire_time;
+        let expire_time = util::now() - self.expire_time;
 
         let result = quotes::table
             .select((quotes::currency, quotes::price))
@@ -47,17 +47,14 @@ impl Cache {
     }
 
     pub fn save(&self, symbol: &str, price: Cash) -> EmptyResult {
-        let time = chrono::Local::now().naive_local();
-
         diesel::replace_into(quotes::table)
             .values(models::NewQuote {
                 symbol: symbol,
-                time: time,
+                time: util::now(),
                 currency: price.currency,
                 price: price.amount.to_string(),
             })
             .execute(&*self.db)?;
-
         Ok(())
     }
 }
@@ -79,7 +76,7 @@ mod tests {
         diesel::replace_into(quotes::table)
             .values(models::NewQuote {
                 symbol: symbol,
-                time: chrono::Local::now().naive_local() - cache.expire_time,
+                time: util::now() - cache.expire_time,
                 currency: "EUR",
                 price: s!("12.34"),
             })

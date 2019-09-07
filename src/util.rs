@@ -44,8 +44,56 @@ pub fn round_to(value: Decimal, points: u32) -> Decimal {
     round_value.normalize()
 }
 
+// FIXME
+/*
+#[cfg(debug_assertions)]
+fn example() {
+    println!("Debugging enabled");
+}
+
+#[cfg(not(debug_assertions))]
+fn example() {
+    println!("Debugging disabled");
+}
+
+fn main() {
+    if cfg!(debug_assertions) {
+        println!("Debugging enabled");
+    } else {
+        println!("Debugging disabled");
+    }
+
+    #[cfg(debug_assertions)]
+    println!("Debugging enabled");
+
+    #[cfg(not(debug_assertions))]
+    println!("Debugging disabled");
+
+    example();
+}
+*/
 pub fn today() -> Date {
+//    if cfg!(debug_assertions) {
+//        println!("Debugging enabled");
+//    } else {
+//        println!("Debugging disabled");
+//    }
+    real_today()
+}
+
+// FIXME
+pub fn real_today() -> Date {
     chrono::Local::today().naive_local()
+}
+
+// FIXME
+pub fn now() -> DateTime {
+    chrono::Local::now().naive_local()
+}
+
+// FIXME
+pub fn utc_now() -> DateTime {
+    chrono::Local::now().naive_utc()
 }
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {

@@ -102,6 +102,10 @@ fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>>
             continue;
         }
 
+        if (date_time.naive_utc() - util::utc_now()).num_hours() > 0 {
+            return Err!("Invalid time: {}. It's from future", quote.time);
+        }
+
         if is_outdated(date_time) {
             outdated.push(quote.symbol);
             continue;
@@ -122,7 +126,7 @@ fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>>
 
 #[cfg(not(test))]
 fn is_outdated<T: TimeZone>(date_time: DateTime<T>) -> bool {
-    (chrono::Local::now().naive_utc() - date_time.naive_utc()).num_days() >= 5
+    (util::utc_now() - date_time.naive_utc()).num_days() >= 5
 }
 
 #[cfg(test)]
