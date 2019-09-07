@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#
+# Runs investments on regression tests data
+#
+
+set -eu
+
+INVESTMENTS_NOW=$(< testdata/time)
+export INVESTMENTS_NOW
+
+exec cargo run -- --config testdata/config "$@"
