@@ -1,7 +1,8 @@
 use std::ops::Neg;
 use std::str::FromStr;
 
-use chrono::{self, Duration};
+use chrono::{self, Duration, Local, offset::TimeZone};
+use lazy_static::lazy_static;
 use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
@@ -44,58 +45,6 @@ pub fn round_to(value: Decimal, points: u32) -> Decimal {
     round_value.normalize()
 }
 
-// FIXME
-/*
-#[cfg(debug_assertions)]
-fn example() {
-    println!("Debugging enabled");
-}
-
-#[cfg(not(debug_assertions))]
-fn example() {
-    println!("Debugging disabled");
-}
-
-fn main() {
-    if cfg!(debug_assertions) {
-        println!("Debugging enabled");
-    } else {
-        println!("Debugging disabled");
-    }
-
-    #[cfg(debug_assertions)]
-    println!("Debugging enabled");
-
-    #[cfg(not(debug_assertions))]
-    println!("Debugging disabled");
-
-    example();
-}
-*/
-pub fn today() -> Date {
-//    if cfg!(debug_assertions) {
-//        println!("Debugging enabled");
-//    } else {
-//        println!("Debugging disabled");
-//    }
-    real_today()
-}
-
-// FIXME
-pub fn real_today() -> Date {
-    chrono::Local::today().naive_local()
-}
-
-// FIXME
-pub fn now() -> DateTime {
-    chrono::Local::now().naive_local()
-}
-
-// FIXME
-pub fn utc_now() -> DateTime {
-    chrono::Local::now().naive_utc()
-}
-
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
     Ok(Date::parse_from_str(date, format).map_err(|_| format!(
         "Invalid date: {:?}", date))?)
@@ -126,6 +75,59 @@ pub fn parse_duration(string: &str) -> GenericResult<Duration> {
     }).ok_or_else(|| format!("Invalid duration: {}", string))?;
 
     Ok(Duration::seconds(seconds))
+}
+
+pub fn today() -> Date {
+    tz_now().date().naive_local()
+}
+
+pub fn now() -> DateTime {
+    tz_now().naive_local()
+}
+
+pub fn utc_now() -> DateTime {
+    tz_now().naive_utc()
+}
+
+fn tz_now() -> chrono::DateTime<Local> {
+    #[cfg(debug_assertions)]
+    {
+        use std::process;
+
+        lazy_static! {
+            static ref FAKE_NOW: Option<chrono::DateTime<Local>> = parse_fake_now().unwrap_or_else(|e| {
+                eprintln!("{}.", e);
+                process::exit(1);
+            });
+        }
+
+        if let Some(&now) = FAKE_NOW.as_ref() {
+            return now;
+        }
+    }
+
+    chrono::Local::now()
+}
+
+#[cfg(debug_assertions)]
+fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
+    use std::env::{self, VarError};
+    let name = "INVESTMENTS_NOW";
+
+    match env::var(name) {
+        Ok(value) => {
+            let timezone = chrono::Local::now().timezone();
+            if let Ok(now) = timezone.datetime_from_str(&value, "%Y-%m-%d %H:%M:%S") {
+                return Ok(Some(now));
+            }
+        },
+        Err(e) => match e {
+            VarError::NotPresent => return Ok(None),
+            VarError::NotUnicode(_) => {},
+        },
+    };
+
+    Err!("Invalid {} environment variable value", name)
 }
 
 #[cfg(test)]
