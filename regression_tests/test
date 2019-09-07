@@ -33,7 +33,7 @@ trap cleanup-temp-dir EXIT
 trap "exit 1" INT TERM QUIT
 
 which -s retest || cargo install qtrac-retest
-if retest; then
+if retest regression_tests/rt.rt; then
     exit 0
 fi
 

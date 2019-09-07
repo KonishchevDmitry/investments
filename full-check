@@ -12,4 +12,4 @@ echo -e "\nRunning tests..."
 cargo test
 
 echo -e "\nRunning regression tests..."
-./regression-test
+./regression_tests/test
