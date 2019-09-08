@@ -7,8 +7,10 @@ set -eu
 
 (cd testdata && ./update)
 
-for broker in ib open; do
-    ./regression_tests/investments sync "$broker"
-done
+./regression_tests/investments sync ib
+./regression_tests/investments cash ib 10000
+
+./regression_tests/investments sync open
+./regression_tests/investments cash open 100000
 
 retest verbose cpus=1 generate regression_tests/rt.rt
