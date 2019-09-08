@@ -1,8 +1,7 @@
 use std::ops::Neg;
 use std::str::FromStr;
 
-use chrono::{self, Duration, Local, offset::TimeZone};
-use lazy_static::lazy_static;
+use chrono::{self, Duration, Local};
 use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
@@ -93,6 +92,7 @@ fn tz_now() -> chrono::DateTime<Local> {
     #[cfg(debug_assertions)]
     {
         use std::process;
+        use lazy_static::lazy_static;
 
         lazy_static! {
             static ref FAKE_NOW: Option<chrono::DateTime<Local>> = parse_fake_now().unwrap_or_else(|e| {
@@ -112,6 +112,8 @@ fn tz_now() -> chrono::DateTime<Local> {
 #[cfg(debug_assertions)]
 fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
     use std::env::{self, VarError};
+    use chrono::offset::TimeZone;
+
     let name = "INVESTMENTS_NOW";
 
     match env::var(name) {
