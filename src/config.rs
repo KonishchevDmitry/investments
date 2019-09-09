@@ -11,7 +11,7 @@ use serde_yaml;
 use shellexpand;
 
 use crate::core::GenericResult;
-use crate::currency::{Cash, CashAssets};
+use crate::formatting;
 use crate::localities::{self, Country};
 use crate::taxes::TaxPaymentDay;
 use crate::types::{Date, Decimal};
@@ -26,6 +26,9 @@ pub struct Config {
     #[serde(skip, default = "default_expire_time")]
     pub cache_expire_time: Duration,
 
+    #[serde(default)]
+    pub deposits: Vec<DepositConfig>,
+
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: BrokersConfig,
 
@@ -39,6 +42,7 @@ impl Config {
             db_path: "/mock".to_owned(),
             cache_expire_time: default_expire_time(),
 
+            deposits: Vec::new(),
             portfolios: Vec::new(),
             brokers: BrokersConfig::mock(),
             alphavantage: AlphaVantageConfig {
@@ -56,6 +60,30 @@ impl Config {
 
         Err!("{:?} portfolio is not defined in the configuration file", name)
     }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct DepositConfig {
+    pub name: String,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    pub open_date: Date,
+    #[serde(deserialize_with = "deserialize_date")]
+    pub close_date: Date,
+
+    pub currency: Option<String>,
+    pub amount: Decimal,
+    pub interest: Decimal,
+
+    #[serde(default)]
+    pub capitalization: Option<u32>,
+
+    #[serde(default, deserialize_with = "deserialize_cash_flows")]
+    pub contributions: Vec<(Date, Decimal)>,
+
+    #[serde(default)]
+    pub closed: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -80,8 +108,8 @@ pub struct PortfolioConfig {
     #[serde(default, deserialize_with = "deserialize_tax_payment_day")]
     pub tax_payment_day: TaxPaymentDay,
 
-    #[serde(default, deserialize_with = "deserialize_tax_deductions")]
-    pub tax_deductions: Vec<CashAssets>,
+    #[serde(default, deserialize_with = "deserialize_cash_flows")]
+    pub tax_deductions: Vec<(Date, Decimal)>,
 }
 
 impl PortfolioConfig {
@@ -198,6 +226,29 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
 
     let mut config: Config = serde_yaml::from_slice(&data)?;
 
+    for deposit in &config.deposits {
+        if deposit.open_date > deposit.close_date {
+            return Err!(
+                "Invalid {:?} deposit dates: {} -> {}",
+                deposit.name, formatting::format_date(deposit.open_date),
+                formatting::format_date(deposit.close_date));
+        }
+
+        match deposit.capitalization {
+            Some(capitalization) if capitalization == 0 => return Err!(
+                "Invalid {:?} deposit capitalization: {}", deposit.name, capitalization),
+            _ => {},
+        };
+
+        for &(date, _amount) in &deposit.contributions {
+            if date < deposit.open_date || date > deposit.close_date {
+                return Err!(
+                    "Invalid {:?} deposit contribution date: {}",
+                    deposit.name, formatting::format_date(date));
+            }
+        }
+    }
+
     {
         let mut portfolio_names = HashSet::new();
 
@@ -267,23 +318,30 @@ fn deserialize_tax_payment_day<'de, D>(deserializer: D) -> Result<TaxPaymentDay,
     }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))?)
 }
 
-fn deserialize_tax_deductions<'de, D>(deserializer: D) -> Result<Vec<CashAssets>, D::Error>
+fn deserialize_cash_flows<'de, D>(deserializer: D) -> Result<Vec<(Date, Decimal)>, D::Error>
     where D: Deserializer<'de>
 {
     let deserialized: HashMap<String, String> = Deserialize::deserialize(deserializer)?;
-    let mut tax_deductions = Vec::new();
+    let mut cash_flows = Vec::new();
 
-    for (date, amount) in deserialized.iter() {
+    for (date, amount) in deserialized {
         let date = util::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?;
         let amount = util::parse_decimal(&amount, DecimalRestrictions::StrictlyPositive).map_err(|_|
-            D::Error::custom(format!("Invalid tax deduction amount: {}", amount)))?;
+            D::Error::custom(format!("Invalid amount: {:?}", amount)))?;
 
-        tax_deductions.push(CashAssets::new_from_cash(date, Cash::new("RUB", amount)));
+        cash_flows.push((date, amount));
     }
 
-    tax_deductions.sort_by_key(|tax_deduction| tax_deduction.date);
+    cash_flows.sort_by_key(|cash_flow| cash_flow.0);
 
-    Ok(tax_deductions)
+    Ok(cash_flows)
+}
+
+fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+    where D: Deserializer<'de>
+{
+    let date: String = Deserialize::deserialize(deserializer)?;
+    Ok(util::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?)
 }
 
 fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>

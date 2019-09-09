@@ -42,7 +42,7 @@ impl CurrencyConverter {
         Ok(Cash::new(to, self.convert_to(date, cash, to)?))
     }
 
-    fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
+    pub fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
         self.backend.convert(from, to, date, amount)
     }
 }

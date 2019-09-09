@@ -458,12 +458,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_tax_deductions(&mut self) -> EmptyResult {
-        for tax_deduction in &self.portfolio.tax_deductions {
-            let amount = self.converter.convert_to(
-                tax_deduction.date, tax_deduction.cash, self.currency)?;
-
-            trace!("* Tax deduction {}: {}", formatting::format_date(tax_deduction.date), -amount);
-            self.transactions.push(Transaction::new(tax_deduction.date, -amount));
+        for &(date, amount) in &self.portfolio.tax_deductions {
+            let amount = self.converter.convert(self.country.currency, self.currency, date, amount)?;
+            trace!("* Tax deduction {}: {}", formatting::format_date(date), -amount);
+            self.transactions.push(Transaction::new(date, -amount));
         }
 
         Ok(())
