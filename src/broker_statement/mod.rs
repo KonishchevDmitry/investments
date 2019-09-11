@@ -171,7 +171,7 @@ impl BrokerStatement {
     }
 
     pub fn batch_quotes(&self, quotes: &mut Quotes) {
-        for symbol in self.instrument_names.keys() {
+        for symbol in self.open_positions.keys() {
             quotes.batch(&symbol);
         }
     }
