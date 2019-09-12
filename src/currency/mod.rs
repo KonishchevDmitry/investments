@@ -7,6 +7,7 @@ use std::ops::{Mul, Div, Neg};
 use num_traits::identities::Zero;
 use num_traits::ToPrimitive;
 
+#[cfg(test)] use rstest::rstest_parametrize;
 use separator::Separatable;
 
 use crate::core::{GenericResult, EmptyResult};
@@ -86,7 +87,14 @@ impl Cash {
     }
 
     pub fn format(&self) -> String {
-        format_currency(self.currency, &self.amount.to_string())
+        let mut amount = self.amount.normalize();
+
+        if amount.scale() == 1 {
+            amount.set_scale(0).unwrap();
+            amount = Decimal::new(amount.to_i64().unwrap() * 10, 2)
+        }
+
+        format_currency(self.currency, &separated_float!(amount.to_string()))
     }
 
     pub fn format_rounded(&self) -> String {
@@ -244,36 +252,34 @@ fn format_currency(currency: &str, mut amount: &str) -> String {
 mod tests {
     use super::*;
 
-    #[test]
-    fn rounding() {
-        for (from_string, to_string) in [
-            ("1",     "1"),
-            ("1.0",   "1"),
-            ("1.1",   "1.1"),
-            ("1.00",  "1"),
-            ("1.01",  "1.01"),
-            ("1.11",  "1.11"),
-            ("1.004", "1"),
-            ("1.005", "1.01"),
-            ("1.111", "1.11"),
-            ("1.114", "1.11"),
-            ("1.124", "1.12"),
-            ("1.115", "1.12"),
-            ("1.125", "1.13"),
-        ].iter() {
-            let from = Decimal::from_str(from_string).unwrap();
-            let to = Decimal::from_str(to_string).unwrap();
+    #[rstest_parametrize(input, expected,
+        case("1",     "1"),
+        case("1.0",   "1"),
+        case("1.1",   "1.1"),
+        case("1.00",  "1"),
+        case("1.01",  "1.01"),
+        case("1.11",  "1.11"),
+        case("1.004", "1"),
+        case("1.005", "1.01"),
+        case("1.111", "1.11"),
+        case("1.114", "1.11"),
+        case("1.124", "1.12"),
+        case("1.115", "1.12"),
+        case("1.125", "1.13"),
+    )]
+    fn rounding(input: &str, expected: &str) {
+        let from = Decimal::from_str(input).unwrap();
+        let to = Decimal::from_str(expected).unwrap();
 
-            let rounded = round(from);
-            assert_eq!(rounded, to);
+        let rounded = round(from);
+        assert_eq!(rounded, to);
 
-            assert_eq!(&from.to_string(), from_string);
-            assert_eq!(&rounded.to_string(), to_string);
-        }
+        assert_eq!(&from.to_string(), input);
+        assert_eq!(&rounded.to_string(), expected);
     }
 
     #[test]
-    fn formatting() {
+    fn currency_formatting() {
         assert_eq!(Cash::new("USD", dec!(12.345)).format(), "$12.345");
         assert_eq!(Cash::new("USD", dec!(-12.345)).format(), "-$12.345");
 
@@ -282,5 +288,23 @@ mod tests {
 
         assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).format(), "12.345 UNKNOWN");
         assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).format(), "-12.345 UNKNOWN");
+    }
+
+    #[rstest_parametrize(input, expected,
+        case("12",     "12"),
+        case("12.3",   "12.30"),
+        case("12.30",  "12.30"),
+        case("12.34",  "12.34"),
+        case("12.345", "12.345"),
+        case("12.001", "12.001"),
+    )]
+    fn cash_formatting(input: &str, expected: &str) {
+        let currency = "CURRENCY";
+
+        for sign in &["", "-"] {
+            let input = Cash::new(currency, Decimal::from_str(&format!("{}{}", sign, input)).unwrap());
+            let expected = format!("{}{} {}", sign, expected, currency);
+            assert_eq!(input.format(), expected);
+        }
     }
 }
