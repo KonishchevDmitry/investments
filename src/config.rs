@@ -81,9 +81,6 @@ pub struct DepositConfig {
 
     #[serde(default, deserialize_with = "deserialize_cash_flows")]
     pub contributions: Vec<(Date, Decimal)>,
-
-    #[serde(default)]
-    pub closed: bool,
 }
 
 #[derive(Deserialize, Debug)]

@@ -42,6 +42,8 @@ pub enum Action {
         year: Option<i32>,
         tax_statement_path: Option<String>,
     },
+
+    Deposits,
 }
 
 pub fn initialize() -> (Action, Config) {
@@ -129,6 +131,8 @@ pub fn initialize() -> (Action, Config) {
                 .help("Year to generate the statement for"))
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
+        .subcommand(SubCommand::with_name("deposits")
+            .about("List deposits"))
         .global_setting(AppSettings::DisableVersion)
         .global_setting(AppSettings::DisableHelpSubcommand)
         .global_setting(AppSettings::DeriveDisplayOrder)
@@ -184,6 +188,10 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
 
     let (command, matches) = matches.subcommand();
     let matches = matches.unwrap();
+
+    if command == "deposits" {
+        return Ok(Action::Deposits);
+    }
 
     let portfolio_name = portfolio::get(matches);
 
@@ -271,6 +279,7 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
                 tax_statement_path: tax_statement_path,
             }
         },
+
         _ => unreachable!(),
     })
 }

@@ -7,6 +7,7 @@ use log::error;
 use investments::analyse;
 use investments::config::Config;
 use investments::core::EmptyResult;
+use investments::deposits;
 use investments::portfolio;
 use investments::tax_statement;
 
@@ -52,6 +53,8 @@ fn run(action: Action, config: Config) -> EmptyResult {
         Action::TaxStatement { name, year, tax_statement_path } =>
             tax_statement::generate_tax_statement(
                 &config, &name, year, tax_statement_path.as_ref().map(String::as_str))?,
+
+        Action::Deposits => deposits::list(config.deposits),
     };
 
     Ok(())

@@ -9,6 +9,7 @@ pub mod brokers;
 pub mod config;
 pub mod currency;
 pub mod db;
+pub mod deposits;
 pub mod formatting;
 pub mod portfolio;
 pub mod quotes;
