@@ -498,8 +498,6 @@ struct StockDepositView {
 fn compare_to_bank_deposit(
     transactions: &[Transaction], interest_periods: &[InterestPeriod], current_assets: Decimal
 ) -> GenericResult<(Decimal, Decimal)> {
-    let start_assets = dec!(0);
-
     let start_date = std::cmp::min(
         transactions.first().unwrap().date,
         interest_periods.first().unwrap().start,
@@ -511,8 +509,9 @@ fn compare_to_bank_deposit(
     );
 
     let emulate = |interest: Decimal| -> Decimal {
-        let result_assets = DepositEmulator::emulate(
-            start_date, start_assets, transactions, end_date, interest, Some(interest_periods));
+        let result_assets = DepositEmulator::new(start_date, end_date, interest)
+            .with_interest_periods(interest_periods)
+            .emulate(transactions);
 
         (current_assets - result_assets).abs()
     };

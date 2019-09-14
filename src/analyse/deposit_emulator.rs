@@ -1,3 +1,5 @@
+use std::iter::FromIterator;
+
 use chrono::{Duration, Datelike};
 
 use crate::core::GenericResult;
@@ -6,44 +8,52 @@ use crate::types::{Date, Decimal};
 
 pub struct DepositEmulator {
     date: Date,
+    end_date: Date,
+
     interest_periods: Vec<InterestPeriod>,
     interest_period: Option<ActiveInterestPeriod>,
+
     daily_interest: Decimal,
     assets: Decimal,
 }
 
 impl DepositEmulator {
-    pub fn emulate(
-        start_date: Date, start_assets: Decimal, transactions: &[Transaction], end_date: Date,
-        interest: Decimal, custom_interest_periods: Option<&[InterestPeriod]>
-    ) -> Decimal {
-        let mut interest_periods = Vec::new();
+    pub fn new(start_date: Date, end_date: Date, interest: Decimal) -> DepositEmulator {
+        assert!(start_date <= end_date);
 
-        if let Some(custom_interest_periods) = custom_interest_periods {
-            interest_periods.extend(custom_interest_periods.iter().rev())
-        } else if start_date != end_date {
+        let mut interest_periods = Vec::new();
+        if start_date != end_date {
             interest_periods.push(InterestPeriod::new(start_date, end_date));
-        } else {
-            assert!(start_date <= end_date);
         }
 
-        let mut emulator = DepositEmulator {
+        DepositEmulator {
             date: start_date,
+            end_date: end_date,
+
             interest_periods: interest_periods,
             interest_period: None,
+
             daily_interest: interest / dec!(100) / dec!(365),
-            assets: start_assets,
-        };
-        emulator.select_interest_period();
+            assets: dec!(0),
+        }
+    }
+
+    pub fn with_interest_periods(mut self, custom_interest_periods: &[InterestPeriod]) -> DepositEmulator {
+        self.interest_periods = Vec::from_iter(custom_interest_periods.iter().rev().cloned());
+        self
+    }
+
+    pub fn emulate(mut self, transactions: &[Transaction]) -> Decimal {
+        self.select_interest_period();
 
         for transaction in transactions {
-            emulator.process_transaction(transaction);
+            self.process_transaction(transaction);
         }
 
-        emulator.process_to(end_date);
-        assert!(emulator.interest_period.is_none());
+        self.process_to(self.end_date);
+        assert!(self.interest_period.is_none());
 
-        emulator.assets
+        self.assets
     }
 
     fn select_interest_period(&mut self) {
@@ -240,27 +250,9 @@ mod tests {
 
     #[test]
     fn real_deposit() {
-        test_real_deposit(dec!(600_000), None);
-    }
-
-    #[test]
-    fn real_deposit_fake_transaction() {
-        test_real_deposit(dec!(0), Some(dec!(600_000)));
-    }
-
-    #[test]
-    fn real_deposit_initial_and_fake_transaction() {
-        test_real_deposit(dec!(400_000), Some(dec!(200_000)));
-    }
-
-    fn test_real_deposit(initial_assets: Decimal, transaction_amount: Option<Decimal>) {
-        let start_date = date!(28, 7, 2018);
+        let open_date = date!(28, 7, 2018);
         let interest = dec!(7);
-
-        let mut transactions = Vec::new();
-        if let Some(amount) = transaction_amount {
-            transactions.push(Transaction::new(start_date, amount));
-        }
+        let transactions = vec![Transaction::new(open_date, dec!(600_000))];
 
         for &(capitalization_date, expected_assets) in &[
             (date!(28,  7, 2018), dec!(600_000.00)),
@@ -271,8 +263,8 @@ mod tests {
             (date!(28, 12, 2018), dec!(617_813.32)),
             (date!(28,  1, 2019), dec!(621_486.34)),
         ] {
-            let result = DepositEmulator::emulate(
-                start_date, initial_assets, &transactions, capitalization_date, interest, None);
+            let result = DepositEmulator::new(open_date, capitalization_date, interest)
+                .emulate(&transactions);
             assert_eq!(currency::round(result), expected_assets);
 
             {
@@ -281,20 +273,19 @@ mod tests {
                 let mut transactions = transactions.clone();
                 transactions.push(Transaction::new(capitalization_date, -expected_assets));
 
-                let result = DepositEmulator::emulate(
-                    start_date, initial_assets, &transactions, capitalization_date, interest, None);
+                let result = DepositEmulator::new(open_date, capitalization_date, interest)
+                    .emulate(&transactions);
                 assert_eq!(currency::round(result), dec!(0));
             }
         }
     }
 
     #[test]
-    fn test_real_deposit_with_contributions() {
-        let start_date = date!(31, 1, 2019);
-        let initial_assets = dec!(190_000);
+    fn real_deposit_with_contributions() {
+        let open_date = date!(31, 1, 2019);
         let interest = dec!(7);
-
         let transactions = vec![
+            Transaction::new(open_date, dec!(190_000)),
             Transaction::new(date!( 5, 2, 2019), dec!(60_000)),
             Transaction::new(date!(21, 2, 2019), dec!(50_000)),
         ];
@@ -307,62 +298,61 @@ mod tests {
             (date!(30, 6, 2019), dec!(308_464.97)),
             (date!(31, 7, 2019), dec!(310_298.85)),
         ] {
-            let result = DepositEmulator::emulate(
-                start_date, initial_assets, &transactions, capitalization_date, interest, None);
+            let result = DepositEmulator::new(open_date, capitalization_date, interest)
+                .emulate(&transactions);
             assert_eq!(currency::round(result), expected_assets);
         }
     }
 
     #[test]
     fn joint_deposits() {
+        let open_date = date!(1, 1, 2018);
         let interest = dec!(7);
-        let mut transactions = Vec::new();
-        let mut interest_periods = Vec::new();
 
         // Some assets without interest
-        let start_date = date!(1, 1, 2018);
-        let initial_assets = dec!(200_000);
+        let mut transactions = vec![Transaction::new(open_date, dec!(200_000))];
+        let mut interest_periods = Vec::new();
 
         // First deposit
         transactions.push(Transaction::new(date!(28, 7, 2018), dec!(400_000)));
         interest_periods.push(InterestPeriod::new(date!(28, 7, 2018), date!(28, 1, 2019)));
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(28, 1, 2019),
-            interest, Some(&interest_periods));
+        let result = DepositEmulator::new(open_date, date!(28, 1, 2019), interest)
+            .with_interest_periods(&interest_periods)
+            .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(621_486.34));
 
         // A pause with no interest
         transactions.push(Transaction::new(date!(28, 1, 2019), dec!(100_000) - result));
         transactions.push(Transaction::new(date!(31, 1, 2019), dec!(90_000)));
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(31, 1, 2019),
-            interest, Some(&interest_periods));
+        let result = DepositEmulator::new(open_date, date!(31, 1, 2019), interest)
+            .with_interest_periods(&interest_periods)
+            .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(190_000));
 
         // Second deposit
         interest_periods.push(InterestPeriod::new(date!(31, 1, 2019), date!(31, 7, 2019)));
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(31, 7, 2019),
-            interest, Some(&interest_periods));
+        let result = DepositEmulator::new(open_date, date!(31, 7, 2019), interest)
+            .with_interest_periods(&interest_periods)
+            .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(196_691.45));
 
         transactions.push(Transaction::new(date!(5, 2, 2019), dec!(60_000)));
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(31, 7, 2019),
-            interest, Some(&interest_periods));
+        let result = DepositEmulator::new(open_date, date!(31, 7, 2019), interest)
+            .with_interest_periods(&interest_periods)
+            .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(258_745.30));
 
         transactions.push(Transaction::new(date!(21, 2, 2019), dec!(50_000)));
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(31, 7, 2019),
-            interest, Some(&interest_periods));
+        let result = DepositEmulator::new(open_date, date!(31, 7, 2019), interest)
+            .with_interest_periods(&interest_periods)
+            .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(310_298.85));
 
         // Some activity with no interest
         transactions.push(Transaction::new(date!(31, 7, 2019), dec!(100_000) - result));
-        let result = DepositEmulator::emulate(
-            start_date, initial_assets, &transactions, date!(1, 1, 2020),
-            interest, Some(&interest_periods));
+        let result = DepositEmulator::new(open_date, date!(1, 1, 2020), interest)
+            .with_interest_periods(&interest_periods)
+            .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(100_000));
     }
 

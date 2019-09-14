@@ -70,8 +70,8 @@ fn print(deposits: Vec<DepositConfig>, today: Date) {
             deposit.close_date
         };
 
-        let current_amount = DepositEmulator::emulate(
-            deposit.open_date, dec!(0), &transactions, end_date, deposit.interest, None);
+        let current_amount = DepositEmulator::new(deposit.open_date, end_date, deposit.interest)
+            .emulate(&transactions);
         let current_amount = Cash::new(currency, current_amount).round();
         total_current_amount.deposit(current_amount);
 
