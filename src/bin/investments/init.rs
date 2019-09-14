@@ -43,7 +43,7 @@ pub enum Action {
         tax_statement_path: Option<String>,
     },
 
-    Deposits,
+    Deposits(Date),
 }
 
 pub fn initialize() -> (Action, Config) {
@@ -132,7 +132,13 @@ pub fn initialize() -> (Action, Config) {
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
         .subcommand(SubCommand::with_name("deposits")
-            .about("List deposits"))
+            .about("List deposits")
+            .arg(Arg::with_name("date")
+                .short("d")
+                .long("date")
+                .value_name("DATE")
+                .help("Date to show information for (in DD.MM.YYYY format)")
+                .takes_value(true)))
         .global_setting(AppSettings::DisableVersion)
         .global_setting(AppSettings::DisableHelpSubcommand)
         .global_setting(AppSettings::DeriveDisplayOrder)
@@ -190,7 +196,12 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
     let matches = matches.unwrap();
 
     if command == "deposits" {
-        return Ok(Action::Deposits);
+        let date = match matches.value_of("date") {
+            Some(date) => util::parse_date(date, "%d.%m.%Y")?,
+            None => util::today(),
+        };
+
+        return Ok(Action::Deposits(date));
     }
 
     let portfolio_name = portfolio::get(matches);

@@ -5,12 +5,9 @@ use crate::config::DepositConfig;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::localities;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 // FIXME: Regression tests, cron mode, coloring
-pub fn list(mut deposits: Vec<DepositConfig>) {
-    let today = util::today();
-
+pub fn list(mut deposits: Vec<DepositConfig>, today: Date) {
     let mut deposits: Vec<DepositConfig> = deposits.drain(..).filter(|deposit| {
         deposit.open_date <= today
     }).collect();

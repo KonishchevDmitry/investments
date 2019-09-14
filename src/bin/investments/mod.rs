@@ -54,7 +54,7 @@ fn run(action: Action, config: Config) -> EmptyResult {
             tax_statement::generate_tax_statement(
                 &config, &name, year, tax_statement_path.as_ref().map(String::as_str))?,
 
-        Action::Deposits => deposits::list(config.deposits),
+        Action::Deposits(date) => deposits::list(config.deposits, date),
     };
 
     Ok(())
