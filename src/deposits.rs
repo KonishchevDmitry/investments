@@ -45,8 +45,6 @@ fn print(deposits: Vec<DepositConfig>, today: Date) {
     let mut total_current_amount = MultiCurrencyCashAccount::new();
 
     for deposit in deposits {
-        // FIXME
-//        pub capitalization: Option<u32>,
         let currency = deposit.currency.as_ref().map_or(country.currency, String::as_str);
 
         let mut contributions = deposit.contributions;
@@ -71,6 +69,7 @@ fn print(deposits: Vec<DepositConfig>, today: Date) {
         };
 
         let current_amount = DepositEmulator::new(deposit.open_date, end_date, deposit.interest)
+            .with_monthly_capitalization(deposit.capitalization)
             .emulate(&transactions);
         let current_amount = Cash::new(currency, current_amount).round();
         total_current_amount.deposit(current_amount);

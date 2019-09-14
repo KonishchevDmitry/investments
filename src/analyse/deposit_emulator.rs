@@ -10,6 +10,7 @@ pub struct DepositEmulator {
     date: Date,
     end_date: Date,
 
+    monthly_capitalization: bool,
     interest_periods: Vec<InterestPeriod>,
     interest_period: Option<ActiveInterestPeriod>,
 
@@ -30,12 +31,18 @@ impl DepositEmulator {
             date: start_date,
             end_date: end_date,
 
+            monthly_capitalization: true,
             interest_periods: interest_periods,
             interest_period: None,
 
             daily_interest: interest / dec!(100) / dec!(365),
             assets: dec!(0),
         }
+    }
+
+    pub fn with_monthly_capitalization(mut self, monthly_capitalization: bool) -> DepositEmulator {
+        self.monthly_capitalization = monthly_capitalization;
+        self
     }
 
     pub fn with_interest_periods(mut self, custom_interest_periods: &[InterestPeriod]) -> DepositEmulator {
@@ -73,6 +80,7 @@ impl DepositEmulator {
 
         let mut interest_period = ActiveInterestPeriod {
             start_date: period.start,
+            monthly_capitalization: self.monthly_capitalization,
             next_capitalization_date: period.start,
             accumulated_income: dec!(0),
             end_date: period.end,
@@ -192,6 +200,7 @@ impl InterestPeriod {
 #[derive(Clone, Copy)]
 struct ActiveInterestPeriod {
     start_date: Date,
+    monthly_capitalization: bool,
     next_capitalization_date: Date,
     accumulated_income: Decimal,
     end_date: Date,
@@ -201,10 +210,14 @@ impl ActiveInterestPeriod {
     fn set_next_capitalization_date(&mut self) {
         assert!(self.next_capitalization_date < self.end_date);
 
-        self.next_capitalization_date = get_next_capitalization_date(
-            self.next_capitalization_date, self.start_date.day()).unwrap();
+        if self.monthly_capitalization {
+            self.next_capitalization_date = get_next_capitalization_date(
+                self.next_capitalization_date, self.start_date.day()).unwrap();
 
-        if self.next_capitalization_date > self.end_date {
+            if self.next_capitalization_date > self.end_date {
+                self.next_capitalization_date = self.end_date;
+            }
+        } else {
             self.next_capitalization_date = self.end_date;
         }
     }
@@ -354,6 +367,43 @@ mod tests {
             .with_interest_periods(&interest_periods)
             .emulate(&transactions);
         assert_eq!(currency::round(result), dec!(100_000));
+    }
+
+    #[test]
+    fn deposit_without_monthly_capitalization() {
+        let open_date = date!(28, 7, 2018);
+        let interest = dec!(6);
+
+        let transactions = vec![
+            Transaction::new(open_date, dec!(100_000)),
+            Transaction::new(date!(10, 8, 2018), dec!(100_000)),
+        ];
+
+        for &(capitalization_date, expected_assets) in &[
+            (date!(28,  8, 2018), dec!(200_805.48)),
+            (date!(28,  9, 2018), dec!(201_824.66)),
+            (date!(28, 10, 2018), dec!(202_810.96)),
+            (date!(28, 11, 2018), dec!(203_830.14)),
+            (date!(28, 12, 2018), dec!(204_816.44)),
+            (date!(28,  1, 2019), dec!(205_835.62)),
+        ] {
+            let result = DepositEmulator::new(open_date, capitalization_date, interest)
+                .with_monthly_capitalization(false)
+                .emulate(&transactions);
+            assert_eq!(currency::round(result), expected_assets);
+
+            {
+                // Test deposit closing
+
+                let mut transactions = transactions.clone();
+                transactions.push(Transaction::new(capitalization_date, -expected_assets));
+
+                let result = DepositEmulator::new(open_date, capitalization_date, interest)
+                    .with_monthly_capitalization(false)
+                    .emulate(&transactions);
+                assert_eq!(currency::round(result), dec!(0));
+            }
+        }
     }
 
     #[test]
