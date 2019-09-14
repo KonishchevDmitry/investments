@@ -7,7 +7,7 @@ use crate::quotes::Quotes;
 
 use self::performance::PortfolioPerformanceAnalyser;
 
-mod deposit_emulator;
+pub mod deposit_emulator;
 mod performance;
 mod sell_simulation;
 
