@@ -72,13 +72,12 @@ pub struct DepositConfig {
     #[serde(deserialize_with = "deserialize_date")]
     pub close_date: Date,
 
+    #[serde(default)]
     pub currency: Option<String>,
     pub amount: Decimal,
     pub interest: Decimal,
-
     #[serde(default)]
-    pub capitalization: Option<u32>,
-
+    pub capitalization: bool,
     #[serde(default, deserialize_with = "deserialize_cash_flows")]
     pub contributions: Vec<(Date, Decimal)>,
 }
@@ -230,12 +229,6 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
                 deposit.name, formatting::format_date(deposit.open_date),
                 formatting::format_date(deposit.close_date));
         }
-
-        match deposit.capitalization {
-            Some(capitalization) if capitalization == 0 => return Err!(
-                "Invalid {:?} deposit capitalization: {}", deposit.name, capitalization),
-            _ => {},
-        };
 
         for &(date, _amount) in &deposit.contributions {
             if date < deposit.open_date || date > deposit.close_date {
