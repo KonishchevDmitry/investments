@@ -4,8 +4,7 @@ use csv::{self, StringRecord};
 use log::trace;
 #[cfg(test)] use rstest::rstest_parametrize;
 
-use crate::brokers::{self, BrokerInfo};
-#[cfg(test)] use crate::config::Broker;
+use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::Cash;
@@ -29,7 +28,7 @@ pub struct StatementReader {
 impl StatementReader {
     pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
-            broker_info: brokers::interactive_brokers(config)?,
+            broker_info: Broker::InteractiveBrokers.get_info(config)?,
         }))
     }
 }

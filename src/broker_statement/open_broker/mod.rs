@@ -4,8 +4,7 @@ use std::io::{Read, BufReader};
 use encoding_rs;
 use serde_xml_rs;
 
-use crate::brokers::{self, BrokerInfo};
-#[cfg(test)] use crate::config::Broker;
+use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 
@@ -24,7 +23,7 @@ pub struct StatementReader {
 impl StatementReader {
     pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
-            broker_info: brokers::open_broker(config)?,
+            broker_info: Broker::OpenBroker.get_info(config)?,
         }))
     }
 }

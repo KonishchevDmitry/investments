@@ -10,6 +10,7 @@ use serde::de::{Deserializer, Error};
 use serde_yaml;
 use shellexpand;
 
+use crate::brokers::Broker;
 use crate::core::GenericResult;
 use crate::formatting;
 use crate::localities::{self, Country};
@@ -22,17 +23,15 @@ use crate::util::{self, DecimalRestrictions};
 pub struct Config {
     #[serde(skip)]
     pub db_path: String,
-
     #[serde(skip, default = "default_expire_time")]
     pub cache_expire_time: Duration,
 
     #[serde(default)]
     pub deposits: Vec<DepositConfig>,
-
+    #[serde(default)]
     pub portfolios: Vec<PortfolioConfig>,
-    pub brokers: BrokersConfig,
-
-    pub alphavantage: AlphaVantageConfig,
+    pub brokers: Option<BrokersConfig>,
+    pub alphavantage: Option<AlphaVantageConfig>,
 }
 
 impl Config {
@@ -44,10 +43,8 @@ impl Config {
 
             deposits: Vec::new(),
             portfolios: Vec::new(),
-            brokers: BrokersConfig::mock(),
-            alphavantage: AlphaVantageConfig {
-                api_key: s!("mock"),
-            },
+            brokers: Some(BrokersConfig::mock()),
+            alphavantage: None,
         }
     }
 
@@ -187,27 +184,6 @@ impl BrokerConfig {
 #[serde(deny_unknown_fields)]
 pub struct TransactionCommissionSpec {
     pub fixed_amount: Decimal,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Broker {
-    InteractiveBrokers,
-    OpenBroker,
-}
-
-impl<'de> Deserialize<'de> for Broker {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-        let value = String::deserialize(deserializer)?;
-
-        Ok(match value.as_str() {
-            "interactive-brokers" => Broker::InteractiveBrokers,
-            "open-broker" => Broker::OpenBroker,
-
-            _ => return Err(D::Error::unknown_variant(&value, &[
-                "interactive-brokers", "open-broker",
-            ])),
-        })
-    }
 }
 
 #[derive(Deserialize, Debug)]

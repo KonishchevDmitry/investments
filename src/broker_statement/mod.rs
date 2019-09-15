@@ -6,8 +6,8 @@ use std::path::Path;
 use chrono::Duration;
 use log::{debug, warn};
 
-use crate::brokers::BrokerInfo;
-use crate::config::{Config, Broker};
+use crate::brokers::{Broker, BrokerInfo};
+use crate::config::Config;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;

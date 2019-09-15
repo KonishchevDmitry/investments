@@ -1,5 +1,4 @@
-#[cfg(test)] use crate::brokers;
-#[cfg(test)] use crate::config::Config;
+#[cfg(test)] use crate::brokers::Broker;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::{Decimal, TradeType};
@@ -122,7 +121,7 @@ mod tests {
 
     #[test]
     fn interactive_brokers_commission() {
-        let commission_spec = brokers::interactive_brokers(&Config::mock()).unwrap().commission_spec;
+        let commission_spec = Broker::InteractiveBrokers.get_commission_spec();
 
         let trade_type = TradeType::Buy;
 
@@ -157,7 +156,7 @@ mod tests {
 
     #[test]
     fn open_broker_commission() {
-        let commission_spec = brokers::open_broker(&Config::mock()).unwrap().commission_spec;
+        let commission_spec = Broker::OpenBroker.get_commission_spec();
 
         for &trade_type in &[TradeType::Buy, TradeType::Sell] {
             // Percent commission > minimum commission

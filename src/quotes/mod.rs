@@ -23,11 +23,14 @@ pub struct Quotes {
 }
 
 impl Quotes {
-    pub fn new(config: &Config, database: db::Connection) -> Quotes {
-        Quotes::new_with(Cache::new(database, config.cache_expire_time), vec![
-            Box::new(AlphaVantage::new(&config.alphavantage.api_key)),
+    pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
+        let alphavantage = config.alphavantage.as_ref().ok_or(
+            "Alpha Vantage configuration is not set in the configuration file")?;
+
+        Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time), vec![
+            Box::new(AlphaVantage::new(&alphavantage.api_key)),
             Box::new(Moex::new()),
-        ])
+        ]))
     }
 
     fn new_with(cache: Cache, providers: Vec<Box<dyn QuotesProvider>>) -> Quotes {
