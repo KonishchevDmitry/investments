@@ -113,7 +113,7 @@ fn print_cron_mode(deposits: Vec<DepositConfig>, today: Date, notify_days: Optio
 fn print_closed_deposit(deposit: &DepositConfig) {
     let (amount, close_amount) = calculate_amounts(deposit, deposit.close_date);
     println!(
-        "* {date} {name}: {amount} -> {close_amount}",
+        "• {date} {name}: {amount} -> {close_amount}",
         date=formatting::format_date(deposit.close_date), name=deposit.name, amount=amount,
         close_amount=close_amount);
 }
