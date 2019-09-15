@@ -86,17 +86,6 @@ impl Cash {
         self
     }
 
-    pub fn format(&self) -> String {
-        let mut amount = self.amount.normalize();
-
-        if amount.scale() == 1 {
-            amount.set_scale(0).unwrap();
-            amount = Decimal::new(amount.to_i64().unwrap() * 10, 2)
-        }
-
-        format_currency(self.currency, &separated_float!(amount.to_string()))
-    }
-
     pub fn format_rounded(&self) -> String {
         let amount = round_to(self.amount, 0).to_i64().unwrap().separated_string();
         format_currency(self.currency, &amount)
@@ -140,7 +129,14 @@ impl<T> Div<T> for Cash where T: Into<Decimal> {
 
 impl fmt::Display for Cash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {}", self.amount, self.currency)
+        let mut amount = self.amount.normalize();
+
+        if amount.scale() == 1 {
+            amount.set_scale(0).unwrap();
+            amount = Decimal::new(amount.to_i64().unwrap() * 10, 2)
+        }
+
+        write!(f, "{}", format_currency(self.currency, &separated_float!(amount.to_string())))
     }
 }
 
@@ -280,14 +276,14 @@ mod tests {
 
     #[test]
     fn currency_formatting() {
-        assert_eq!(Cash::new("USD", dec!(12.345)).format(), "$12.345");
-        assert_eq!(Cash::new("USD", dec!(-12.345)).format(), "-$12.345");
+        assert_eq!(Cash::new("USD", dec!(12.345)).to_string(), "$12.345");
+        assert_eq!(Cash::new("USD", dec!(-12.345)).to_string(), "-$12.345");
 
-        assert_eq!(Cash::new("RUB", dec!(12.345)).format(), "12.345₽");
-        assert_eq!(Cash::new("RUB", dec!(-12.345)).format(), "-12.345₽");
+        assert_eq!(Cash::new("RUB", dec!(12.345)).to_string(), "12.345₽");
+        assert_eq!(Cash::new("RUB", dec!(-12.345)).to_string(), "-12.345₽");
 
-        assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).format(), "12.345 UNKNOWN");
-        assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).format(), "-12.345 UNKNOWN");
+        assert_eq!(Cash::new("UNKNOWN", dec!(12.345)).to_string(), "12.345 UNKNOWN");
+        assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).to_string(), "-12.345 UNKNOWN");
     }
 
     #[rstest_parametrize(input, expected,
@@ -304,7 +300,7 @@ mod tests {
         for sign in &["", "-"] {
             let input = Cash::new(currency, Decimal::from_str(&format!("{}{}", sign, input)).unwrap());
             let expected = format!("{}{} {}", sign, expected, currency);
-            assert_eq!(input.format(), expected);
+            assert_eq!(input.to_string(), expected);
         }
     }
 }

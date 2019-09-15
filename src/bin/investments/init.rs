@@ -43,7 +43,10 @@ pub enum Action {
         tax_statement_path: Option<String>,
     },
 
-    Deposits(Date),
+    Deposits {
+        date: Date,
+        cron_mode: bool,
+    },
 }
 
 pub fn initialize() -> (Action, Config) {
@@ -138,7 +141,10 @@ pub fn initialize() -> (Action, Config) {
                 .long("date")
                 .value_name("DATE")
                 .help("Date to show information for (in DD.MM.YYYY format)")
-                .takes_value(true)))
+                .takes_value(true))
+            .arg(Arg::with_name("cron")
+                .long("cron")
+                .help("cron mode (use for notifications about expiring and closed deposits)")))
         .global_setting(AppSettings::DisableVersion)
         .global_setting(AppSettings::DisableHelpSubcommand)
         .global_setting(AppSettings::DeriveDisplayOrder)
@@ -201,7 +207,10 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             None => util::today(),
         };
 
-        return Ok(Action::Deposits(date));
+        return Ok(Action::Deposits {
+            date: date,
+            cron_mode: matches.is_present("cron"),
+        });
     }
 
     let portfolio_name = portfolio::get(matches);

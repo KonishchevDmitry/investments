@@ -186,7 +186,7 @@ impl From<Date> for Cell {
 
 impl From<Cash> for Cell {
     fn from(amount: Cash) -> Cell {
-        Cell::new(amount.format(), Alignment::RIGHT)
+        Cell::new(amount.to_string(), Alignment::RIGHT)
     }
 }
 
@@ -198,7 +198,7 @@ impl From<MultiCurrencyCashAccount> for Cell {
         amounts.sort_by_key(|amount| amount.currency);
 
         let result = amounts.iter()
-            .map(|amount| amount.format())
+            .map(|amount| amount.to_string())
             .collect::<Vec<_>>()
             .join(" + ");
 

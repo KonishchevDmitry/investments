@@ -28,6 +28,8 @@ pub struct Config {
 
     #[serde(default)]
     pub deposits: Vec<DepositConfig>,
+    pub notify_deposit_closing_days: Option<u32>,
+
     #[serde(default)]
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
@@ -42,6 +44,8 @@ impl Config {
             cache_expire_time: default_expire_time(),
 
             deposits: Vec::new(),
+            notify_deposit_closing_days: None,
+
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
             alphavantage: None,
