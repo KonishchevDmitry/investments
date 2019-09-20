@@ -97,3 +97,19 @@ brokers:
 alphavantage:
   # API key that must be obtained here - https://www.alphavantage.co/support/#api-key
   api_key: secret
+
+
+deposits:
+  - name: Тинькофф
+    open_date: 31.01.2019
+    close_date: 31.07.2019
+    amount: 190000
+    #currency: RUB
+    interest: 7
+    capitalization: true
+    contributions:
+      05.02.2019: 60000
+      21.02.2019: 50000
+
+# Configures the number of days to notify before deposit closing (for --cron mode)
+notify_deposit_closing_days: 10

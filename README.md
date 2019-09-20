@@ -12,6 +12,7 @@ Helps you with managing your investments:
 * **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to
   performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
   Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
+* **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
 Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
 [Открытие Брокер](https://open-broker.ru).
@@ -37,6 +38,8 @@ Create `~/.investments/config.yaml` configuration file ([example](config-example
 token for Alpha Vantage (see the comments in example config).
 
 ### Usage
+
+#### Stocks
 
 Investments is designed to work with your broker statements - there is no need to enter all trades and transactions
 manually, but it requires you to have all broker statements starting from account opening day. It may be either one
@@ -99,6 +102,35 @@ This iterative trading is not required - you can look at the results of `investm
 once, but it leaves a chance to spend more than you supposed to in case of highly volatile market. In practice, the
 simplest strategy here in case of relatively small price of all stocks - submit all orders except the last (one / two /
 few), commit the current result, execute `investments rebalance` and submit the rest.
+
+#### Deposits
+
+Deposits are controlled via `deposits` command. You register your opened deposits in the configuration file and then
+execute `investments deposits` to view them all in one place:
+
+```
+$ investments deposits
+
+                            Open deposits
+
+ Open date   Close date    Name     Amount   Interest  Current amount
+ 19.06.2019  19.03.2020  Тинькофф  465,000₽         7     473,343.49₽
+ 21.06.2019  21.06.2020  Тинькофф  200,000₽       7.5     203,763.08₽
+                                   665,000₽               677,106.57₽
+```
+
+This command has a cron mode (`investments deposits --cron`) which you can use in combination with
+`notify_deposit_closing_days` configuration option. For example, if you create a cron job and configure it to send the
+command output to your email, then on 11.06.2020 having `notify_deposit_closing_days: 10` you get an email with the
+following contents:
+
+```
+The following deposits are about to close:
+* 21.06.2020 Тинькофф: 200,000₽ -> 215,570.51₽
+
+The following deposits are closed:
+* 19.03.2020 Тинькофф: 465,000₽ -> 490,013.27₽
+```
 
 
 ### Denial of responsibility
