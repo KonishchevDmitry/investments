@@ -2,6 +2,20 @@
 EXPECTED_PATH: testdata/rt_expected
 ACTUAL_PATH: testdata/rt_actual
 
+[1]
+NAME: Deposits
+STDOUT: deposits
+APP: regression_tests/investments
+     deposits
+[2]
+NAME: Deposits cron mode
+STDOUT: deposits-cron
+APP: regression_tests/investments
+     deposits
+     --cron
+     --date
+     01.01.2100
+
 [10]
 NAME: IB portfolio
 STDOUT: ib-show

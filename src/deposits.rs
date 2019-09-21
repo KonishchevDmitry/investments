@@ -9,7 +9,6 @@ use crate::formatting::{self, table::Style};
 use crate::localities;
 use crate::types::{Date, Decimal};
 
-// FIXME: Regression tests
 pub fn list(mut deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, notify_days: Option<u32>) {
     let mut deposits: Vec<DepositConfig> = deposits.drain(..).filter(|deposit| {
         deposit.open_date <= today
