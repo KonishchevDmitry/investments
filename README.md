@@ -133,6 +133,15 @@ The following deposits are closed:
 ```
 
 
+### Unsupported features
+
+The program supports only those cases which I saw in my broker statements (or statements sent to me by my friends), which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
+* Bonds
+* Futures
+* Stock split
+* Currencies other than USD and RUB
+
+
 ### Denial of responsibility
 
 The project is developed as a pet project, mainly for my personal use. The code is written in a way that if it finds
