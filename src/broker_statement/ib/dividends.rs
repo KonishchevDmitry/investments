@@ -12,12 +12,12 @@ use super::common::{Record, RecordParser, parse_date};
 pub struct DividendsParser {}
 
 impl RecordParser for DividendsParser {
+    fn skip_totals(&self) -> bool {
+        true
+    }
+
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        if currency == "Total" {
-            return Ok(());
-        }
-
         let date = parse_date(record.get_value("Date")?)?;
         let issuer = parse_dividend_description(record.get_value("Description")?)?;
         let amount = Cash::new(currency, record.parse_cash(

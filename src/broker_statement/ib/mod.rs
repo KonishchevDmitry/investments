@@ -111,11 +111,11 @@ impl StatementParser {
 
                     let data_types = parser.data_types();
                     let skip_data_types = parser.skip_data_types();
+                    let skip_totals = parser.skip_totals();
 
                     for result in &mut records {
                         let record = result?;
-
-                        if record.len() < 2 {
+                        if record.len() < 3 {
                             return Err!("Invalid record: {}", format_record(&record));
                         }
 
@@ -137,6 +137,17 @@ impl StatementParser {
                             if !data_types.contains(&record.get(1).unwrap()) {
                                 return Err!("Invalid data record type: {}", format_record(&record));
                             }
+                        }
+
+                        // Matches totals records. For example:
+                        // * Deposits & Withdrawals,Data,Total,,,1000
+                        // * Deposits & Withdrawals,Data,Total in USD,,,1000
+                        // * Deposits & Withdrawals,Data,Total Deposits & Withdrawals in USD,,,1000
+                        // * Interest,Data,Total,,,100
+                        // * Interest,Data,Total in USD,,,100
+                        // * Interest,Data,Total Interest in USD,,,100
+                        if skip_totals && record.get(2).unwrap().starts_with("Total") {
+                            continue;
                         }
 
                         parser.parse(&mut self, &Record {

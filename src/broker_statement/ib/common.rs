@@ -55,6 +55,7 @@ impl<'a> Record<'a> {
 pub trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
     fn skip_data_types(&self) -> Option<&'static [&'static str]> { None }
+    fn skip_totals(&self) -> bool { false }
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult;
 }
 

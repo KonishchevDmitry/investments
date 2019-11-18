@@ -12,12 +12,12 @@ use super::common::{Record, RecordParser, parse_date};
 pub struct WithholdingTaxParser {}
 
 impl RecordParser for WithholdingTaxParser {
+    fn skip_totals(&self) -> bool {
+        true
+    }
+
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        if currency == "Total" {
-            return Ok(());
-        }
-
         let date = parse_date(record.get_value("Date")?)?;
         let issuer = parse_tax_description(record.get_value("Description")?)?;
         let tax_id = TaxId::new(date, &issuer);

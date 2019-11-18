@@ -97,12 +97,12 @@ impl RecordParser for CashReportParser {
 pub struct DepositsAndWithdrawalsParser {}
 
 impl RecordParser for DepositsAndWithdrawalsParser {
+    fn skip_totals(&self) -> bool {
+        true
+    }
+
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        if currency.starts_with("Total") {
-            return Ok(());
-        }
-
         let date = parse_date(record.get_value("Settle Date")?)?;
         let amount = record.parse_cash("Amount", DecimalRestrictions::NonZero)?;
 
