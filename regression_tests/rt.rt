@@ -89,7 +89,7 @@ APP: regression_tests/investments
 NAME: IB tax statement generation 2018
 APP: regression_tests/test-tax-statement
      ib
-     8
+     2018
      $OUT_PATH/ib-tax-statement-2018.dc8
 DIFF: rt-binary
 [16]
@@ -103,7 +103,7 @@ APP: regression_tests/investments
 NAME: IB tax statement generation 2019
 APP: regression_tests/test-tax-statement
      ib
-     9
+     2019
      $OUT_PATH/ib-tax-statement-2019.dc9
 DIFF: rt-binary
 

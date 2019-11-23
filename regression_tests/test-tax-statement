@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 #
 # Tax statement generation regression test
 #
@@ -9,5 +9,11 @@ broker="$1"
 year="$2"
 statement_path="$3"
 
-cp "src/tax_statement/statement/testdata/filled.dc$year" "$statement_path"
-./regression_tests/investments tax-statement "$broker" "201$year" "$statement_path"
+reference_year=2018
+((reference_short_year = reference_year - 2010))
+
+cp "src/tax_statement/statement/testdata/filled.dc$reference_short_year" "$statement_path"
+[ "$year" -eq "$reference_year" ] ||
+    sed -i "s/^\(DLSG            Decl\)$reference_year/\\1$year/" "$statement_path"
+
+./regression_tests/investments tax-statement "$broker" "$year" "$statement_path"
