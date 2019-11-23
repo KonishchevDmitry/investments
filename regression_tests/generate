@@ -1,16 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 #
-# Generates regression tests data
+# Generates regression tests output data
 #
-
-set -eu
-
-(cd testdata && ./update)
-
-./regression_tests/investments sync ib
-./regression_tests/investments cash ib 10000
-
-./regression_tests/investments sync open
-./regression_tests/investments cash open 100000
 
 retest verbose cpus=1 generate regression_tests/rt.rt
