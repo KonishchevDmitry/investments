@@ -3,8 +3,8 @@ use std::fs;
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
 
-use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, DeductionInfo, IncomeType,
-                           ControlledForeignCompanyInfo};
+use self::foreign_income::{ForeignIncome, CurrencyIncome, CountryCode, CurrencyInfo, DeductionInfo,
+                           IncomeType, ControlledForeignCompanyInfo};
 use self::record::Record;
 use self::parser::{TaxStatementReader, TaxStatementWriter};
 
@@ -47,16 +47,14 @@ impl TaxStatement {
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
-        let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
-
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Dividend,
             description: description.to_owned(),
-            county_code: country_code,
+            county_code: CountryCode::Usa,
 
             date: date,
             tax_payment_date: date,
-            currency: currency_info,
+            currency: CurrencyInfo::new(currency, currency_rate)?,
 
             amount: amount,
             local_amount: local_amount,
@@ -75,16 +73,14 @@ impl TaxStatement {
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, local_amount: Decimal,
     ) -> EmptyResult {
-        let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
-
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Interest,
             description: description.to_owned(),
-            county_code: country_code,
+            county_code: CountryCode::Usa,
 
             date: date,
             tax_payment_date: date,
-            currency: currency_info,
+            currency: CurrencyInfo::new(currency, currency_rate)?,
 
             amount: amount,
             local_amount: local_amount,
@@ -103,16 +99,14 @@ impl TaxStatement {
         &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
         amount: Decimal, local_amount: Decimal, purchase_local_cost: Decimal,
     ) -> EmptyResult {
-        let (country_code, currency_info) = CurrencyInfo::new(currency, currency_rate)?;
-
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Stock,
             description: description.to_owned(),
-            county_code: country_code,
+            county_code: CountryCode::Usa,
 
             date: date,
             tax_payment_date: date,
-            currency: currency_info,
+            currency: CurrencyInfo::new(currency, currency_rate)?,
 
             amount: amount,
             local_amount: local_amount,

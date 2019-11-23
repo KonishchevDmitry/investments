@@ -54,7 +54,7 @@ impl Record for ForeignIncome {
 tax_statement_array_record!(CurrencyIncome {
     type_: IncomeType,
     description: String,
-    county_code: Integer,
+    county_code: CountryCode,
 
     date: Date,
     tax_payment_date: Date,
@@ -84,16 +84,15 @@ tax_statement_inner_record!(CurrencyInfo {
 });
 
 impl CurrencyInfo {
-    pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<(Integer, CurrencyInfo)> {
-        let (country_code, currency_code, currency_name) = match currency {
-            "USD" => (840, 840, "Доллар сша"),
+    pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<CurrencyInfo> {
+        let (currency_code, currency_name, currency_rate_units) = match currency {
+            "RUB" => (643, "Российский рубль", 1000),
+            "USD" => (840, "Доллар сша", 100),
             _ => return Err!("{} currency is not supported yet", currency),
         };
-
-        let currency_rate_units = 100;
         let currency_rate = currency::round(precise_currency_rate * Decimal::from(currency_rate_units));
 
-        Ok((country_code, CurrencyInfo {
+        Ok(CurrencyInfo {
             automatic_convertion: true,
             code: currency_code,
 
@@ -104,7 +103,7 @@ impl CurrencyInfo {
             tax_payment_date_units: currency_rate_units,
 
             name: currency_name.to_owned(),
-        }))
+        })
     }
 }
 
@@ -187,6 +186,31 @@ impl TaxStatementType for IncomeType {
         writer.write_value(&unknown)?;
         writer.write_value(&code)?;
         writer.write_value(&name)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub enum CountryCode {
+    Usa,
+    Unknown(Integer),
+}
+
+impl TaxStatementType for CountryCode {
+    fn read(reader: &mut TaxStatementReader) -> GenericResult<CountryCode> {
+        Ok(match reader.read_value()? {
+            840 => CountryCode::Usa,
+            code => CountryCode::Unknown(code),
+        })
+    }
+
+    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
+        let code = match *self {
+            CountryCode::Usa => 840,
+            CountryCode::Unknown(code) => code,
+        };
+        writer.write_value(&code)?;
         Ok(())
     }
 }
