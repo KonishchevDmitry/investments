@@ -17,8 +17,8 @@ impl SectionParser for PeriodParser {
 
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
         let row = strip_row_expecting_columns(parser.next_row_checked()?, 2)?;
-        let period_value = get_string_cell(row[1])?;
-        parse_period(period_value)?;
+        let period = parse_period(get_string_cell(row[1])?)?;
+        parser.statement.set_period(period)?;
         Ok(())
     }
 }

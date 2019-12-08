@@ -1,5 +1,3 @@
-// FIXME: All below
-
 mod common;
 mod parser;
 mod parsers;
@@ -20,7 +18,7 @@ pub struct StatementReader {
 impl StatementReader {
     pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
-            broker_info: Broker::OpenBroker.get_info(config)?,
+            broker_info: Broker::Bcs.get_info(config)?,
         }))
     }
 }
@@ -30,12 +28,8 @@ impl BrokerStatementReader for StatementReader {
         file_name.ends_with(".xls")
     }
 
-    #[allow(unreachable_code)] // FIXME
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        parser::read_statement(path)?;
-        unimplemented!();
-        let mut statement = PartialBrokerStatement::new(self.broker_info.clone());
-        statement.validate()?;
+        Parser::read(self.broker_info.clone(), path)
     }
 }
 

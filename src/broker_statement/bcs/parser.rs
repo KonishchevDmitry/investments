@@ -4,21 +4,19 @@ use calamine::{Xls, Reader, Range, DataType, open_workbook};
 use log::trace;
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::brokers::BrokerInfo;
 
 use super::parsers::{PeriodParser};
 
-// FIXME
-pub fn read_statement(path: &str) -> EmptyResult {
-    Parser::read(path)
-}
-
 pub struct Parser {
+    pub statement: PartialBrokerStatement,
     sheet: Range<DataType>,
     next_row: usize,
 }
 
 impl Parser {
-    fn read(path: &str) -> EmptyResult {
+    pub fn read(broker_info: BrokerInfo, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut workbook: Xls<_> = open_workbook(path)?;
 
         let sheet_name = "TDSheet";
@@ -26,12 +24,13 @@ impl Parser {
             "The statement doesn't contain sheet with {:?} name", sheet_name))??;
 
         Parser {
+            statement: PartialBrokerStatement::new(broker_info),
             sheet,
             next_row: 0,
         }.parse()
     }
 
-    fn parse(&mut self) -> EmptyResult {
+    fn parse(mut self) -> GenericResult<PartialBrokerStatement> {
         let mut sections = SectionState::new(vec![
             Section::new_required("Период:", Box::new(PeriodParser{})),
         ]);
@@ -53,13 +52,11 @@ impl Parser {
                 self.next_row -= 1;
             }
             // FIXME: Wrap errors
-            section.parser.parse(self)?;
+            section.parser.parse(&mut self)?;
         }
 
         sections.validate()?;
-
-        // FIXME
-        unimplemented!();
+        self.statement.validate()
     }
 
     // FIXME: Check for error cells?
