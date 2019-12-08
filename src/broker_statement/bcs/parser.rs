@@ -7,12 +7,12 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::brokers::BrokerInfo;
 
-use super::parsers::{PeriodParser};
+use super::parsers::{PeriodParser, AssetsParser};
 
 pub struct Parser {
     pub statement: PartialBrokerStatement,
     sheet: Range<DataType>,
-    next_row: usize,
+    next_row_id: usize,
 }
 
 impl Parser {
@@ -26,13 +26,22 @@ impl Parser {
         Parser {
             statement: PartialBrokerStatement::new(broker_info),
             sheet,
-            next_row: 0,
+            next_row_id: 0,
         }.parse()
     }
 
     fn parse(mut self) -> GenericResult<PartialBrokerStatement> {
         let mut sections = SectionState::new(vec![
             Section::new_required("Период:", Box::new(PeriodParser{})),
+
+            // FIXME
+            Section::new_anchor_required("1. Движение денежных средств"),
+            Section::new_anchor_required("1.1. Движение денежных средств по совершенным сделкам:"),
+            Section::new_anchor_required("1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:"),
+            Section::new_anchor_required("Остаток денежных средств на начало периода (Рубль):"),
+            Section::new_anchor_required("Остаток денежных средств на конец периода (Рубль):"),
+
+            Section::new_required("3. Активы:", Box::new(AssetsParser{})),
         ]);
 
         loop {
@@ -48,11 +57,14 @@ impl Parser {
 
             trace!("Got {:?} section.", section.title);
 
-            if !section.parser.consume_title() {
-                self.next_row -= 1;
+            if let Some(parser) = section.parser.as_ref() {
+                if !parser.consume_title() {
+                    self.next_row_id -= 1;
+                }
+
+                // FIXME: Wrap errors
+                parser.parse(&mut self)?;
             }
-            // FIXME: Wrap errors
-            section.parser.parse(&mut self)?;
         }
 
         sections.validate()?;
@@ -61,18 +73,40 @@ impl Parser {
 
     // FIXME: Check for error cells?
     fn next_row(&mut self) -> Option<&[DataType]> {
-        if self.next_row >= self.sheet.height() {
+        if self.next_row_id >= self.sheet.height() {
             return None;
         }
 
-        let row = self.sheet.index(self.next_row);
-        self.next_row += 1;
+        let row = self.sheet.index(self.next_row_id);
+        self.next_row_id += 1;
 
         Some(row)
     }
 
     pub fn next_row_checked(&mut self) -> GenericResult<&[DataType]> {
         Ok(self.next_row().ok_or_else(|| "Got an unexpected end of sheet")?)
+    }
+
+    pub fn skip_empty_rows(&mut self) {
+        loop {
+            let row = match self.next_row() {
+                Some(row) => row,
+                None => break,
+            };
+
+            let empty = row.iter().all(|cell| {
+                if let DataType::Empty = cell {
+                    true
+                } else {
+                    false
+                }
+            });
+
+            if !empty {
+                self.next_row_id -= 1;
+                break;
+            }
+        }
     }
 }
 
@@ -136,7 +170,7 @@ impl SectionState {
 
 struct Section {
     title: &'static str,
-    parser: Box<dyn SectionParser>,
+    parser: Option<Box<dyn SectionParser>>,
     required: bool,
     seen: bool,
 }
@@ -144,14 +178,18 @@ struct Section {
 impl Section {
     #[allow(dead_code)] // FIXME
     fn new(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, parser, false)
+        Section::new_full(title, Some(parser), false)
     }
 
     fn new_required(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, parser, true)
+        Section::new_full(title, Some(parser), true)
     }
 
-    fn new_full(title: &'static str, parser: Box<dyn SectionParser>, required: bool) -> Section {
+    fn new_anchor_required(title: &'static str) -> Section {
+        Section::new_full(title, None, true)
+    }
+
+    fn new_full(title: &'static str, parser: Option<Box<dyn SectionParser>>, required: bool) -> Section {
         Section { title, parser, required, seen: false }
     }
 }

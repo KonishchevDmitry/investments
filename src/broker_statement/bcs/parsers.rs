@@ -1,5 +1,6 @@
 use chrono::Duration;
 use lazy_static::lazy_static;
+use log::trace;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
@@ -39,4 +40,19 @@ fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
     }
 
     Ok((start, end))
+}
+
+pub struct AssetsParser {
+}
+
+impl SectionParser for AssetsParser {
+    fn parse(&self, parser: &mut Parser) -> EmptyResult {
+        parser.skip_empty_rows();
+        trace!("{:?}", parser.next_row_checked()?);
+        trace!("{:?}", parser.next_row_checked()?);
+        trace!("{:?}", parser.next_row_checked()?);
+        trace!("{:?}", parser.next_row_checked()?);
+        trace!("{:?}", parser.next_row_checked()?);
+        Ok(())
+    }
 }
