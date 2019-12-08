@@ -5,12 +5,14 @@ use log::trace;
 
 use crate::core::{EmptyResult, GenericResult};
 
+use super::parsers::{PeriodParser};
+
 // FIXME
 pub fn read_statement(path: &str) -> EmptyResult {
     Parser::read(path)
 }
 
-struct Parser {
+pub struct Parser {
     sheet: Range<DataType>,
     next_row: usize,
 }
@@ -31,7 +33,7 @@ impl Parser {
 
     fn parse(&mut self) -> EmptyResult {
         let mut sections = SectionState::new(vec![
-            Section::new_required("Период:"),
+            Section::new_required("Период:", Box::new(PeriodParser{})),
         ]);
 
         loop {
@@ -47,7 +49,11 @@ impl Parser {
 
             trace!("Got {:?} section.", section.title);
 
-//            println!("row={:?}, row[0]={:?}", row, row[0]);
+            if !section.parser.consume_title() {
+                self.next_row -= 1;
+            }
+            // FIXME: Wrap errors
+            section.parser.parse(self)?;
         }
 
         sections.validate()?;
@@ -66,6 +72,10 @@ impl Parser {
         self.next_row += 1;
 
         Some(row)
+    }
+
+    pub fn next_row_checked(&mut self) -> GenericResult<&[DataType]> {
+        Ok(self.next_row().ok_or_else(|| "Got an unexpected end of sheet")?)
     }
 }
 
@@ -129,16 +139,27 @@ impl SectionState {
 
 struct Section {
     title: &'static str,
+    parser: Box<dyn SectionParser>,
     required: bool,
     seen: bool,
 }
 
 impl Section {
-    fn new(title: &'static str) -> Section {
-        Section { title, required: false, seen: false }
+    #[allow(dead_code)] // FIXME
+    fn new(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
+        Section::new_full(title, parser, false)
     }
 
-    fn new_required(title: &'static str) -> Section {
-        Section { title, required: true, seen: false }
+    fn new_required(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
+        Section::new_full(title, parser, true)
     }
+
+    fn new_full(title: &'static str, parser: Box<dyn SectionParser>, required: bool) -> Section {
+        Section { title, parser, required, seen: false }
+    }
+}
+
+pub trait SectionParser {
+    fn consume_title(&self) -> bool { true }
+    fn parse(&self, parser: &mut Parser) -> EmptyResult;
 }

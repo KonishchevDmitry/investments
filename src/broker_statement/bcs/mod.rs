@@ -1,6 +1,8 @@
 // FIXME: All below
 
+mod common;
 mod parser;
+mod parsers;
 
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
@@ -8,6 +10,8 @@ use crate::core::GenericResult;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
+
+use parser::{Parser, SectionParser};
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
@@ -26,6 +30,7 @@ impl BrokerStatementReader for StatementReader {
         file_name.ends_with(".xls")
     }
 
+    #[allow(unreachable_code)] // FIXME
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
         parser::read_statement(path)?;
         unimplemented!();
