@@ -15,6 +15,7 @@ path = "src/bin/tax_statement_parser.rs"
 
 [dependencies]
 ansi_term = "*"
+calamine = "*"
 chrono = "*"
 chrono-tz = "*"
 cast = "*"

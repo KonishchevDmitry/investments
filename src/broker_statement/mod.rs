@@ -21,6 +21,7 @@ use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
 use self::trades::{StockBuy, StockSell, StockSellSource};
 
+mod bcs;
 mod dividends;
 mod ib;
 mod interest;
@@ -50,6 +51,7 @@ pub struct BrokerStatement {
 impl BrokerStatement {
     pub fn read(config: &Config, broker: Broker, statement_dir_path: &str) -> GenericResult<BrokerStatement> {
         let statement_reader = match broker {
+            Broker::Bcs => bcs::StatementReader::new(config),
             Broker::InteractiveBrokers => ib::StatementReader::new(config),
             Broker::OpenBroker => open_broker::StatementReader::new(config),
         }?;

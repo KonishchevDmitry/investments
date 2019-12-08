@@ -12,6 +12,7 @@ mod commissions;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Broker {
+    Bcs,
     InteractiveBrokers,
     OpenBroker,
 }
@@ -27,6 +28,7 @@ impl Broker {
 
     fn get_name(self) -> &'static str {
         match self {
+            Broker::Bcs => "ООО «Компания БКС»",
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
             Broker::OpenBroker => "АО «Открытие Брокер»",
         }
@@ -35,6 +37,7 @@ impl Broker {
     fn get_config(self, config: &Config) -> GenericResult<BrokerConfig> {
         Ok(config.brokers.as_ref().and_then(|brokers| {
             match self {
+                Broker::Bcs => brokers.open_broker.as_ref(),  // FIXME
                 Broker::InteractiveBrokers => brokers.interactive_brokers.as_ref(),
                 Broker::OpenBroker => brokers.open_broker.as_ref(),
             }
@@ -45,6 +48,12 @@ impl Broker {
 
     fn get_commission_spec(self) -> CommissionSpec {
         match self {
+            // FIXME
+            Broker::Bcs => CommissionSpecBuilder::new()
+                .minimum(Cash::new("RUB", dec!(0.04)))
+                .percent(dec!(0.057))
+                .build().unwrap(),
+
             Broker::InteractiveBrokers => CommissionSpecBuilder::new()
                 .minimum(Cash::new("USD", dec!(1)))
                 .per_share(Cash::new("USD", dec!(0.005)))
