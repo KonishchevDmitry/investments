@@ -1,21 +1,18 @@
+use std::ops::Index;
+
 use calamine::{Xls, Reader, Range, DataType, open_workbook};
 use log::trace;
 
-use crate::core::EmptyResult;
-use std::ops::Index;
+use crate::core::{EmptyResult, GenericResult};
 
+// FIXME
 pub fn read_statement(path: &str) -> EmptyResult {
     Parser::read(path)
 }
 
 struct Parser {
-//    sheet_reader: SheetReader,
     sheet: Range<DataType>,
-    current_row: usize,
-}
-
-struct Section {
-    title: &'static str,
+    next_row: usize,
 }
 
 impl Parser {
@@ -24,23 +21,18 @@ impl Parser {
 
         let sheet_name = "TDSheet";
         let sheet = workbook.worksheet_range(sheet_name).ok_or_else(|| format!(
-            "The statement doesn't contain {:?} sheet", sheet_name))??;
+            "The statement doesn't contain sheet with {:?} name", sheet_name))??;
 
         Parser {
             sheet,
-            current_row: 0,
-//            sheet_reader: SheetReader {
-//                workbook,
-//                rows: sheet.rows(),
-//            },
+            next_row: 0,
         }.parse()
     }
 
     fn parse(&mut self) -> EmptyResult {
-        let sections = &[
-            Section{title: "Период:"},
-        ];
-        let mut last_section_id = None;
+        let mut sections = SectionState::new(vec![
+            Section::new_required("Период:"),
+        ]);
 
         loop {
             let row = match self.next_row() {
@@ -48,46 +40,105 @@ impl Parser {
                 None => break,
             };
 
-            if row.is_empty() {
-                continue;
-            }
+            let section = match sections.match_section(row)? {
+                Some(section) => section,
+                None => continue,
+            };
 
-            match row[0] {
-                DataType::String(ref value) => {
-                    for (current_id, section) in sections.iter().enumerate() {
-                        if value == section.title {
-                            if let Some(last_id) = last_section_id {
-                                if current_id <= last_id {
-                                    return Err!("Got a duplicated {:?} section.", section.title);
-                                }
-                            }
-
-                            last_section_id.replace(current_id);
-                            trace!("Got {:?} section.", section.title);
-                        }
-                    }
-                },
-                _ => continue,
-            }
+            trace!("Got {:?} section.", section.title);
 
 //            println!("row={:?}, row[0]={:?}", row, row[0]);
         }
 
+        sections.validate()?;
+
+        // FIXME
         unimplemented!();
     }
 
+    // FIXME: Check for error cells?
     fn next_row(&mut self) -> Option<&[DataType]> {
-        if self.current_row < self.sheet.height() {
-            let row = self.sheet.index(self.current_row);
-            self.current_row += 1;
-            Some(row)
-        } else {
-            None
+        if self.next_row >= self.sheet.height() {
+            return None;
         }
+
+        let row = self.sheet.index(self.next_row);
+        self.next_row += 1;
+
+        Some(row)
     }
 }
 
-//struct SheetReader {
-//    workbook: Xls<BufReader<File>>,
-//    rows: Rows<DataType>,
-//}
+struct SectionState {
+    sections: Vec<Section>,
+    last_id: Option<usize>,
+}
+
+impl SectionState {
+    fn new(sections: Vec<Section>) -> SectionState {
+        SectionState {
+            sections,
+            last_id: None,
+        }
+    }
+
+    fn match_section(&mut self, row: &[DataType]) -> GenericResult<Option<&Section>> {
+        if row.is_empty() {
+            return Ok(None);
+        }
+
+        let cell_value = match row[0] {
+            DataType::String(ref value) => value,
+            _ => return Ok(None),
+        };
+
+        for (section_id, section) in self.sections.iter_mut().enumerate() {
+            if section.title != cell_value {
+                continue;
+            }
+
+            if section.seen {
+                return Err!("Got a duplicated {:?} section", section.title);
+            }
+            section.seen = true;
+
+            match self.last_id {
+                Some(last_id) if section_id <= last_id => {
+                    return Err!("Got an unexpected {:?} section", section.title);
+                }
+                _ => {},
+            };
+
+            self.last_id.replace(section_id);
+            return Ok(Some(section));
+        }
+
+        Ok(None)
+    }
+
+    fn validate(&self) -> EmptyResult {
+        for section in &self.sections {
+            if section.required && !section.seen {
+                return Err!("Unable to find {:?} section in the statement", section.title);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+struct Section {
+    title: &'static str,
+    required: bool,
+    seen: bool,
+}
+
+impl Section {
+    fn new(title: &'static str) -> Section {
+        Section { title, required: false, seen: false }
+    }
+
+    fn new_required(title: &'static str) -> Section {
+        Section { title, required: true, seen: false }
+    }
+}
