@@ -6,9 +6,10 @@ use regex::Regex;
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting;
 use crate::types::Date;
+use crate::xls;
 
 use super::{Parser, SectionParser};
-use super::common::{strip_row_expecting_columns, get_string_cell, parse_date};
+use super::common::parse_date;
 
 pub struct PeriodParser {
 }
@@ -17,8 +18,8 @@ impl SectionParser for PeriodParser {
     fn consume_title(&self) -> bool { false }
 
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
-        let row = strip_row_expecting_columns(parser.next_row_checked()?, 2)?;
-        let period = parse_period(get_string_cell(row[1])?)?;
+        let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 2)?;
+        let period = parse_period(xls::get_string_cell(row[1])?)?;
         parser.statement.set_period(period)?;
         Ok(())
     }
@@ -46,13 +47,41 @@ pub struct AssetsParser {
 }
 
 impl SectionParser for AssetsParser {
+    // FIXME
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
-        parser.skip_empty_rows();
-        trace!("{:?}", parser.next_row_checked()?);
-        trace!("{:?}", parser.next_row_checked()?);
-        trace!("{:?}", parser.next_row_checked()?);
-        trace!("{:?}", parser.next_row_checked()?);
-        trace!("{:?}", parser.next_row_checked()?);
+        parser.sheet.skip_empty_rows();
+        parser.sheet.skip_non_empty_rows();
+        parser.sheet.skip_empty_rows();
+        parser.sheet.next_row_checked()?;
+
+        let columns = &[
+        "Вид актива",
+        "Номер гос. регистрации ЦБ/ ISIN",
+        "Тип ЦБ (№ вып.)",
+        "Кол-во ценных бумаг",
+        "Цена закрытия/котировка вторич.(5*)",
+        "Сумма НКД",
+        "Сумма, в т.ч. НКД",
+        "Кол-во ценных бумаг",
+        "Цена закрытия/ котировка вторич.(5*)",
+        "Сумма НКД",
+        "Сумма, в т.ч. НКД",
+        "Организатор торгов (2*)",
+        "Место хранения",
+        "Эмитент",
+        ];
+        let row = parser.sheet.next_row_checked()?;
+        trace!("{:?}", row);
+        let columns_mapping = xls::map_columns(row, columns)?;
+
+        let row = parser.sheet.next_row_checked()?;
+        trace!("{:?}", row);
+        columns_mapping.map(row)?;
+
+        let row = parser.sheet.next_row_checked()?;
+        trace!("{:?}", row);
+        columns_mapping.map(row)?;
+
         Ok(())
     }
 }

@@ -18,3 +18,4 @@ pub mod localities;
 pub mod tax_statement;
 pub mod taxes;
 pub mod util;
+pub mod xls;

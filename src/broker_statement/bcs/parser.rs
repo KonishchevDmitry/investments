@@ -1,32 +1,22 @@
-use std::ops::Index;
-
-use calamine::{Xls, Reader, Range, DataType, open_workbook};
 use log::trace;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::brokers::BrokerInfo;
+use crate::xls::{SheetReader, Cell};
 
 use super::parsers::{PeriodParser, AssetsParser};
 
 pub struct Parser {
     pub statement: PartialBrokerStatement,
-    sheet: Range<DataType>,
-    next_row_id: usize,
+    pub sheet: SheetReader,
 }
 
 impl Parser {
     pub fn read(broker_info: BrokerInfo, path: &str) -> GenericResult<PartialBrokerStatement> {
-        let mut workbook: Xls<_> = open_workbook(path)?;
-
-        let sheet_name = "TDSheet";
-        let sheet = workbook.worksheet_range(sheet_name).ok_or_else(|| format!(
-            "The statement doesn't contain sheet with {:?} name", sheet_name))??;
-
         Parser {
             statement: PartialBrokerStatement::new(broker_info),
-            sheet,
-            next_row_id: 0,
+            sheet: SheetReader::new(path, "TDSheet")?,
         }.parse()
     }
 
@@ -45,7 +35,7 @@ impl Parser {
         ]);
 
         loop {
-            let row = match self.next_row() {
+            let row = match self.sheet.next_row() {
                 Some(row) => row,
                 None => break,
             };
@@ -59,7 +49,7 @@ impl Parser {
 
             if let Some(parser) = section.parser.as_ref() {
                 if !parser.consume_title() {
-                    self.next_row_id -= 1;
+                    self.sheet.step_back();
                 }
 
                 // FIXME: Wrap errors
@@ -69,44 +59,6 @@ impl Parser {
 
         sections.validate()?;
         self.statement.validate()
-    }
-
-    // FIXME: Check for error cells?
-    fn next_row(&mut self) -> Option<&[DataType]> {
-        if self.next_row_id >= self.sheet.height() {
-            return None;
-        }
-
-        let row = self.sheet.index(self.next_row_id);
-        self.next_row_id += 1;
-
-        Some(row)
-    }
-
-    pub fn next_row_checked(&mut self) -> GenericResult<&[DataType]> {
-        Ok(self.next_row().ok_or_else(|| "Got an unexpected end of sheet")?)
-    }
-
-    pub fn skip_empty_rows(&mut self) {
-        loop {
-            let row = match self.next_row() {
-                Some(row) => row,
-                None => break,
-            };
-
-            let empty = row.iter().all(|cell| {
-                if let DataType::Empty = cell {
-                    true
-                } else {
-                    false
-                }
-            });
-
-            if !empty {
-                self.next_row_id -= 1;
-                break;
-            }
-        }
     }
 }
 
@@ -123,13 +75,14 @@ impl SectionState {
         }
     }
 
-    fn match_section(&mut self, row: &[DataType]) -> GenericResult<Option<&Section>> {
+    fn match_section(&mut self, row: &[Cell]) -> GenericResult<Option<&Section>> {
         if row.is_empty() {
             return Ok(None);
         }
 
         let cell_value = match row[0] {
-            DataType::String(ref value) => value,
+            // FIXME: Check for error cell?
+            Cell::String(ref value) => value,
             _ => return Ok(None),
         };
 
