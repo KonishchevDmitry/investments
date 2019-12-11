@@ -54,23 +54,30 @@ impl SectionParser for AssetsParser {
         parser.sheet.skip_empty_rows();
         parser.sheet.next_row_checked()?;
 
-        use crate::xls::CellType;
-
-        #[derive(Debug)]
-        struct Row {
-            test: String,
-        }
-        impl xls::TableRow for Row {
-            fn parse(row: &[&xls::Cell]) -> GenericResult<Self> {
-                Ok(Row {
-                    test: CellType::parse(row[0])?,
-                })
-            }
-        }
-
         let rows: Vec<Row> = xls::read_table(&mut parser.sheet)?;
         trace!(">>> {:?}", rows);
 
         Ok(())
+    }
+}
+
+// FIXME
+
+use crate::xls::CellType;
+
+#[derive(Debug)]
+struct Row {
+    test: String,
+}
+impl xls::TableReader for Row {
+    fn skip_row(row: &[&xls::Cell]) -> GenericResult<bool> {
+        Ok(xls::get_string_cell(row[0])? == "Итого:")
+    }
+}
+impl xls::TableRow for Row {
+    fn parse(row: &[&xls::Cell]) -> GenericResult<Self> {
+        Ok(Row {
+            test: CellType::parse(row[0])?,
+        })
     }
 }

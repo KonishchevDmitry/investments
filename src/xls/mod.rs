@@ -105,10 +105,3 @@ pub fn strip_row_expecting_columns(row: &[Cell], columns: usize) -> GenericResul
 
     Ok(stripped)
 }
-
-pub fn get_string_cell(cell: &Cell) -> GenericResult<&str> {
-    match cell {
-        Cell::String(value) => Ok(value),
-        _ => Err!("Got an unexpected cell value where string is expected: {:?}", cell),
-    }
-}

@@ -8,7 +8,13 @@ pub trait TableRow: Sized {
     fn parse(row: &[&Cell]) -> GenericResult<Self>;
 }
 
-pub fn read_table<T: TableRow>(sheet: &mut SheetReader) -> GenericResult<Vec<T>> {
+pub trait TableReader {
+    fn skip_row(_row: &[&Cell]) -> GenericResult<bool> {
+        Ok(false)
+    }
+}
+
+pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> GenericResult<Vec<T>> {
     // FIXME
     let columns = &[
         "Вид актива",
@@ -35,7 +41,12 @@ pub fn read_table<T: TableRow>(sheet: &mut SheetReader) -> GenericResult<Vec<T>>
             break;
         }
 
-        table.push(TableRow::parse(&columns_mapping.map(row)?)?);
+        let mapped_row = columns_mapping.map(row)?;
+        if T::skip_row(&mapped_row)? {
+            continue;
+        }
+
+        table.push(TableRow::parse(&mapped_row)?);
     }
 
     Ok(table)
