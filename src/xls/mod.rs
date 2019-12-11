@@ -1,3 +1,4 @@
+pub mod cell;
 pub mod table;
 
 use std::ops::Index;
@@ -6,7 +7,7 @@ use calamine::{Range, Reader, Xls, open_workbook};
 
 use crate::core::GenericResult;
 
-pub use calamine::DataType as Cell;
+pub use self::cell::*;
 pub use self::table::*;
 
 pub struct SheetReader {

@@ -54,6 +54,8 @@ impl SectionParser for AssetsParser {
         parser.sheet.skip_empty_rows();
         parser.sheet.next_row_checked()?;
 
+        use crate::xls::CellType;
+
         #[derive(Debug)]
         struct Row {
             test: String,
@@ -61,7 +63,7 @@ impl SectionParser for AssetsParser {
         impl xls::TableRow for Row {
             fn parse(row: &[&xls::Cell]) -> GenericResult<Self> {
                 Ok(Row {
-                    test: String::new()
+                    test: CellType::parse(row[0])?,
                 })
             }
         }
