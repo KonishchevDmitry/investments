@@ -54,33 +54,20 @@ impl SectionParser for AssetsParser {
         parser.sheet.skip_empty_rows();
         parser.sheet.next_row_checked()?;
 
-        let columns = &[
-        "Вид актива",
-        "Номер гос. регистрации ЦБ/ ISIN",
-        "Тип ЦБ (№ вып.)",
-        "Кол-во ценных бумаг",
-        "Цена закрытия/котировка вторич.(5*)",
-        "Сумма НКД",
-        "Сумма, в т.ч. НКД",
-        "Кол-во ценных бумаг",
-        "Цена закрытия/ котировка вторич.(5*)",
-        "Сумма НКД",
-        "Сумма, в т.ч. НКД",
-        "Организатор торгов (2*)",
-        "Место хранения",
-        "Эмитент",
-        ];
-        let row = parser.sheet.next_row_checked()?;
-        trace!("{:?}", row);
-        let columns_mapping = xls::map_columns(row, columns)?;
+        #[derive(Debug)]
+        struct Row {
+            test: String,
+        }
+        impl xls::TableRow for Row {
+            fn parse(row: &[&xls::Cell]) -> GenericResult<Self> {
+                Ok(Row {
+                    test: String::new()
+                })
+            }
+        }
 
-        let row = parser.sheet.next_row_checked()?;
-        trace!("{:?}", row);
-        columns_mapping.map(row)?;
-
-        let row = parser.sheet.next_row_checked()?;
-        trace!("{:?}", row);
-        columns_mapping.map(row)?;
+        let rows: Vec<Row> = xls::read_table(&mut parser.sheet)?;
+        trace!(">>> {:?}", rows);
 
         Ok(())
     }
