@@ -1,0 +1,121 @@
+extern crate proc_macro;
+
+use darling::FromMeta;
+use proc_macro::TokenStream;
+use proc_macro2::{Ident, Span};
+use quote::quote;
+use syn::{self, DeriveInput, Fields, Data, DataStruct, Meta, MetaList, MetaNameValue};
+
+type GenericError = Box<dyn std::error::Error + Send + Sync>;
+type GenericResult<T> = Result<T, GenericError>;
+
+struct Column {
+    field: String,
+    name: String,
+}
+
+macro_rules! Err {
+    ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
+}
+
+#[proc_macro_derive(XlsTableRow, attributes(column))]
+pub fn xls_table_row_derive(input: TokenStream) -> TokenStream {
+    match xls_table_row_derive_impl(input) {
+        Ok(output) => output,
+        Err(err) => panic!("{}", err),
+    }
+}
+
+fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
+    let ast: DeriveInput = syn::parse(input)?;
+    let span = Span::call_site();
+
+    let columns = get_table_columns(&ast)?;
+    let mod_ident = quote!(crate::xls);
+    let row_ident = &ast.ident;
+
+    let column_names_code = columns.iter().map(|column| {
+        let name = &column.name;
+        quote!(#name)
+    });
+
+    let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
+        let field = Ident::new(&column.field, span);
+        quote! {
+            #field: #mod_ident::CellType::parse(row[#id])?
+        }
+    });
+
+    Ok(quote! {
+        impl #mod_ident::TableRow for #row_ident {
+            fn columns() -> Vec<&'static str> {
+                vec![#(#column_names_code,)*]
+            }
+
+            fn parse(row: &[&#mod_ident::Cell]) -> crate::core::GenericResult<#row_ident> {
+                Ok(#row_ident {
+                    #(#columns_parse_code,)*
+                })
+            }
+        }
+    }.into())
+}
+
+fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
+    #[derive(FromMeta)]
+    struct ColumnParams {
+        name: String,
+    }
+    let column_attr_name = "column";
+
+    let mut columns = Vec::new();
+
+    let fields = match ast.data {
+        Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
+        _ => return Err!("A struct with named fields is expected"),
+    };
+
+    for field in fields {
+        let field_name = field.ident.as_ref()
+            .ok_or_else(|| "A struct with named fields is expected")?.to_string();
+        let mut field_params = None;
+
+        for attr in &field.attrs {
+            let meta = attr.parse_meta().map_err(|e| format!(
+                "Failed to parse `{:#?}` on {:?} field: {}", attr, field_name, e))?;
+
+            if !match_attribute_name(&meta, column_attr_name) {
+                continue;
+            }
+
+            let params = ColumnParams::from_meta(&meta).map_err(|e| format!(
+                "{:?} attribute on {:?} field validation error: {}",
+                column_attr_name, field_name, e))?;
+
+            if field_params.replace(params).is_some() {
+                return Err!("Duplicated {:?} attribute on {:?} field", column_attr_name, field_name);
+            }
+        }
+
+        let column_params = field_params.ok_or_else(|| format!(
+            "Column name is not specified for {:?} field", field_name
+        ))?;
+
+        columns.push(Column {
+            field: field_name,
+            name: column_params.name,
+        })
+    }
+
+    Ok(columns)
+}
+
+fn match_attribute_name(meta: &Meta, name: &str) -> bool {
+    let path = match meta {
+        Meta::Path(path) => path,
+        Meta::List(MetaList{path, ..}) => path,
+        Meta::NameValue(MetaNameValue{path, ..}) => path,
+    };
+
+    path.segments.len() == 1 && path.segments.first().unwrap().ident == name
+}
