@@ -34,12 +34,7 @@ impl Parser {
             Section::new_required("3. Активы:", Box::new(AssetsParser{})),
         ]);
 
-        loop {
-            let row = match self.sheet.next_row() {
-                Some(row) => row,
-                None => break,
-            };
-
+        while let Some(row) = self.sheet.next_row() {
             let section = match sections.match_section(row)? {
                 Some(section) => section,
                 None => continue,

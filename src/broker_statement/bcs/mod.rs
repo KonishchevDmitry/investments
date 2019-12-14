@@ -41,7 +41,9 @@ mod tests {
     fn parse_real() {
         // FIXME: In process of support - rewrite
 
-        ::easy_logging::init(module_path!().split("::").next().unwrap(), ::log::Level::Trace).unwrap();
+        if false {
+            ::easy_logging::init(module_path!().split("::").next().unwrap(), ::log::Level::Trace).unwrap();
+        }
 
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::Bcs, "testdata/bcs").unwrap();
