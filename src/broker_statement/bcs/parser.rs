@@ -5,7 +5,7 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::brokers::BrokerInfo;
 use crate::xls::{SheetReader, Cell};
 
-use super::parsers::{PeriodParser, AssetsParser};
+use super::parsers::{PeriodParser, CashFlowParser, AssetsParser};
 
 pub struct Parser {
     pub statement: PartialBrokerStatement,
@@ -30,6 +30,7 @@ impl Parser {
             Section::new_anchor_required("1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:"),
             Section::new_anchor_required("Остаток денежных средств на начало периода (Рубль):"),
             Section::new_anchor_required("Остаток денежных средств на конец периода (Рубль):"),
+            Section::new_required_ordered("Рубль", Box::new(CashFlowParser{})),
 
             Section::new_required("3. Активы:", Box::new(AssetsParser{})),
         ]);
@@ -86,6 +87,14 @@ impl SectionState {
                 continue;
             }
 
+            if section.ordered {
+                if let Some(last_id) = self.last_id {
+                    if last_id >= section_id {
+                        continue;
+                    }
+                }
+            }
+
             if section.seen {
                 return Err!("Got a duplicated {:?} section", section.title);
             }
@@ -119,6 +128,7 @@ impl SectionState {
 struct Section {
     title: &'static str,
     parser: Option<Box<dyn SectionParser>>,
+    ordered: bool,
     required: bool,
     seen: bool,
 }
@@ -126,19 +136,23 @@ struct Section {
 impl Section {
     #[allow(dead_code)] // FIXME
     fn new(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, Some(parser), false)
+        Section::new_full(title, Some(parser), false, false)
     }
 
     fn new_required(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, Some(parser), true)
+        Section::new_full(title, Some(parser), false, true)
+    }
+
+    fn new_required_ordered(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
+        Section::new_full(title, Some(parser), true, true)
     }
 
     fn new_anchor_required(title: &'static str) -> Section {
-        Section::new_full(title, None, true)
+        Section::new_full(title, None, false, true)
     }
 
-    fn new_full(title: &'static str, parser: Option<Box<dyn SectionParser>>, required: bool) -> Section {
-        Section { title, parser, required, seen: false }
+    fn new_full(title: &'static str, parser: Option<Box<dyn SectionParser>>, ordered: bool, required: bool) -> Section {
+        Section { title, parser, ordered, required, seen: false }
     }
 }
 

@@ -45,6 +45,49 @@ fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
     Ok((start, end))
 }
 
+pub struct CashFlowParser {
+}
+
+impl SectionParser for CashFlowParser {
+    // FIXME: It's a prototype - rewrite
+    fn parse(&self, parser: &mut Parser) -> EmptyResult {
+        let _: Vec<CashFlowRow> = xls::read_table(&mut parser.sheet)?;
+        Ok(())
+    }
+}
+
+#[derive(XlsTableRow, Debug)]
+struct CashFlowRow {
+    #[column(name="Дата")]
+    _1: SkipCell,
+    #[column(name="Операция")]
+    _2: SkipCell,
+    #[column(name="Сумма зачисления")]
+    _3: SkipCell,
+    #[column(name="Сумма списания")]
+    _4: SkipCell,
+    #[column(name="В т.ч.НДС (руб.)")]
+    _5: SkipCell,
+    #[column(name="Остаток (+/-)")]
+    _6: SkipCell,
+    #[column(name="в т.ч. гарант. обеспечение")]
+    _7: SkipCell,
+    #[column(name="в т.ч. депозитная маржа")]
+    _8: SkipCell,
+    #[column(name="Площадка")]
+    _9: SkipCell,
+    #[column(name="Примечание")]
+    _10: SkipCell,
+    #[column(name="Промежуточный клиринг (FORTS)")]
+    _11: SkipCell,
+}
+
+impl TableReader for CashFlowRow {
+    fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
+        Ok(xls::get_string_cell(row[0])? == "Итого:")
+    }
+}
+
 pub struct AssetsParser {
 }
 

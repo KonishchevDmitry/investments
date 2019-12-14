@@ -97,7 +97,7 @@ fn find_column(row: &[Cell], name: &str) -> GenericResult<usize> {
     for (cell_id, cell) in row.iter().enumerate() {
         match cell {
             Cell::String(value) => {
-                let value_regex = format!("^{}$", regex::escape(value).replace("\n", " ?"));
+                let value_regex = format!("^{}$", regex::escape(value.trim()).replace("\n", " ?"));
 
                 if Regex::new(&value_regex).unwrap().is_match(name) {
                     return Ok(cell_id);
