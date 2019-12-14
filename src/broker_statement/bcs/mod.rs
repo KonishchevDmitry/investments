@@ -39,12 +39,12 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        // FIXME
+        // FIXME: In process of support - rewrite
 
         ::easy_logging::init(module_path!().split("::").next().unwrap(), ::log::Level::Trace).unwrap();
 
         let statement = BrokerStatement::read(
-            &Config::mock(), Broker::Bcs, "/Users/konishchev/Cloud/Archive/Brokerage/БКС").unwrap();
+            &Config::mock(), Broker::Bcs, "testdata/bcs").unwrap();
 
 //        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());

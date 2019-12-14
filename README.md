@@ -48,7 +48,7 @@ assets and statements' periods mustn't overlap or have missing days in between.
 
 For now only the following broker statements are supported:
 * Interactive Brokers (*.csv)
-* Открытие Брокер (ИИС) (*.xml)
+* Открытие Брокер (ИИС, basic support) (*.xml)
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:

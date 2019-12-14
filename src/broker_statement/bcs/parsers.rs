@@ -1,6 +1,5 @@
 use chrono::Duration;
 use lazy_static::lazy_static;
-use log::trace;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
@@ -50,7 +49,7 @@ pub struct AssetsParser {
 }
 
 impl SectionParser for AssetsParser {
-    // FIXME
+    // FIXME: It's a prototype - rewrite
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
         parser.sheet.skip_empty_rows();
         parser.sheet.skip_non_empty_rows();
@@ -66,11 +65,10 @@ impl SectionParser for AssetsParser {
                 }
             } else {
                 continue;
-                panic!("Unsupported: {:?}", asset);
             }
         }
 
-        parser.statement.set_starting_assets(false)?; // FIXME
+        parser.statement.set_starting_assets(false)?;
 
         Ok(())
     }
@@ -101,11 +99,11 @@ struct AssetsRow {
     #[column(name="Сумма, в т.ч. НКД")]
     end_value: Option<Decimal>,
     #[column(name="Организатор торгов (2*)")]
-    _11: SkipCell,
+    _10: SkipCell,
     #[column(name="Место хранения")]
-    _12: SkipCell,
+    _11: SkipCell,
     #[column(name="Эмитент")]
-    _13: SkipCell,
+    _12: SkipCell,
 }
 
 impl TableReader for AssetsRow {

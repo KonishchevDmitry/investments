@@ -21,6 +21,7 @@ mod init;
 // * Tax agent support
 // * XLS for tax inspector
 // * Free commissions (considering monthly minimum fee)
+// * Tiered commissions support for BCS broker
 // * T+2 mode support for IB tax statement? (Trade Confirmations broker statement shows the info)
 
 fn main() {

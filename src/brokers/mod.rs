@@ -23,6 +23,10 @@ impl Broker {
             name: self.get_name(),
             config: self.get_config(config)?,
             commission_spec: self.get_commission_spec(),
+            allow_sparse_broker_statements: match self {
+                Broker::Bcs => true,
+                _ => false,
+            }
         })
     }
 
@@ -37,7 +41,7 @@ impl Broker {
     fn get_config(self, config: &Config) -> GenericResult<BrokerConfig> {
         Ok(config.brokers.as_ref().and_then(|brokers| {
             match self {
-                Broker::Bcs => brokers.open_broker.as_ref(),  // FIXME
+                Broker::Bcs => brokers.open_broker.as_ref(), // FIXME: Support
                 Broker::InteractiveBrokers => brokers.interactive_brokers.as_ref(),
                 Broker::OpenBroker => brokers.open_broker.as_ref(),
             }
@@ -48,9 +52,8 @@ impl Broker {
 
     fn get_commission_spec(self) -> CommissionSpec {
         match self {
-            // FIXME
+            // BCS has tiered commissions that aren't supported yet, so use some average now
             Broker::Bcs => CommissionSpecBuilder::new()
-                .minimum(Cash::new("RUB", dec!(0.04)))
                 .percent(dec!(0.057))
                 .build().unwrap(),
 
@@ -84,6 +87,7 @@ impl<'de> Deserialize<'de> for Broker {
         let value = String::deserialize(deserializer)?;
 
         Ok(match value.as_str() {
+            // FIXME: BCS support
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::OpenBroker,
 
@@ -99,6 +103,7 @@ pub struct BrokerInfo {
     pub name: &'static str,
     config: BrokerConfig,
     commission_spec: CommissionSpec,
+    pub allow_sparse_broker_statements: bool, // FIXME: Validate usage
 }
 
 impl BrokerInfo {

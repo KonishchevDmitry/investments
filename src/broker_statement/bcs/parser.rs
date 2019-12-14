@@ -21,10 +21,10 @@ impl Parser {
     }
 
     fn parse(mut self) -> GenericResult<PartialBrokerStatement> {
+        // FIXME: We need a better way here
         let mut sections = SectionState::new(vec![
             Section::new_required("Период:", Box::new(PeriodParser{})),
 
-            // FIXME
             Section::new_anchor_required("1. Движение денежных средств"),
             Section::new_anchor_required("1.1. Движение денежных средств по совершенным сделкам:"),
             Section::new_anchor_required("1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:"),
