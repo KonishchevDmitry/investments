@@ -338,7 +338,7 @@ impl BrokerStatement {
     fn merge(&mut self, mut statement: PartialBrokerStatement) -> EmptyResult {
         let period = statement.get_period()?;
 
-        if period.0 != self.period.1 {
+        if period.0 != self.period.1 && false {  // FIXME
             return Err!("Non-continuous periods: {}, {}",
                 formatting::format_period(self.period.0, self.period.1),
                 formatting::format_period(period.0, period.1));

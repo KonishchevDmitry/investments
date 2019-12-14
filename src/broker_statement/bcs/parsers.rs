@@ -4,9 +4,12 @@ use log::trace;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
 use crate::formatting;
-use crate::types::Date;
-use crate::xls;
+use crate::types::{Date, Decimal};
+use crate::xls::{self, TableReader, Cell, SkipCell};
+
+use xls_table_derive::XlsTableRow;
 
 use super::{Parser, SectionParser};
 use super::common::parse_date;
@@ -54,30 +57,59 @@ impl SectionParser for AssetsParser {
         parser.sheet.skip_empty_rows();
         parser.sheet.next_row_checked()?;
 
-        let rows: Vec<Row> = xls::read_table(&mut parser.sheet)?;
-        trace!(">>> {:?}", rows);
+        let assets: Vec<AssetsRow> = xls::read_table(&mut parser.sheet)?;
+
+        for asset in &assets {
+            if asset.asset == "Рубль" {
+                if let Some(amount) = asset.end_value {
+                    parser.statement.cash_assets.deposit(Cash::new("RUB", amount))
+                }
+            } else {
+                continue;
+                panic!("Unsupported: {:?}", asset);
+            }
+        }
+
+        parser.statement.set_starting_assets(false)?; // FIXME
 
         Ok(())
     }
 }
 
-// FIXME
-
-use crate::xls::CellType;
-
-#[derive(Debug)]
-struct Row {
-    test: String,
+#[derive(XlsTableRow, Debug)]
+struct AssetsRow {
+    #[column(name="Вид актива")]
+    asset: String,
+    #[column(name="Номер гос. регистрации ЦБ/ ISIN")]
+    _1: SkipCell,
+    #[column(name="Тип ЦБ (№ вып.)")]
+    _2: SkipCell,
+    #[column(name="Кол-во ценных бумаг")]
+    _3: SkipCell,
+    #[column(name="Цена закрытия/котировка вторич.(5*)")]
+    _4: SkipCell,
+    #[column(name="Сумма НКД")]
+    _5: SkipCell,
+    #[column(name="Сумма, в т.ч. НКД")]
+    _6: SkipCell,
+    #[column(name="Кол-во ценных бумаг")]
+    _7: SkipCell,
+    #[column(name="Цена закрытия/ котировка вторич.(5*)")]
+    _8: SkipCell,
+    #[column(name="Сумма НКД")]
+    _9: SkipCell,
+    #[column(name="Сумма, в т.ч. НКД")]
+    end_value: Option<Decimal>,
+    #[column(name="Организатор торгов (2*)")]
+    _11: SkipCell,
+    #[column(name="Место хранения")]
+    _12: SkipCell,
+    #[column(name="Эмитент")]
+    _13: SkipCell,
 }
-impl xls::TableReader for Row {
-    fn skip_row(row: &[&xls::Cell]) -> GenericResult<bool> {
+
+impl TableReader for AssetsRow {
+    fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
         Ok(xls::get_string_cell(row[0])? == "Итого:")
-    }
-}
-impl xls::TableRow for Row {
-    fn parse(row: &[&xls::Cell]) -> GenericResult<Self> {
-        Ok(Row {
-            test: CellType::parse(row[0])?,
-        })
     }
 }
