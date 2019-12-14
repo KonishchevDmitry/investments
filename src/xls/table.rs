@@ -5,6 +5,7 @@ use crate::core::GenericResult;
 use super::{SheetReader, Cell, is_empty_row};
 
 pub trait TableRow: Sized {
+    fn columns() -> Vec<&'static str>;
     fn parse(row: &[&Cell]) -> GenericResult<Self>;
 }
 
@@ -15,26 +16,10 @@ pub trait TableReader {
 }
 
 pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> GenericResult<Vec<T>> {
-    // FIXME
-    let columns = &[
-        "Вид актива",
-        "Номер гос. регистрации ЦБ/ ISIN",
-        "Тип ЦБ (№ вып.)",
-        "Кол-во ценных бумаг",
-        "Цена закрытия/котировка вторич.(5*)",
-        "Сумма НКД",
-        "Сумма, в т.ч. НКД",
-        "Кол-во ценных бумаг",
-        "Цена закрытия/ котировка вторич.(5*)",
-        "Сумма НКД",
-        "Сумма, в т.ч. НКД",
-        "Организатор торгов (2*)",
-        "Место хранения",
-        "Эмитент",
-    ];
+    let columns = T::columns();
+    let columns_mapping = map_columns(sheet.next_row_checked()?, &columns)?;
 
     let mut table = Vec::new();
-    let columns_mapping = map_columns(sheet.next_row_checked()?, columns)?;
 
     while let Some(row) = sheet.next_row() {
         if is_empty_row(row) {

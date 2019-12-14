@@ -19,6 +19,7 @@ impl CellType for String {
     }
 }
 
+#[derive(Debug)]
 pub struct SkipCell {
 }
 
