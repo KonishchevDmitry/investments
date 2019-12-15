@@ -15,35 +15,42 @@ use super::common::{parse_short_date, parse_currency};
 pub struct TradesParser {
 }
 
-// FIXME: HERE
 impl SectionParser for TradesParser {
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
-        let mut current_instrument: Option<CurrentInstrument> = None;
+        let columns_mapping = xls::map_columns(
+            parser.sheet.next_row_checked()?, &TradeRow::columns())?;
 
-        let columns_mapping = xls::map_columns(parser.sheet.next_row_checked()?, &TradeRow::columns())?;
+        let mut current_instrument: Option<CurrentInstrument> = None;
 
         while let Some(row) = parser.sheet.next_row() {
             if xls::is_empty_row(row) {
                 break;
             }
 
-            let mapped_row = columns_mapping.map(row)?;
+            let row = columns_mapping.map(row)?;
+            let first_cell = xls::get_string_cell(row.first().unwrap())?;
 
-            let value = xls::get_string_cell(&row[0])?;
-            let symbol = if let Some(ref instrument) = current_instrument {
-                if value == instrument.stop_value {
-                    current_instrument = None;
+            let symbol = match current_instrument {
+                None => {
+                    current_instrument = Some(CurrentInstrument::new(first_cell));
                     continue;
-                }
+                },
+                Some(ref instrument) => {
+                    if first_cell == instrument.stop_value {
+                        current_instrument = None;
+                        continue;
+                    }
 
-                &instrument.symbol
-            } else {
-                current_instrument = Some(CurrentInstrument::new(value));
-                continue;
+                    &instrument.symbol
+                },
             };
+            let trade = TradeRow::parse(&row)?;
 
-            let trade = TradeRow::parse(&mapped_row)?;
             self.process_trade(&mut parser.statement, symbol, &trade)?;
+        }
+
+        if current_instrument.is_some() {
+            return Err!("Got an unexpected end of trades table");
         }
 
         Ok(())
