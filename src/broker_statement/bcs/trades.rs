@@ -1,16 +1,17 @@
-#![allow(unused_imports)] // FIXME
+use num_traits::cast::ToPrimitive;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::CashAssets;
+use crate::currency::Cash;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, TableRow, Cell, SkipCell};
+use crate::xls::{self, TableRow, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 
 use super::{Parser, SectionParser};
-use super::common::{parse_short_date, parse_currency};
+use super::common::{parse_short_date, parse_currency, parse_symbol};
 
 pub struct TradesParser {
 }
@@ -32,11 +33,11 @@ impl SectionParser for TradesParser {
 
             let symbol = match current_instrument {
                 None => {
-                    current_instrument = Some(CurrentInstrument::new(first_cell));
+                    current_instrument = Some(CurrentInstrument::parse(first_cell)?);
                     continue;
                 },
                 Some(ref instrument) => {
-                    if first_cell == instrument.stop_value {
+                    if first_cell == instrument.end_marker {
                         current_instrument = None;
                         continue;
                     }
@@ -46,7 +47,7 @@ impl SectionParser for TradesParser {
             };
             let trade = TradeRow::parse(&row)?;
 
-            self.process_trade(&mut parser.statement, symbol, &trade)?;
+            self.process_trade(&mut parser.statement, symbol, trade)?;
         }
 
         if current_instrument.is_some() {
@@ -58,44 +59,63 @@ impl SectionParser for TradesParser {
 }
 
 impl TradesParser {
-    // FIXME: HERE
-    fn process_trade(&self, _statement: &mut PartialBrokerStatement, _symbol: &str, trade: &TradeRow) -> EmptyResult {
-        parse_short_date(&trade.date)?;
-        /*
-        let date = parse_short_date(&cash_flow.date)?;
-        let operation = cash_flow.operation.as_str();
+    fn process_trade(&self, statement: &mut PartialBrokerStatement, symbol: &str, trade: TradeRow) -> EmptyResult {
+        let conclusion_date = parse_short_date(&trade.conclusion_date)?;
+        let execution_date = parse_short_date(&trade.execution_date)?;
+        if trade.date != trade.execution_date {
+            return Err!(
+                "Trade completion date is different from execution date: {} vs {}",
+                trade.date, trade.execution_date);
+        }
+        if trade.payment_date != trade.execution_date {
+            return Err!(
+                "Payment date is different from execution date: {} vs {}",
+                trade.payment_date, trade.execution_date);
+        }
 
-        let mut deposit_restrictions = DecimalRestrictions::Zero;
-        let mut withdrawal_restrictions = DecimalRestrictions::Zero;
+        let currency = parse_currency(&trade.currency)?;
+        if trade.payment_currency != trade.currency {
+            return Err!(
+                "Payment currency is different from trade currency: {:?} vs {:?}",
+                trade.payment_currency, trade.currency);
+        }
 
-        match operation {
-            "Приход ДС" => {
-                deposit_restrictions = DecimalRestrictions::StrictlyPositive;
-                parser.statement.cash_flows.push(CashAssets::new(date, currency, cash_flow.deposit));
-            },
-            "Покупка/Продажа" => {
-                deposit_restrictions = DecimalRestrictions::PositiveOrZero;
-                withdrawal_restrictions = DecimalRestrictions::PositiveOrZero;
-            },
-            "Урегулирование сделок" |
-            "Вознаграждение компании" |
-            "Вознаграждение за обслуживание счета депо" => {
-                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
-            },
-            _ => return Err!("Unsupported cash flow operation: {:?}", cash_flow.operation),
+        let (buy, quantity, price) = match (
+            (trade.buy_quantity, trade.buy_price),
+            (trade.sell_quantity, trade.sell_price),
+        ) {
+            ((Some(quantity), Some(price)), (None, None)) => (true, quantity, price),
+            ((None, None), (Some(quantity), Some(price))) => (false, quantity, price),
+            _ => return Err!("Got conflicting buy/sell quantity/price values"),
         };
 
-        for &(name, value, restrictions) in &[
-            ("deposit", cash_flow.deposit, deposit_restrictions),
-            ("withdrawal", cash_flow.withdrawal, withdrawal_restrictions),
-            ("tax", cash_flow.tax, DecimalRestrictions::Zero),
-            ("warranty", cash_flow.warranty, DecimalRestrictions::Zero),
-            ("margin", cash_flow.margin, DecimalRestrictions::Zero),
-        ] {
-            util::validate_decimal(value, restrictions).map_err(|_| format!(
-                "Unexpected {} amount for {:?} operation: {}", name, operation, value))?;
+        let quantity =
+            util::validate_decimal(quantity, DecimalRestrictions::StrictlyPositive).ok()
+            .and_then(|quantity| {
+                if quantity.trunc() == quantity {
+                    quantity.to_u32()
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| format!("Invalid quantity: {}", quantity))?;
+
+        let price = util::validate_decimal(price, DecimalRestrictions::StrictlyPositive)
+            .map(|price| Cash::new(currency, price))
+            .map_err(|_| format!("Invalid price: {}", price))?;
+
+        let commission = Cash::new(currency, dec!(0)); // FIXME
+
+        // FIXME
+        if false {
+            if buy {
+                statement.stock_buys.push(StockBuy::new(
+                    symbol, quantity, price, commission, conclusion_date, execution_date));
+            } else {
+                statement.stock_sells.push(StockSell::new(
+                    symbol, quantity, price, commission, conclusion_date, execution_date, false));
+            }
         }
-        */
 
         Ok(())
     }
@@ -110,45 +130,45 @@ struct TradeRow {
     #[column(name="Время")]
     _2: SkipCell,
     #[column(name="Куплено, шт")]
-    _3: SkipCell,
+    buy_quantity: Option<Decimal>,
     #[column(name="Цена")]
-    _4: SkipCell,
+    buy_price: Option<Decimal>,
     #[column(name="Сумма платежа")]
     _5: SkipCell,
     #[column(name="Продано, шт")]
-    _6: SkipCell,
+    sell_quantity: Option<Decimal>,
     #[column(name="Цена")]
-    _7: SkipCell,
+    sell_price: Option<Decimal>,
     #[column(name="Сумма выручки")]
     _8: SkipCell,
     #[column(name="Валюта")]
-    _9: SkipCell,
+    currency: String,
     #[column(name="Валюта платежа")]
-    _10: SkipCell,
+    payment_currency: String,
     #[column(name="Дата соверш.")]
-    _11: SkipCell,
+    conclusion_date: String,
     #[column(name="Время соверш.")]
     _12: SkipCell,
     #[column(name="Тип сделки")]
     _13: SkipCell,
     #[column(name="Оплата (факт)")]
-    _14: SkipCell,
+    payment_date: String,
     #[column(name="Поставка (факт)")]
-    _15: SkipCell,
+    execution_date: String,
     #[column(name="Место сделки")]
     _16: SkipCell,
 }
 
 struct CurrentInstrument {
     symbol: String,
-    stop_value: String,
+    end_marker: String,
 }
 
 impl CurrentInstrument {
-    fn new(name: &str) -> CurrentInstrument {
-        CurrentInstrument {
-            symbol: name.to_owned(), // FIXME
-            stop_value: format!("Итого по {}:", name),
-        }
+    fn parse(name: &str) -> GenericResult<CurrentInstrument> {
+        Ok(CurrentInstrument {
+            symbol: parse_symbol(name)?,
+            end_marker: format!("Итого по {}:", name),
+        })
     }
 }
