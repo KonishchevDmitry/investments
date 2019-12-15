@@ -5,7 +5,10 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::brokers::BrokerInfo;
 use crate::xls::{SheetReader, Cell};
 
-use super::parsers::{PeriodParser, CashFlowParser, TradesParser, AssetsParser};
+use super::assets::AssetsParser;
+use super::cash_flow::CashFlowParser;
+use super::period::PeriodParser;
+use super::trades::TradesParser;
 
 pub struct Parser {
     pub statement: PartialBrokerStatement,

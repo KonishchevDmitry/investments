@@ -1,6 +1,9 @@
+mod assets;
+mod cash_flow;
 mod common;
 mod parser;
-mod parsers;
+mod period;
+mod trades;
 
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
