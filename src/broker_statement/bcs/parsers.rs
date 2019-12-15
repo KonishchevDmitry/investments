@@ -3,15 +3,16 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::Cash;
+use crate::currency::{Cash, CashAssets};
 use crate::formatting;
 use crate::types::{Date, Decimal};
+use crate::util::{self, DecimalRestrictions};
 use crate::xls::{self, TableReader, Cell, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 
 use super::{Parser, SectionParser};
-use super::common::parse_date;
+use super::common::{parse_date, parse_short_date, parse_currency};
 
 pub struct PeriodParser {
 }
@@ -49,9 +50,58 @@ pub struct CashFlowParser {
 }
 
 impl SectionParser for CashFlowParser {
-    // FIXME: It's a prototype - rewrite
+    fn consume_title(&self) -> bool {
+        false
+    }
+
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
-        let _: Vec<CashFlowRow> = xls::read_table(&mut parser.sheet)?;
+        let title_row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
+        let currency = parse_currency(xls::get_string_cell(&title_row[0])?)?;
+
+        for cash_flow in &xls::read_table::<CashFlowRow>(&mut parser.sheet)? {
+            self.process_cash_flow(parser, currency, cash_flow)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl CashFlowParser {
+    fn process_cash_flow(&self, parser: &mut Parser, currency: &str, cash_flow: &CashFlowRow) -> EmptyResult {
+        let date = parse_short_date(&cash_flow.date)?;
+        let operation = cash_flow.operation.as_str();
+
+        let mut deposit_restrictions = DecimalRestrictions::Zero;
+        let mut withdrawal_restrictions = DecimalRestrictions::Zero;
+
+        match operation {
+            "Приход ДС" => {
+                deposit_restrictions = DecimalRestrictions::StrictlyPositive;
+                parser.statement.cash_flows.push(CashAssets::new(date, currency, cash_flow.deposit));
+            },
+            "Покупка/Продажа" => {
+                deposit_restrictions = DecimalRestrictions::PositiveOrZero;
+                withdrawal_restrictions = DecimalRestrictions::PositiveOrZero;
+            },
+            "Урегулирование сделок" |
+            "Вознаграждение компании" |
+            "Вознаграждение за обслуживание счета депо" => {
+                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
+            },
+            _ => return Err!("Unsupported cash flow operation: {:?}", cash_flow.operation),
+        };
+
+        for &(name, value, restrictions) in &[
+            ("deposit", cash_flow.deposit, deposit_restrictions),
+            ("withdrawal", cash_flow.withdrawal, withdrawal_restrictions),
+            ("tax", cash_flow.tax, DecimalRestrictions::Zero),
+            ("warranty", cash_flow.warranty, DecimalRestrictions::Zero),
+            ("margin", cash_flow.margin, DecimalRestrictions::Zero),
+        ] {
+            util::validate_decimal(value, restrictions).map_err(|_| format!(
+                "Unexpected {} amount for {:?} operation: {}", name, operation, value))?;
+        }
+
         Ok(())
     }
 }
@@ -59,32 +109,35 @@ impl SectionParser for CashFlowParser {
 #[derive(XlsTableRow, Debug)]
 struct CashFlowRow {
     #[column(name="Дата")]
-    _1: SkipCell,
+    date: String,
     #[column(name="Операция")]
-    _2: SkipCell,
+    operation: String,
     #[column(name="Сумма зачисления")]
-    _3: SkipCell,
+    deposit: Decimal,
     #[column(name="Сумма списания")]
-    _4: SkipCell,
+    withdrawal: Decimal,
     #[column(name="В т.ч.НДС (руб.)")]
-    _5: SkipCell,
+    tax: Decimal,
     #[column(name="Остаток (+/-)")]
-    _6: SkipCell,
+    _5: SkipCell,
     #[column(name="в т.ч. гарант. обеспечение")]
-    _7: SkipCell,
+    warranty: Decimal,
     #[column(name="в т.ч. депозитная маржа")]
-    _8: SkipCell,
+    margin: Decimal,
     #[column(name="Площадка")]
-    _9: SkipCell,
+    _8: SkipCell,
     #[column(name="Примечание")]
-    _10: SkipCell,
+    _9: SkipCell,
     #[column(name="Промежуточный клиринг (FORTS)")]
-    _11: SkipCell,
+    _10: SkipCell,
 }
 
 impl TableReader for CashFlowRow {
     fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
-        Ok(xls::get_string_cell(row[0])? == "Итого:")
+        Ok(
+            xls::get_string_cell(row[0])?.starts_with("Итого по валюте ") ||
+            xls::get_string_cell(row[1])? == "Итого:"
+        )
     }
 }
 
@@ -142,11 +195,11 @@ struct AssetsRow {
     #[column(name="Сумма, в т.ч. НКД")]
     end_value: Option<Decimal>,
     #[column(name="Организатор торгов (2*)")]
-    _10: SkipCell,
-    #[column(name="Место хранения")]
     _11: SkipCell,
-    #[column(name="Эмитент")]
+    #[column(name="Место хранения")]
     _12: SkipCell,
+    #[column(name="Эмитент")]
+    _13: SkipCell,
 }
 
 impl TableReader for AssetsRow {

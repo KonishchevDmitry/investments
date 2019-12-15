@@ -41,8 +41,10 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
         let field = Ident::new(&column.field, span);
+        let name = &column.name;
         quote! {
-            #field: #mod_ident::CellType::parse(row[#id])?
+            #field: #mod_ident::CellType::parse(row[#id]).map_err(|e| format!(
+                "Column {:?}: {}", #name, e))?
         }
     });
 

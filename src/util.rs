@@ -9,7 +9,9 @@ use rust_decimal::RoundingStrategy;
 use crate::core::GenericResult;
 use crate::types::{Date, DateTime, Decimal};
 
+#[derive(Clone, Copy)]
 pub enum DecimalRestrictions {
+    Zero,
     NonZero,
     NegativeOrZero,
     PositiveOrZero,
@@ -23,6 +25,7 @@ pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> Generic
 
 pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
     if !match restrictions {
+        DecimalRestrictions::Zero => value.is_zero(),
         DecimalRestrictions::NonZero => !value.is_zero(),
         DecimalRestrictions::NegativeOrZero => value.is_sign_negative() || value.is_zero(),
         DecimalRestrictions::PositiveOrZero => value.is_sign_positive() || value.is_zero(),

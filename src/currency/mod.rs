@@ -147,6 +147,10 @@ pub struct CashAssets {
 }
 
 impl CashAssets {
+    pub fn new(date: Date, currency: &str, amount: Decimal) -> CashAssets {
+        CashAssets::new_from_cash(date, Cash::new(currency, amount))
+    }
+
     pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
         CashAssets {date, cash}
     }

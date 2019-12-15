@@ -22,6 +22,7 @@ impl Parser {
 
     fn parse(mut self) -> GenericResult<PartialBrokerStatement> {
         // FIXME: We need a better way here
+        // FIXME: Match using regex here instead of manual FSM implementation?
         let mut sections = SectionState::new(vec![
             Section::new_required("Период:", Box::new(PeriodParser{})),
 
@@ -30,7 +31,9 @@ impl Parser {
             Section::new_anchor_required("1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:"),
             Section::new_anchor_required("Остаток денежных средств на начало периода (Рубль):"),
             Section::new_anchor_required("Остаток денежных средств на конец периода (Рубль):"),
-            Section::new_required_ordered("Рубль", Box::new(CashFlowParser{})),
+
+            // FIXME: Introduce title option?
+            Section::new_required_ordered("Рубль", Box::new(CashFlowParser{})), // FIXME: Support other currencies
 
             Section::new_required("3. Активы:", Box::new(AssetsParser{})),
         ]);
@@ -134,6 +137,8 @@ struct Section {
 }
 
 impl Section {
+    // FIXME: Use builders here
+
     #[allow(dead_code)] // FIXME
     fn new(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
         Section::new_full(title, Some(parser), false, false)
