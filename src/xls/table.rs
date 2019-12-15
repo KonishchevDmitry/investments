@@ -37,12 +37,12 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
     Ok(table)
 }
 
-struct ColumnsMapping {
+pub struct ColumnsMapping {
     mapping: Vec<usize>,
 }
 
 impl ColumnsMapping {
-    fn map<'a>(&self, row: &'a[Cell]) -> GenericResult<Vec<&'a Cell>> {
+    pub fn map<'a>(&self, row: &'a[Cell]) -> GenericResult<Vec<&'a Cell>> {
         let mut mapped_row = Vec::with_capacity(self.mapping.len());
         let mut current_cell_id = 0;
 
@@ -74,7 +74,7 @@ impl ColumnsMapping {
     }
 }
 
-fn map_columns(mut row: &[Cell], columns: &[&str]) -> GenericResult<ColumnsMapping> {
+pub fn map_columns(mut row: &[Cell], columns: &[&str]) -> GenericResult<ColumnsMapping> {
     let mut mapping = Vec::with_capacity(columns.len());
     let mut offset = 0;
 

@@ -1,10 +1,11 @@
 #![allow(unused_imports)] // FIXME
 
+use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::CashAssets;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, TableReader, Cell, SkipCell};
+use crate::xls::{self, TableRow, Cell, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 
@@ -14,10 +15,35 @@ use super::common::{parse_short_date, parse_currency};
 pub struct TradesParser {
 }
 
+// FIXME: HERE
 impl SectionParser for TradesParser {
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
-        for trade in &xls::read_table::<TradeRow>(&mut parser.sheet)? {
-            self.process_trade(parser, trade)?;
+        let mut current_instrument: Option<CurrentInstrument> = None;
+
+        let columns_mapping = xls::map_columns(parser.sheet.next_row_checked()?, &TradeRow::columns())?;
+
+        while let Some(row) = parser.sheet.next_row() {
+            if xls::is_empty_row(row) {
+                break;
+            }
+
+            let mapped_row = columns_mapping.map(row)?;
+
+            let value = xls::get_string_cell(&row[0])?;
+            let symbol = if let Some(ref instrument) = current_instrument {
+                if value == instrument.stop_value {
+                    current_instrument = None;
+                    continue;
+                }
+
+                &instrument.symbol
+            } else {
+                current_instrument = Some(CurrentInstrument::new(value));
+                continue;
+            };
+
+            let trade = TradeRow::parse(&mapped_row)?;
+            self.process_trade(&mut parser.statement, symbol, &trade)?;
         }
 
         Ok(())
@@ -25,7 +51,9 @@ impl SectionParser for TradesParser {
 }
 
 impl TradesParser {
-    fn process_trade(&self, _parser: &mut Parser, _trade: &TradeRow) -> EmptyResult {
+    // FIXME: HERE
+    fn process_trade(&self, _statement: &mut PartialBrokerStatement, _symbol: &str, trade: &TradeRow) -> EmptyResult {
+        parse_short_date(&trade.date)?;
         /*
         let date = parse_short_date(&cash_flow.date)?;
         let operation = cash_flow.operation.as_str();
@@ -69,7 +97,7 @@ impl TradesParser {
 #[derive(XlsTableRow)]
 struct TradeRow {
     #[column(name="Дата")]
-    _0: SkipCell,
+    date: String,
     #[column(name="Номер")]
     _1: SkipCell,
     #[column(name="Время")]
@@ -104,8 +132,16 @@ struct TradeRow {
     _16: SkipCell,
 }
 
-impl TableReader for TradeRow {
-    fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
-        Ok(xls::get_string_cell(row[0])?.starts_with("Итого по "))
+struct CurrentInstrument {
+    symbol: String,
+    stop_value: String,
+}
+
+impl CurrentInstrument {
+    fn new(name: &str) -> CurrentInstrument {
+        CurrentInstrument {
+            symbol: name.to_owned(), // FIXME
+            stop_value: format!("Итого по {}:", name),
+        }
     }
 }
