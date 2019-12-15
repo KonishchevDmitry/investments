@@ -44,6 +44,24 @@ impl CellType for Decimal {
     }
 }
 
+impl CellType for u32 {
+    fn parse(cell: &Cell) -> GenericResult<u32> {
+        Ok(match cell {
+            Cell::Int(value) => u32::from_i64(*value),
+            Cell::Float(value) => {
+                if value.trunc() == *value {
+                    u32::from_f64(*value)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }.ok_or_else(|| format!(
+            "Got an unexpected cell value where u32 is expected: {:?}", cell
+        ))?)
+    }
+}
+
 impl<T: CellType> CellType for Option<T> {
     fn parse(cell: &Cell) -> GenericResult<Option<T>> {
         match cell {
