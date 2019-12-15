@@ -5,7 +5,7 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::brokers::BrokerInfo;
 use crate::xls::{SheetReader, Cell};
 
-use super::parsers::{PeriodParser, CashFlowParser, AssetsParser};
+use super::parsers::{PeriodParser, CashFlowParser, TradesParser, AssetsParser};
 
 pub struct Parser {
     pub statement: PartialBrokerStatement,
@@ -21,7 +21,7 @@ impl Parser {
     }
 
     fn parse(mut self) -> GenericResult<PartialBrokerStatement> {
-        // FIXME: We need a better way here
+        // FIXME: Just a dirty prototype. We need a better way here.
         // FIXME: Match using regex here instead of manual FSM implementation?
         let mut sections = SectionState::new(vec![
             Section::new_required("Период:", Box::new(PeriodParser{})),
@@ -34,6 +34,11 @@ impl Parser {
 
             // FIXME: Introduce title option?
             Section::new_required_ordered("Рубль", Box::new(CashFlowParser{})), // FIXME: Support other currencies
+
+            Section::new_anchor_ordered("2.1. Сделки:"),
+            Section::new_anchor_ordered("Пай"),
+            Section::new_ordered("Валюта цены = Рубль, валюта платежа = Рубль", Box::new(TradesParser{})), // FIXME: Support other types
+            Section::new_anchor_ordered("2.3. Незавершенные сделки"),
 
             Section::new_required("3. Активы:", Box::new(AssetsParser{})),
         ]);
@@ -144,12 +149,20 @@ impl Section {
         Section::new_full(title, Some(parser), false, false)
     }
 
+    fn new_ordered(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
+        Section::new_full(title, Some(parser), true, false)
+    }
+
     fn new_required(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
         Section::new_full(title, Some(parser), false, true)
     }
 
     fn new_required_ordered(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
         Section::new_full(title, Some(parser), true, true)
+    }
+
+    fn new_anchor_ordered(title: &'static str) -> Section {
+        Section::new_full(title, None, true, false)
     }
 
     fn new_anchor_required(title: &'static str) -> Section {
