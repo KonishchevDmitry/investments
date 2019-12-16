@@ -106,15 +106,12 @@ impl TradesParser {
 
         let commission = Cash::new(currency, dec!(0)); // FIXME
 
-        // FIXME
-        if false {
-            if buy {
-                statement.stock_buys.push(StockBuy::new(
-                    symbol, quantity, price, commission, conclusion_date, execution_date));
-            } else {
-                statement.stock_sells.push(StockSell::new(
-                    symbol, quantity, price, commission, conclusion_date, execution_date, false));
-            }
+        if buy {
+            statement.stock_buys.push(StockBuy::new(
+                symbol, quantity, price, commission, conclusion_date, execution_date));
+        } else {
+            statement.stock_sells.push(StockSell::new(
+                symbol, quantity, price, commission, conclusion_date, execution_date, false));
         }
 
         Ok(())

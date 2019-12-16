@@ -1,3 +1,4 @@
+use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::Decimal;
@@ -6,44 +7,63 @@ use crate::xls::{self, TableReader, Cell, SkipCell};
 use xls_table_derive::XlsTableRow;
 
 use super::{Parser, SectionParser};
+use super::common::{parse_currency, parse_symbol};
 
 pub struct AssetsParser {
 }
 
 impl SectionParser for AssetsParser {
-    // FIXME: It's a prototype - rewrite
+    fn consume_title(&self) -> bool {
+        false
+    }
+
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
-        parser.sheet.skip_empty_rows();
-        parser.sheet.skip_non_empty_rows();
-        parser.sheet.skip_empty_rows();
-        parser.sheet.next_row_checked()?;
+        let mut has_starting_assets = false;
 
-        let assets: Vec<AssetsRow> = xls::read_table(&mut parser.sheet)?;
+        for asset in &xls::read_table::<AssetRow>(&mut parser.sheet)? {
+            has_starting_assets |= asset.start_value.is_some();
 
-        for asset in &assets {
-            if asset.asset == "Рубль" {
-                if let Some(amount) = asset.end_value {
-                    parser.statement.cash_assets.deposit(Cash::new("RUB", amount))
-                }
-            } else {
-                continue;
+            if !asset.name.ends_with(" (в пути)") {
+                self.process_asset(&mut parser.statement, asset)?;
             }
         }
 
-        parser.statement.set_starting_assets(false)?;
+        parser.statement.set_starting_assets(has_starting_assets)
+    }
+}
+
+impl AssetsParser {
+    fn process_asset(&self, statement: &mut PartialBrokerStatement, asset: &AssetRow) -> EmptyResult {
+        let is_currency = asset.security_type.as_ref()
+            .map(|value| value.trim().len()).unwrap_or(0) == 0;
+
+        if is_currency {
+            if let Some(amount) = asset.end_value {
+                let currency = &parse_currency(&asset.name)?;
+                statement.cash_assets.deposit(Cash::new(currency, amount))
+            }
+        } else {
+            let quantity = asset.end_quantity.unwrap_or(0);
+            if quantity != 0 {
+                let symbol = parse_symbol(&asset.name)?;
+                if statement.open_positions.insert(symbol.clone(), quantity).is_some() {
+                    return Err!("Got duplicated position for {}", symbol);
+                }
+            }
+        }
 
         Ok(())
     }
 }
 
 #[derive(XlsTableRow)]
-struct AssetsRow {
+struct AssetRow {
     #[column(name="Вид актива")]
-    asset: String,
+    name: String,
     #[column(name="Номер гос. регистрации ЦБ/ ISIN")]
     _1: SkipCell,
     #[column(name="Тип ЦБ (№ вып.)")]
-    _2: SkipCell,
+    security_type: Option<String>,
     #[column(name="Кол-во ценных бумаг")]
     _3: SkipCell,
     #[column(name="Цена закрытия/котировка вторич.(5*)")]
@@ -51,9 +71,9 @@ struct AssetsRow {
     #[column(name="Сумма НКД")]
     _5: SkipCell,
     #[column(name="Сумма, в т.ч. НКД")]
-    _6: SkipCell,
+    start_value: Option<Decimal>,
     #[column(name="Кол-во ценных бумаг")]
-    _7: SkipCell,
+    end_quantity: Option<u32>,
     #[column(name="Цена закрытия/ котировка вторич.(5*)")]
     _8: SkipCell,
     #[column(name="Сумма НКД")]
@@ -68,7 +88,7 @@ struct AssetsRow {
     _13: SkipCell,
 }
 
-impl TableReader for AssetsRow {
+impl TableReader for AssetRow {
     fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
         Ok(xls::get_string_cell(row[0])? == "Итого:")
     }

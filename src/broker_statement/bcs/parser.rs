@@ -43,7 +43,8 @@ impl Parser {
             Section::new_ordered("Валюта цены = Рубль, валюта платежа = Рубль", Box::new(TradesParser{})), // FIXME: Support other types
             Section::new_anchor_ordered("2.3. Незавершенные сделки"),
 
-            Section::new_required("3. Активы:", Box::new(AssetsParser{})),
+            Section::new_anchor_ordered("3. Активы:"),
+            Section::new_required("Вид актива", Box::new(AssetsParser{})),
         ]);
 
         while let Some(row) = self.sheet.next_row() {
