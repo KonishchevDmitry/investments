@@ -42,24 +42,18 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        // FIXME: In process of support - rewrite
-
-        if false {
-            ::easy_logging::init(module_path!().split("::").next().unwrap(), ::log::Level::Trace).unwrap();
-        }
-
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::Bcs, "testdata/bcs").unwrap();
 
-//        assert!(!statement.cash_flows.is_empty());
+        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
-//        assert!(statement.idle_cash_interest.is_empty());
+        assert!(statement.idle_cash_interest.is_empty());
 
-//        assert!(!statement.stock_buys.is_empty());
-//        assert!(!statement.stock_sells.is_empty());
-//        assert!(statement.dividends.is_empty());
+        assert!(!statement.stock_buys.is_empty());
+        assert!(statement.stock_sells.is_empty());
+        assert!(statement.dividends.is_empty());
 
-//        assert!(!statement.open_positions.is_empty());
-//        assert!(!statement.instrument_names.is_empty());
+        assert!(!statement.open_positions.is_empty());
+        assert!(statement.instrument_names.is_empty());
     }
 }
