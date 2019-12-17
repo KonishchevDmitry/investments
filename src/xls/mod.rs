@@ -28,15 +28,6 @@ impl SheetReader {
         })
     }
 
-    // FIXME: Do we need it with step_back()?
-    pub fn peek_row(&mut self) -> Option<&[Cell]> {
-        if self.next_row_id < self.sheet.height() {
-            Some(self.sheet.index(self.next_row_id))
-        } else {
-            None
-        }
-    }
-
     pub fn next_row(&mut self) -> Option<&[Cell]> {
         if self.next_row_id < self.sheet.height() {
             let row = self.sheet.index(self.next_row_id);
@@ -57,21 +48,10 @@ impl SheetReader {
     }
 
     pub fn skip_empty_rows(&mut self) {
-        while let Some(row) = self.peek_row() {
-            if is_empty_row(row) {
-                self.next_row_id += 1;
-            } else {
+        while let Some(row) = self.next_row() {
+            if !is_empty_row(row) {
+                self.step_back();
                 break;
-            }
-        }
-    }
-
-    pub fn skip_non_empty_rows(&mut self) {
-        while let Some(row) = self.peek_row() {
-            if is_empty_row(row) {
-                break;
-            } else {
-                self.next_row_id += 1;
             }
         }
     }
