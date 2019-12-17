@@ -18,6 +18,9 @@ pub struct TradesParser {
 
 impl SectionParser for TradesParser {
     fn parse(&self, parser: &mut Parser) -> EmptyResult {
+        // Skip row: "Валюта цены = Рубль, валюта платежа = Рубль"
+        parser.sheet.next_row_checked()?;
+
         let columns_mapping = xls::map_columns(
             parser.sheet.next_row_checked()?, &TradeRow::columns())?;
 

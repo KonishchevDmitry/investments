@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use log::trace;
 
 use crate::core::{EmptyResult, GenericResult};
@@ -24,27 +26,25 @@ impl Parser {
     }
 
     fn parse(mut self) -> GenericResult<PartialBrokerStatement> {
-        // FIXME: Just a dirty prototype. We need a better way here.
-        // FIXME: Match using regex here instead of manual FSM implementation?
         let mut sections = SectionState::new(vec![
-            Section::new_required("Период:", Box::new(PeriodParser{})),
+            Section::new("Период:").parser(Box::new(PeriodParser{})).required(),
 
-            Section::new_anchor_required("1. Движение денежных средств"),
-            Section::new_anchor_required("1.1. Движение денежных средств по совершенным сделкам:"),
-            Section::new_anchor_required("1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:"),
-            Section::new_anchor_required("Остаток денежных средств на начало периода (Рубль):"),
-            Section::new_anchor_required("Остаток денежных средств на конец периода (Рубль):"),
+            Section::new("1. Движение денежных средств").required(),
+            Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
+            Section::new(concat!(
+                "1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ",
+                "ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:",
+            )).required(),
+            Section::new("Остаток денежных средств на начало периода (Рубль):").required(),
+            Section::new("Остаток денежных средств на конец периода (Рубль):").required(),
+            Section::new("Рубль").parser(Box::new(CashFlowParser{})).required(),
 
-            // FIXME: Introduce title option?
-            Section::new_required_ordered("Рубль", Box::new(CashFlowParser{})), // FIXME: Support other currencies
+            Section::new("2.1. Сделки:"),
+            Section::new("Пай").parser(Box::new(TradesParser{})),
+            Section::new("2.3. Незавершенные сделки"),
 
-            Section::new_anchor_ordered("2.1. Сделки:"),
-            Section::new_anchor_ordered("Пай"),
-            Section::new_ordered("Валюта цены = Рубль, валюта платежа = Рубль", Box::new(TradesParser{})), // FIXME: Support other types
-            Section::new_anchor_ordered("2.3. Незавершенные сделки"),
-
-            Section::new_anchor_ordered("3. Активы:"),
-            Section::new_required("Вид актива", Box::new(AssetsParser{})),
+            Section::new("3. Активы:").required(),
+            Section::new("Вид актива").parser(Box::new(AssetsParser{})).required(),
         ]);
 
         while let Some(row) = self.sheet.next_row() {
@@ -60,7 +60,6 @@ impl Parser {
                     self.sheet.step_back();
                 }
 
-                // FIXME: Wrap errors
                 parser.parse(&mut self)?;
             }
         }
@@ -89,92 +88,68 @@ impl SectionState {
         }
 
         let cell_value = match row[0] {
-            // FIXME: Check for error cell?
             Cell::String(ref value) => value,
             _ => return Ok(None),
         };
 
-        for (section_id, section) in self.sections.iter_mut().enumerate() {
-            if section.title != cell_value {
-                continue;
-            }
+        let start_from = self.start_from();
+        let current_id = match self.sections[start_from..].iter().position(|section| {
+            section.title == cell_value
+        }) {
+            Some(index) => start_from + index,
+            None => return Ok(None),
+        };
 
-            if section.ordered {
-                if let Some(last_id) = self.last_id {
-                    if last_id >= section_id {
-                        continue;
-                    }
-                }
-            }
+        self.validate_missing_sections(start_from..current_id)?;
+        self.last_id.replace(current_id);
 
-            if section.seen {
-                return Err!("Got a duplicated {:?} section", section.title);
-            }
-            section.seen = true;
+        Ok(Some(&self.sections[current_id]))
+    }
 
-            match self.last_id {
-                Some(last_id) if section_id <= last_id => {
-                    return Err!("Got an unexpected {:?} section", section.title);
-                }
-                _ => {},
-            };
-
-            self.last_id.replace(section_id);
-            return Ok(Some(section));
+    fn start_from(&self) -> usize {
+        match self.last_id {
+            Some(last_id) => last_id + 1,
+            None => 0,
         }
-
-        Ok(None)
     }
 
     fn validate(&self) -> EmptyResult {
-        for section in &self.sections {
-            if section.required && !section.seen {
-                return Err!("Unable to find {:?} section in the statement", section.title);
-            }
-        }
+        self.validate_missing_sections(self.start_from()..self.sections.len())
+    }
 
-        Ok(())
+    fn validate_missing_sections(&self, range: Range<usize>) -> EmptyResult {
+        match self.sections[range].iter().find(|section| {
+            section.required
+        }) {
+            Some(section) => Err!("Unable to find {:?} section", section.title),
+            None => Ok(())
+        }
     }
 }
 
 struct Section {
     title: &'static str,
     parser: Option<Box<dyn SectionParser>>,
-    ordered: bool,
     required: bool,
-    seen: bool,
 }
 
 impl Section {
-    // FIXME: Use builders here
-
-    #[allow(dead_code)] // FIXME
-    fn new(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, Some(parser), false, false)
+    fn new(title: &'static str) -> Section {
+        Section {
+            title,
+            parser: None,
+            required: false,
+        }
     }
 
-    fn new_ordered(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, Some(parser), true, false)
+    fn required(mut self) -> Section {
+        self.required = true;
+        self
     }
 
-    fn new_required(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, Some(parser), false, true)
-    }
-
-    fn new_required_ordered(title: &'static str, parser: Box<dyn SectionParser>) -> Section {
-        Section::new_full(title, Some(parser), true, true)
-    }
-
-    fn new_anchor_ordered(title: &'static str) -> Section {
-        Section::new_full(title, None, true, false)
-    }
-
-    fn new_anchor_required(title: &'static str) -> Section {
-        Section::new_full(title, None, false, true)
-    }
-
-    fn new_full(title: &'static str, parser: Option<Box<dyn SectionParser>>, ordered: bool, required: bool) -> Section {
-        Section { title, parser, ordered, required, seen: false }
+    fn parser(mut self, parser: Box<dyn SectionParser>) -> Section {
+        self.parser = Some(parser);
+        self
     }
 }
 
