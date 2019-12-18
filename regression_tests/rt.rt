@@ -28,6 +28,12 @@ STDOUT: open-show
 APP: regression_tests/investments
      show
      open
+[30]
+NAME: BCS portfolio
+STDOUT: bcs-show
+APP: regression_tests/investments
+     show
+     bcs
 
 [11]
 NAME: IB analyse
@@ -43,6 +49,13 @@ APP: regression_tests/investments
      analyse
      open
      --all
+#[31]
+#NAME: BCS analyse
+#STDOUT: bcs-analyse
+#APP: regression_tests/investments
+#     analyse
+#     bcs
+#     --all
 
 [12]
 NAME: IB simulate sell
@@ -64,6 +77,16 @@ APP: regression_tests/investments
      FXUS
      all
      FXRU
+[32]
+NAME: BCS simulate sell
+STDOUT: bcs-simulate-sell
+APP: regression_tests/investments
+     simulate-sell
+     bcs
+     all
+     FXRL
+     all
+     FXRU
 
 [13]
 NAME: IB rebalance
@@ -77,6 +100,12 @@ STDOUT: open-rebalance
 APP: regression_tests/investments
      rebalance
      open
+[33]
+NAME: BCS rebalance
+STDOUT: bcs-rebalance
+APP: regression_tests/investments
+     rebalance
+     bcs
 
 [14]
 NAME: IB tax statement 2018
@@ -113,3 +142,9 @@ STDOUT: open-tax-statement
 APP: regression_tests/investments
      tax-statement
      open
+[34]
+NAME: BCS tax statement
+STDOUT: bcs-tax-statement
+APP: regression_tests/investments
+     tax-statement
+     bcs
