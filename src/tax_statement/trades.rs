@@ -151,7 +151,7 @@ struct FifoRow {
 
 impl<'a> TradesProcessor<'a> {
     fn add_income(&self, tax_statement: &mut TaxStatement, trade: &StockSell, details: &SellDetails) -> EmptyResult {
-        let name = self.broker_statement.get_instrument_name(&trade.symbol)?;
+        let name = self.broker_statement.get_instrument_name(&trade.symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
         let precise_currency_rate = self.converter.precise_currency_rate(
@@ -170,7 +170,7 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
-        let security = self.broker_statement.get_instrument_name(&trade.symbol)?;
+        let security = self.broker_statement.get_instrument_name(&trade.symbol);
 
         self.same_dates &= trade.execution_date == trade.conclusion_date;
         self.same_currency &=

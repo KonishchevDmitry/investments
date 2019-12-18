@@ -155,6 +155,7 @@ impl AssetAllocationConfig {
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct BrokersConfig {
+    pub bcs: Option<BrokerConfig>,
     pub interactive_brokers: Option<BrokerConfig>,
     pub open_broker: Option<BrokerConfig>,
 }
@@ -163,6 +164,7 @@ impl BrokersConfig {
     #[cfg(test)]
     pub fn mock() -> BrokersConfig {
         BrokersConfig {
+            bcs: Some(BrokerConfig::mock()),
             interactive_brokers: Some(BrokerConfig::mock()),
             open_broker: Some(BrokerConfig::mock()),
         }

@@ -39,7 +39,7 @@ impl Broker {
     fn get_config(self, config: &Config) -> GenericResult<BrokerConfig> {
         Ok(config.brokers.as_ref().and_then(|brokers| {
             match self {
-                Broker::Bcs => brokers.open_broker.as_ref(), // FIXME: Support
+                Broker::Bcs => brokers.bcs.as_ref(),
                 Broker::InteractiveBrokers => brokers.interactive_brokers.as_ref(),
                 Broker::OpenBroker => brokers.open_broker.as_ref(),
             }
@@ -85,12 +85,12 @@ impl<'de> Deserialize<'de> for Broker {
         let value = String::deserialize(deserializer)?;
 
         Ok(match value.as_str() {
-            // FIXME: BCS support
+            "bcs" => Broker::Bcs,
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::OpenBroker,
 
             _ => return Err(D::Error::unknown_variant(&value, &[
-                "interactive-brokers", "open-broker",
+                "bcs", "interactive-brokers", "open-broker",
             ])),
         })
     }

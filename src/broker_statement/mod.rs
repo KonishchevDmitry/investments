@@ -166,10 +166,12 @@ impl BrokerStatement {
         }
     }
 
-    pub fn get_instrument_name(&self, symbol: &str) -> GenericResult<String> {
-        let name = self.instrument_names.get(symbol).ok_or_else(|| format!(
-            "Unable to find {:?} instrument name in the broker statement", symbol))?;
-        Ok(format!("{} ({})", name, symbol))
+    pub fn get_instrument_name(&self, symbol: &str) -> String {
+        if let Some(name) = self.instrument_names.get(symbol) {
+            format!("{} ({})", name, symbol)
+        } else {
+            symbol.to_owned()
+        }
     }
 
     pub fn batch_quotes(&self, quotes: &mut Quotes) {

@@ -1,7 +1,5 @@
 use std::ops::Range;
 
-use log::trace;
-
 use crate::core::{EmptyResult, GenericResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::brokers::BrokerInfo;
@@ -52,8 +50,6 @@ impl Parser {
                 Some(section) => section,
                 None => continue,
             };
-
-            trace!("Got {:?} section.", section.title);
 
             if let Some(parser) = section.parser.as_ref() {
                 if !parser.consume_title() {

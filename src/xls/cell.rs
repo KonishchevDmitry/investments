@@ -37,7 +37,7 @@ impl CellType for u32 {
         Ok(match cell {
             Cell::Int(value) => u32::from_i64(*value),
             Cell::Float(value) => {
-                if value.trunc() == *value {
+                if value.fract() == 0.0 {
                     u32::from_f64(*value)
                 } else {
                     None

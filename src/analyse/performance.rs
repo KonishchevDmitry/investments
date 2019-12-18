@@ -129,7 +129,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
         }
 
-        let name = self.statement.get_instrument_name(symbol)?;
+        let name = self.statement.get_instrument_name(symbol);
         let days = get_total_activity_duration(&deposit_view.interest_periods);
 
         self.add_results(&name, investments, result, interest, days, !active);
