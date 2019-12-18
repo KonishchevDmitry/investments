@@ -338,11 +338,18 @@ impl BrokerStatement {
     fn merge(&mut self, mut statement: PartialBrokerStatement) -> EmptyResult {
         let period = statement.get_period()?;
 
-        // FIXME: Needs additional validation for sparse broker statements
-        if period.0 != self.period.1 && !statement.broker.allow_sparse_broker_statements {
-            return Err!("Non-continuous periods: {}, {}",
+        if statement.broker.allow_sparse_broker_statements {
+            if period.0 < self.period.1 {
+                return Err!("Overlapping periods: {}, {}",
                 formatting::format_period(self.period.0, self.period.1),
                 formatting::format_period(period.0, period.1));
+            }
+        } else {
+            if period.0 != self.period.1 {
+                return Err!("Non-continuous periods: {}, {}",
+                formatting::format_period(self.period.0, self.period.1),
+                formatting::format_period(period.0, period.1));
+            }
         }
 
         self.period.1 = period.1;

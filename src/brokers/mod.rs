@@ -1,3 +1,4 @@
+use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
@@ -23,10 +24,7 @@ impl Broker {
             name: self.get_name(),
             config: self.get_config(config)?,
             commission_spec: self.get_commission_spec(),
-            allow_sparse_broker_statements: match self {
-                Broker::Bcs => true,
-                _ => false,
-            }
+            allow_sparse_broker_statements: matches!(self, Broker::Bcs),
         })
     }
 
@@ -103,7 +101,7 @@ pub struct BrokerInfo {
     pub name: &'static str,
     config: BrokerConfig,
     commission_spec: CommissionSpec,
-    pub allow_sparse_broker_statements: bool, // FIXME: Validate usage
+    pub allow_sparse_broker_statements: bool,
 }
 
 impl BrokerInfo {
