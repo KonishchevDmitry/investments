@@ -49,13 +49,13 @@ APP: regression_tests/investments
      analyse
      open
      --all
-#[31]
-#NAME: BCS analyse
-#STDOUT: bcs-analyse
-#APP: regression_tests/investments
-#     analyse
-#     bcs
-#     --all
+[31]
+NAME: BCS analyse
+STDOUT: bcs-analyse
+APP: regression_tests/investments
+     analyse
+     bcs
+     --all
 
 [12]
 NAME: IB simulate sell
