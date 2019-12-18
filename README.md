@@ -14,8 +14,8 @@ Helps you with managing your investments:
   Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
-Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com) or
-[Открытие Брокер](https://open-broker.ru).
+Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com),
+[Открытие Брокер](https://open-broker.ru) or [БКС](https://broker.ru/).
 
 ### Installation
 
@@ -49,6 +49,7 @@ assets and statements' periods mustn't overlap or have missing days in between.
 For now only the following broker statements are supported:
 * Interactive Brokers (*.csv)
 * Открытие Брокер (ИИС, basic support) (*.xml)
+* БКС (basic support) (*.xls)
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:
