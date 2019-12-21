@@ -7,6 +7,7 @@
 pub mod analyse;
 pub mod broker_statement;
 pub mod brokers;
+pub mod commissions;
 pub mod config;
 pub mod currency;
 pub mod db;
