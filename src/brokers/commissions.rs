@@ -1,3 +1,5 @@
+#[cfg(test)] use rstest::rstest;
+
 #[cfg(test)] use crate::brokers::Broker;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -115,9 +117,40 @@ impl CommissionSpecBuilder {
     }
 }
 
+pub struct ConsolidatedCommissionTracker {
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
+    fn bcs_commission(trade_type: TradeType) {
+        let mut commission_spec = Broker::Bcs.get_commission_spec();
+        // FIXME: Temporary hackaround
+        if true {
+            commission_spec = CommissionSpecBuilder::new()
+                .percent(dec!(0.057))
+                .build().unwrap();
+        }
+
+        let currency = "RUB";
+        let mut total = Cash::new(currency, dec!(0));
+
+        for &(_, shares, price) in &[
+            (date!(2, 12, 2019), 35, dec!(2959.5)),
+            (date!(2, 12, 2019),  3, dec!(2960)),
+            (date!(2, 12, 2019), 18, dec!(2960)),
+        ] {
+            total.add_assign(commission_spec.calculate(
+                trade_type, shares, Cash::new(currency, price)).unwrap()).unwrap();
+        }
+
+        // FIXME: Not implemented yet
+        if false {
+            assert_eq!(total.amount, dec!(68.45) + dec!(16.57))
+        }
+    }
 
     #[test]
     fn interactive_brokers_commission() {
@@ -154,22 +187,20 @@ mod tests {
                    Cash::new("USD", dec!(1.06)));
     }
 
-    #[test]
-    fn open_broker_commission() {
+    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
+    fn open_broker_commission(trade_type: TradeType) {
         let commission_spec = Broker::OpenBroker.get_commission_spec();
 
-        for &trade_type in &[TradeType::Buy, TradeType::Sell] {
-            // Percent commission > minimum commission
-            assert_eq!(
-                commission_spec.calculate(trade_type, 73, Cash::new("RUB", dec!(2758))).unwrap(),
-                Cash::new("RUB", dec!(114.76)),
-            );
+        // Percent commission > minimum commission
+        assert_eq!(
+            commission_spec.calculate(trade_type, 73, Cash::new("RUB", dec!(2758))).unwrap(),
+            Cash::new("RUB", dec!(114.76)),
+        );
 
-            // Percent commission < minimum commission
-            assert_eq!(
-                commission_spec.calculate(trade_type, 1, Cash::new("RUB", dec!(1))).unwrap(),
-                Cash::new("RUB", dec!(0.04)),
-            );
-        }
+        // Percent commission < minimum commission
+        assert_eq!(
+            commission_spec.calculate(trade_type, 1, Cash::new("RUB", dec!(1))).unwrap(),
+            Cash::new("RUB", dec!(0.04)),
+        );
     }
 }
