@@ -107,7 +107,7 @@ impl TradesParser {
             .map(|price| Cash::new(currency, price))
             .map_err(|_| format!("Invalid price: {}", price))?;
 
-        let commission = Cash::new(currency, dec!(0)); // FIXME
+        let commission = Cash::new(currency, dec!(0));
 
         if buy {
             statement.stock_buys.push(StockBuy::new(
