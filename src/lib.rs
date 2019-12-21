@@ -1,5 +1,6 @@
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
+#[cfg(test)] #[macro_use] extern crate maplit;
 #[macro_use] extern crate separator;
 
 #[macro_use] pub mod core;
