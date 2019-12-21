@@ -20,6 +20,7 @@ impl CommissionSpec {
     }
 
     fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        // FIXME: Use from commission module
         let validate_currency = |a: Cash, b: Cash| -> EmptyResult {
             if a.currency != b.currency {
                 return Err!(concat!(
@@ -117,40 +118,9 @@ impl CommissionSpecBuilder {
     }
 }
 
-pub struct ConsolidatedCommissionTracker {
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
-    fn bcs_commission(trade_type: TradeType) {
-        let mut commission_spec = Broker::Bcs.get_commission_spec();
-        // FIXME: Temporary hackaround
-        if true {
-            commission_spec = CommissionSpecBuilder::new()
-                .percent(dec!(0.057))
-                .build().unwrap();
-        }
-
-        let currency = "RUB";
-        let mut total = Cash::new(currency, dec!(0));
-
-        for &(_, shares, price) in &[
-            (date!(2, 12, 2019), 35, dec!(2959.5)),
-            (date!(2, 12, 2019),  3, dec!(2960)),
-            (date!(2, 12, 2019), 18, dec!(2960)),
-        ] {
-            total.add_assign(commission_spec.calculate(
-                trade_type, shares, Cash::new(currency, price)).unwrap()).unwrap();
-        }
-
-        // FIXME: Not implemented yet
-        if false {
-            assert_eq!(total.amount, dec!(68.45) + dec!(16.57))
-        }
-    }
 
     #[test]
     fn interactive_brokers_commission() {
