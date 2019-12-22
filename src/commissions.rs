@@ -12,7 +12,53 @@ use crate::util::{self, RoundingMethod};
 pub struct CommissionSpec {
     currency: &'static str,
     rounding_method: RoundingMethod,
+
+    trade: TradeCommissionSpec,
     cumulative: CumulativeCommissionSpec,
+}
+
+#[derive(Default, Clone)]  // FIXME: Default?
+pub struct TradeCommissionSpec {
+    commission: TransactionCommissionSpec,
+    transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
+}
+
+#[derive(Default, Clone)]  // FIXME: Default?
+pub struct TransactionCommissionSpec {
+    percent: Option<Decimal>,
+    per_share: Option<Decimal>,
+
+    minimum: Option<Decimal>,
+    maximum_percent: Option<Decimal>,
+}
+
+impl TransactionCommissionSpec {
+    fn calculate(&self, shares: u32, volume: Decimal) -> Decimal {
+        let mut commission = dec!(0);
+
+        if let Some(per_share) = self.per_share {
+            commission += per_share * Decimal::from(shares);
+        }
+
+        if let Some(percent) = self.percent {
+            commission += volume * percent / dec!(100);
+        }
+
+        if let Some(maximum_percent) = self.maximum_percent {
+            let max_commission = volume * maximum_percent / dec!(100);
+            if commission > max_commission {
+                commission = max_commission;
+            }
+        }
+
+        if let Some(minimum) = self.minimum {
+            if commission < minimum {
+                commission = minimum
+            }
+        }
+
+        commission
+    }
 }
 
 #[derive(Clone)]
@@ -34,10 +80,25 @@ impl CommissionCalc {
         }
     }
 
-    fn add_trade(&mut self, date: Date, _trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        let mut commission = self.add_trade_precise(date, trade_type, shares, price)?;
+        commission.amount = util::round_with(commission.amount, 2, self.spec.rounding_method);
+        Ok(commission)
+    }
+
+    fn add_trade_precise(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let volume = get_trade_volume(self.spec.currency, price * shares)?;
         *self.volume.entry(date).or_default() += volume;
-        Ok(Cash::new(self.spec.currency, dec!(0)))
+
+        let mut commission = self.spec.trade.commission.calculate(shares, volume);
+
+        for (transaction_type, fee_spec) in &self.spec.trade.transaction_fees {
+            if *transaction_type == trade_type {
+                commission += fee_spec.calculate(shares, volume);
+            }
+        }
+
+        Ok(Cash::new(self.spec.currency, commission))
     }
 
     fn calculate(self) -> HashMap<Date, Cash> {
@@ -66,6 +127,18 @@ impl CommissionCalc {
         util::round_with(commission, 2, self.spec.rounding_method)
     }
 }
+
+// FIXME: HERE
+/*
+impl CommissionSpec {
+    pub fn calculate(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        Ok(self.calculate_precise(trade_type, shares, price)?.round())
+    }
+
+    fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    }
+}
+*/
 
 fn get_trade_volume(commission_currency: &str, volume: Cash) -> GenericResult<Decimal> {
     if volume.currency != commission_currency {
@@ -103,6 +176,7 @@ mod tests {
             От 5 000 000 до 15 000 000	0,0236
             Свыше 15 000 000	0,0177
             */
+            trade: TradeCommissionSpec::default(),
             cumulative: CumulativeCommissionSpec {
                 tiers: Some(btreemap!{
                     dec!(0) => dec!(0.0531) + dec!(0.01),

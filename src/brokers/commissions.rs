@@ -1,3 +1,5 @@
+// FIXME: Deprecate module
+
 #[cfg(test)] use rstest::rstest;
 
 #[cfg(test)] use crate::brokers::Broker;
