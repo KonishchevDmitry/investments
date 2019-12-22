@@ -6,11 +6,12 @@ use std::ops::Bound;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::types::{Date, Decimal, TradeType};
-use term::Attr::Bold;
+use crate::util::{self, RoundingMethod};
 
 #[derive(Clone)]
 pub struct CommissionSpec {
     currency: &'static str,
+    rounding_method: RoundingMethod,
     cumulative: CumulativeCommissionSpec,
 }
 
@@ -39,20 +40,9 @@ impl CommissionCalc {
         Ok(Cash::new(self.spec.currency, dec!(0)))
     }
 
-    // FIXME: HERE
     fn calculate(self) -> HashMap<Date, Cash> {
         self.volume.iter().map(|(&date, &volume)| {
-            // FIXME: Optional
-
-            // FIXME: Parametrize
-            // It seems that BCS truncates commission instead of rounding, so do the same
-            let scale = commission.scale();
-            if scale > 2 {
-                commission.set_scale(scale - 2);
-                commission = commission.trunc();
-                commission.set_scale(2);
-            }
-
+            let commission = self.calculate_daily(volume);
             (date, Cash::new(self.spec.currency, commission))
         }).collect()
     }
@@ -63,7 +53,7 @@ impl CommissionCalc {
             None => return dec!(0),
         };
 
-        let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume))).last().unwrap();
+        let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume))).last().unwrap().1;
         let mut commission = volume * percent / dec!(100);
 
         // FIXME: Excluding exchange commission?
@@ -73,7 +63,7 @@ impl CommissionCalc {
             }
         }
 
-        commission
+        util::round_with(commission, 2, self.spec.rounding_method)
     }
 }
 
@@ -102,6 +92,7 @@ mod tests {
         // FIXME: Support depository commission for Open Broker
         let mut commission_calc = CommissionCalc::new(CommissionSpec {
             currency: currency,
+            rounding_method: RoundingMethod::Truncate,
             /*
 Урегулирование сделок	0,01
 
@@ -112,11 +103,13 @@ mod tests {
             От 5 000 000 до 15 000 000	0,0236
             Свыше 15 000 000	0,0177
             */
-            volume_tiers: Some(btreemap!{
-                dec!(0) => dec!(0.0531) + dec!(0.01),
-                dec!(100_000) => dec!(0.0413) + dec!(0.01),
-            }),
-            minimum_from_daily_volume: None, //Some(dec!(35.4)),
+            cumulative: CumulativeCommissionSpec {
+                tiers: Some(btreemap!{
+                    dec!(0) => dec!(0.0531) + dec!(0.01),
+                    dec!(100_000) => dec!(0.0413) + dec!(0.01),
+                }),
+                minimum_daily: None,
+            },
         });
 
         for &(date, shares, price) in &[

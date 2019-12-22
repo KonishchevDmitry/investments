@@ -38,7 +38,31 @@ pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> Ge
 }
 
 pub fn round(value: Decimal, points: u32) -> Decimal {
-    let mut round_value = value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp);
+    round_with(value, points, RoundingMethod::Round)
+}
+
+#[derive(Clone, Copy)]
+pub enum RoundingMethod {
+    Round,
+    Truncate,
+}
+
+pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decimal {
+    let mut round_value = match method {
+        RoundingMethod::Round => value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp),
+        RoundingMethod::Truncate => {
+            let mut value = value;
+            let scale = value.scale();
+
+            if scale > points {
+                value.set_scale(scale - points).unwrap();
+                value = value.trunc();
+                value.set_scale(points).unwrap();
+            }
+
+            value
+        },
+    };
 
     if round_value.is_zero() && round_value.is_sign_negative() {
         round_value = round_value.neg();
@@ -137,17 +161,42 @@ fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn rounding() {
-        assert_eq!(round(dec!(-1.5), 0), dec!(-2));
-        assert_eq!(round(dec!(-1.4), 0), dec!(-1));
-        assert_eq!(round(dec!(-0.5), 0), dec!(-1));
-        assert_eq!(round(dec!(-0.4), 0), dec!(0));
-        assert_eq!(round(dec!(0.4), 0), dec!(0));
-        assert_eq!(round(dec!(0.5), 0), dec!(1));
-        assert_eq!(round(dec!(1.4), 0), dec!(1));
-        assert_eq!(round(dec!(1.5), 0), dec!(2));
+    #[rstest(value, expected,
+        case(dec!(-1.5), dec!(-2)),
+        case(dec!(-1.4), dec!(-1)),
+        case(dec!(-1),   dec!(-1)),
+        case(dec!(-0.5), dec!(-1)),
+        case(dec!(-0.4), dec!(0)),
+        case(dec!( 0), dec!(0)),
+        case(dec!(-0), dec!(0)),
+        case(dec!(0.4), dec!(0)),
+        case(dec!(0.5), dec!(1)),
+        case(dec!(1),   dec!(1)),
+        case(dec!(1.4), dec!(1)),
+        case(dec!(1.5), dec!(2)),
+    )]
+    fn rounding(value: Decimal, expected: Decimal) {
+        assert_eq!(round(value, 0), expected);
+    }
+
+    #[rstest(value, expected,
+        case(dec!(-1.6), dec!(-1)),
+        case(dec!(-1.4), dec!(-1)),
+        case(dec!(-1),   dec!(-1)),
+        case(dec!(-0.6), dec!(0)),
+        case(dec!(-0.4), dec!(0)),
+        case(dec!( 0), dec!(0)),
+        case(dec!(-0), dec!(0)),
+        case(dec!(0.4), dec!(0)),
+        case(dec!(0.6), dec!(0)),
+        case(dec!(1),   dec!(1)),
+        case(dec!(1.4), dec!(1)),
+        case(dec!(1.6), dec!(1)),
+    )]
+    fn truncate_rounding(value: Decimal, expected: Decimal) {
+        assert_eq!(round_with(value, 0, RoundingMethod::Truncate), expected);
     }
 }
