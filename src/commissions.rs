@@ -99,6 +99,12 @@ pub struct CumulativeCommissionSpec {
     minimum_daily: Option<Decimal>,
 }
 
+impl CumulativeCommissionSpec {
+    pub fn builder() -> CumulativeCommissionSpecBuilder {
+        CumulativeCommissionSpecBuilder::default()
+    }
+}
+
 pub struct CommissionCalc {
     spec: CommissionSpec,
     volume: HashMap<Date, Decimal>,
@@ -112,7 +118,7 @@ impl CommissionCalc {
         }
     }
 
-    fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let mut commission = self.add_trade_precise(date, trade_type, shares, price)?;
         commission.amount = util::round_with(commission.amount, 2, self.spec.rounding_method);
         Ok(commission)
@@ -133,7 +139,7 @@ impl CommissionCalc {
         Ok(Cash::new(self.spec.currency, commission))
     }
 
-    fn calculate(self) -> HashMap<Date, Cash> {
+    pub fn calculate(self) -> HashMap<Date, Cash> {
         self.volume.iter().map(|(&date, &volume)| {
             let commission = self.calculate_daily(volume);
             (date, Cash::new(self.spec.currency, commission))
@@ -236,6 +242,32 @@ impl TransactionCommissionSpecBuilder {
     }
 }
 
+#[derive(Default)]
+pub struct CumulativeCommissionSpecBuilder(CumulativeCommissionSpec);
+
+impl CumulativeCommissionSpecBuilder {
+    pub fn tiers(mut self, tiers: BTreeMap<Decimal, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
+        if tiers.is_empty() || tiers.get(&dec!(0)).is_none() {
+            return Err!(concat!(
+                "Invalid tiered commission specification: ",
+                "There is no tier with zero starting volume",
+            ));
+        }
+
+        self.0.tiers.replace(tiers);
+        Ok(self)
+    }
+
+    pub fn minimum_daily(mut self, minimum: Decimal) -> CumulativeCommissionSpecBuilder {
+        self.0.minimum_daily.replace(minimum);
+        self
+    }
+
+    pub fn build(self) -> CumulativeCommissionSpec {
+        self.0
+    }
+}
+
 fn get_trade_volume(commission_currency: &str, volume: Cash) -> GenericResult<Decimal> {
     if volume.currency != commission_currency {
         return Err!(concat!(
@@ -246,57 +278,4 @@ fn get_trade_volume(commission_currency: &str, volume: Cash) -> GenericResult<De
     }
 
     Ok(volume.amount)
-}
-
-#[cfg(test)]
-mod tests {
-    use rstest::rstest;
-    use super::*;
-
-    // FIXME: Implement
-    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
-    fn bcs_commission(trade_type: TradeType) {
-        let currency = "RUB";
-        // FIXME: Get from BCS object + support all commissions
-        // FIXME: Support depository commission for Open Broker
-        let mut commission_calc = CommissionCalc::new(CommissionSpec {
-            currency: currency,
-            rounding_method: RoundingMethod::Truncate,
-            /*
-Урегулирование сделок	0,01
-
-            До 100 000	0,0531
-            От 100 000 до 300 000	0,0413
-            От 300 000 до 1 000 000	0,0354
-            От 1 000 000 до 5 000 000	0,0295
-            От 5 000 000 до 15 000 000	0,0236
-            Свыше 15 000 000	0,0177
-            */
-            trade: TradeCommissionSpec::default(),
-            cumulative: CumulativeCommissionSpec {
-                tiers: Some(btreemap!{
-                    dec!(0) => dec!(0.0531) + dec!(0.01),
-                    dec!(100_000) => dec!(0.0413) + dec!(0.01),
-                }),
-                minimum_daily: None,
-            },
-        });
-
-        for &(date, shares, price) in &[
-            (date!(2, 12, 2019),  35, dec!(2959.5)),
-            (date!(2, 12, 2019),   3, dec!(2960)),
-            (date!(2, 12, 2019),  18, dec!(2960)),
-            (date!(3, 12, 2019), 107, dec!( 782.4)),
-        ] {
-            assert_eq!(
-                commission_calc.add_trade(date, trade_type, shares, Cash::new(currency, price)).unwrap(),
-                Cash::new(currency, dec!(0)),
-            );
-        }
-
-        assert_eq!(commission_calc.calculate(), hashmap!{
-            date!(2, 12, 2019) => Cash::new(currency, dec!(85.02)),
-            date!(3, 12, 2019) => Cash::new(currency, dec!(52.82)),
-        });
-    }
 }

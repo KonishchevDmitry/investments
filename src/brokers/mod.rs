@@ -1,11 +1,18 @@
+#![allow(unused_imports)] // FIXME
+#![allow(dead_code)] // FIXME
+
 use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
+use crate::commissions::{
+    CommissionCalc, CommissionSpec, TradeCommissionSpec, TransactionCommissionSpec,
+    CumulativeCommissionSpec};
 use crate::config::{Config, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Decimal, TradeType};
+use crate::util::RoundingMethod;
 
 use self::commissions::{
     CommissionSpec as OldCommissionSpec,
@@ -81,6 +88,29 @@ impl Broker {
                 .build().unwrap(),
         }
     }
+
+    // FIXME: A temporary solution for transition process
+    fn get_new_commission_spec(self) -> CommissionSpec {
+        // FIXME: Support all commissions
+        // FIXME: Support depository commission for Open Broker
+        /*
+Урегулирование сделок	0,01
+
+        До 100 000	0,0531
+        От 100 000 до 300 000	0,0413
+        От 300 000 до 1 000 000	0,0354
+        От 1 000 000 до 5 000 000	0,0295
+        От 5 000 000 до 15 000 000	0,0236
+        Свыше 15 000 000	0,0177
+        */
+        CommissionSpec::builder("RUB")
+            .rounding_method(RoundingMethod::Truncate)
+            .cumulative(CumulativeCommissionSpec::builder().tiers(btreemap!{
+                dec!(0) => dec!(0.0531) + dec!(0.01),
+                dec!(100_000) => dec!(0.0413) + dec!(0.01),
+            }).unwrap().build())
+            .build()
+    }
 }
 
 impl<'de> Deserialize<'de> for Broker {
@@ -123,5 +153,35 @@ impl BrokerInfo {
 
     pub fn get_trade_commission(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         self.commission_spec.calculate(trade_type, shares, price)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use super::*;
+
+    // FIXME: Implement
+    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
+    fn bcs_commission(trade_type: TradeType) {
+        let currency = "RUB";
+        let mut calc = CommissionCalc::new(Broker::Bcs.get_new_commission_spec());
+
+        for &(date, shares, price) in &[
+            (date!(2, 12, 2019),  35, dec!(2959.5)),
+            (date!(2, 12, 2019),   3, dec!(2960)),
+            (date!(2, 12, 2019),  18, dec!(2960)),
+            (date!(3, 12, 2019), 107, dec!( 782.4)),
+        ] {
+            assert_eq!(
+                calc.add_trade(date, trade_type, shares, Cash::new(currency, price)).unwrap(),
+                Cash::new(currency, dec!(0)),
+            );
+        }
+
+        assert_eq!(calc.calculate(), hashmap!{
+            date!(2, 12, 2019) => Cash::new(currency, dec!(85.02)),
+            date!(3, 12, 2019) => Cash::new(currency, dec!(52.82)),
+        });
     }
 }

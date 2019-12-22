@@ -29,6 +29,7 @@ encoding_rs = "*"
 indoc = "*"
 lazy_static = "*"
 log = "*"
+maplit = "*"
 matches = "*"
 num-traits = "*"
 prettytable-rs = "*"
@@ -45,7 +46,6 @@ static_table_derive = { path = "src/formatting/static_table_derive" }
 xls_table_derive = { path = "src/xls/xls_table_derive" }
 
 [dev-dependencies]
-maplit = "*"
 mockito = "*"
 rstest = "*"
 tempfile = "*"
