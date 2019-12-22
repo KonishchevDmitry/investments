@@ -14,7 +14,7 @@ use crate::util::{self, RoundingMethod};
 
 pub use builders::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CommissionSpec {
     currency: &'static str,
     rounding_method: RoundingMethod,
@@ -30,18 +30,18 @@ impl CommissionSpec {
     }
 
     // FIXME: A temporary solution for transition period
-    fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    pub fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         CommissionCalc::new(self.clone()).add_trade_precise(date!(1, 1, 2000), trade_type, shares, price)
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct TradeCommissionSpec {
     commission: TransactionCommissionSpec,
     transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct TransactionCommissionSpec {
     percent: Option<Decimal>,
     per_share: Option<Decimal>,
@@ -79,7 +79,7 @@ impl TransactionCommissionSpec {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct CumulativeCommissionSpec {
     tiers: Option<BTreeMap<Decimal, Decimal>>,
     minimum_daily: Option<Decimal>,

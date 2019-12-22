@@ -41,7 +41,7 @@ pub fn round(value: Decimal, points: u32) -> Decimal {
     round_with(value, points, RoundingMethod::Round)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum RoundingMethod {
     Round,
     Truncate,
