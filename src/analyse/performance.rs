@@ -170,8 +170,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         &mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal,
         days: i64, inactive: bool
     ) {
-        let investments = util::round_to(investments, 0);
-        let result = util::round_to(result, 0);
+        let investments = util::round(investments, 0);
+        let result = util::round(result, 0);
         let profit = result - investments;
 
         let (duration_name, duration_days) = if days >= 365 {
@@ -182,7 +182,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             ("d", 1)
         };
         let duration = format!(
-            "{}{}", util::round_to(Decimal::from(days) / Decimal::from(duration_days), 1),
+            "{}{}", util::round(Decimal::from(days) / Decimal::from(duration_days), 1),
             duration_name);
 
         let mut row = self.table.add_row(Row {
@@ -560,11 +560,11 @@ fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -
     if precision >= dec!(0.01) {
         return Err!(concat!(
             "Failed to compare {} performance to bank deposit: ",
-            "got a result with too low precision ({})"), name, util::round_to(precision, 3));
+            "got a result with too low precision ({})"), name, util::round(precision, 3));
     }
 
     debug!("Got a result of comparing {} performance to bank deposit: {}% precision.",
-           name, util::round_to(precision * dec!(100), 4));
+           name, util::round(precision * dec!(100), 4));
 
     Ok(())
 }

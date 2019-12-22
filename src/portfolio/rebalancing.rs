@@ -148,7 +148,7 @@ impl<'a> AssetGroupRebalancer<'a> {
             let mut difference = asset.target_value - asset.current_value;
 
             if let Holding::Stock(ref holding) = asset.holding {
-                difference = util::round_to(difference / holding.price, 0) * holding.price;
+                difference = util::round(difference / holding.price, 0) * holding.price;
             }
 
             if difference.abs() < self.min_trade_volume {

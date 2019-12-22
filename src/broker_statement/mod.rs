@@ -162,7 +162,7 @@ impl BrokerStatement {
 
         if months >= dec!(1) {
             warn!("The broker statement is {} months old and may be outdated.",
-                  util::round_to(months, 1));
+                  util::round(months, 1));
         }
     }
 

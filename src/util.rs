@@ -37,7 +37,7 @@ pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> Ge
     Ok(value)
 }
 
-pub fn round_to(value: Decimal, points: u32) -> Decimal {
+pub fn round(value: Decimal, points: u32) -> Decimal {
     let mut round_value = value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp);
 
     if round_value.is_zero() && round_value.is_sign_negative() {
@@ -141,13 +141,13 @@ mod tests {
 
     #[test]
     fn rounding() {
-        assert_eq!(round_to(dec!(-1.5), 0), dec!(-2));
-        assert_eq!(round_to(dec!(-1.4), 0), dec!(-1));
-        assert_eq!(round_to(dec!(-0.5), 0), dec!(-1));
-        assert_eq!(round_to(dec!(-0.4), 0), dec!(0));
-        assert_eq!(round_to(dec!(0.4), 0), dec!(0));
-        assert_eq!(round_to(dec!(0.5), 0), dec!(1));
-        assert_eq!(round_to(dec!(1.4), 0), dec!(1));
-        assert_eq!(round_to(dec!(1.5), 0), dec!(2));
+        assert_eq!(round(dec!(-1.5), 0), dec!(-2));
+        assert_eq!(round(dec!(-1.4), 0), dec!(-1));
+        assert_eq!(round(dec!(-0.5), 0), dec!(-1));
+        assert_eq!(round(dec!(-0.4), 0), dec!(0));
+        assert_eq!(round(dec!(0.4), 0), dec!(0));
+        assert_eq!(round(dec!(0.5), 0), dec!(1));
+        assert_eq!(round(dec!(1.4), 0), dec!(1));
+        assert_eq!(round(dec!(1.5), 0), dec!(2));
     }
 }

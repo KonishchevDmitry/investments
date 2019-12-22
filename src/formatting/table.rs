@@ -123,7 +123,7 @@ impl Cell {
     }
 
     pub fn new_ratio(ratio: Decimal) -> Cell {
-        Cell::new(format!("{}%", util::round_to(ratio * dec!(100), 1)), Alignment::RIGHT)
+        Cell::new(format!("{}%", util::round(ratio * dec!(100), 1)), Alignment::RIGHT)
     }
 
     pub fn new_round_decimal(value: Decimal) -> Cell {

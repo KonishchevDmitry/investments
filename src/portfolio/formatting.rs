@@ -149,7 +149,7 @@ fn format_weight(weight: Decimal) -> String {
     if weight == Decimal::max_value() {
         "∞".to_owned()
     } else {
-        format!("{}%", util::round_to(weight * dec!(100), 1))
+        format!("{}%", util::round(weight * dec!(100), 1))
     }
 }
 

@@ -218,11 +218,11 @@ impl MultiCurrencyCashAccount {
 }
 
 pub fn round(amount: Decimal) -> Decimal {
-    util::round_to(amount, 2)
+    util::round(amount, 2)
 }
 
 pub fn round_to(amount: Decimal, points: u32) -> Decimal {
-    util::round_to(amount, points)
+    util::round(amount, points)
 }
 
 fn format_currency(currency: &str, mut amount: &str) -> String {
