@@ -7,7 +7,10 @@ use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Decimal, TradeType};
 
-use self::commissions::{CommissionSpec, CommissionSpecBuilder};
+use self::commissions::{
+    CommissionSpec as OldCommissionSpec,
+    CommissionSpecBuilder as OldCommissionSpecBuilder,
+};
 
 mod commissions;
 
@@ -48,31 +51,31 @@ impl Broker {
         )?.clone())
     }
 
-    fn get_commission_spec(self) -> CommissionSpec {
+    fn get_commission_spec(self) -> OldCommissionSpec {
         match self {
             // BCS has tiered commissions that aren't supported yet, so use some average now
-            Broker::Bcs => CommissionSpecBuilder::new()
+            Broker::Bcs => OldCommissionSpecBuilder::new()
                 .percent(dec!(0.057))
                 .build().unwrap(),
 
-            Broker::InteractiveBrokers => CommissionSpecBuilder::new()
+            Broker::InteractiveBrokers => OldCommissionSpecBuilder::new()
                 .minimum(Cash::new("USD", dec!(1)))
                 .per_share(Cash::new("USD", dec!(0.005)))
                 .maximum_percent(dec!(1))
 
                 // Stock selling fee
-                .transaction_fee(TradeType::Sell, CommissionSpecBuilder::new()
+                .transaction_fee(TradeType::Sell, OldCommissionSpecBuilder::new()
                     .percent(dec!(0.0013))
                     .build().unwrap())
 
                 // FINRA trading activity fee
-                .transaction_fee(TradeType::Sell, CommissionSpecBuilder::new()
+                .transaction_fee(TradeType::Sell, OldCommissionSpecBuilder::new()
                     .per_share(Cash::new("USD", dec!(0.000119)))
                     .build().unwrap())
 
                 .build().unwrap(),
 
-            Broker::OpenBroker => CommissionSpecBuilder::new()
+            Broker::OpenBroker => OldCommissionSpecBuilder::new()
                 .minimum(Cash::new("RUB", dec!(0.04)))
                 .percent(dec!(0.057))
                 .build().unwrap(),
@@ -100,7 +103,7 @@ impl<'de> Deserialize<'de> for Broker {
 pub struct BrokerInfo {
     pub name: &'static str,
     config: BrokerConfig,
-    commission_spec: CommissionSpec,
+    commission_spec: OldCommissionSpec,
     pub allow_sparse_broker_statements: bool,
 }
 
