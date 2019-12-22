@@ -5,6 +5,8 @@ mod builders;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
+use num_traits::Zero;
+
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::types::{Date, Decimal, TradeType};
@@ -118,9 +120,13 @@ impl CommissionCalc {
     }
 
     pub fn calculate(self) -> HashMap<Date, Cash> {
-        self.volume.iter().map(|(&date, &volume)| {
+        self.volume.iter().filter_map(|(&date, &volume)| {
             let commission = self.calculate_daily(volume);
-            (date, Cash::new(self.spec.currency, commission))
+            if commission.is_zero() {
+                None
+            } else {
+                Some((date, Cash::new(self.spec.currency, commission)))
+            }
         }).collect()
     }
 

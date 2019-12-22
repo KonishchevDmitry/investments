@@ -92,7 +92,29 @@ impl Broker {
     // FIXME: A temporary solution for transition process
     fn get_new_commission_spec(self) -> CommissionSpec {
         // FIXME: Support all commissions
-        // FIXME: Support depository commission for Open Broker
+
+        match self {
+            Broker::Bcs => {
+                CommissionSpecBuilder::new("RUB")
+                    .rounding_method(RoundingMethod::Truncate)
+                    .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
+                        dec!(0) => dec!(0.0531) + dec!(0.01),
+                        dec!(100_000) => dec!(0.0413) + dec!(0.01),
+                    }).unwrap().build())
+                    .build()
+            },
+            _ => {
+                // FIXME: Support depository commission
+                CommissionSpecBuilder::new("RUB")
+                    .trade(TradeCommissionSpecBuilder::new()
+                        .commission(TransactionCommissionSpecBuilder::new()
+                            .minimum(dec!(0.04))
+                            .percent(dec!(0.057))
+                            .build().unwrap())
+                        .build())
+                    .build()
+            }
+        }
         /*
 Урегулирование сделок	0,01
 
@@ -103,13 +125,6 @@ impl Broker {
         От 5 000 000 до 15 000 000	0,0236
         Свыше 15 000 000	0,0177
         */
-        CommissionSpecBuilder::new("RUB")
-            .rounding_method(RoundingMethod::Truncate)
-            .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
-                dec!(0) => dec!(0.0531) + dec!(0.01),
-                dec!(100_000) => dec!(0.0413) + dec!(0.01),
-            }).unwrap().build())
-            .build()
     }
 }
 
@@ -160,6 +175,7 @@ impl BrokerInfo {
 mod tests {
     use rstest::rstest;
     use super::*;
+    use std::collections::HashMap;
 
     // FIXME: Add more test data
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
@@ -183,5 +199,25 @@ mod tests {
             date!(2, 12, 2019) => Cash::new(currency, dec!(85.02)),
             date!(3, 12, 2019) => Cash::new(currency, dec!(52.82)),
         });
+    }
+
+    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
+    fn open_broker_commission(trade_type: TradeType) {
+        let currency = "RUB";
+        let mut calc = CommissionCalc::new(Broker::OpenBroker.get_new_commission_spec());
+
+        // Percent commission > minimum commission
+        assert_eq!(
+            calc.add_trade(date!(14, 12, 2017), trade_type, 73, Cash::new(currency, dec!(2758))).unwrap(),
+            Cash::new(currency, dec!(114.76)),
+        );
+
+        // Percent commission < minimum commission
+        assert_eq!(
+            calc.add_trade(date!(14, 12, 2017), trade_type, 1, Cash::new(currency, dec!(1))).unwrap(),
+            Cash::new(currency, dec!(0.04)),
+        );
+
+        assert_eq!(calc.calculate(), HashMap::new());
     }
 }
