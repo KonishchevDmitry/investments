@@ -5,9 +5,7 @@ use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
-use crate::commissions::{
-    CommissionCalc, CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
-    TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
+use crate::commissions::{CommissionCalc, CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder, TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder, TransactionCommissionSpec};
 use crate::config::{Config, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
@@ -91,10 +89,19 @@ impl Broker {
 
     // FIXME: A temporary solution for transition process
     fn get_new_commission_spec(self) -> CommissionSpec {
-        // FIXME: Support all commissions
-
         match self {
             Broker::Bcs => {
+                // FIXME: Support all commissions
+                /*
+                Урегулирование сделок	0,01
+
+                До 100 000	0,0531
+                От 100 000 до 300 000	0,0413
+                От 300 000 до 1 000 000	0,0354
+                От 1 000 000 до 5 000 000	0,0295
+                От 5 000 000 до 15 000 000	0,0236
+                Свыше 15 000 000	0,0177
+                */
                 CommissionSpecBuilder::new("RUB")
                     .rounding_method(RoundingMethod::Truncate)
                     .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
@@ -103,7 +110,29 @@ impl Broker {
                     }).unwrap().build())
                     .build()
             },
-            _ => {
+            Broker::InteractiveBrokers => {
+                CommissionSpecBuilder::new("USD")
+                    .trade(TradeCommissionSpecBuilder::new()
+                        .commission(TransactionCommissionSpecBuilder::new()
+                            .minimum(dec!(1))
+                            .per_share(dec!(0.005))
+                            .maximum_percent(dec!(1))
+                            .build().unwrap())
+
+                        // Stock selling fee
+                        .transaction_fee(TradeType::Sell, TransactionCommissionSpecBuilder::new()
+                            .percent(dec!(0.0013))
+                            .build().unwrap())
+
+                        // FINRA trading activity fee
+                        .transaction_fee(TradeType::Sell, TransactionCommissionSpecBuilder::new()
+                            .per_share(dec!(0.000119))
+                            .build().unwrap())
+
+                        .build())
+                    .build()
+            },
+            Broker::OpenBroker => {
                 // FIXME: Support depository commission
                 CommissionSpecBuilder::new("RUB")
                     .trade(TradeCommissionSpecBuilder::new()
@@ -113,18 +142,8 @@ impl Broker {
                             .build().unwrap())
                         .build())
                     .build()
-            }
+            },
         }
-        /*
-Урегулирование сделок	0,01
-
-        До 100 000	0,0531
-        От 100 000 до 300 000	0,0413
-        От 300 000 до 1 000 000	0,0354
-        От 1 000 000 до 5 000 000	0,0295
-        От 5 000 000 до 15 000 000	0,0236
-        Свыше 15 000 000	0,0177
-        */
     }
 }
 
@@ -201,20 +220,62 @@ mod tests {
         });
     }
 
+    #[test]
+    fn interactive_brokers_commission() {
+        let mut calc = CommissionCalc::new(Broker::InteractiveBrokers.get_new_commission_spec());
+
+        let currency = "USD";
+        let date = date!(1, 1, 1);
+
+        let trade_type = TradeType::Buy;
+
+        // Minimum commission > per share commission
+        assert_eq!(calc.add_trade(date, trade_type, 199, Cash::new(currency, dec!(100))).unwrap(),
+                   Cash::new(currency, dec!(1)));
+
+        // Minimum commission == per share commission
+        assert_eq!(calc.add_trade(date, trade_type, 200, Cash::new(currency, dec!(100))).unwrap(),
+                   Cash::new(currency, dec!(1)));
+
+        // Per share commission > minimum commission
+        assert_eq!(calc.add_trade(date, trade_type, 201, Cash::new(currency, dec!(100))).unwrap(),
+                   Cash::new(currency, dec!(1.01)));
+
+        // Per share commission > minimum commission
+        assert_eq!(calc.add_trade(date, trade_type, 300, Cash::new(currency, dec!(100))).unwrap(),
+                   Cash::new(currency, dec!(1.5)));
+
+        // Per share commission > maximum commission
+        assert_eq!(calc.add_trade(date, trade_type, 300, Cash::new(currency, dec!(0.4))).unwrap(),
+                   Cash::new(currency, dec!(1.2)));
+
+        let trade_type = TradeType::Sell;
+
+        assert_eq!(calc.add_trade_precise(date, trade_type, 26, Cash::new(currency, dec!(174.2))).unwrap(),
+                   Cash::new(currency, dec!(1.0619736)));
+
+        assert_eq!(calc.add_trade(date, trade_type, 26, Cash::new(currency, dec!(174.2))).unwrap(),
+                   Cash::new(currency, dec!(1.06)));
+
+        assert_eq!(calc.calculate(), HashMap::new());
+    }
+
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn open_broker_commission(trade_type: TradeType) {
-        let currency = "RUB";
         let mut calc = CommissionCalc::new(Broker::OpenBroker.get_new_commission_spec());
+
+        let currency = "RUB";
+        let date = date!(14, 12, 2017);
 
         // Percent commission > minimum commission
         assert_eq!(
-            calc.add_trade(date!(14, 12, 2017), trade_type, 73, Cash::new(currency, dec!(2758))).unwrap(),
+            calc.add_trade(date, trade_type, 73, Cash::new(currency, dec!(2758))).unwrap(),
             Cash::new(currency, dec!(114.76)),
         );
 
         // Percent commission < minimum commission
         assert_eq!(
-            calc.add_trade(date!(14, 12, 2017), trade_type, 1, Cash::new(currency, dec!(1))).unwrap(),
+            calc.add_trade(date, trade_type, 1, Cash::new(currency, dec!(1))).unwrap(),
             Cash::new(currency, dec!(0.04)),
         );
 
