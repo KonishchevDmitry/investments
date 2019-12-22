@@ -1,77 +1,48 @@
 #![allow(dead_code)] // FIXME
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::ops::Bound;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::types::{Date, Decimal, TradeType};
+use term::Attr::Bold;
 
-struct TieredCommissionSpec {
+#[derive(Clone)]
+pub struct CommissionSpec {
     currency: &'static str,
-    tiers: Vec<CommissionTier>,
+    cumulative: CumulativeCommissionSpec,
+}
+
+#[derive(Clone)]
+pub struct CumulativeCommissionSpec {
+    tiers: Option<BTreeMap<Decimal, Decimal>>,
     minimum_daily: Option<Decimal>,
 }
 
-struct CommissionTier {
-    start_volume: Decimal,
-    commission_spec: TierCommissionSpec,
-}
-
-impl CommissionTier {
-    fn new(start_volume: Decimal, commission_spec: TierCommissionSpec) -> CommissionTier {
-        CommissionTier {
-            start_volume,
-            commission_spec,
-        }
-    }
-}
-
-struct TierCommissionSpec {
-    percent: Decimal,
-}
-
-impl TierCommissionSpec {
-    fn new(percent: Decimal) -> TierCommissionSpec {
-        TierCommissionSpec {
-            percent,
-        }
-    }
-}
-
-struct TieredCommissionCalc {
-    spec: TieredCommissionSpec,
+pub struct CommissionCalc {
+    spec: CommissionSpec,
     volume: HashMap<Date, Decimal>,
 }
 
-impl TieredCommissionCalc {
-    fn new(spec: TieredCommissionSpec) -> TieredCommissionCalc {
-        TieredCommissionCalc {
+impl CommissionCalc {
+    pub fn new(spec: CommissionSpec) -> CommissionCalc {
+        CommissionCalc {
             spec,
             volume: HashMap::new(),
         }
     }
 
-    fn add_trade(
-        &mut self, date: Date, _trade_type: TradeType, shares: u32, price: Cash
-    ) -> GenericResult<Cash> {
+    fn add_trade(&mut self, date: Date, _trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let volume = get_trade_volume(self.spec.currency, price * shares)?;
         *self.volume.entry(date).or_default() += volume;
         Ok(Cash::new(self.spec.currency, dec!(0)))
     }
 
+    // FIXME: HERE
     fn calculate(self) -> HashMap<Date, Cash> {
         self.volume.iter().map(|(&date, &volume)| {
-            let commission_spec = &self.spec.tiers.iter().filter(|tier| {
-                tier.start_volume <= volume
-            }).last().unwrap().commission_spec;
-
-            let mut commission = volume * commission_spec.percent / dec!(100);
-
-            if let Some(minimum) = self.spec.minimum_daily {
-                if commission < minimum {
-                    commission = minimum;
-                }
-            }
+            // FIXME: Optional
 
             // FIXME: Parametrize
             // It seems that BCS truncates commission instead of rounding, so do the same
@@ -84,6 +55,25 @@ impl TieredCommissionCalc {
 
             (date, Cash::new(self.spec.currency, commission))
         }).collect()
+    }
+
+    fn calculate_daily(&self, volume: Decimal) -> Decimal {
+        let tiers = match self.spec.cumulative.tiers {
+            Some(ref tiers) => tiers,
+            None => return dec!(0),
+        };
+
+        let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume))).last().unwrap();
+        let mut commission = volume * percent / dec!(100);
+
+        // FIXME: Excluding exchange commission?
+        if let Some(minimum) = self.spec.cumulative.minimum_daily {
+            if commission < minimum {
+                commission = minimum;
+            }
+        }
+
+        commission
     }
 }
 
@@ -108,23 +98,25 @@ mod tests {
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn bcs_commission(trade_type: TradeType) {
         let currency = "RUB";
-        let mut commission_calc = TieredCommissionCalc::new(TieredCommissionSpec {
+        // FIXME: Get from BCS object + support all commissions
+        // FIXME: Support depository commission for Open Broker
+        let mut commission_calc = CommissionCalc::new(CommissionSpec {
             currency: currency,
-            tiers: vec![
-                /*
+            /*
 Урегулирование сделок	0,01
 
-                До 100 000	0,0531
-                От 100 000 до 300 000	0,0413
-                От 300 000 до 1 000 000	0,0354
-                От 1 000 000 до 5 000 000	0,0295
-                От 5 000 000 до 15 000 000	0,0236
-                Свыше 15 000 000	0,0177
-                */
-                CommissionTier::new(dec!(0), TierCommissionSpec::new(dec!(0.0531) + dec!(0.01))),
-                CommissionTier::new(dec!(100_000), TierCommissionSpec::new(dec!(0.0413) + dec!(0.01))),
-            ],
-            minimum_daily: None, //Some(dec!(35.4)),
+            До 100 000	0,0531
+            От 100 000 до 300 000	0,0413
+            От 300 000 до 1 000 000	0,0354
+            От 1 000 000 до 5 000 000	0,0295
+            От 5 000 000 до 15 000 000	0,0236
+            Свыше 15 000 000	0,0177
+            */
+            volume_tiers: Some(btreemap!{
+                dec!(0) => dec!(0.0531) + dec!(0.01),
+                dec!(100_000) => dec!(0.0413) + dec!(0.01),
+            }),
+            minimum_from_daily_volume: None, //Some(dec!(35.4)),
         });
 
         for &(date, shares, price) in &[
