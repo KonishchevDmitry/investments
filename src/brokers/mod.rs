@@ -6,8 +6,8 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
 use crate::commissions::{
-    CommissionCalc, CommissionSpec, TradeCommissionSpec, TransactionCommissionSpec,
-    CumulativeCommissionSpec};
+    CommissionCalc, CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
+    TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
 use crate::config::{Config, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
@@ -103,9 +103,9 @@ impl Broker {
         От 5 000 000 до 15 000 000	0,0236
         Свыше 15 000 000	0,0177
         */
-        CommissionSpec::builder("RUB")
+        CommissionSpecBuilder::new("RUB")
             .rounding_method(RoundingMethod::Truncate)
-            .cumulative(CumulativeCommissionSpec::builder().tiers(btreemap!{
+            .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
                 dec!(0) => dec!(0.0531) + dec!(0.01),
                 dec!(100_000) => dec!(0.0413) + dec!(0.01),
             }).unwrap().build())
