@@ -17,12 +17,23 @@ pub struct CommissionSpec {
     cumulative: CumulativeCommissionSpec,
 }
 
-// FIXME: Temporary solution for transition period
 impl CommissionSpec {
+    pub fn builder(currency: &'static str) -> CommissionSpecBuilder {
+        CommissionSpecBuilder(CommissionSpec {
+            currency,
+            rounding_method: RoundingMethod::Round,
+
+            trade: Default::default(),
+            cumulative: Default::default(),
+        })
+    }
+
+    // FIXME: A temporary solution for transition period
     pub fn calculate(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         CommissionCalc::new(self.clone()).add_trade(date!(1, 1, 2000), trade_type, shares, price)
     }
 
+    // FIXME: A temporary solution for transition period
     fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         CommissionCalc::new(self.clone()).add_trade_precise(date!(1, 1, 2000), trade_type, shares, price)
     }
@@ -32,6 +43,12 @@ impl CommissionSpec {
 pub struct TradeCommissionSpec {
     commission: TransactionCommissionSpec,
     transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
+}
+
+impl TradeCommissionSpec {
+    pub fn builder() -> TradeCommissionSpecBuilder {
+        TradeCommissionSpecBuilder::default()
+    }
 }
 
 #[derive(Default, Clone)]  // FIXME: Default?
@@ -44,6 +61,10 @@ pub struct TransactionCommissionSpec {
 }
 
 impl TransactionCommissionSpec {
+    pub fn builder() -> TransactionCommissionSpecBuilder {
+        TransactionCommissionSpecBuilder::default()
+    }
+
     fn calculate(&self, shares: u32, volume: Decimal) -> Decimal {
         let mut commission = dec!(0);
 
@@ -72,7 +93,7 @@ impl TransactionCommissionSpec {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct CumulativeCommissionSpec {
     tiers: Option<BTreeMap<Decimal, Decimal>>,
     minimum_daily: Option<Decimal>,
@@ -136,6 +157,82 @@ impl CommissionCalc {
         }
 
         util::round_with(commission, 2, self.spec.rounding_method)
+    }
+}
+
+pub struct CommissionSpecBuilder(CommissionSpec);
+
+impl CommissionSpecBuilder {
+    pub fn rounding_method(mut self, method: RoundingMethod) -> CommissionSpecBuilder {
+        self.0.rounding_method = method;
+        self
+    }
+
+    pub fn trade(mut self, spec: TradeCommissionSpec) -> CommissionSpecBuilder {
+        self.0.trade = spec;
+        self
+    }
+
+    pub fn cumulative(mut self, spec: CumulativeCommissionSpec) -> CommissionSpecBuilder {
+        self.0.cumulative = spec;
+        self
+    }
+
+    pub fn build(self) -> CommissionSpec {
+        self.0
+    }
+}
+
+#[derive(Default)]
+pub struct TradeCommissionSpecBuilder(TradeCommissionSpec);
+
+impl TradeCommissionSpecBuilder {
+    pub fn commission(mut self, spec: TransactionCommissionSpec) -> TradeCommissionSpecBuilder {
+        self.0.commission = spec;
+        self
+    }
+
+    pub fn transaction_fee(mut self, trade_type: TradeType, spec: TransactionCommissionSpec) -> TradeCommissionSpecBuilder {
+        self.0.transaction_fees.push((trade_type, spec));
+        self
+    }
+
+    pub fn build(self) -> TradeCommissionSpec {
+        self.0
+    }
+}
+
+#[derive(Default)]
+pub struct TransactionCommissionSpecBuilder(TransactionCommissionSpec);
+
+impl TransactionCommissionSpecBuilder {
+    pub fn minimum(mut self, minimum: Decimal) -> TransactionCommissionSpecBuilder {
+        self.0.minimum = Some(minimum);
+        self
+    }
+
+    pub fn per_share(mut self, per_share: Decimal) -> TransactionCommissionSpecBuilder {
+        self.0.per_share = Some(per_share);
+        self
+    }
+
+    pub fn percent(mut self, percent: Decimal) -> TransactionCommissionSpecBuilder {
+        self.0.percent = Some(percent);
+        self
+    }
+
+    pub fn maximum_percent(mut self, maximum_percent: Decimal) -> TransactionCommissionSpecBuilder {
+        self.0.maximum_percent = Some(maximum_percent);
+        self
+    }
+
+    pub fn build(self) -> GenericResult<TransactionCommissionSpec> {
+        match (self.0.per_share, self.0.percent) {
+            (Some(_), None) | (None, Some(_)) => (),
+            _ => return Err!("Invalid commission specification"),
+        };
+
+        Ok(self.0)
     }
 }
 
