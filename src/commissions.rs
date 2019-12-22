@@ -17,6 +17,17 @@ pub struct CommissionSpec {
     cumulative: CumulativeCommissionSpec,
 }
 
+// FIXME: Temporary solution for transition period
+impl CommissionSpec {
+    pub fn calculate(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        CommissionCalc::new(self.clone()).add_trade(date!(1, 1, 2000), trade_type, shares, price)
+    }
+
+    fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        CommissionCalc::new(self.clone()).add_trade_precise(date!(1, 1, 2000), trade_type, shares, price)
+    }
+}
+
 #[derive(Default, Clone)]  // FIXME: Default?
 pub struct TradeCommissionSpec {
     commission: TransactionCommissionSpec,
@@ -127,18 +138,6 @@ impl CommissionCalc {
         util::round_with(commission, 2, self.spec.rounding_method)
     }
 }
-
-// FIXME: HERE
-/*
-impl CommissionSpec {
-    pub fn calculate(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
-        Ok(self.calculate_precise(trade_type, shares, price)?.round())
-    }
-
-    fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
-    }
-}
-*/
 
 fn get_trade_volume(commission_currency: &str, volume: Cash) -> GenericResult<Decimal> {
     if volume.currency != commission_currency {
