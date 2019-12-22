@@ -33,13 +33,13 @@ impl CommissionSpec {
     }
 }
 
-#[derive(Default, Clone)]  // FIXME: Default?
+#[derive(Default, Clone)]
 pub struct TradeCommissionSpec {
     commission: TransactionCommissionSpec,
     transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
 }
 
-#[derive(Default, Clone)]  // FIXME: Default?
+#[derive(Default, Clone)]
 pub struct TransactionCommissionSpec {
     percent: Option<Decimal>,
     per_share: Option<Decimal>,

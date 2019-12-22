@@ -161,7 +161,7 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    // FIXME: Implement
+    // FIXME: Add more test data
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn bcs_commission(trade_type: TradeType) {
         let currency = "RUB";
