@@ -76,7 +76,7 @@ fn modify_assets<F>(config: &Config, portfolio_name: &str, modify: F) -> EmptyRe
 
     let mut assets = Assets::load(database.clone(), &portfolio.name)?;
     modify(portfolio, &mut assets)?;
-    assets.save(database.clone(), &portfolio.name)?;
+    assets.save(database, &portfolio.name)?;
 
     Ok(())
 }

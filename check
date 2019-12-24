@@ -29,5 +29,9 @@ for target in bins tests; do
         redundant_field_names
         too_many_arguments
         unit_arg
+
+        comparison_chain
+        redundant-clone
     ')
+    # FIXME: ^
 done

@@ -2,7 +2,6 @@ use std::iter::Iterator;
 
 use csv::{self, StringRecord};
 use log::trace;
-#[cfg(test)] use rstest::rstest_parametrize;
 
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
@@ -186,6 +185,7 @@ fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
     #[test]
@@ -222,10 +222,7 @@ mod tests {
         assert!(!statement.instrument_names.is_empty());
     }
 
-    #[rstest_parametrize(name,
-        case("return-of-capital-with-tax"),
-        case("return-of-capital-without-tax"),
-    )]
+    #[rstest(name => ["return-of-capital-with-tax", "return-of-capital-without-tax"])]
     fn parse_real(name: &str) {
         parse_full(name);
     }
@@ -235,10 +232,7 @@ mod tests {
         BrokerStatement::read(&Config::mock(), Broker::InteractiveBrokers, &path).unwrap()
     }
 
-    #[rstest_parametrize(name,
-        case("no-activity"),
-        case("multi-currency-activity"),
-    )]
+    #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
         StatementReader::new(&Config::mock()).unwrap().read(&path).unwrap();

@@ -45,7 +45,7 @@ fn load<'a>(config: &'a Config, portfolio_name: &str) -> GenericResult<
 
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database.clone(), false);
-    let quotes = Quotes::new(&config, database.clone())?;
+    let quotes = Quotes::new(&config, database)?;
 
     Ok((portfolio, statement, converter, quotes))
 }

@@ -7,7 +7,6 @@ use std::ops::{Mul, Div, Neg};
 use num_traits::identities::Zero;
 use num_traits::ToPrimitive;
 
-#[cfg(test)] use rstest::rstest_parametrize;
 use separator::Separatable;
 
 use crate::core::{GenericResult, EmptyResult};
@@ -250,9 +249,10 @@ fn format_currency(currency: &str, mut amount: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[rstest_parametrize(input, expected,
+    #[rstest(input, expected,
         case("1",     "1"),
         case("1.0",   "1"),
         case("1.1",   "1.1"),
@@ -290,7 +290,7 @@ mod tests {
         assert_eq!(Cash::new("UNKNOWN", dec!(-12.345)).to_string(), "-12.345 UNKNOWN");
     }
 
-    #[rstest_parametrize(input, expected,
+    #[rstest(input, expected,
         case("12",     "12"),
         case("12.3",   "12.30"),
         case("12.30",  "12.30"),
