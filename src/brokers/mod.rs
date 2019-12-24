@@ -58,58 +58,16 @@ impl Broker {
         )?.clone())
     }
 
-    fn get_old_commission_spec(self) -> OldCommissionSpec {
-        match self {
-            // BCS has tiered commissions that aren't supported yet, so use some average now
-            Broker::Bcs => OldCommissionSpecBuilder::new()
-                .percent(dec!(0.057))
-                .build().unwrap(),
-
-            Broker::InteractiveBrokers => OldCommissionSpecBuilder::new()
-                .minimum(Cash::new("USD", dec!(1)))
-                .per_share(Cash::new("USD", dec!(0.005)))
-                .maximum_percent(dec!(1))
-
-                // Stock selling fee
-                .transaction_fee(TradeType::Sell, OldCommissionSpecBuilder::new()
-                    .percent(dec!(0.0013))
-                    .build().unwrap())
-
-                // FINRA trading activity fee
-                .transaction_fee(TradeType::Sell, OldCommissionSpecBuilder::new()
-                    .per_share(Cash::new("USD", dec!(0.000119)))
-                    .build().unwrap())
-
-                .build().unwrap(),
-
-            Broker::OpenBroker => OldCommissionSpecBuilder::new()
-                .minimum(Cash::new("RUB", dec!(0.04)))
-                .percent(dec!(0.057))
-                .build().unwrap(),
-        }
-    }
-
-    // FIXME: A temporary solution for transition process
     fn get_commission_spec(self) -> CommissionSpec {
         match self {
-            Broker::Bcs if false => {
-                // FIXME: Support all commissions
-                /*
-                Урегулирование сделок	0,01
-
-                До 100 000	0,0531
-                От 100 000 до 300 000	0,0413
-                От 300 000 до 1 000 000	0,0354
-                От 1 000 000 до 5 000 000	0,0295
-                От 5 000 000 до 15 000 000	0,0236
-                Свыше 15 000 000	0,0177
-                */
+            // FIXME: BCS has tiered commissions that aren't supported yet, so use some average now
+            Broker::Bcs => {
                 CommissionSpecBuilder::new("RUB")
-                    .rounding_method(RoundingMethod::Truncate)
-                    .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
-                        dec!(0) => dec!(0.0531) + dec!(0.01),
-                        dec!(100_000) => dec!(0.0413) + dec!(0.01),
-                    }).unwrap().build())
+                    .trade(TradeCommissionSpecBuilder::new()
+                        .commission(TransactionCommissionSpecBuilder::new()
+                            .percent(dec!(0.057))
+                            .build().unwrap())
+                        .build())
                     .build()
             },
             Broker::InteractiveBrokers => {
@@ -134,7 +92,7 @@ impl Broker {
                         .build())
                     .build()
             },
-            Broker::Bcs | Broker::OpenBroker => {  // FIXME
+            Broker::OpenBroker => {
                 // FIXME: Support depository commission
                 CommissionSpecBuilder::new("RUB")
                     .trade(TradeCommissionSpecBuilder::new()
@@ -197,13 +155,30 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    // FIXME
-    /*
     // FIXME: Add more test data
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn bcs_commission(trade_type: TradeType) {
         let currency = "RUB";
-        let mut calc = CommissionCalc::new(Broker::Bcs.get_commission_spec());
+        let mut calc = CommissionCalc::new(
+            // FIXME: Support all commissions
+            /*
+            Урегулирование сделок	0,01
+
+            До 100 000	0,0531
+            От 100 000 до 300 000	0,0413
+            От 300 000 до 1 000 000	0,0354
+            От 1 000 000 до 5 000 000	0,0295
+            От 5 000 000 до 15 000 000	0,0236
+            Свыше 15 000 000	0,0177
+            */
+            CommissionSpecBuilder::new("RUB")
+                .rounding_method(RoundingMethod::Truncate)
+                .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
+                        dec!(0) => dec!(0.0531) + dec!(0.01),
+                        dec!(100_000) => dec!(0.0413) + dec!(0.01),
+                    }).unwrap().build())
+                .build()
+        );
 
         for &(date, shares, price) in &[
             (date!(2, 12, 2019),  35, dec!(2959.5)),
@@ -222,7 +197,6 @@ mod tests {
             date!(3, 12, 2019) => Cash::new(currency, dec!(52.82)),
         });
     }
-    */
 
     #[test]
     fn interactive_brokers_commission() {
