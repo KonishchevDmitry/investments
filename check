@@ -16,20 +16,27 @@ get_lint_args() {
     ' <<< "$lints"
 }
 
+check() {
+    local target="$1"
+    local lints="$2"
+    cargo clippy "--$target" --all-features -- -Dwarnings $(get_lint_args -A "$lints")
+}
+
 # A workaround to force recheck
 touch src/lib.rs
 
-for target in bins tests; do
-    cargo clippy "--$target" --all-features -- -Dwarnings $(get_lint_args -A '
-        collapsible_if
-        new_ret_no_self
-        new_without_default
-        redundant_field_names
-        too_many_arguments
-        unit_arg
+blacklist='
+collapsible_if
+comparison_chain
+new_ret_no_self
+new_without_default
+redundant_field_names
+too_many_arguments
+unit_arg
+'
+check bins "$blacklist"
 
-        comparison_chain
-        redundant-clone
-    ')
-    # FIXME: ^
-done
+blacklist="$blacklist
+redundant-clone
+"
+check tests "$blacklist"
