@@ -1,5 +1,4 @@
 #![allow(unused_imports)] // FIXME
-#![allow(dead_code)] // FIXME
 
 #[cfg(test)] use std::collections::HashMap;
 
@@ -7,19 +6,14 @@ use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
-use crate::commissions::{CommissionCalc, CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder, TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder, TransactionCommissionSpec};
+use crate::commissions::{
+    CommissionCalc, CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
+    TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder, TransactionCommissionSpec};
 use crate::config::{Config, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Decimal, TradeType};
 use crate::util::RoundingMethod;
-
-use self::commissions::{
-    CommissionSpec as OldCommissionSpec,
-    CommissionSpecBuilder as OldCommissionSpecBuilder,
-};
-
-mod commissions;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Broker {
