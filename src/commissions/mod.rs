@@ -1,5 +1,3 @@
-#![allow(dead_code)] // FIXME
-
 mod builders;
 
 use std::collections::{BTreeMap, HashMap};
@@ -21,18 +19,6 @@ pub struct CommissionSpec {
 
     trade: TradeCommissionSpec,
     cumulative: CumulativeCommissionSpec,
-}
-
-impl CommissionSpec {
-    // FIXME: A temporary solution for transition period
-    pub fn calculate(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
-        CommissionCalc::new(self.clone()).add_trade(date!(1, 1, 2000), trade_type, shares, price)
-    }
-
-    // FIXME: A temporary solution for transition period
-    pub fn calculate_precise(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
-        CommissionCalc::new(self.clone()).add_trade_precise(date!(1, 1, 2000), trade_type, shares, price)
-    }
 }
 
 #[derive(Default, Clone, Debug)]

@@ -139,8 +139,9 @@ impl BrokerInfo {
         Ok(commission_spec.fixed_amount)
     }
 
+    // FIXME: A temporary solution for transition period
     pub fn get_trade_commission(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
-        self.commission_spec.calculate(trade_type, shares, price)
+        CommissionCalc::new(self.commission_spec.clone()).add_trade(date!(1, 1, 2000), trade_type, shares, price)
     }
 }
 
