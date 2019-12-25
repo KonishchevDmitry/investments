@@ -7,6 +7,7 @@ use chrono::Duration;
 use log::{debug, warn};
 
 use crate::brokers::{Broker, BrokerInfo};
+use crate::commissions::CommissionCalc;
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
@@ -180,7 +181,9 @@ impl BrokerStatement {
         }
     }
 
-    pub fn emulate_sell(&mut self, symbol: &str, quantity: u32, price: Cash) -> EmptyResult {
+    pub fn emulate_sell(
+        &mut self, commission_calc: &mut CommissionCalc, symbol: &str, quantity: u32, price: Cash
+    ) -> EmptyResult {
         let today = util::today();
 
         let conclusion_date = today;
@@ -189,7 +192,8 @@ impl BrokerStatement {
             _ => today,
         };
 
-        let commission = self.broker.get_trade_commission(TradeType::Sell, quantity, price)?;
+        let commission = commission_calc.add_trade(
+            conclusion_date, TradeType::Sell, quantity, price)?;
 
         let stock_cell = StockSell::new(
             symbol, quantity, price, commission, conclusion_date, execution_date, true);

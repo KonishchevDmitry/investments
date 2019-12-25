@@ -2,6 +2,7 @@ use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::broker_statement::trades::StockSell;
+use crate::commissions::CommissionCalc;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
@@ -14,6 +15,8 @@ pub fn simulate_sell(
     portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
     mut quotes: Quotes, positions: &[(String, Option<u32>)],
 ) -> EmptyResult {
+    let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
+
     for (symbol, _) in positions {
         if statement.open_positions.get(symbol).is_none() {
             return Err!("The portfolio has no open {:?} positions", symbol);
@@ -31,7 +34,7 @@ pub fn simulate_sell(
             }
         };
 
-        statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?)?;
+        statement.emulate_sell(&mut commission_calc, &symbol, quantity, quotes.get(&symbol)?)?;
     }
     statement.process_trades()?;
 
