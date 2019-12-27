@@ -22,7 +22,7 @@ Targeted for Russian investors who use [Interactive Brokers](http://interactiveb
 1. Install Rust - https://www.rust-lang.org/tools/install
 2. Install build dependencies:
 
-**MacOS:**
+**macOS:**
 
 No action required.
 
@@ -148,11 +148,11 @@ The following deposits are closed:
 
 ### Recommendations
 
-Download broker statements periodically and run the tool against them to be sure that it still able to parse them and
+Download broker statements periodically and run the tool against them to be sure that it's still able to parse them and
 won't fail when you'll need it.
 
-Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their statements in
-mid-February and if you generate tax statement earlier, it may contain inaccurate data.
+Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their mid-February
+statements and if you generate tax statement earlier, it may contain inaccurate data.
 
 
 ### Unsupported features
