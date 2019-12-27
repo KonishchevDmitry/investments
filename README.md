@@ -20,7 +20,19 @@ Targeted for Russian investors who use [Interactive Brokers](http://interactiveb
 ### Installation
 
 1. Install Rust - https://www.rust-lang.org/tools/install
-2. Compile the project:
+2. Install build dependencies:
+
+**MacOS:**
+
+No action required.
+
+**Ubuntu:**
+
+```
+$ sudo apt install libsqlite3-dev
+```
+
+3. Compile the project:
 ```
 $ git clone https://github.com/KonishchevDmitry/investments.git
 $ cd investments
@@ -132,6 +144,15 @@ The following deposits are about to close:
 The following deposits are closed:
 * 19.03.2020 Тинькофф: 465,000₽ -> 490,013.27₽
 ```
+
+
+### Recommendations
+
+Download broker statements periodically and run the tool against them to be sure that it still able to parse them and
+won't fail when you'll need it.
+
+Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their statements in
+mid-February and if you generate tax statement earlier, it may contain inaccurate data.
 
 
 ### Unsupported features
