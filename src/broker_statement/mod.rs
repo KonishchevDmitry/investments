@@ -219,6 +219,17 @@ impl BrokerStatement {
         Ok(())
     }
 
+    pub fn emulate_commissions(&mut self, commission_calc: CommissionCalc) -> MultiCurrencyCashAccount {
+        let mut total = MultiCurrencyCashAccount::new();
+
+        for &commission in commission_calc.calculate().values() {
+            self.cash_assets.withdraw(commission);
+            total.deposit(commission);
+        }
+
+        total
+    }
+
     pub fn process_trades(&mut self) -> EmptyResult {
         let stock_buys_num = self.stock_buys.len();
         let mut stock_buys = Vec::with_capacity(stock_buys_num);
