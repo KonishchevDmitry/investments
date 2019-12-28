@@ -182,7 +182,7 @@ impl BrokerStatement {
     }
 
     pub fn emulate_sell(
-        &mut self, commission_calc: &mut CommissionCalc, symbol: &str, quantity: u32, price: Cash
+        &mut self, symbol: &str, quantity: u32, price: Cash, commission_calc: &mut CommissionCalc
     ) -> EmptyResult {
         let today = util::today();
 

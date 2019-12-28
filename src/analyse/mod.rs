@@ -20,9 +20,10 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
     statement.batch_quotes(&mut quotes);
 
     for (symbol, &quantity) in statement.open_positions.clone().iter() {
-        statement.emulate_sell(&mut commission_calc, &symbol, quantity, quotes.get(&symbol)?)?;
+        statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?, &mut commission_calc)?;
     }
     statement.process_trades()?;
+    statement.emulate_commissions(commission_calc);
     statement.merge_symbols(&portfolio.merge_performance).map_err(|e| format!(
         "Invalid performance merging configuration: {}", e))?;
 
