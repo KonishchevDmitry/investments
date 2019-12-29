@@ -37,11 +37,10 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
     portfolio.change_commission(interim_total_commissions);
 
     // The rebalancing logic is relatively inaccurate because it distributes funds only inside of
-    // one group which leads to accumulation of free cash / debt from each asset group. Also we
+    // one group which leads to accumulation of free cash / debt from each asset group. Also it
     // can't take into account accumulated commissions. The following step operates on all levels of
     // asset tree and distributes accumulated free cash / debt in the optimal way according to asset
     // allocation configuration.
-    // FIXME: total_value
     distribute_cash_assets(portfolio, converter)?;
 
     let (trade_commissions, additional_commissions) = calculate_total_commissions(portfolio, converter)?;
@@ -394,8 +393,7 @@ fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConvert
             let commission = process_trade(
                 &mut portfolio.assets, trade, &portfolio.broker, &portfolio.currency, converter)?;
 
-            portfolio.target_cash_assets -= commission;
-            portfolio.commissions += commission;
+            portfolio.change_commission(commission);
         }
     }
 
