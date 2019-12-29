@@ -25,17 +25,15 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
         portfolio.min_trade_volume);
 
     // The next step is bottom-up and calculates the result of the previous step
-    // FIXME: Do we need them + rename?
-    let (current_value, rebalance_commissions) = calculate_result_value(
+    let target_value = calculate_result_value(
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
-    portfolio.target_cash_assets = portfolio.total_value - current_value;
+    portfolio.target_cash_assets = portfolio.total_value - target_value;
 
     let (interim_trade_commissions, interim_additional_commissions) =
         calculate_total_commissions(portfolio, converter)?;
 
-    // They must be the same if we haven't missed something in our logic
-    assert_eq!(rebalance_commissions, interim_trade_commissions);
     let interim_total_commissions = interim_trade_commissions + interim_additional_commissions;
+    assert!(portfolio.commissions.is_zero());
     portfolio.change_commission(interim_total_commissions);
 
     // The rebalancing logic is relatively inaccurate because it distributes funds only inside of
@@ -344,32 +342,25 @@ struct AssetGroupRebalancingState {
 fn calculate_result_value(
     assets: &mut Vec<AssetAllocation>, broker: &BrokerInfo,
     currency: &str, converter: &CurrencyConverter
-) -> GenericResult<(Decimal, Decimal)> {
+) -> GenericResult<Decimal> {
     let mut total_value = dec!(0);
-    let mut total_commissions = dec!(0);
 
     for asset in assets.iter_mut() {
         let name = asset.full_name();
 
-        let (value, commissions) = match asset.holding {
+        total_value += match asset.holding {
             Holding::Stock(ref mut holding) => {
                 assert_eq!(holding.target_shares, holding.current_shares);
-
-                let commission = change_to(
-                    &name, holding, asset.target_value, broker, currency, converter)?;
-
-                (asset.target_value, commission)
+                change_to(&name, holding, asset.target_value, broker, currency, converter)?;
+                asset.target_value
             },
             Holding::Group(ref mut holdings) => {
                 calculate_result_value(holdings, broker, currency, converter)?
             },
         };
-
-        total_value += value;
-        total_commissions += commissions;
     }
 
-    Ok((total_value, total_commissions))
+    Ok(total_value)
 }
 
 fn distribute_cash_assets(portfolio: &mut Portfolio, converter: &CurrencyConverter) -> EmptyResult {
