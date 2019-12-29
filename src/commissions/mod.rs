@@ -84,6 +84,10 @@ impl CommissionCalc {
         }
     }
 
+    pub fn currency(&self) -> &str {
+        self.spec.currency
+    }
+
     pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let mut commission = self.add_trade_precise(date, trade_type, shares, price)?;
         commission.amount = util::round_with(commission.amount, 2, self.spec.rounding_method);
@@ -91,6 +95,10 @@ impl CommissionCalc {
     }
 
     pub fn add_trade_precise(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+        // Commission returned by this method must be independent from any side effects like daily
+        // volume and others. Method calls with same arguments must return same results. All
+        // accumulation commissions must be calculated separately.
+
         let volume = get_trade_volume(self.spec.currency, price * shares)?;
         *self.volume.entry(date).or_default() += volume;
 
