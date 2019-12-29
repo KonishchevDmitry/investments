@@ -79,12 +79,12 @@ impl Assets {
 
             let mut assets = Vec::new();
 
-            for (&currency, &amount) in self.cash.iter() {
+            for cash in self.cash.iter() {
                 assets.push(models::Asset {
                     portfolio: portfolio.to_owned(),
                     asset_type: AssetType::Cash,
-                    symbol: currency.to_string(),
-                    quantity: amount.to_string(),
+                    symbol: cash.currency.to_string(),
+                    quantity: cash.amount.to_string(),
                 })
             }
 

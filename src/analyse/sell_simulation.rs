@@ -10,6 +10,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
+use crate::util;
 
 pub fn simulate_sell(
     portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
@@ -34,16 +35,18 @@ pub fn simulate_sell(
             }
         };
 
-        statement.emulate_sell(&mut commission_calc, &symbol, quantity, quotes.get(&symbol)?)?;
+        statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?, &mut commission_calc)?;
     }
+
     statement.process_trades()?;
+    let additional_commissions = statement.emulate_commissions(commission_calc);
 
     let stock_sells = statement.stock_sells.iter()
         .filter(|stock_sell| stock_sell.emulation)
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(stock_sells, &portfolio.get_tax_country(), converter)
+    print_results(stock_sells, additional_commissions, &portfolio.get_tax_country(), converter)
 }
 
 #[derive(StaticTable)]
@@ -84,18 +87,24 @@ struct FifoRow {
     price: Cash,
 }
 
-fn print_results(stock_sells: Vec<StockSell>, country: &Country, converter: &CurrencyConverter) -> EmptyResult {
-    let mut same_currency = true;
-    for trade in &stock_sells {
-        same_currency &=
-            trade.price.currency == country.currency &&
-                trade.commission.currency == country.currency;
-    }
+fn print_results(
+    stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
+    country: &Country, converter: &CurrencyConverter
+) -> EmptyResult {
+    let same_currency = stock_sells.iter().all(|trade| {
+        trade.price.currency == country.currency &&
+            trade.commission.currency == country.currency
+    });
 
-    let mut total_commission = MultiCurrencyCashAccount::new();
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_profit = MultiCurrencyCashAccount::new();
     let mut total_local_profit = Cash::new(country.currency, dec!(0));
+
+    for commission in additional_commissions.iter() {
+        total_profit.withdraw(commission);
+        total_local_profit.sub_convert_assign(util::today(), commission, converter)?;
+    }
+    let mut total_commission = additional_commissions;
 
     let mut trades_table = TradesTable::new();
     if same_currency {

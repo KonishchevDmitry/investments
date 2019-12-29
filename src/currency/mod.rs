@@ -64,14 +64,25 @@ impl Cash {
         Ok(())
     }
 
+    pub fn add_convert(self, date: Date, amount: Cash, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        self.add(converter.convert_to_cash(date, amount, self.currency)?)
+    }
+
+    pub fn add_convert_assign(&mut self, date: Date, amount: Cash, converter: &CurrencyConverter) -> EmptyResult {
+        self.add_assign(converter.convert_to_cash(date, amount, self.currency)?)
+    }
+
     #[allow(clippy::should_implement_trait)]
     pub fn sub(self, amount: Cash) -> GenericResult<Cash> {
         self.add(-amount)
     }
 
     pub fn sub_convert(self, date: Date, amount: Cash, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let amount = converter.convert_to_cash(date, amount, self.currency)?;
-        self.sub(amount)
+        self.add_convert(date, -amount, converter)
+    }
+
+    pub fn sub_convert_assign(&mut self, date: Date, amount: Cash, converter: &CurrencyConverter) -> EmptyResult {
+        self.add_convert_assign(date, -amount, converter)
     }
 
     #[allow(clippy::should_implement_trait)]
@@ -183,8 +194,10 @@ impl MultiCurrencyCashAccount {
         self.assets.get(currency).is_some()
     }
 
-    pub fn iter(&self) -> std::collections::hash_map::Iter<&'static str, Decimal> {
-        self.assets.iter()
+    pub fn iter(&self) -> impl Iterator<Item=Cash> + '_ {
+        self.assets.iter().map(|(&currency, &amount)| {
+            Cash::new(currency, amount)
+        })
     }
 
     pub fn clear(&mut self) {

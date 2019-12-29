@@ -192,9 +192,7 @@ impl From<Cash> for Cell {
 
 impl From<MultiCurrencyCashAccount> for Cell {
     fn from(amounts: MultiCurrencyCashAccount) -> Cell {
-        let mut amounts: Vec<_> = amounts.iter()
-            .map(|(currency, amount)| Cash::new(*currency, *amount))
-            .collect();
+        let mut amounts: Vec<_> = amounts.iter().collect();
         amounts.sort_by_key(|amount| amount.currency);
 
         let result = amounts.iter()
