@@ -6,7 +6,7 @@ use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use crate::brokers::BrokerInfo;
 use crate::commissions::CommissionCalc;
 use crate::core::{GenericResult, EmptyResult};
-use crate::currency::{Cash, converter::CurrencyConverter};
+use crate::currency::converter::CurrencyConverter;
 use crate::types::{Decimal, TradeType};
 use crate::util;
 
@@ -25,28 +25,33 @@ pub fn rebalance_portfolio(portfolio: &mut Portfolio, converter: &CurrencyConver
         portfolio.min_trade_volume);
 
     // The next step is bottom-up and calculates the result of the previous step
-    let (current_value, mut commissions) = calculate_result_value(
+    // FIXME: Do we need them + rename?
+    let (current_value, rebalance_commissions) = calculate_result_value(
         &mut portfolio.assets, &portfolio.broker, &portfolio.currency, converter)?;
-
-    let interim_additional_commissions = calculate_additional_commissions(portfolio, converter)?;
-    commissions += interim_additional_commissions;
-
-    portfolio.commissions += commissions;
-    portfolio.total_value -= commissions;
     portfolio.target_cash_assets = portfolio.total_value - current_value;
 
+    let (interim_trade_commissions, interim_additional_commissions) =
+        calculate_total_commissions(portfolio, converter)?;
+
+    // They must be the same if we haven't missed something in our logic
+    assert_eq!(rebalance_commissions, interim_trade_commissions);
+    let interim_total_commissions = interim_trade_commissions + interim_additional_commissions;
+    portfolio.change_commission(interim_total_commissions);
+
     // The rebalancing logic is relatively inaccurate because it distributes funds only inside of
-    // one group which leads to accumulation of free cash / debt from each asset group. The
-    // following step operates on all levels of asset tree and distributes accumulated free cash /
-    // debt in the optimal way according to asset allocation configuration.
+    // one group which leads to accumulation of free cash / debt from each asset group. Also we
+    // can't take into account accumulated commissions. The following step operates on all levels of
+    // asset tree and distributes accumulated free cash / debt in the optimal way according to asset
+    // allocation configuration.
+    // FIXME: total_value
     distribute_cash_assets(portfolio, converter)?;
 
-    let additional_commissions = calculate_additional_commissions(portfolio, converter)?;
-    let commissions_change = additional_commissions - interim_additional_commissions;
-
-    portfolio.commissions += commissions_change;
-    portfolio.total_value -= commissions_change;
-    portfolio.target_cash_assets -= commissions_change;
+    let (trade_commissions, additional_commissions) = calculate_total_commissions(portfolio, converter)?;
+    assert_eq!(
+        portfolio.commissions - interim_total_commissions,
+        trade_commissions - interim_trade_commissions,
+    );
+    portfolio.change_commission(additional_commissions - interim_additional_commissions);
 
     Ok(())
 }
@@ -560,11 +565,8 @@ fn change_to(
         // commissions. Accumulated commissions will be calculated separately. This logic is used to
         // increase rebalancing accuracy.
         let mut commission_calc = CommissionCalc::new(broker.commission_spec.clone());
-
-        let commission = calculate_target_commission(
-            name, holding, target_shares, &mut commission_calc)?;
-
-        converter.convert_to(util::today(), commission, currency)
+        calculate_target_commission(
+            name, holding, target_shares, &mut commission_calc, currency, converter)
     };
 
     let target_shares_fractional = target_value / holding.price;
@@ -579,10 +581,11 @@ fn change_to(
 }
 
 fn calculate_target_commission(
-    name: &str, holding: &StockHolding, target_shares: u32, commission_calc: &mut CommissionCalc
-) -> GenericResult<Cash> {
+    name: &str, holding: &StockHolding, target_shares: u32, commission_calc: &mut CommissionCalc,
+    currency: &str, converter: &CurrencyConverter,
+) -> GenericResult<Decimal> {
     if target_shares == holding.current_shares {
-        return Ok(Cash::new(commission_calc.currency(), dec!(0)))
+        return Ok(dec!(0))
     }
 
     let (trade_type, shares) = if target_shares > holding.current_shares {
@@ -591,41 +594,51 @@ fn calculate_target_commission(
         (TradeType::Sell, holding.current_shares - target_shares)
     };
 
-    Ok(commission_calc.add_trade(util::today(), trade_type, shares, holding.currency_price)
-        .map_err(|e| format!("{}: {}", name, e))?)
+    let date = util::today();
+    let commission = commission_calc.add_trade(date, trade_type, shares, holding.currency_price)
+        .map_err(|e| format!("{}: {}", name, e))?;
+
+    converter.convert_to(date, commission, currency)
 }
 
-// FIXME: Validate in caller
-fn calculate_additional_commissions(portfolio: &Portfolio, converter: &CurrencyConverter) -> GenericResult<Decimal> {
+fn calculate_total_commissions(portfolio: &Portfolio, converter: &CurrencyConverter) -> GenericResult<(Decimal, Decimal)> {
     let mut commission_calc = CommissionCalc::new(portfolio.broker.commission_spec.clone());
-    calculate_additional_commissions_inner(&portfolio.assets, &mut commission_calc)?;
+
+    let trade_commissions = calculate_trade_commissions(
+        &portfolio.assets, &mut commission_calc, &portfolio.currency, converter)?;
 
     let date = util::today();
-    let mut commissions = dec!(0);
+    let mut additional_commissions = dec!(0);
 
     for &commission in commission_calc.calculate().values() {
-        commissions += converter.convert_to(date, commission, &portfolio.currency)?;
+        additional_commissions += converter.convert_to(date, commission, &portfolio.currency)?;
     }
 
-    Ok(commissions)
+    Ok((trade_commissions, additional_commissions))
 }
 
-fn calculate_additional_commissions_inner(
-    assets: &[AssetAllocation], commission_calc: &mut CommissionCalc
-) -> EmptyResult {
+fn calculate_trade_commissions(
+    assets: &[AssetAllocation], commission_calc: &mut CommissionCalc,
+    currency: &str, converter: &CurrencyConverter,
+) -> GenericResult<Decimal> {
+    let mut trade_commissions = dec!(0);
+
     for asset in assets {
         match &asset.holding {
             Holding::Stock(holding) => {
-                calculate_target_commission(
-                    &asset.full_name(), holding, holding.target_shares, commission_calc)?;
+                trade_commissions += calculate_target_commission(
+                    &asset.full_name(), holding, holding.target_shares, commission_calc,
+                    currency, converter,
+                )?;
             },
             Holding::Group(assets) => {
-                calculate_additional_commissions_inner(assets, commission_calc)?;
+                trade_commissions += calculate_trade_commissions(
+                    assets, commission_calc, currency, converter)?;
             },
         }
     }
 
-    Ok(())
+    Ok(trade_commissions)
 }
 
 fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {

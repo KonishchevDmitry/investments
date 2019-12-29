@@ -97,6 +97,15 @@ impl Portfolio {
 
         Ok(portfolio)
     }
+
+    pub fn change_commission(&mut self, commission: Decimal) {
+        // The commission may be positive in case of withdrawal or negative in case of reverting of
+        // previously withdrawn commission.
+
+        self.commissions += commission;
+        self.total_value -= commission;
+        self.target_cash_assets -= commission;
+    }
 }
 
 pub enum Holding {

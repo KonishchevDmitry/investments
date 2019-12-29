@@ -84,10 +84,6 @@ impl CommissionCalc {
         }
     }
 
-    pub fn currency(&self) -> &str {
-        self.spec.currency
-    }
-
     pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
         let mut commission = self.add_trade_precise(date, trade_type, shares, price)?;
         commission.amount = util::round_with(commission.amount, 2, self.spec.rounding_method);
