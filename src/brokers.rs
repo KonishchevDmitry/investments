@@ -121,7 +121,7 @@ impl<'de> Deserialize<'de> for Broker {
 pub struct BrokerInfo {
     pub name: &'static str,
     config: BrokerConfig,
-    pub commission_spec: CommissionSpec,
+    pub commission_spec: CommissionSpec,  // FIXME: Use reference counter?
     pub allow_sparse_broker_statements: bool,
 }
 
