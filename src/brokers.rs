@@ -1,17 +1,17 @@
-#![allow(unused_imports)] // FIXME
-
 #[cfg(test)] use std::collections::HashMap;
 
 use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
+#[cfg(test)] use crate::commissions::CommissionCalc;
 use crate::commissions::{
-    CommissionCalc, CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
-    TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder, TransactionCommissionSpec};
+    CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
+    TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
 use crate::config::{Config, BrokerConfig};
 use crate::core::GenericResult;
-use crate::currency::{Cash, CashAssets};
+#[cfg(test)] use crate::currency::Cash;
+use crate::currency::CashAssets;
 use crate::types::{Decimal, TradeType};
 use crate::util::RoundingMethod;
 
@@ -124,7 +124,7 @@ impl<'de> Deserialize<'de> for Broker {
 pub struct BrokerInfo {
     pub name: &'static str,
     config: BrokerConfig,
-    pub commission_spec: CommissionSpec,  // FIXME: Use reference counter?
+    pub commission_spec: CommissionSpec,
     pub allow_sparse_broker_statements: bool,
 }
 
