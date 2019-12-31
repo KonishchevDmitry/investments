@@ -156,23 +156,18 @@ mod tests {
         let currency = "RUB";
         let mut calc = CommissionCalc::new(
             // FIXME: Support all commissions
-            /*
-            Урегулирование сделок	0,01
-
-            До 100 000	0,0531
-            От 100 000 до 300 000	0,0413
-            От 300 000 до 1 000 000	0,0354
-            От 1 000 000 до 5 000 000	0,0295
-            От 5 000 000 до 15 000 000	0,0236
-            Свыше 15 000 000	0,0177
-            */
             CommissionSpecBuilder::new("RUB")
                 .rounding_method(RoundingMethod::Truncate)
                 .cumulative(CumulativeCommissionSpecBuilder::new()
                     .tiers(btreemap!{
-                        dec!(0) => dec!(0.0531),
-                        dec!(100_000) => dec!(0.0413),
+                        dec!(         0) => dec!(0.0531),
+                        dec!(   100_000) => dec!(0.0413),
+                        dec!(   300_000) => dec!(0.0354),
+                        dec!( 1_000_000) => dec!(0.0295),
+                        dec!( 5_000_000) => dec!(0.0236),
+                        dec!(15_000_000) => dec!(0.0177),
                     }).unwrap()
+                    .minimum_daily(dec!(35.4))
                     .percent_fee(dec!(0.01)) // Exchange fee
                     .build())
                 .build()
