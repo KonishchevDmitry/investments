@@ -87,7 +87,7 @@ impl CurrencyInfo {
     pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<CurrencyInfo> {
         let (currency_code, currency_name, currency_rate_units) = match currency {
             "RUB" => (643, "Российский рубль", 1000),
-            "USD" => (840, "Доллар сша", 100),
+            "USD" => (840, "Доллар США", 100),
             _ => return Err!("{} currency is not supported yet", currency),
         };
         let currency_rate = currency::round(precise_currency_rate * Decimal::from(currency_rate_units));
