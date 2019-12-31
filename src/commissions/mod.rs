@@ -27,7 +27,7 @@ pub struct TradeCommissionSpec {
     transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Copy, Debug)]
 pub struct TransactionCommissionSpec {
     percent: Option<Decimal>,
     per_share: Option<Decimal>,
@@ -67,8 +67,17 @@ impl TransactionCommissionSpec {
 
 #[derive(Default, Clone, Debug)]
 pub struct CumulativeCommissionSpec {
+    // Broker commissions
     tiers: Option<BTreeMap<Decimal, Decimal>>,
     minimum_daily: Option<Decimal>,
+
+    // Additional fees (exchange, regulatory and clearing)
+    fees: Vec<CumulativeFeeSpec>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CumulativeFeeSpec {
+    percent: Decimal,
 }
 
 pub struct CommissionCalc {
@@ -121,22 +130,27 @@ impl CommissionCalc {
     }
 
     fn calculate_daily(&self, volume: Decimal) -> Decimal {
-        let tiers = match self.spec.cumulative.tiers {
-            Some(ref tiers) => tiers,
-            None => return dec!(0),
+        let mut commission = if let Some(ref tiers) = self.spec.cumulative.tiers {
+            let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume)))
+                .last().unwrap().1;
+
+            util::round_with(volume * percent / dec!(100), 2, self.spec.rounding_method)
+        } else {
+            dec!(0)
         };
 
-        let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume))).last().unwrap().1;
-        let mut commission = volume * percent / dec!(100);
-
-        // FIXME: Excluding exchange commission?
         if let Some(minimum) = self.spec.cumulative.minimum_daily {
             if commission < minimum {
                 commission = minimum;
             }
         }
 
-        util::round_with(commission, 2, self.spec.rounding_method)
+        let mut fees = dec!(0);
+        for fee in &self.spec.cumulative.fees {
+            fees += util::round_with(volume * fee.percent / dec!(100), 2, self.spec.rounding_method);
+        }
+
+        commission + fees
     }
 }
 

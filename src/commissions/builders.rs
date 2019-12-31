@@ -4,7 +4,10 @@ use crate::core::GenericResult;
 use crate::types::{Decimal, TradeType};
 use crate::util::RoundingMethod;
 
-use super::{CommissionSpec, TradeCommissionSpec, TransactionCommissionSpec, CumulativeCommissionSpec};
+use super::{
+    CommissionSpec, TradeCommissionSpec, TransactionCommissionSpec,
+    CumulativeCommissionSpec, CumulativeFeeSpec
+};
 
 pub struct CommissionSpecBuilder(CommissionSpec);
 
@@ -121,6 +124,13 @@ impl CumulativeCommissionSpecBuilder {
 
     pub fn minimum_daily(mut self, minimum: Decimal) -> CumulativeCommissionSpecBuilder {
         self.0.minimum_daily.replace(minimum);
+        self
+    }
+
+    pub fn percent_fee(mut self, percent: Decimal) -> CumulativeCommissionSpecBuilder {
+        self.0.fees.push(CumulativeFeeSpec {
+            percent: percent,
+        });
         self
     }
 

@@ -168,10 +168,13 @@ mod tests {
             */
             CommissionSpecBuilder::new("RUB")
                 .rounding_method(RoundingMethod::Truncate)
-                .cumulative(CumulativeCommissionSpecBuilder::new().tiers(btreemap!{
-                        dec!(0) => dec!(0.0531) + dec!(0.01),
-                        dec!(100_000) => dec!(0.0413) + dec!(0.01),
-                    }).unwrap().build())
+                .cumulative(CumulativeCommissionSpecBuilder::new()
+                    .tiers(btreemap!{
+                        dec!(0) => dec!(0.0531),
+                        dec!(100_000) => dec!(0.0413),
+                    }).unwrap()
+                    .percent_fee(dec!(0.01)) // Exchange fee
+                    .build())
                 .build()
         );
 
@@ -188,8 +191,8 @@ mod tests {
         }
 
         assert_eq!(calc.calculate(), hashmap!{
-            date!(2, 12, 2019) => Cash::new(currency, dec!(85.02)),
-            date!(3, 12, 2019) => Cash::new(currency, dec!(52.82)),
+            date!(2, 12, 2019) => Cash::new(currency, dec!(68.45) + dec!(16.57)),
+            date!(3, 12, 2019) => Cash::new(currency, dec!(44.45) + dec!( 8.37)),
         });
     }
 
