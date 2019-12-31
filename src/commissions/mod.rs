@@ -3,6 +3,7 @@ mod builders;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
+use chrono::Datelike;
 use num_traits::Zero;
 
 use crate::core::GenericResult;
@@ -70,6 +71,7 @@ pub struct CumulativeCommissionSpec {
     // Broker commissions
     tiers: Option<BTreeMap<Decimal, Decimal>>,
     minimum_daily: Option<Decimal>,
+    minimum_monthly: Option<Decimal>,
 
     // Additional fees (exchange, regulatory and clearing)
     fees: Vec<CumulativeFeeSpec>,
@@ -119,17 +121,47 @@ impl CommissionCalc {
     }
 
     pub fn calculate(self) -> HashMap<Date, Cash> {
-        self.volume.iter().filter_map(|(&date, &volume)| {
-            let commission = self.calculate_daily(volume);
-            if commission.is_zero() {
-                None
-            } else {
-                Some((date, Cash::new(self.spec.currency, commission)))
+        let mut total_by_date = HashMap::new();
+        let mut monthly = HashMap::new();
+
+        for (&date, &volume) in &self.volume {
+            let (commission, fee) = self.calculate_daily(volume);
+
+            let total = commission + fee;
+            if !total.is_zero() {
+                total_by_date.insert(date, total);
             }
+
+            monthly.entry((date.year(), date.month()))
+                .and_modify(|total| *total += commission)
+                .or_insert(commission);
+        }
+
+        if let Some(minimum_monthly) = self.spec.cumulative.minimum_monthly {
+            for (&(year, month), &commission) in &monthly {
+                if commission >= minimum_monthly {
+                    continue;
+                }
+                let additional_commission = minimum_monthly - commission;
+
+                let date = if month == 12 {
+                    Date::from_ymd(year + 1, 1, 1)
+                } else {
+                    Date::from_ymd(year, month + 1, 1)
+                };
+
+                total_by_date.entry(date)
+                    .and_modify(|total| *total += additional_commission)
+                    .or_insert(additional_commission);
+            }
+        }
+
+        total_by_date.iter().map(|(&date, &commission)| {
+            (date, Cash::new(self.spec.currency, commission))
         }).collect()
     }
 
-    fn calculate_daily(&self, volume: Decimal) -> Decimal {
+    fn calculate_daily(&self, volume: Decimal) -> (Decimal, Decimal) {
         let mut commission = if let Some(ref tiers) = self.spec.cumulative.tiers {
             let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume)))
                 .last().unwrap().1;
@@ -150,7 +182,7 @@ impl CommissionCalc {
             fees += util::round_with(volume * fee.percent / dec!(100), 2, self.spec.rounding_method);
         }
 
-        commission + fees
+        (commission, fees)
     }
 }
 

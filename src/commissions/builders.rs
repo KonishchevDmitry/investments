@@ -127,6 +127,11 @@ impl CumulativeCommissionSpecBuilder {
         self
     }
 
+    pub fn minimum_monthly(mut self, minimum: Decimal) -> CumulativeCommissionSpecBuilder {
+        self.0.minimum_monthly.replace(minimum);
+        self
+    }
+
     pub fn percent_fee(mut self, percent: Decimal) -> CumulativeCommissionSpecBuilder {
         self.0.fees.push(CumulativeFeeSpec {
             percent: percent,

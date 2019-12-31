@@ -168,6 +168,7 @@ mod tests {
                         dec!(15_000_000) => dec!(0.0177),
                     }).unwrap()
                     .minimum_daily(dec!(35.4))
+                    .minimum_monthly(dec!(177))
                     .percent_fee(dec!(0.01)) // Exchange fee
                     .build())
                 .build()
@@ -188,6 +189,7 @@ mod tests {
         assert_eq!(calc.calculate(), hashmap!{
             date!(2, 12, 2019) => Cash::new(currency, dec!(68.45) + dec!(16.57)),
             date!(3, 12, 2019) => Cash::new(currency, dec!(44.45) + dec!( 8.37)),
+            date!(1,  1, 2020) => Cash::new(currency, dec!(64.10)),
         });
     }
 
