@@ -139,6 +139,11 @@ impl CumulativeCommissionSpecBuilder {
         self
     }
 
+    pub fn monthly_depositary(mut self, amount: Decimal) -> CumulativeCommissionSpecBuilder {
+        self.0.monthly_depositary.replace(amount);
+        self
+    }
+
     pub fn build(self) -> CumulativeCommissionSpec {
         self.0
     }

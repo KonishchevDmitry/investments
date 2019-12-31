@@ -138,11 +138,6 @@ impl BrokerInfo {
 
         Ok(commission_spec.fixed_amount)
     }
-
-    // FIXME: A temporary solution for transition period
-    pub fn get_trade_commission(&self, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
-        CommissionCalc::new(self.commission_spec.clone()).add_trade(date!(1, 1, 2000), trade_type, shares, price)
-    }
 }
 
 #[cfg(test)]
@@ -150,7 +145,6 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    // FIXME: Add more test data
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn bcs_commission(trade_type: TradeType) {
         let currency = "RUB";
@@ -170,6 +164,7 @@ mod tests {
                     .minimum_daily(dec!(35.4))
                     .minimum_monthly(dec!(177))
                     .percent_fee(dec!(0.01)) // Exchange fee
+                    .monthly_depositary(dec!(177))
                     .build())
                 .build()
         );
@@ -188,8 +183,13 @@ mod tests {
 
         assert_eq!(calc.calculate(), hashmap!{
             date!(2, 12, 2019) => Cash::new(currency, dec!(68.45) + dec!(16.57)),
-            date!(3, 12, 2019) => Cash::new(currency, dec!(44.45) + dec!( 8.37)),
-            date!(1,  1, 2020) => Cash::new(currency, dec!(64.10)),
+            date!(3, 12, 2019) => Cash::new(currency, dec!(44.45) + dec!(8.37)),
+
+            // Actually we have different dates, but use fist day of the next month for simplicity
+            date!(1,  1, 2020) => Cash::new(currency,
+                dec!(64.10) + // Monthly minimum
+                dec!(177) // Monthly depositary
+            ),
         });
     }
 

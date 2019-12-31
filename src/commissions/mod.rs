@@ -75,6 +75,9 @@ pub struct CumulativeCommissionSpec {
 
     // Additional fees (exchange, regulatory and clearing)
     fees: Vec<CumulativeFeeSpec>,
+
+    // Depositary
+    monthly_depositary: Option<Decimal>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -139,20 +142,20 @@ impl CommissionCalc {
 
         if let Some(minimum_monthly) = self.spec.cumulative.minimum_monthly {
             for (&(year, month), &commission) in &monthly {
-                if commission >= minimum_monthly {
-                    continue;
+                if commission < minimum_monthly {
+                    let additional_commission = minimum_monthly - commission;
+                    total_by_date.entry(get_monthly_commission_date(year, month))
+                        .and_modify(|total| *total += additional_commission)
+                        .or_insert(additional_commission);
                 }
-                let additional_commission = minimum_monthly - commission;
+            }
+        }
 
-                let date = if month == 12 {
-                    Date::from_ymd(year + 1, 1, 1)
-                } else {
-                    Date::from_ymd(year, month + 1, 1)
-                };
-
-                total_by_date.entry(date)
-                    .and_modify(|total| *total += additional_commission)
-                    .or_insert(additional_commission);
+        if let Some(monthly_depositary) = self.spec.cumulative.monthly_depositary {
+            for &(year, month) in monthly.keys() {
+                total_by_date.entry(get_monthly_commission_date(year, month))
+                    .and_modify(|total| *total += monthly_depositary)
+                    .or_insert(monthly_depositary);
             }
         }
 
@@ -196,4 +199,12 @@ fn get_trade_volume(commission_currency: &str, volume: Cash) -> GenericResult<De
     }
 
     Ok(volume.amount)
+}
+
+fn get_monthly_commission_date(year: i32, month: u32) -> Date {
+    if month == 12 {
+        Date::from_ymd(year + 1, 1, 1)
+    } else {
+        Date::from_ymd(year, month + 1, 1)
+    }
 }
