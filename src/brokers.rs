@@ -71,6 +71,7 @@ impl Broker {
                     .build())
                 .rounding_method(RoundingMethod::Truncate)
                 .build(),
+
             Broker::InteractiveBrokers => CommissionSpecBuilder::new("USD")
                 .trade(TradeCommissionSpecBuilder::new()
                     .commission(TransactionCommissionSpecBuilder::new()
@@ -91,7 +92,7 @@ impl Broker {
 
                     .build())
                 .build(),
-            // FIXME: Support depository commission
+
             Broker::OpenBroker => CommissionSpecBuilder::new("RUB")
                 .trade(TradeCommissionSpecBuilder::new()
                     .commission(TransactionCommissionSpecBuilder::new()
@@ -99,6 +100,8 @@ impl Broker {
                         .percent(dec!(0.057))
                         .build().unwrap())
                     .build())
+                .cumulative(CumulativeCommissionSpecBuilder::new()
+                    .monthly_depositary(dec!(175)).build())
                 .build(),
         }
     }
@@ -236,6 +239,9 @@ mod tests {
             Cash::new(currency, dec!(0.04)),
         );
 
-        assert_eq!(calc.calculate(), HashMap::new());
+        assert_eq!(calc.calculate(), hashmap!{
+            // Actually we have different date, but use fist day of the next month for simplicity
+            date!(1, 1, 2018) => Cash::new(currency, dec!(175)), // Depositary commission
+        });
     }
 }
