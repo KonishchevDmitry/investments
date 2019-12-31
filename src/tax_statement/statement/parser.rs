@@ -282,7 +282,7 @@ mod tests {
         compare_to(&statement, &data);
     }
 
-    // FIXME: Provide real broker statement
+    // FIXME: Provide real tax statement
     #[test]
     fn parse_real() {
         test_parsing(&get_path("statement"));

@@ -54,49 +54,52 @@ impl Broker {
 
     fn get_commission_spec(self) -> CommissionSpec {
         match self {
-            // FIXME: BCS has tiered commissions that aren't supported yet, so use some average now
-            Broker::Bcs => {
-                CommissionSpecBuilder::new("RUB")
-                    .trade(TradeCommissionSpecBuilder::new()
-                        .commission(TransactionCommissionSpecBuilder::new()
-                            .percent(dec!(0.057))
-                            .build().unwrap())
-                        .build())
-                    .build()
-            },
-            Broker::InteractiveBrokers => {
-                CommissionSpecBuilder::new("USD")
-                    .trade(TradeCommissionSpecBuilder::new()
-                        .commission(TransactionCommissionSpecBuilder::new()
-                            .minimum(dec!(1))
-                            .per_share(dec!(0.005))
-                            .maximum_percent(dec!(1))
-                            .build().unwrap())
+            Broker::Bcs => CommissionSpecBuilder::new("RUB")
+                .cumulative(CumulativeCommissionSpecBuilder::new()
+                    .tiers(btreemap!{
+                        dec!(         0) => dec!(0.0531),
+                        dec!(   100_000) => dec!(0.0413),
+                        dec!(   300_000) => dec!(0.0354),
+                        dec!( 1_000_000) => dec!(0.0295),
+                        dec!( 5_000_000) => dec!(0.0236),
+                        dec!(15_000_000) => dec!(0.0177),
+                    }).unwrap()
+                    .minimum_daily(dec!(35.4))
+                    .minimum_monthly(dec!(177))
+                    .percent_fee(dec!(0.01)) // Exchange fee
+                    .monthly_depositary(dec!(177))
+                    .build())
+                .rounding_method(RoundingMethod::Truncate)
+                .build(),
+            Broker::InteractiveBrokers => CommissionSpecBuilder::new("USD")
+                .trade(TradeCommissionSpecBuilder::new()
+                    .commission(TransactionCommissionSpecBuilder::new()
+                        .minimum(dec!(1))
+                        .per_share(dec!(0.005))
+                        .maximum_percent(dec!(1))
+                        .build().unwrap())
 
-                        // Stock selling fee
-                        .transaction_fee(TradeType::Sell, TransactionCommissionSpecBuilder::new()
-                            .percent(dec!(0.0013))
-                            .build().unwrap())
+                    // Stock selling fee
+                    .transaction_fee(TradeType::Sell, TransactionCommissionSpecBuilder::new()
+                        .percent(dec!(0.0013))
+                        .build().unwrap())
 
-                        // FINRA trading activity fee
-                        .transaction_fee(TradeType::Sell, TransactionCommissionSpecBuilder::new()
-                            .per_share(dec!(0.000119))
-                            .build().unwrap())
+                    // FINRA trading activity fee
+                    .transaction_fee(TradeType::Sell, TransactionCommissionSpecBuilder::new()
+                        .per_share(dec!(0.000119))
+                        .build().unwrap())
 
-                        .build())
-                    .build()
-            },
-            Broker::OpenBroker => {
-                // FIXME: Support depository commission
-                CommissionSpecBuilder::new("RUB")
-                    .trade(TradeCommissionSpecBuilder::new()
-                        .commission(TransactionCommissionSpecBuilder::new()
-                            .minimum(dec!(0.04))
-                            .percent(dec!(0.057))
-                            .build().unwrap())
-                        .build())
-                    .build()
-            },
+                    .build())
+                .build(),
+            // FIXME: Support depository commission
+            Broker::OpenBroker => CommissionSpecBuilder::new("RUB")
+                .trade(TradeCommissionSpecBuilder::new()
+                    .commission(TransactionCommissionSpecBuilder::new()
+                        .minimum(dec!(0.04))
+                        .percent(dec!(0.057))
+                        .build().unwrap())
+                    .build())
+                .build(),
         }
     }
 }
@@ -147,28 +150,9 @@ mod tests {
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn bcs_commission(trade_type: TradeType) {
-        let currency = "RUB";
-        let mut calc = CommissionCalc::new(
-            // FIXME: Support all commissions
-            CommissionSpecBuilder::new("RUB")
-                .rounding_method(RoundingMethod::Truncate)
-                .cumulative(CumulativeCommissionSpecBuilder::new()
-                    .tiers(btreemap!{
-                        dec!(         0) => dec!(0.0531),
-                        dec!(   100_000) => dec!(0.0413),
-                        dec!(   300_000) => dec!(0.0354),
-                        dec!( 1_000_000) => dec!(0.0295),
-                        dec!( 5_000_000) => dec!(0.0236),
-                        dec!(15_000_000) => dec!(0.0177),
-                    }).unwrap()
-                    .minimum_daily(dec!(35.4))
-                    .minimum_monthly(dec!(177))
-                    .percent_fee(dec!(0.01)) // Exchange fee
-                    .monthly_depositary(dec!(177))
-                    .build())
-                .build()
-        );
+        let mut calc = CommissionCalc::new(Broker::Bcs.get_commission_spec());
 
+        let currency = "RUB";
         for &(date, shares, price) in &[
             (date!(2, 12, 2019),  35, dec!(2959.5)),
             (date!(2, 12, 2019),   3, dec!(2960)),
