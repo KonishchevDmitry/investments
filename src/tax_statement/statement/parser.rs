@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use encoding_rs;
 use lazy_static::lazy_static;
-use log::debug;
+use log::{debug, warn};
 use regex::Regex;
 #[cfg(test)] use tempfile::NamedTempFile;
 
@@ -18,6 +18,8 @@ use super::TaxStatement;
 use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
+
+const SUPPORTED_YEAR: i32 = 2019;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,
@@ -34,6 +36,14 @@ impl TaxStatementReader {
             .and_then(|captures| captures.get(1).unwrap().as_str().parse::<u8>().ok())
             .ok_or_else(||"Invalid tax statement file extension: *.dcX is expected")?;
         let year = 2010 + i32::from(year);
+
+        if year != SUPPORTED_YEAR {
+            warn!(concat!(
+                "Only *{} tax statements ({} year) are supported by the program. ",
+                "Reading or writing tax statements for other years may have issues or won't work ",
+                "at all."
+            ), get_extension(SUPPORTED_YEAR), SUPPORTED_YEAR);
+        }
 
         let mut reader = TaxStatementReader {
             file: BufReader::new(File::open(path)?),
@@ -201,6 +211,10 @@ impl TaxStatementWriter {
     }
 }
 
+fn get_extension(year: i32) -> String {
+    format!(".dc{}", year - 2010)
+}
+
 fn get_header(year: i32) -> String {
     format!(r"DLSG            Decl{}0102FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year)
 }
@@ -216,8 +230,6 @@ fn encode(data: &str) -> GenericResult<Cow<[u8]>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const VERSION: i32 = 9;
 
     #[test]
     fn parse_empty() {
@@ -280,7 +292,7 @@ mod tests {
         let data = get_contents(path);
 
         let statement = TaxStatementReader::read(path).unwrap();
-        assert_eq!(statement.year, 2010 + VERSION);
+        assert_eq!(statement.year, SUPPORTED_YEAR);
         compare_to(&statement, &data);
 
         statement
@@ -295,7 +307,7 @@ mod tests {
     }
 
     fn get_path(name: &str) -> String {
-        format!("testdata/{}.dc{}", name, VERSION)
+        format!("testdata/{}{}", name, get_extension(SUPPORTED_YEAR))
     }
 
     fn get_contents(path: &str) -> String {
