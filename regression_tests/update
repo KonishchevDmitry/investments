@@ -7,6 +7,9 @@ set -eu
 
 (cd testdata && ./update)
 
+./regression_tests/investments sync bcs
+./regression_tests/investments cash bcs 100000
+
 ./regression_tests/investments sync ib
 ./regression_tests/investments cash ib 10000
 
