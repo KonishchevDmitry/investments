@@ -39,10 +39,14 @@ $ cd investments
 $ cargo install --path . --bin investments
 ```
 
-Use the following command to recompile the project after update to a new version:
+#### Update to a new version
+
 ```
-cargo install --path . --bin investments --force
+$ git pull
+$ cargo install --path . --bin investments --force
 ```
+
+If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
 
 ### Configuration
 
