@@ -34,7 +34,7 @@ matches = "*"
 num-traits = "*"
 prettytable-rs = "*"
 regex = "*"
-reqwest = "0.9.24"  # FIXME: Support the latest
+reqwest = { version = "*", features = ["blocking", "json"] }
 rust_decimal = "*"
 rust_decimal_macros = "*"
 separator = "*"

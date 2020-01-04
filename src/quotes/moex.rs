@@ -3,7 +3,8 @@ use std::str::FromStr;
 
 use log::error;
 use num_traits::Zero;
-use reqwest::{Client, Url};
+use reqwest::Url;
+use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
@@ -39,7 +40,7 @@ impl QuotesProvider for Moex {
         )?;
 
         let get = |url| -> GenericResult<HashMap<String, Cash>> {
-            let mut response = Client::new().get(url).send()?;
+            let response = Client::new().get(url).send()?;
             if !response.status().is_success() {
                 return Err!("The server returned an error: {}", response.status());
             }

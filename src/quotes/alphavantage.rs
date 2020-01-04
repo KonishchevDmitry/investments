@@ -7,7 +7,8 @@ use chrono::{DateTime, TimeZone};
 use chrono_tz::Tz;
 use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
-use reqwest::{Client, Url, Response};
+use reqwest::Url;
+use reqwest::blocking::{Client, Response};
 use serde::Deserialize;
 
 use crate::core::GenericResult;
@@ -44,12 +45,12 @@ impl QuotesProvider for AlphaVantage {
         ])?;
 
         let get = |url| -> GenericResult<HashMap<String, Cash>> {
-            let mut response = Client::new().get(url).send()?;
+            let response = Client::new().get(url).send()?;
             if !response.status().is_success() {
                 return Err!("The server returned an error: {}", response.status());
             }
 
-            Ok(parse_quotes(&mut response).map_err(|e| format!(
+            Ok(parse_quotes(response).map_err(|e| format!(
                 "Quotes info parsing error: {}", e))?)
         };
 
@@ -58,7 +59,7 @@ impl QuotesProvider for AlphaVantage {
     }
 }
 
-fn parse_quotes(response: &mut Response) -> GenericResult<HashMap<String, Cash>> {
+fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     #[derive(Deserialize)]
     struct Response {
         #[serde(rename = "Meta Data")]

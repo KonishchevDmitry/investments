@@ -3,7 +3,8 @@ use std::str::FromStr;
 #[cfg(test)] use indoc::indoc;
 use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
-use reqwest::{self, Url};
+use reqwest::Url;
+use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde_xml_rs;
 
@@ -39,7 +40,7 @@ pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericRes
         debug!("Getting {} currency rates for {} - {}...", currency,
                formatting::format_date(start_date), formatting::format_date(end_date));
 
-        let mut response = reqwest::Client::new().get(url).send()?;
+        let response = Client::new().get(url).send()?;
         if !response.status().is_success() {
             return Err!("The server returned an error: {}", response.status());
         }
