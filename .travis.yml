@@ -9,8 +9,8 @@ rust:
   - nightly
 
 env:
-  - UPDATE_DEPENDENCIES=false
-  - UPDATE_DEPENDENCIES=true
+  - UPGRADE_DEPENDENCIES=false
+  - UPGRADE_DEPENDENCIES=true
 
 matrix:
   allow_failures:
@@ -19,7 +19,7 @@ matrix:
   fast_finish: true
 
 install:
-  - test $UPDATE_DEPENDENCIES != true || cargo update
+  - test $UPGRADE_DEPENDENCIES != true || ./upgrade
   - cargo build
 
 before_script:
