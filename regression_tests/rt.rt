@@ -135,6 +135,13 @@ APP: regression_tests/test-tax-statement
      2019
      $OUT_PATH/ib-tax-statement-2019.dc9
 DIFF: rt-binary
+[18]
+NAME: IB tax statement 2020
+STDOUT: ib-tax-statement-2020
+APP: regression_tests/investments
+     tax-statement
+     ib
+     2020
 
 [24]
 NAME: Open Broker tax statement
