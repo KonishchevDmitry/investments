@@ -8,7 +8,7 @@ authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
 proc-macro = true
 
 [dependencies]
-darling = ">= 0.10"
-proc-macro2 = ">= 1"
-quote = ">= 1"
-syn = ">= 1"
+darling = "0.10.2"
+proc-macro2 = "1.0.7"
+quote = "1.0.2"
+syn = "1.0.13"
