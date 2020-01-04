@@ -29,21 +29,13 @@ No action required.
 **Ubuntu:**
 
 ```
-$ sudo apt install libsqlite3-dev
+sudo apt install libsqlite3-dev
 ```
 
-3. Compile the project:
-```
-$ git clone https://github.com/KonishchevDmitry/investments.git
-$ cd investments
-$ cargo install --path . --bin investments
-```
-
-#### Update to a new version
+3. Compile and install or upgrade to the latest version:
 
 ```
-$ git pull
-$ cargo install --path . --bin investments --force
+cargo install --git https://github.com/KonishchevDmitry/investments.git --bin investments --force
 ```
 
 If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
