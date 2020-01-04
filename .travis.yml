@@ -22,9 +22,6 @@ install:
   - test $UPGRADE_DEPENDENCIES != true || ./upgrade
   - cargo build
 
-before_script:
-  - rustup component add clippy
-
 script:
   - ./check || true
 
