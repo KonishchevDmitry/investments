@@ -1,14 +1,17 @@
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 #[cfg(test)] use indoc::indoc;
+use log::trace;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use num_traits::FromPrimitive;
+use rayon::prelude::*;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde::de::{Deserializer, DeserializeOwned, Error};
 
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
@@ -28,6 +31,28 @@ impl Finnhub {
         }
     }
 
+    fn get_quote(&self, symbol: &str) -> GenericResult<Option<Cash>> {
+        #[derive(Deserialize)]
+        struct Profile {
+            currency: Option<String>,
+        }
+
+        #[derive(Deserialize)]
+        struct Quote {
+            #[serde(rename = "c", deserialize_with = "deserialize_price")]
+            current: Decimal,
+        }
+
+        let profile: Profile = self.query("stock/profile", symbol)?;
+        let currency = match profile.currency {
+            Some(currency) => currency,
+            None => return Ok(None)
+        };
+
+        let quote: Quote = self.query("quote", symbol)?;
+        Ok(Some(Cash::new(&currency, quote.current)))
+    }
+
     fn query<T: DeserializeOwned>(&self, method: &str, symbol: &str) -> GenericResult<T> {
         #[cfg(not(test))] let base_url = "https://finnhub.io";
         #[cfg(test)] let base_url = mockito::server_url();
@@ -38,7 +63,14 @@ impl Finnhub {
         ])?;
 
         let get = |url| -> GenericResult<T> {
+            // Rate limits:
+            // * 60 calls/minute
+            // * 30 calls/second
+
+            trace!("Sending request to {}...", url);
             let response = self.client.get(url).send()?;
+            trace!("Got response from {}.", url);
+
             if !response.status().is_success() {
                 return Err!("The server returned an error: {}", response.status());
             }
@@ -57,31 +89,22 @@ impl QuotesProvider for Finnhub {
     }
 
     fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
-        #[derive(Deserialize)]
-        struct Profile {
-            currency: Option<String>,
+        let quotes = Mutex::new(HashMap::new());
+
+        if let Some(error) = symbols.par_iter().map(|symbol| -> EmptyResult {
+            if let Some(price) = self.get_quote(symbol)? {
+                let mut quotes = quotes.lock().unwrap();
+                quotes.insert(symbol.clone(), price);
+            }
+            Ok(())
+        }).find_map_any(|result| match result {
+            Err(error) => Some(error),
+            Ok(()) => None,
+        }) {
+            return Err(error);
         }
 
-        #[derive(Deserialize)]
-        struct Quote {
-            #[serde(rename = "c", deserialize_with = "deserialize_price")]
-            current: Decimal,
-        }
-
-        let mut quotes = HashMap::new();
-
-        for symbol in symbols {
-            let profile: Profile = self.query("stock/profile", &symbol)?;
-            let currency = match profile.currency {
-                Some(currency) => currency,
-                None => continue,
-            };
-
-            let quote: Quote = self.query("quote", &symbol)?;
-            quotes.insert(symbol.clone(), Cash::new(&currency, quote.current));
-        }
-
-        Ok(quotes)
+        Ok(quotes.into_inner().unwrap())
     }
 }
 
