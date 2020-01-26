@@ -22,6 +22,7 @@ pub struct AlphaVantage {
 }
 
 impl AlphaVantage {
+    #[allow(dead_code)] // FIXME: Deprecate Alpha Vantage support?
     pub fn new(token: &str) -> AlphaVantage {
         AlphaVantage {
             api_key: token.to_owned(),

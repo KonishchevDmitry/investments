@@ -8,12 +8,13 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::db;
 
-use self::alphavantage::AlphaVantage;
 use self::cache::Cache;
+use self::finnhub::Finnhub;
 use self::moex::Moex;
 
 mod alphavantage;
 mod cache;
+mod finnhub;
 mod moex;
 
 pub struct Quotes {
@@ -24,11 +25,11 @@ pub struct Quotes {
 
 impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
-        let alphavantage = config.alphavantage.as_ref().ok_or(
-            "Alpha Vantage configuration is not set in the configuration file")?;
+        let finnhub = config.finnhub.as_ref().ok_or(
+            "Finnhub configuration is not set in the configuration file")?;
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time), vec![
-            Box::new(AlphaVantage::new(&alphavantage.api_key)),
+            Box::new(Finnhub::new(&finnhub.token)),
             Box::new(Moex::new()),
         ]))
     }

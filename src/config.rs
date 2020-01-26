@@ -34,6 +34,7 @@ pub struct Config {
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
     pub alphavantage: Option<AlphaVantageConfig>,
+    pub finnhub: Option<FinnhubConfig>,
 }
 
 impl Config {
@@ -49,6 +50,7 @@ impl Config {
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
             alphavantage: None,
+            finnhub: None,
         }
     }
 
@@ -196,6 +198,12 @@ pub struct TransactionCommissionSpec {
 #[serde(deny_unknown_fields)]
 pub struct AlphaVantageConfig {
     pub api_key: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct FinnhubConfig {
+    pub token: String,
 }
 
 pub fn load_config(path: &str) -> GenericResult<Config> {

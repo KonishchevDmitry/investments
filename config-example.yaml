@@ -94,9 +94,9 @@ brokers:
       RUB:
         fixed_amount: 0
 
-alphavantage:
-  # API key that must be obtained here - https://www.alphavantage.co/support/#api-key
-  api_key: secret
+finnhub:
+  # API token that must be obtained here - https://finnhub.io/register
+  token: secret
 
 
 deposits:
