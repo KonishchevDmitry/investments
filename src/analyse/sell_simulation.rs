@@ -64,8 +64,12 @@ struct TradeRow {
     commission: Cash,
     #[column(name="Revenue")]
     revenue: Cash,
+    #[column(name="Local revenue")]
+    local_revenue: Cash,
     #[column(name="Profit")]
     profit: Cash,
+    #[column(name="Local profit")]
+    local_profit: Cash,
     #[column(name="Tax to pay")]
     tax_to_pay: Cash,
     #[column(name="Real profit %")]
@@ -97,6 +101,8 @@ fn print_results(
     });
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
+    let mut total_local_revenue = Cash::new(country.currency, dec!(0));
+
     let mut total_profit = MultiCurrencyCashAccount::new();
     let mut total_local_profit = Cash::new(country.currency, dec!(0));
 
@@ -108,6 +114,8 @@ fn print_results(
 
     let mut trades_table = TradesTable::new();
     if same_currency {
+        trades_table.hide_local_revenue();
+        trades_table.hide_local_profit();
         trades_table.hide_real_tax();
         trades_table.hide_real_local_profit();
     }
@@ -120,6 +128,7 @@ fn print_results(
 
         total_commission.deposit(trade.commission);
         total_revenue.deposit(details.revenue);
+        total_local_revenue.add_assign(details.local_revenue).unwrap();
         total_profit.deposit(details.profit);
         total_local_profit.add_assign(details.local_profit).unwrap();
 
@@ -149,7 +158,9 @@ fn print_results(
             sell_price: trade.price,
             commission: trade.commission,
             revenue: details.revenue,
+            local_revenue: details.local_revenue,
             profit: details.profit,
+            local_profit: details.local_profit,
             tax_to_pay: details.tax_to_pay,
             real_profit: Cell::new_ratio(details.real_profit_ratio),
             real_tax: Cell::new_ratio(details.real_tax_ratio),
@@ -162,7 +173,9 @@ fn print_results(
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);
     totals.set_revenue(total_revenue);
+    totals.set_local_revenue(total_local_revenue);
     totals.set_profit(total_profit);
+    totals.set_local_profit(total_local_profit);
     totals.set_tax_to_pay(tax_to_pay);
 
     trades_table.print("Sell simulation results");
