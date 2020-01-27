@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Duration;
 
 #[cfg(test)] use indoc::indoc;
 use log::trace;
@@ -13,6 +14,7 @@ use serde::de::{Deserializer, DeserializeOwned, Error};
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
+use crate::rate_limiter::RateLimiter;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
@@ -21,6 +23,7 @@ use super::{QuotesMap, QuotesProvider};
 pub struct Finnhub {
     token: String,
     client: Client,
+    rate_limiter: RateLimiter,
 }
 
 impl Finnhub {
@@ -28,6 +31,9 @@ impl Finnhub {
         Finnhub {
             token: token.to_owned(),
             client: Client::new(),
+            rate_limiter: RateLimiter::new()
+                .with_limit(60 / 2, Duration::from_secs(60))
+                .with_limit(30 / 2, Duration::from_secs(1)),
         }
     }
 
@@ -63,9 +69,7 @@ impl Finnhub {
         ])?;
 
         let get = |url| -> GenericResult<T> {
-            // Rate limits:
-            // * 60 calls/minute
-            // * 30 calls/second
+            self.rate_limiter.wait(&format!("request to {}", url));
 
             trace!("Sending request to {}...", url);
             let response = self.client.get(url).send()?;
