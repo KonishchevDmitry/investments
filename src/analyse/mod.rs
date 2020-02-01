@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::broker_statement::BrokerStatement;
 use crate::commissions::CommissionCalc;
 use crate::config::{Config, PortfolioConfig};
@@ -37,18 +39,18 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
 
 pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<u32>)]) -> EmptyResult {
     let (portfolio, statement, converter, quotes) = load(config, portfolio_name)?;
-    sell_simulation::simulate_sell(portfolio, statement, &converter, quotes, positions)
+    sell_simulation::simulate_sell(portfolio, statement, &converter, &quotes, positions)
 }
 
 fn load<'a>(config: &'a Config, portfolio_name: &str) -> GenericResult<
-    (&'a PortfolioConfig, BrokerStatement, CurrencyConverter, Quotes)
+    (&'a PortfolioConfig, BrokerStatement, CurrencyConverter, Rc<Quotes>)
 > {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
 
     let database = db::connect(&config.db_path)?;
-    let converter = CurrencyConverter::new(database.clone(), false);
-    let quotes = Quotes::new(&config, database)?;
+    let quotes = Rc::new(Quotes::new(&config, database.clone())?);
+    let converter = CurrencyConverter::new(database, Some(quotes.clone()), false);
 
     Ok((portfolio, statement, converter, quotes))
 }

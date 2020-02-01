@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::broker_statement::BrokerStatement;
 use crate::config::{Config, PortfolioConfig};
 use crate::core::EmptyResult;
@@ -103,8 +105,8 @@ pub fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: boo
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
-    let converter = CurrencyConverter::new(database.clone(), false);
-    let quotes = Quotes::new(&config, database.clone())?;
+    let quotes = Rc::new(Quotes::new(&config, database.clone())?);
+    let converter = CurrencyConverter::new(database.clone(), Some(quotes.clone()), false);
 
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(&portfolio_config)?;

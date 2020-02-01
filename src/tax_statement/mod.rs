@@ -47,7 +47,7 @@ pub fn generate_tax_statement(
     };
 
     let database = db::connect(&config.db_path)?;
-    let converter = CurrencyConverter::new(database, true);
+    let converter = CurrencyConverter::new(database, None, true);
 
     trades::process_income(&portfolio, &broker_statement, year, tax_statement.as_mut(), &converter)
         .map_err(|e| format!("Failed to process income from stock trading: {}", e))?;

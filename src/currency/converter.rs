@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
@@ -7,6 +9,7 @@ use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
 use crate::localities;
+use crate::quotes::Quotes;
 use crate::types::{Date, Decimal};
 
 pub struct CurrencyConverter {
@@ -14,9 +17,9 @@ pub struct CurrencyConverter {
 }
 
 impl CurrencyConverter {
-    pub fn new(database: db::Connection, strict_mode: bool) -> CurrencyConverter {
+    pub fn new(database: db::Connection, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> CurrencyConverter {
         let rate_cache = CurrencyRateCache::new(database);
-        let backend = CurrencyRateCacheBackend::new(rate_cache, strict_mode);
+        let backend = CurrencyRateCacheBackend::new(rate_cache, quotes, strict_mode);
         CurrencyConverter::new_with_backend(backend)
     }
 
@@ -52,15 +55,19 @@ pub trait CurrencyConverterBackend {
 }
 
 struct CurrencyRateCacheBackend {
+    // FIXME
+    #[allow(dead_code)]
+    quotes: Option<Rc<Quotes>>,
     rate_cache: CurrencyRateCache,
     strict_mode: bool,
 }
 
 impl CurrencyRateCacheBackend {
-    pub fn new(rate_cache: CurrencyRateCache, strict_mode: bool) -> Box<dyn CurrencyConverterBackend> {
+    pub fn new(rate_cache: CurrencyRateCache, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> Box<dyn CurrencyConverterBackend> {
         Box::new(CurrencyRateCacheBackend {
-            rate_cache: rate_cache,
-            strict_mode: strict_mode,
+            quotes,
+            rate_cache,
+            strict_mode,
         })
     }
 
@@ -172,7 +179,7 @@ mod tests {
         let amount = dec!(3);
         let today = cache.today();
         let converter = CurrencyConverter::new_with_backend(
-            CurrencyRateCacheBackend::new(cache, true));
+            CurrencyRateCacheBackend::new(cache, None, true));
 
         for currency in ["RUB", "USD"].iter() {
             assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);

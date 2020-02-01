@@ -14,7 +14,7 @@ use crate::util;
 
 pub fn simulate_sell(
     portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
-    quotes: Quotes, positions: &[(String, Option<u32>)],
+    quotes: &Quotes, positions: &[(String, Option<u32>)],
 ) -> EmptyResult {
     let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
 
