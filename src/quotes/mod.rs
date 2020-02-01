@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 use log::debug;
 
@@ -17,8 +16,6 @@ mod alphavantage;
 mod cache;
 mod finnhub;
 mod moex;
-
-pub type QuotesRc = Rc<Quotes>;
 
 pub struct Quotes {
     cache: Cache,

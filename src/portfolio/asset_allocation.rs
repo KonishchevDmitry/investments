@@ -29,7 +29,7 @@ pub struct Portfolio {
 impl Portfolio {
     pub fn load(
         config: &Config, portfolio_config: &PortfolioConfig, assets: Assets,
-        converter: &CurrencyConverter, quotes: &mut Quotes
+        converter: &CurrencyConverter, quotes: &Quotes
     ) -> GenericResult<Portfolio> {
         let currency = match portfolio_config.currency.as_ref() {
             Some(currency) => currency,
@@ -150,7 +150,7 @@ impl AssetAllocation {
     fn load(
         config: &AssetAllocationConfig, currency: &str,
         symbols: &mut HashSet<String>, stocks: &mut HashMap<String, u32>,
-        converter: &CurrencyConverter, quotes: &mut Quotes,
+        converter: &CurrencyConverter, quotes: &Quotes,
     ) -> GenericResult<AssetAllocation> {
         let (holding, current_value) = match (&config.symbol, &config.assets) {
             (Some(symbol), None) => {

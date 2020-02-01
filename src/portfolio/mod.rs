@@ -104,12 +104,12 @@ pub fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: boo
     let database = db::connect(&config.db_path)?;
 
     let converter = CurrencyConverter::new(database.clone(), false);
-    let mut quotes = Quotes::new(&config, database.clone())?;
+    let quotes = Quotes::new(&config, database.clone())?;
 
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(&portfolio_config)?;
 
-    let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &mut quotes)?;
+    let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &quotes)?;
     if rebalance {
         rebalancing::rebalance_portfolio(&mut portfolio, &converter)?;
     }

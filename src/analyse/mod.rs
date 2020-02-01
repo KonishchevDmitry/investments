@@ -13,11 +13,11 @@ mod performance;
 mod sell_simulation;
 
 pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: bool) -> EmptyResult {
-    let (portfolio, mut statement, converter, mut quotes) = load(config, portfolio_name)?;
+    let (portfolio, mut statement, converter, quotes) = load(config, portfolio_name)?;
     let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
 
     statement.check_date();
-    statement.batch_quotes(&mut quotes);
+    statement.batch_quotes(&quotes);
 
     for (symbol, &quantity) in statement.open_positions.clone().iter() {
         statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?, &mut commission_calc)?;
