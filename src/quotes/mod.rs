@@ -1,5 +1,6 @@
-#[cfg(test)] use std::cell::RefCell;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use log::debug;
 
@@ -17,10 +18,12 @@ mod cache;
 mod finnhub;
 mod moex;
 
+pub type QuotesRc = Rc<Quotes>;
+
 pub struct Quotes {
     cache: Cache,
     providers: Vec<Box<dyn QuotesProvider>>,
-    batched_symbols: HashSet<String>,
+    batched_symbols: RefCell<HashSet<String>>,
 }
 
 impl Quotes {
@@ -38,24 +41,26 @@ impl Quotes {
         Quotes {
             cache: cache,
             providers: providers,
-            batched_symbols: HashSet::new(),
+            batched_symbols: RefCell::new(HashSet::new()),
         }
     }
 
-    pub fn batch(&mut self, symbol: &str) {
-        self.batched_symbols.insert(symbol.to_owned());
+    pub fn batch(&self, symbol: &str) {
+        self.batched_symbols.borrow_mut().insert(symbol.to_owned());
     }
 
-    pub fn get(&mut self, symbol: &str) -> GenericResult<Cash> {
+    pub fn get(&self, symbol: &str) -> GenericResult<Cash> {
         if let Some(price) = self.cache.get(symbol)? {
             return Ok(price);
         }
 
         self.batch(symbol);
+        let mut batched_symbols = self.batched_symbols.borrow_mut();
+
         let mut price = None;
 
         for provider in &self.providers {
-            let symbols: Vec<String> = self.batched_symbols.iter().cloned().collect();
+            let symbols: Vec<String> = batched_symbols.iter().cloned().collect();
 
             debug!("Getting quotes from {} for the following symbols: {}...",
                    provider.name(), symbols.join(", "));
@@ -63,20 +68,20 @@ impl Quotes {
 
             for (other_symbol, other_price) in quotes.iter() {
                 if *other_symbol == symbol {
-                    price = Some(*other_price);
+                    price.replace(*other_price);
                 }
 
                 self.cache.save(&other_symbol, *other_price)?;
-                self.batched_symbols.remove(other_symbol);
+                batched_symbols.remove(other_symbol);
             }
 
-            if self.batched_symbols.is_empty() {
+            if batched_symbols.is_empty() {
                 break;
             }
         }
 
-        if !self.batched_symbols.is_empty() {
-            let symbols = self.batched_symbols.iter().cloned().collect::<Vec<String>>();
+        if !batched_symbols.is_empty() {
+            let symbols = batched_symbols.iter().cloned().collect::<Vec<String>>();
             return Err!("Unable to find quotes for following symbols: {}", symbols.join(", "));
         }
 
@@ -142,7 +147,7 @@ mod tests {
         }
 
         let (_database, cache) = Cache::new_temporary();
-        let mut quotes = Quotes::new_with(cache, vec![
+        let quotes = Quotes::new_with(cache, vec![
             Box::new(FirstProvider {request_id: RefCell::new(0)}),
             Box::new(SecondProvider {request_id: RefCell::new(0)}),
         ]);
