@@ -1,7 +1,9 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
+use lazy_static::lazy_static;
 use log::debug;
+use regex::Regex;
 
 use crate::config::Config;
 use crate::core::GenericResult;
@@ -91,6 +93,32 @@ type QuotesMap = HashMap<String, Cash>;
 trait QuotesProvider {
     fn name(&self) -> &'static str;
     fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap>;
+    fn supports_forex(&self) -> bool {false}
+}
+
+#[allow(dead_code)] // FIXME
+fn get_currency_pair(base: &str, quote: &str) -> String {
+    format!("{}/{}", base, quote)
+}
+
+#[allow(dead_code)] // FIXME
+fn is_currency_pair(symbol: &str) -> bool {
+    parse_currency_pair(symbol).is_ok()
+}
+
+#[allow(dead_code)] // FIXME
+fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
+    lazy_static! {
+        static ref REGEX: Regex = Regex::new(r"^(?P<base>[A-Z]{3})/(?P<quote>[A-Z]{3})$").unwrap();
+    }
+
+    let captures = REGEX.captures(pair).ok_or_else(|| format!(
+        "Invalid currency pair: {:?}", pair))?;
+
+    Ok((
+        captures.name("base").unwrap().as_str(),
+        captures.name("quote").unwrap().as_str(),
+    ))
 }
 
 #[cfg(test)]
