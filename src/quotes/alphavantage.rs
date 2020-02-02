@@ -35,7 +35,11 @@ impl QuotesProvider for AlphaVantage {
         "Alpha Vantage"
     }
 
-    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+    fn supports_forex(&self) -> bool {
+        false
+    }
+
+    fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         #[cfg(not(test))] let base_url = "https://www.alphavantage.co";
         #[cfg(test)] let base_url = mockito::server_url();
 
@@ -157,7 +161,7 @@ mod tests {
         );
 
         let client = AlphaVantage::new("mock");
-        assert_eq!(client.get_quotes(&[s!("BND"), s!("BNDX")]).unwrap(), HashMap::new());
+        assert_eq!(client.get_quotes(&["BND", "BNDX"]).unwrap(), HashMap::new());
     }
 
     #[test]
@@ -200,10 +204,7 @@ mod tests {
         let mut quotes = HashMap::new();
         quotes.insert(s!("BND"), Cash::new("USD", dec!(77.8650)));
         quotes.insert(s!("BNDX"), Cash::new("USD", dec!(54.5450)));
-
-        assert_eq!(client.get_quotes(&[
-            s!("BND"), s!("BNDX"), s!("OUTDATED"), s!("INVALID")
-        ]).unwrap(), quotes);
+        assert_eq!(client.get_quotes(&["BND", "BNDX", "OUTDATED", "INVALID"]).unwrap(), quotes);
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {

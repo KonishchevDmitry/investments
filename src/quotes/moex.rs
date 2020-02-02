@@ -30,7 +30,11 @@ impl QuotesProvider for Moex {
         "Moscow Exchange"
     }
 
-    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+    fn supports_forex(&self) -> bool {
+        false
+    }
+
+    fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         #[cfg(not(test))] let base_url = "https://iss.moex.com";
         #[cfg(test)] let base_url = mockito::server_url();
 
@@ -257,7 +261,7 @@ mod tests {
     #[test]
     fn no_quotes() {
         let _mock = mock_response(&["FXUS", "FXIT"], "moex-empty.xml");
-        assert_eq!(Moex::new().get_quotes(&[s!("FXUS"), s!("FXIT")]).unwrap(), HashMap::new());
+        assert_eq!(Moex::new().get_quotes(&["FXUS", "FXIT"]).unwrap(), HashMap::new());
     }
 
     #[test]
@@ -268,9 +272,7 @@ mod tests {
         quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
         quotes.insert(s!("FXIT"), Cash::new("RUB", dec!(4612)));
 
-        assert_eq!(Moex::new().get_quotes(&[
-            s!("FXUS"), s!("FXIT"), s!("INVALID")
-        ]).unwrap(), quotes);
+        assert_eq!(Moex::new().get_quotes(&["FXUS", "FXIT", "INVALID"]).unwrap(), quotes);
     }
 
     #[test]
@@ -291,11 +293,11 @@ mod tests {
     fn test_exchange_status(status: &str) {
         let securities = ["FXAU", "FXCN", "FXDE", "FXIT", "FXJP", "FXRB", "FXRL", "FXRU", "FXUK", "FXUS"];
         let _mock = mock_response(&securities, &format!("moex-{}.xml", status));
-
-        let securities = securities.iter().map(ToString::to_string).collect::<Vec<_>>();
         let quotes = Moex::new().get_quotes(&securities).unwrap();
-
-        assert_eq!(HashSet::<&String>::from_iter(&securities), HashSet::from_iter(quotes.keys()));
+        assert_eq!(
+            HashSet::from_iter(quotes.keys().map(String::as_str)),
+            HashSet::<&str>::from_iter(securities.iter().cloned()),
+        );
     }
 
     fn mock_response(securities: &[&str], body_path: &str) -> Mock {

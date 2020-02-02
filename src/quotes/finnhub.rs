@@ -92,13 +92,16 @@ impl QuotesProvider for Finnhub {
         "Finnhub"
     }
 
-    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+    fn supports_forex(&self) -> bool {
+        false
+    }
+    fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         let quotes = Mutex::new(HashMap::new());
 
-        if let Some(error) = symbols.par_iter().map(|symbol| -> EmptyResult {
+        if let Some(error) = symbols.par_iter().map(|&symbol| -> EmptyResult {
             if let Some(price) = self.get_quote(symbol)? {
                 let mut quotes = quotes.lock().unwrap();
-                quotes.insert(symbol.clone(), price);
+                quotes.insert(symbol.to_owned(), price);
             }
             Ok(())
         }).find_map_any(|result| match result {
@@ -202,7 +205,7 @@ mod tests {
         let mut quotes = HashMap::new();
         quotes.insert(s!("BND"), Cash::new("USD", dec!(84.91)));
         quotes.insert(s!("BNDX"), Cash::new("USD", dec!(57.26)));
-        assert_eq!(client.get_quotes(&[s!("BND"), s!("UNKNOWN"), s!("BNDX")]).unwrap(), quotes);
+        assert_eq!(client.get_quotes(&["BND", "UNKNOWN", "BNDX"]).unwrap(), quotes);
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {

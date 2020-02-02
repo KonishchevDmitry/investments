@@ -59,18 +59,36 @@ impl Quotes {
         let mut price = None;
 
         for provider in &self.providers {
-            let symbols: Vec<String> = batched_symbols.iter().cloned().collect();
+            let quotes = {
+                let symbols: Vec<&str> = batched_symbols.iter().filter_map(|symbol| {
+                    let is_currency_pair = is_currency_pair(&symbol);
 
-            debug!("Getting quotes from {} for the following symbols: {}...",
-                   provider.name(), symbols.join(", "));
-            let quotes = provider.get_quotes(&symbols)?;
+                    if
+                        provider.supports_stocks() && !is_currency_pair ||
+                        provider.supports_forex() && is_currency_pair
+                    {
+                        Some(symbol.as_str())
+                    } else {
+                        None
+                    }
+                }).collect();
 
-            for (other_symbol, other_price) in quotes.iter() {
-                if *other_symbol == symbol {
-                    price.replace(*other_price);
+                if symbols.is_empty() {
+                    continue;
                 }
 
-                self.cache.save(&other_symbol, *other_price)?;
+                debug!("Getting quotes from {} for the following symbols: {}...",
+                       provider.name(), symbols.join(", "));
+
+                provider.get_quotes(&symbols)?
+            };
+
+            for (other_symbol, &other_price) in quotes.iter() {
+                if *other_symbol == symbol {
+                    price.replace(other_price);
+                }
+
+                self.cache.save(&other_symbol, other_price)?;
                 batched_symbols.remove(other_symbol);
             }
 
@@ -92,8 +110,9 @@ type QuotesMap = HashMap<String, Cash>;
 
 trait QuotesProvider {
     fn name(&self) -> &'static str;
-    fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap>;
-    fn supports_forex(&self) -> bool {false}
+    fn supports_stocks(&self) -> bool {true}
+    fn supports_forex(&self) -> bool {true}
+    fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
 }
 
 #[allow(dead_code)] // FIXME
@@ -101,12 +120,10 @@ fn get_currency_pair(base: &str, quote: &str) -> String {
     format!("{}/{}", base, quote)
 }
 
-#[allow(dead_code)] // FIXME
 fn is_currency_pair(symbol: &str) -> bool {
     parse_currency_pair(symbol).is_ok()
 }
 
-#[allow(dead_code)] // FIXME
 fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
     lazy_static! {
         static ref REGEX: Regex = Regex::new(r"^(?P<base>[A-Z]{3})/(?P<quote>[A-Z]{3})$").unwrap();
@@ -136,12 +153,12 @@ mod tests {
                 "first-provider"
             }
 
-            fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+            fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
                 let mut symbols = symbols.to_vec();
                 symbols.sort();
 
                 assert_eq!(*self.request_id.borrow(), 0);
-                assert_eq!(symbols, vec![s!("BND"), s!("BNDX"), s!("VTI")]);
+                assert_eq!(&symbols, &["BND", "BNDX", "VTI"]);
                 *self.request_id.borrow_mut() += 1;
 
                 let mut quotes = HashMap::new();
@@ -160,9 +177,9 @@ mod tests {
                 "second-provider"
             }
 
-            fn get_quotes(&self, symbols: &[String]) -> GenericResult<QuotesMap> {
+            fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
                 assert_eq!(*self.request_id.borrow(), 0);
-                assert_eq!(symbols, [s!("BNDX")]);
+                assert_eq!(symbols, ["BNDX"]);
                 *self.request_id.borrow_mut() += 1;
 
                 let mut quotes = HashMap::new();
