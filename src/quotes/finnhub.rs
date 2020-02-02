@@ -76,7 +76,7 @@ impl Finnhub {
             trace!("Got response from {}.", url);
 
             if !response.status().is_success() {
-                return Err!("The server returned an error: {}", response.status());
+                return Err!("Server returned an error: {}", response.status());
             }
 
             Ok(response.json()?)

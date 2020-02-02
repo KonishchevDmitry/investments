@@ -18,6 +18,7 @@ mod alphavantage;
 mod cache;
 mod finnhub;
 mod moex;
+mod twelvedata;
 
 pub struct Quotes {
     cache: Cache,
