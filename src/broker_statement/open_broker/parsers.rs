@@ -53,7 +53,11 @@ pub enum CashFlowType {
 
 impl CashFlowType {
     pub fn parse(description: &str) -> GenericResult<CashFlowType> {
-        Ok(if description.starts_with("Комиссия ") || description.starts_with("Ежегодная комиссия ") {
+        Ok(if
+            description.starts_with("Комиссия ") ||
+            description.starts_with("Ежегодная комиссия ") ||
+            description.starts_with("Вознаграждение Брокера ")
+        {
             CashFlowType::Commission
         } else if description.starts_with("Поставлены на торги средства клиента ") {
             CashFlowType::Deposit
@@ -90,9 +94,12 @@ mod tests {
             CashFlowType::parse("Комиссия Брокера / Доп. комиссия Брокера &quot;Сборы ТС&quot; за заключение сделок 12.12.2017 на Фондовый Рынок Московской биржи по счету 123456i").unwrap(),
             CashFlowType::Commission
         );
-
         assert_matches!(
             CashFlowType::parse("Ежегодная комиссия за ведение учета ЦБ в НКО АО НРД за 2017 г.").unwrap(),
+            CashFlowType::Commission
+        );
+        assert_matches!(
+            CashFlowType::parse("Вознаграждение Брокера за предоставление информации по движению и учету ценных бумаг/ИФИ в портфеле Фондовый Рынок Московской биржи за январь 2020").unwrap(),
             CashFlowType::Commission
         );
     }
