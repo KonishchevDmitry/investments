@@ -43,7 +43,7 @@ If it fails to compile and you installed Rust a long time ago, try `rustup updat
 ### Configuration
 
 Create `~/.investments/config.yaml` configuration file ([example](config-example.yaml)). Don't forget to obtain API
-token for Finnhub (see the comments in example config).
+token for Finnhub and Twelve Data (see the comments in example config).
 
 ### Usage
 

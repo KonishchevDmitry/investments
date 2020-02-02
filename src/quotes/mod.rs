@@ -15,6 +15,7 @@ use crate::db;
 use self::cache::Cache;
 use self::finnhub::Finnhub;
 use self::moex::Moex;
+use self::twelvedata::TwelveData;
 
 mod alphavantage;
 mod cache;
@@ -33,8 +34,12 @@ impl Quotes {
         let finnhub = config.finnhub.as_ref().ok_or(
             "Finnhub configuration is not set in the configuration file")?;
 
+        let twelvedata = config.twelvedata.as_ref().ok_or(
+            "Twelve Data configuration is not set in the configuration file")?;
+
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time), vec![
             Box::new(Finnhub::new(&finnhub.token)),
+            Box::new(TwelveData::new(&twelvedata.token)),
             Box::new(Moex::new()),
         ]))
     }

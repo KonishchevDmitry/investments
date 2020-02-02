@@ -33,8 +33,10 @@ pub struct Config {
     #[serde(default)]
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
+
     pub alphavantage: Option<AlphaVantageConfig>,
     pub finnhub: Option<FinnhubConfig>,
+    pub twelvedata: Option<TwelveDataConfig>,
 }
 
 impl Config {
@@ -49,8 +51,10 @@ impl Config {
 
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
+
             alphavantage: None,
             finnhub: None,
+            twelvedata: None,
         }
     }
 
@@ -203,6 +207,12 @@ pub struct AlphaVantageConfig {
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct FinnhubConfig {
+    pub token: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct TwelveDataConfig {
     pub token: String,
 }
 

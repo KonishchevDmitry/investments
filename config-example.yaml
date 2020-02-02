@@ -98,6 +98,10 @@ finnhub:
   # API token that must be obtained here - https://finnhub.io/register
   token: secret
 
+twelvedata:
+  # API key that must be obtained here - https://twelvedata.com/apikey
+  token: secret
+
 
 deposits:
   - name: Тинькофф
