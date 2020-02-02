@@ -4,7 +4,6 @@ use std::collections::HashMap;
 #[cfg(test)] use chrono::NaiveDate;
 #[cfg(test)] use indoc::indoc;
 use chrono::{DateTime, TimeZone};
-use chrono_tz::Tz;
 use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
@@ -93,26 +92,20 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     }
 
     let response: Response = response.json()?;
-    let timezone: Tz = response.metadata.timezone.parse().map_err(|_| format!(
-        "Invalid time zone: {:?}", response.metadata.timezone))?;
+    let timezone = util::parse_timezone(&response.metadata.timezone)?;
 
     let mut quotes = HashMap::new();
     let mut outdated = Vec::new();
 
     for quote in response.quotes {
-        let date_time = timezone.datetime_from_str(&quote.time, "%Y-%m-%d %H:%M:%S").map_err(|_| format!(
-            "Invalid time: {:?}", quote.time))?;
+        let time = util::parse_tz_date_time(&quote.time, "%Y-%m-%d %H:%M:%S", timezone, true)?;
 
         // A special case for quotes that are returned by API but don't updated and have zero price
-        if date_time.timestamp() == 0 {
+        if time.timestamp() == 0 {
             continue;
         }
 
-        if (date_time.naive_utc() - util::utc_now()).num_hours() > 0 {
-            return Err!("Invalid time: {}. It's from future", quote.time);
-        }
-
-        if is_outdated(date_time) {
+        if is_outdated(time) {
             outdated.push(quote.symbol);
             continue;
         }
@@ -131,13 +124,13 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
 }
 
 #[cfg(not(test))]
-fn is_outdated<T: TimeZone>(date_time: DateTime<T>) -> bool {
-    (util::utc_now() - date_time.naive_utc()).num_days() >= 5
+fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
+    super::is_outdated_quote(time)
 }
 
 #[cfg(test)]
-fn is_outdated<T: TimeZone>(date_time: DateTime<T>) -> bool {
-    date_time.naive_utc() <= NaiveDate::from_ymd(2018, 10, 31).and_hms(16 + 4, 0, 0)
+fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
+    time.naive_utc() <= NaiveDate::from_ymd(2018, 10, 31).and_hms(16 + 4, 0, 0)
 }
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
+#[cfg(not(test))] use chrono::{DateTime, TimeZone};
 use lazy_static::lazy_static;
 use log::debug;
 use regex::Regex;
@@ -9,6 +10,7 @@ use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::db;
+#[cfg(not(test))] use crate::util;
 
 use self::cache::Cache;
 use self::finnhub::Finnhub;
@@ -137,6 +139,11 @@ fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
         captures.name("base").unwrap().as_str(),
         captures.name("quote").unwrap().as_str(),
     ))
+}
+
+#[cfg(not(test))]
+fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>) -> bool {
+    (util::utc_now() - date_time.naive_utc()).num_days() >= 5
 }
 
 #[cfg(test)]

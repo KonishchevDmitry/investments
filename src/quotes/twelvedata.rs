@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use chrono::{DateTime, TimeZone, Utc};
+#[cfg(test)] use chrono::NaiveDate;
 #[cfg(test)] use indoc::indoc;
-use log::trace;
+use log::{debug, trace};
 #[cfg(test)] use mockito::{self, Mock, mock};
 use rayon::prelude::*;
 use reqwest::Url;
@@ -114,7 +116,6 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
     #[derive(Deserialize)]
     struct Value {
-        #[allow(dead_code)] // FIXME
         datetime: String,
         close: Decimal,
     }
@@ -123,7 +124,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
     if parse_response::<GenericResponse>(&response)?.status != "ok" {
         let error: ErrorResponse = parse_response(&response)?;
-        trace!("{}: Server returned an error: {}.", symbol, error.message);
+        debug!("{}: Server returned an error: {}.", symbol, error.message);
         return Ok(None)
     }
 
@@ -143,20 +144,36 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
             "Got an unexpected response from server: missing quote currency")?.as_str()
     };
 
-    let price = match quote.values.first() {
-        Some(value) => {
-            util::validate_decimal(
-                value.close, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
-                "Invalid price: {:?}", value.close))?
-        },
+    let value = match quote.values.first() {
+        Some(value) => value,
         None => return Ok(None),
     };
+
+    let time = util::parse_tz_date_time(&value.datetime, "%Y-%m-%d %H:%M:%S", Utc, true)?;
+    if is_outdated(time) {
+        debug!("{}: Got outdated quotes: {}.", symbol, time);
+        return Ok(None);
+    }
+
+    let price = util::validate_decimal(
+        value.close, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
+        "Invalid price: {:?}", value.close))?;
 
     Ok(Some(Cash::new(currency, price)))
 }
 
 fn parse_response<T: DeserializeOwned>(response: &str) -> GenericResult<T> {
     Ok(serde_json::from_str(&response).map_err(|e| format!("Got an unexpected response: {}", e))?)
+}
+
+#[cfg(not(test))]
+fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
+    super::is_outdated_quote(time)
+}
+
+#[cfg(test)]
+fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
+    time.naive_utc() <= NaiveDate::from_ymd(2020, 1, 31).and_hms(20, 58, 0)
 }
 
 #[cfg(test)]
@@ -211,7 +228,6 @@ mod tests {
             }
         "#));
 
-        // FIXME: Support
         let _outdated_quote_mock = mock_response("/time_series?symbol=AAPL&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
             {
                 "meta": {
@@ -249,7 +265,7 @@ mod tests {
         let mut quotes = HashMap::new();
         quotes.insert(s!("USD/RUB"), Cash::new("RUB", dec!(63.97370)));
         quotes.insert(s!("AMZN"), Cash::new("USD", dec!(2007.76001)));
-        assert_eq!(client.get_quotes(&["USD/RUB", "UNKNOWN", "AMZN"]).unwrap(), quotes);
+        assert_eq!(client.get_quotes(&["USD/RUB", "UNKNOWN", "AMZN", "AAPL"]).unwrap(), quotes);
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {

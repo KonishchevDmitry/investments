@@ -1,7 +1,8 @@
 use std::ops::Neg;
 use std::str::FromStr;
 
-use chrono::{self, Duration, Local};
+use chrono::{self, Duration, Local, TimeZone};
+use chrono_tz::Tz;
 use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
@@ -81,6 +82,23 @@ pub fn parse_date_time(date_time: &str, format: &str) -> GenericResult<DateTime>
         "Invalid time: {:?}", date_time))?)
 }
 
+pub fn parse_tz_date_time<T: TimeZone>(
+    string: &str, format: &str, tz: T, future_check: bool,
+) -> GenericResult<chrono::DateTime<T>> {
+    let date_time = tz.datetime_from_str(string, format).map_err(|_| format!(
+        "Invalid time: {:?}", string))?;
+
+    if future_check && (date_time.naive_utc() - utc_now()).num_hours() > 0 {
+        return Err!("Invalid time: {:?}. It's from future", date_time);
+    }
+
+    Ok(date_time)
+}
+
+pub fn parse_timezone(timezone: &str) -> GenericResult<Tz> {
+    Ok(timezone.parse().map_err(|_| format!("Invalid time zone: {:?}", timezone))?)
+}
+
 pub fn parse_duration(string: &str) -> GenericResult<Duration> {
     let re = Regex::new(r"^(?P<number>[1-9]\d*)(?P<unit>[mhd])$").unwrap();
 
@@ -139,7 +157,6 @@ fn tz_now() -> chrono::DateTime<Local> {
 #[cfg(debug_assertions)]
 fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
     use std::env::{self, VarError};
-    use chrono::offset::TimeZone;
 
     let name = "INVESTMENTS_NOW";
 
