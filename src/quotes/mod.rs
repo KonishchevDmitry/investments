@@ -123,8 +123,7 @@ trait QuotesProvider {
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
 }
 
-#[allow(dead_code)] // FIXME
-fn get_currency_pair(base: &str, quote: &str) -> String {
+pub fn get_currency_pair(base: &str, quote: &str) -> String {
     format!("{}/{}", base, quote)
 }
 

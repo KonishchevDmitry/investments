@@ -9,7 +9,7 @@ use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
 use crate::localities;
-use crate::quotes::Quotes;
+use crate::quotes::{Quotes, get_currency_pair};
 use crate::types::{Date, Decimal};
 
 pub struct CurrencyConverter {
@@ -55,8 +55,6 @@ pub trait CurrencyConverterBackend {
 }
 
 struct CurrencyRateCacheBackend {
-    // FIXME
-    #[allow(dead_code)]
     quotes: Option<Rc<Quotes>>,
     rate_cache: CurrencyRateCache,
     strict_mode: bool,
@@ -100,16 +98,10 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             return Ok(amount);
         }
 
-        let (currency, inverse) = match (from, to) {
-            ("USD", "RUB") => ("USD", false),
-            ("RUB", "USD") => ("USD", true),
-            _ => return Err!("Unsupported currency conversion: {} -> {}", from, to),
-        };
-
         let today = self.rate_cache.today();
 
         if
-            // Strict mode for tax calculations when we must provide only real currency rates
+            // Strict mode is for tax calculations when we must provide only official currency rates
             self.strict_mode && date >= today ||
 
             // Default mode for portfolio performance and other calculations where we have to
@@ -119,6 +111,21 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             return Err!("An attempt to make currency conversion for future date: {}",
                 formatting::format_date(date));
         }
+
+        // FIXME: Do we need more modes for T+2 calculations?
+        if !self.strict_mode && date >= today {
+            if let Some(ref quotes) = self.quotes {
+                let price = quotes.get(&get_currency_pair(from, to))?;
+                assert_eq!(price.currency, to);
+                return Ok(amount * price.amount)
+            }
+        }
+
+        let (currency, inverse) = match (from, to) {
+            ("USD", "RUB") => ("USD", false),
+            ("RUB", "USD") => ("USD", true),
+            _ => return Err!("Unsupported currency conversion: {} -> {}", from, to),
+        };
 
         let mut cur_date = if date < today {
             date

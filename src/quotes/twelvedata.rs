@@ -25,7 +25,6 @@ pub struct TwelveData {
 }
 
 impl TwelveData {
-    #[allow(dead_code)] // FIXME
     pub fn new(token: &str) -> TwelveData {
         TwelveData {
             token: token.to_owned(),
