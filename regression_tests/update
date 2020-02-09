@@ -7,11 +7,11 @@ set -eu
 
 (cd testdata && ./update)
 
-./regression_tests/investments sync bcs
+for broker in bcs ib open; do
+    ./regression_tests/investments sync "$broker"
+    ./regression_tests/investments analyse "$broker"
+done
+
 ./regression_tests/investments cash bcs 100000
-
-./regression_tests/investments sync ib
 ./regression_tests/investments cash ib 10000
-
-./regression_tests/investments sync open
 ./regression_tests/investments cash open 100000
