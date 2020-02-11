@@ -89,8 +89,7 @@ mod tests {
         let mut count = 0;
         let mut execution_dates = TradeExecutionDates::new();
 
-        // FIXME: testdata/interactive-brokers/current
-        for entry in fs::read_dir(".").unwrap() {
+        for entry in fs::read_dir("testdata/interactive-brokers/current").unwrap() {
             let path = entry.unwrap().path();
             let path = path.to_str().unwrap();
 

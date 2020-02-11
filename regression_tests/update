@@ -9,7 +9,7 @@ set -eu
 
 for broker in bcs ib open; do
     ./regression_tests/investments sync "$broker"
-    ./regression_tests/investments analyse "$broker"
+    ./regression_tests/investments analyse "$broker" > /dev/null
 done
 
 ./regression_tests/investments cash bcs 100000
