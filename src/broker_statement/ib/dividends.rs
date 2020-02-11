@@ -41,7 +41,7 @@ impl RecordParser for DividendsParser {
 fn parse_dividend_description(description: &str) -> GenericResult<String> {
     lazy_static! {
         static ref DESCRIPTION_REGEX: Regex = Regex::new(
-            r"^(?P<issuer>[A-Z]+) ?\([A-Z0-9]+\) Cash Dividend ").unwrap();
+            r"^(?P<issuer>[A-Z]+) ?\([A-Z0-9]+\) ").unwrap();
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
@@ -64,6 +64,8 @@ mod tests {
 
         test_parsing("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND");
         test_parsing("BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)", "BND");
+
+        test_parsing("UNIT(US91325V1089) Payment in Lieu of Dividend (Ordinary Dividend)", "UNIT");
     }
 
     fn test_parsing(description: &str, symbol: &str) {
