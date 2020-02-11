@@ -1,3 +1,11 @@
+mod common;
+mod confirmation;
+mod dividends;
+mod interest;
+mod parsers;
+mod taxes;
+mod trades;
+
 use std::iter::Iterator;
 
 use csv::{self, StringRecord};
@@ -11,14 +19,7 @@ use crate::currency::Cash;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-use self::common::{Record, RecordParser, format_record};
-
-mod common;
-mod dividends;
-mod interest;
-mod parsers;
-mod taxes;
-mod trades;
+use self::common::{RecordSpec, Record, RecordParser, format_record};
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
@@ -91,9 +92,8 @@ impl StatementParser {
                     }
                 },
                 State::Header(record) => {
-                    let (name, fields) = parse_header(&record)?;
-
-                    let parser: Box<dyn RecordParser> = match name {
+                    let spec = parse_header(&record);
+                    let parser: Box<dyn RecordParser> = match spec.name {
                         "Statement" => Box::new(parsers::StatementInfoParser {}),
                         "Account Information" => Box::new(parsers::AccountInformationParser {}),
                         "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
@@ -118,7 +118,7 @@ impl StatementParser {
                             return Err!("Invalid record: {}", format_record(&record));
                         }
 
-                        if record.get(0).unwrap() != name {
+                        if record.get(0).unwrap() != spec.name {
                             state = Some(State::Record(record));
                             continue 'state;
                         } else if record.get(1).unwrap() == "Header" {
@@ -149,11 +149,7 @@ impl StatementParser {
                             continue;
                         }
 
-                        parser.parse(&mut self, &Record {
-                            name: name,
-                            fields: &fields,
-                            values: &record,
-                        }).map_err(|e| format!(
+                        parser.parse(&mut self, &Record::new(&spec, &record)).map_err(|e| format!(
                             "Failed to parse ({}) record: {}", format_record(&record), e
                         ))?;
                     }
@@ -176,11 +172,12 @@ impl StatementParser {
     }
 }
 
-fn parse_header(record: &StringRecord) -> GenericResult<(&str, Vec<&str>)> {
+fn parse_header(record: &StringRecord) -> RecordSpec {
+    let offset = 2;
     let name = record.get(0).unwrap();
-    let fields = record.iter().skip(2).collect::<Vec<_>>();
+    let fields = record.iter().skip(offset).collect::<Vec<_>>();
     trace!("Header: {}: {}.", name, format_record(fields.iter().cloned()));
-    Ok((name, fields))
+    RecordSpec::new(name, fields, offset)
 }
 
 #[cfg(test)]

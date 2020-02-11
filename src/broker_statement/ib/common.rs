@@ -8,21 +8,36 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
-pub struct Record<'a> {
+pub struct RecordSpec<'a> {
     pub name: &'a str,
-    pub fields: &'a Vec<&'a str>,
+    fields: Vec<&'a str>,
+    offset: usize,
+}
+
+impl<'a> RecordSpec<'a> {
+    pub fn new(name: &'a str, fields: Vec<&'a str>, offset: usize) -> RecordSpec<'a> {
+        RecordSpec {name, fields, offset}
+    }
+}
+
+pub struct Record<'a> {
+    pub spec: &'a RecordSpec<'a>,
     pub values: &'a StringRecord,
 }
 
 impl<'a> Record<'a> {
+    pub fn new(spec: &'a RecordSpec<'a>, values: &'a StringRecord) -> Record<'a> {
+        Record {spec, values}
+    }
+
     pub fn get_value(&self, field: &str) -> GenericResult<&str> {
-        if let Some(index) = self.fields.iter().position(|other: &&str| *other == field) {
-            if let Some(value) = self.values.get(index + 2) {
+        if let Some(index) = self.spec.fields.iter().position(|other: &&str| *other == field) {
+            if let Some(value) = self.values.get(self.spec.offset + index) {
                 return Ok(value);
             }
         }
 
-        Err!("{:?} record doesn't have {:?} field", self.name, field)
+        Err!("{:?} record doesn't have {:?} field", self.spec.name, field)
     }
 
     pub fn check_value(&self, field: &str, value: &str) -> EmptyResult {
