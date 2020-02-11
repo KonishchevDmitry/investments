@@ -29,8 +29,8 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn is_statement(&self, file_name: &str) -> bool {
-        file_name.ends_with(".xml")
+    fn is_statement(&self, file_name: &str) -> GenericResult<bool> {
+        Ok(file_name.ends_with(".xml"))
     }
 
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
