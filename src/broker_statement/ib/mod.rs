@@ -6,6 +6,7 @@ mod parsers;
 mod taxes;
 mod trades;
 
+use std::cell::RefCell;
 use std::iter::Iterator;
 
 use csv::{self, StringRecord};
@@ -20,22 +21,37 @@ use crate::currency::Cash;
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use self::common::{RecordSpec, Record, RecordParser, format_record};
+use self::confirmation::TradeExecutionDates;
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
+    trade_execution_dates: RefCell<TradeExecutionDates>,
 }
 
 impl StatementReader {
     pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info: Broker::InteractiveBrokers.get_info(config)?,
+            trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
         }))
     }
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn is_statement(&self, file_name: &str) -> GenericResult<bool> {
-        Ok(file_name.ends_with(".csv"))
+    fn is_statement(&self, path: &str) -> GenericResult<bool> {
+        if !path.ends_with(".csv") {
+            return Ok(false)
+        }
+
+        // This is a hack. We exploit here our knowledge that this method will be called for each
+        // file before any statement reading. This is done because for now adding generalizations
+        // for this functionality to the trait will overcomplicate it, so for now the hack is
+        // preferable.
+        let trade_execution_dates = &mut self.trade_execution_dates.borrow_mut();
+        let is_confirmation_report = confirmation::try_parse(path, trade_execution_dates)
+            .map_err(|e| format!("Error while reading {:?}: {}", path, e))?;
+
+        Ok(!is_confirmation_report)
     }
 
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {

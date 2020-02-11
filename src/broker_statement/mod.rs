@@ -511,18 +511,25 @@ fn get_statement_files(
     let mut file_names = Vec::new();
 
     for entry in fs::read_dir(statement_dir_path)? {
-        let file_name = entry?.file_name().into_string().map_err(|file_name| format!(
-            "Got an invalid file name: {:?}", file_name.to_string_lossy()))?;
+        let entry = entry?;
 
-        if statement_reader.is_statement(&file_name)? {
-            file_names.push(file_name);
+        let path = entry.path();
+        let path = path.to_str().ok_or_else(|| format!(
+            "Got an invalid path: {:?}", path.to_string_lossy()))?;
+
+        if !statement_reader.is_statement(&path)? {
+            continue;
         }
+
+        let file_name = entry.file_name().into_string().map_err(|file_name| format!(
+            "Got an invalid file name: {:?}", file_name.to_string_lossy()))?;
+        file_names.push(file_name);
     }
 
     Ok(file_names)
 }
 
 pub trait BrokerStatementReader {
-    fn is_statement(&self, file_name: &str) -> GenericResult<bool>;
+    fn is_statement(&self, path: &str) -> GenericResult<bool>;
     fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement>;
 }

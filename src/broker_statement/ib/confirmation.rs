@@ -10,7 +10,6 @@ use crate::types::Date;
 
 use super::common::{Record, RecordSpec, parse_date};
 
-#[allow(dead_code)] // FIXME
 pub type TradeExecutionDates = HashMap<OrderId, Date>;
 
 #[derive(PartialEq, Eq, Hash)]
@@ -19,7 +18,6 @@ pub struct OrderId {
     pub date: Date,
 }
 
-#[allow(dead_code)] // FIXME
 pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> GenericResult<bool> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
