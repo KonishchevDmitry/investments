@@ -120,7 +120,7 @@ Activity statements don't provide trade settle date. So by default all calculati
 `simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects correctness of
 tax calculations.
 
-Trade settle date may be obtained from Trade Confirmation Report. To do this create a Trade Confirmation Flex Query in
+Trade settle date may be obtained from Trade Confirmation Report. To do this, create a Trade Confirmation Flex Query in
 the IB `Reports -> Flex Queries` tab with the following parameters:
 
 ![Trade Confirmation Flex Query Parameters](/images/trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
