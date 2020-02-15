@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn parse_real() {
         let statement = BrokerStatement::read(
-            &Config::mock(), Broker::OpenBroker, "testdata/open-broker").unwrap();
+            &Config::mock(), Broker::OpenBroker, "testdata/open-broker", true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());

@@ -50,10 +50,10 @@ pub struct BrokerStatement {
 }
 
 impl BrokerStatement {
-    pub fn read(config: &Config, broker: Broker, statement_dir_path: &str) -> GenericResult<BrokerStatement> {
+    pub fn read(config: &Config, broker: Broker, statement_dir_path: &str, strict_mode: bool) -> GenericResult<BrokerStatement> {
         let statement_reader = match broker {
             Broker::Bcs => bcs::StatementReader::new(config),
-            Broker::InteractiveBrokers => ib::StatementReader::new(config),
+            Broker::InteractiveBrokers => ib::StatementReader::new(config, strict_mode),
             Broker::OpenBroker => open_broker::StatementReader::new(config),
         }?;
 

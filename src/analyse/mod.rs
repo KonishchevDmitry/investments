@@ -15,7 +15,7 @@ mod performance;
 mod sell_simulation;
 
 pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: bool) -> EmptyResult {
-    let (portfolio, mut statement, converter, quotes) = load(config, portfolio_name)?;
+    let (portfolio, mut statement, converter, quotes) = load(config, portfolio_name, false)?;
     let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
 
     statement.check_date();
@@ -38,15 +38,15 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
 }
 
 pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<u32>)]) -> EmptyResult {
-    let (portfolio, statement, converter, quotes) = load(config, portfolio_name)?;
+    let (portfolio, statement, converter, quotes) = load(config, portfolio_name, true)?;
     sell_simulation::simulate_sell(portfolio, statement, &converter, &quotes, positions)
 }
 
-fn load<'a>(config: &'a Config, portfolio_name: &str) -> GenericResult<
+fn load<'a>(config: &'a Config, portfolio_name: &str, strict_mode: bool) -> GenericResult<
     (&'a PortfolioConfig, BrokerStatement, CurrencyConverter, Rc<Quotes>)
 > {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
+    let statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements, strict_mode)?;
 
     let database = db::connect(&config.db_path)?;
     let quotes = Rc::new(Quotes::new(&config, database.clone())?);

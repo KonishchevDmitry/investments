@@ -29,7 +29,7 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
+    pub fn new(config: &Config, _strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info: Broker::InteractiveBrokers.get_info(config)?,
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
@@ -225,6 +225,7 @@ mod tests {
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.idle_cash_interest.is_empty());
 
+        // FIXME: Check T+2
         assert!(!statement.stock_buys.is_empty());
         assert!(!statement.stock_sells.is_empty());
 
@@ -242,12 +243,12 @@ mod tests {
 
     fn parse_full(name: &str) -> BrokerStatement {
         let path = format!("testdata/interactive-brokers/{}", name);
-        BrokerStatement::read(&Config::mock(), Broker::InteractiveBrokers, &path).unwrap()
+        BrokerStatement::read(&Config::mock(), Broker::InteractiveBrokers, &path, true).unwrap()
     }
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(&Config::mock()).unwrap().read(&path).unwrap();
+        StatementReader::new(&Config::mock(), true).unwrap().read(&path).unwrap();
     }
 }

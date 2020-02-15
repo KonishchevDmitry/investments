@@ -20,7 +20,8 @@ pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
 ) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let broker_statement = BrokerStatement::read(config, portfolio.broker, &portfolio.statements)?;
+    let broker_statement = BrokerStatement::read(
+        config, portfolio.broker, &portfolio.statements, true)?;
 
     if let Some(year) = year {
         if year > util::today().year() {
