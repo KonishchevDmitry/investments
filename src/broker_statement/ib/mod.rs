@@ -9,30 +9,35 @@ mod trades;
 use std::cell::RefCell;
 use std::iter::Iterator;
 
+#[cfg(test)] use chrono::Datelike;
 use csv::{self, StringRecord};
-use log::trace;
+use log::{trace, warn};
 
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::formatting::format_date;
+use crate::types::Date;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use self::common::{RecordSpec, Record, RecordParser, format_record};
-use self::confirmation::TradeExecutionDates;
+use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
     trade_execution_dates: RefCell<TradeExecutionDates>,
+    warn_on_missing_execution_date: bool,
 }
 
 impl StatementReader {
-    pub fn new(config: &Config, _strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
+    pub fn new(config: &Config, strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info: Broker::InteractiveBrokers.get_info(config)?,
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
+            warn_on_missing_execution_date: strict_mode,
         }))
     }
 }
@@ -54,11 +59,13 @@ impl BrokerStatementReader for StatementReader {
         Ok(!is_confirmation_report)
     }
 
-    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
             statement: PartialBrokerStatement::new(self.broker_info.clone()),
             base_currency: None,
             base_currency_summary: None,
+            trade_execution_dates: &self.trade_execution_dates.borrow(),
+            warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
         }.parse(path)
     }
 }
@@ -69,13 +76,15 @@ enum State {
     Header(StringRecord),
 }
 
-pub struct StatementParser {
+pub struct StatementParser<'a> {
     statement: PartialBrokerStatement,
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
+    trade_execution_dates: &'a TradeExecutionDates,
+    warn_on_missing_execution_date: &'a mut bool,
 }
 
-impl StatementParser {
+impl<'a> StatementParser<'a> {
     fn parse(mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
@@ -186,6 +195,26 @@ impl StatementParser {
 
         self.statement.validate()
     }
+
+    fn get_execution_date(&mut self, symbol: &str, conclusion_date: Date) -> Date {
+        if let Some(&execution_date) = self.trade_execution_dates.get(&OrderId {
+            symbol: symbol.to_owned(),
+            date: conclusion_date,
+        }) {
+            return execution_date;
+        }
+
+        if *self.warn_on_missing_execution_date {
+            warn!(concat!(
+                "The broker statement misses trade settle date information. ",
+                "First occurred trade - {} at {}. ",
+                "All calculations for such trades will be performed in T+0 mode."
+            ), symbol, format_date(conclusion_date));
+            *self.warn_on_missing_execution_date = false;
+        }
+
+        conclusion_date
+    }
 }
 
 fn parse_header(record: &StringRecord) -> RecordSpec {
@@ -220,14 +249,32 @@ mod tests {
     #[test]
     fn parse_real_current() {
         let statement = parse_full("current");
+        let current_year = statement.period.1.year();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.idle_cash_interest.is_empty());
 
-        // FIXME: Check T+2
         assert!(!statement.stock_buys.is_empty());
         assert!(!statement.stock_sells.is_empty());
+
+        let mut has_buys = false;
+        for trade in &statement.stock_buys {
+            if trade.conclusion_date.year() < current_year {
+                has_buys = true;
+                assert_ne!(trade.execution_date, trade.conclusion_date);
+            }
+        }
+        assert!(has_buys);
+
+        let mut has_sells = false;
+        for trade in &statement.stock_sells {
+            if trade.conclusion_date.year() < current_year {
+                has_sells = true;
+                assert_ne!(trade.execution_date, trade.conclusion_date);
+            }
+        }
+        assert!(has_sells);
 
         assert!(!statement.dividends.is_empty());
         assert!(statement.dividends.iter().any(|dividend| dividend.paid_tax.is_positive()));

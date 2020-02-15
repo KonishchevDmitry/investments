@@ -56,7 +56,7 @@ assets and statements' periods mustn't overlap or have missing days in between.
 
 For now only the following broker statements are supported:
 * Interactive Brokers (*.csv)
-* Открытие Брокер (ИИС, basic support) (*.xml)
+* Открытие Брокер (IIA, basic support) (*.xml)
 * БКС (basic support) (*.xls)
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
@@ -111,6 +111,27 @@ This iterative trading is not required - you can look at the results of `investm
 once, but it leaves a chance to spend more than you supposed to in case of highly volatile market. In practice, the
 simplest strategy here in case of relatively small price of all stocks - submit all orders except the last (one / two /
 few), commit the current result, execute `investments rebalance` and submit the rest.
+
+#### Broker specific
+
+##### Interactive Brokers
+
+Activity statements don't provide trade settle date. So by default all calculations will be made in T+0 mode and
+`simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects correctness of
+tax calculations.
+
+Trade settle date may be obtained from Trade Confirmation Report. To do this create a Trade Confirmation Flex Query in
+the IB `Reports -> Flex Queries` tab with the following parameters:
+
+![Trade Confirmation Flex Query Parameters](/images/trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
+
+and download the statements for all periods where you have any trades. Investments will catch these statements and use
+information from them for calculations in T+2 mode.
+
+##### БКС and Открытие Брокер
+
+Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
+example of how they are look like in the broker statements.
 
 #### Deposits
 

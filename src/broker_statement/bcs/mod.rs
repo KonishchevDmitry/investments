@@ -31,7 +31,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".xls"))
     }
 
-    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         Parser::read(self.broker_info.clone(), path)
     }
 }

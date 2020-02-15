@@ -33,7 +33,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".xml"))
     }
 
-    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut statement = PartialBrokerStatement::new(self.broker_info.clone());
         read_statement(path)?.parse(&mut statement)?;
         statement.validate()

@@ -41,7 +41,6 @@ impl RecordParser for TradesParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_value("DataDiscriminator", "Order")?;
 
-        // TODO: Here we should calculate taxes from currency selling
         if record.get_value("Asset Category")? == "Forex" {
             return Ok(());
         }
@@ -50,8 +49,10 @@ impl RecordParser for TradesParser {
 
         let currency = record.get_value("Currency")?;
         let symbol = record.get_value("Symbol")?;
-        let date = parse_date_time(record.get_value("Date/Time")?)?.date();
         let quantity: i32 = record.parse_value("Quantity")?;
+
+        let conclusion_date = parse_date_time(record.get_value("Date/Time")?)?.date();
+        let execution_date = parser.get_execution_date(symbol, conclusion_date);
 
         let price = Cash::new(
             currency, record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?);
@@ -62,10 +63,10 @@ impl RecordParser for TradesParser {
 
         if quantity > 0 {
             parser.statement.stock_buys.push(StockBuy::new(
-                symbol, quantity as u32, price, commission, date, date));
+                symbol, quantity as u32, price, commission, conclusion_date, execution_date));
         } else if quantity < 0 {
             parser.statement.stock_sells.push(StockSell::new(
-                symbol, -quantity as u32, price, commission, date, date, false));
+                symbol, -quantity as u32, price, commission, conclusion_date, execution_date, false));
         } else {
             return Err!("Invalid quantity: {}", quantity)
         }

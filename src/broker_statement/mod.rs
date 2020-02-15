@@ -51,7 +51,7 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(config: &Config, broker: Broker, statement_dir_path: &str, strict_mode: bool) -> GenericResult<BrokerStatement> {
-        let statement_reader = match broker {
+        let mut statement_reader = match broker {
             Broker::Bcs => bcs::StatementReader::new(config),
             Broker::InteractiveBrokers => ib::StatementReader::new(config, strict_mode),
             Broker::OpenBroker => open_broker::StatementReader::new(config),
@@ -531,5 +531,5 @@ fn get_statement_files(
 
 pub trait BrokerStatementReader {
     fn is_statement(&self, path: &str) -> GenericResult<bool>;
-    fn read(&self, path: &str) -> GenericResult<PartialBrokerStatement>;
+    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement>;
 }

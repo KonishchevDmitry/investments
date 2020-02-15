@@ -92,9 +92,9 @@ struct TradeRow {
     quantity: u32,
     #[column(name="Цена")]
     price: Cash,
-    #[column(name="Курс руб.\nна дату сделки")]
+    #[column(name="Курс руб.\nдата сделки")]
     conclusion_currency_rate: Decimal,
-    #[column(name="Курс руб.\nна дату расчета")]
+    #[column(name="Курс руб.\nдата расчета")]
     execution_currency_rate: Decimal,
     #[column(name="Доход от\nпродажи")]
     revenue: Cash,
@@ -133,9 +133,9 @@ struct FifoRow {
     quantity: u32,
     #[column(name="Цена")]
     price: Cash,
-    #[column(name="Курс руб.\nна дату сделки")]
+    #[column(name="Курс руб.\nдата сделки")]
     conclusion_currency_rate: Decimal,
-    #[column(name="Курс руб.\nна дату расчета")]
+    #[column(name="Курс руб.\nдата расчета")]
     execution_currency_rate: Decimal,
     #[column(name="Расходы")]
     cost: Cash,
