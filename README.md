@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.com/KonishchevDmitry/investments.svg?branch=master)](https://travis-ci.com/KonishchevDmitry/investments)
 
-## Investments
+# Investments
 
 Helps you with managing your investments:
 * **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your asset
@@ -17,7 +17,7 @@ Helps you with managing your investments:
 Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com),
 [Открытие Брокер](https://open-broker.ru) or [БКС](https://broker.ru/).
 
-### Installation
+## Installation
 
 1. Install Rust - https://www.rust-lang.org/tools/install
 2. Install build dependencies:
@@ -40,14 +40,14 @@ cargo install --git https://github.com/KonishchevDmitry/investments.git --bin in
 
 If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
 
-### Configuration
+## Configuration
 
 Create `~/.investments/config.yaml` configuration file ([example](config-example.yaml)). Don't forget to obtain API
 token for Finnhub and Twelve Data (see the comments in example config).
 
-### Usage
+## Usage
 
-#### Stocks
+### Stocks
 
 Investments is designed to work with your broker statements - there is no need to enter all trades and transactions
 manually, but it requires you to have all broker statements starting from account opening day. It may be either one
@@ -112,9 +112,9 @@ once, but it leaves a chance to spend more than you supposed to in case of highl
 simplest strategy here in case of relatively small price of all stocks - submit all orders except the last (one / two /
 few), commit the current result, execute `investments rebalance` and submit the rest.
 
-#### Broker specific
+### Broker specific
 
-##### Interactive Brokers
+#### Interactive Brokers
 
 Activity statements don't provide trade settle date. So by default all calculations will be made in T+0 mode and
 `simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects correctness of
@@ -128,12 +128,12 @@ the IB `Reports -> Flex Queries` tab with the following parameters:
 and download the statements for all periods where you have any trades. Investments will catch these statements and use
 information from them for calculations in T+2 mode.
 
-##### БКС and Открытие Брокер
+#### БКС and Открытие Брокер
 
 Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
 example of how they are look like in the broker statements.
 
-#### Deposits
+### Deposits
 
 Deposits are controlled via `deposits` command. You register your opened deposits in the configuration file and then
 execute `investments deposits` to view them all in one place:
@@ -163,7 +163,7 @@ The following deposits are closed:
 ```
 
 
-### Recommendations
+## Recommendations
 
 Download broker statements periodically and run the tool against them to be sure that it's still able to parse them and
 won't fail when you'll need it.
@@ -172,7 +172,7 @@ Generate tax statement in the beginning of March. Interactive Brokers sometimes 
 statements and if you generate tax statement earlier, it may contain inaccurate data.
 
 
-### Unsupported features
+## Unsupported features
 
 The program supports only those cases which I saw in my broker statements (or statements sent to me by my friends), which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
 * Bonds
@@ -181,7 +181,7 @@ The program supports only those cases which I saw in my broker statements (or st
 * Currencies other than USD and RUB
 
 
-### Denial of responsibility
+## Denial of responsibility
 
 The project is developed as a pet project, mainly for my personal use. The code is written in a way that if it finds
 something unusual in broker statement it returns an error and doesn't try to pass through the error to avoid the case
