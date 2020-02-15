@@ -75,7 +75,7 @@ struct TradeRow {
     #[column(name="Real profit %")]
     real_profit: Cell,
     #[column(name="Real tax %")]
-    real_tax: Cell,
+    real_tax: Option<Cell>,
     #[column(name="Real local profit %")]
     real_local_profit: Cell,
 }
@@ -163,7 +163,7 @@ fn print_results(
             local_profit: details.local_profit,
             tax_to_pay: details.tax_to_pay,
             real_profit: Cell::new_ratio(details.real_profit_ratio),
-            real_tax: Cell::new_ratio(details.real_tax_ratio),
+            real_tax: details.real_tax_ratio.map(Cell::new_ratio),
             real_local_profit: Cell::new_ratio(details.real_local_profit_ratio),
         });
     }
