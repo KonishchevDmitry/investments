@@ -583,7 +583,7 @@ fn calculate_target_commission(
         (TradeType::Sell, holding.current_shares - target_shares)
     };
 
-    let date = util::today();
+    let date = util::today_trade_conclusion_date();
     let commission = commission_calc.add_trade(date, trade_type, shares, holding.currency_price)
         .map_err(|e| format!("{}: {}", name, e))?;
 
@@ -596,7 +596,7 @@ fn calculate_total_commissions(portfolio: &Portfolio, converter: &CurrencyConver
     let trade_commissions = calculate_trade_commissions(
         &portfolio.assets, &mut commission_calc, &portfolio.currency, converter)?;
 
-    let date = util::today();
+    let date = util::today_trade_conclusion_date();
     let mut additional_commissions = dec!(0);
 
     for &commission in commission_calc.calculate().values() {

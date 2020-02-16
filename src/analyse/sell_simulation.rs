@@ -108,7 +108,8 @@ fn print_results(
 
     for commission in additional_commissions.iter() {
         total_profit.withdraw(commission);
-        total_local_profit.sub_convert_assign(util::today(), commission, converter)?;
+        total_local_profit.sub_convert_assign(
+            util::today_trade_conclusion_date(), commission, converter)?;
     }
     let mut total_commission = additional_commissions;
 
