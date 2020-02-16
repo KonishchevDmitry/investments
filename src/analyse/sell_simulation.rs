@@ -125,7 +125,7 @@ fn print_results(
 
     for trade in stock_sells {
         let details = trade.calculate(&country, &converter)?;
-        let mut total_purchase_cost = MultiCurrencyCashAccount::new();
+        let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         total_commission.deposit(trade.commission);
         total_revenue.deposit(details.revenue);
@@ -134,7 +134,9 @@ fn print_results(
         total_local_profit.add_assign(details.local_profit).unwrap();
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            total_purchase_cost.deposit(buy_trade.price * buy_trade.quantity);
+            purchase_cost.add_convert_assign(
+                buy_trade.execution_date, buy_trade.price * buy_trade.quantity, converter)?;
+
             fifo_table.add_row(FifoRow {
                 symbol: if index == 0 {
                    Some(trade.symbol.clone())
@@ -146,16 +148,10 @@ fn print_results(
             });
         }
 
-        let total_purchase_cost = Cash::new(
-            trade.price.currency,
-            total_purchase_cost.total_assets(trade.price.currency, converter)?);
-
-        let average_buy_price = (total_purchase_cost / trade.quantity).round();
-
         trades_table.add_row(TradeRow {
             symbol: trade.symbol,
             quantity: trade.quantity,
-            buy_price: average_buy_price,
+            buy_price: (purchase_cost / trade.quantity).round(),
             sell_price: trade.price,
             commission: trade.commission,
             revenue: details.revenue,

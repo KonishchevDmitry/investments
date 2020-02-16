@@ -104,7 +104,7 @@ impl StockSell {
             let fifo_details = source.calculate(country, converter)?;
 
             purchase_cost.add_assign(fifo_details.total_cost).map_err(|e| format!(
-                "Sell and buy trade have different currency: {}", e))?;
+                "Sell and buy trades have different currency: {}", e))?;
             purchase_local_cost.add_assign(fifo_details.total_local_cost).unwrap();
 
             fifo.push(fifo_details);
