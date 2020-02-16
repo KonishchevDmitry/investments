@@ -351,10 +351,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let mut stock_taxes = HashMap::new();
 
         for stock_buy in &self.statement.stock_buys {
-            // FIXME: HERE
-
             let mut assets = self.converter.convert_to(
-                stock_buy.conclusion_date, stock_buy.price * stock_buy.quantity, self.currency)?;
+                stock_buy.execution_date, stock_buy.price * stock_buy.quantity, self.currency)?;
 
             assets += self.converter.convert_to(
                 stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
@@ -364,8 +362,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         for stock_sell in &self.statement.stock_sells {
-            // FIXME: HERE
-
             let assets = self.converter.convert_to(
                 stock_sell.execution_date, stock_sell.price * stock_sell.quantity, self.currency)?;
 
@@ -482,7 +478,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
 
-        // FIXME: HERE
         let today = util::today();
         let conversion_date = if tax_payment_date > today {
             today
