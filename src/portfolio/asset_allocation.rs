@@ -53,7 +53,7 @@ impl Portfolio {
             quotes.batch(&symbol);
         }
 
-        let cash_assets = assets.cash.total_assets(&currency, converter)?;
+        let cash_assets = assets.cash.total_assets_real_time(&currency, converter)?;
 
         let mut portfolio = Portfolio {
             name: portfolio_config.name.clone(),

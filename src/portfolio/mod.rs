@@ -101,7 +101,7 @@ pub fn rebalance(config: &Config, portfolio_name: &str, flat: bool) -> EmptyResu
     process(config, portfolio_name, true, flat)
 }
 
-pub fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> EmptyResult {
+fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> EmptyResult {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
