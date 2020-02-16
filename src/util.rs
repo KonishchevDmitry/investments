@@ -121,6 +121,7 @@ pub fn parse_duration(string: &str) -> GenericResult<Duration> {
     Ok(Duration::seconds(seconds))
 }
 
+// FIXME: All usage
 pub fn today() -> Date {
     tz_now().date().naive_local()
 }

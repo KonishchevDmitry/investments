@@ -222,6 +222,7 @@ impl MultiCurrencyCashAccount {
 
         for (other_currency, amount) in &self.assets {
             let assets = Cash::new(other_currency, *amount);
+            // FIXME: HERE
             total_assets += converter.convert_to(util::today(), assets, currency)?;
         }
 

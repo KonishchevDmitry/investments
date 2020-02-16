@@ -160,6 +160,7 @@ impl AssetAllocation {
                 }
 
                 let currency_price = quotes.get(symbol)?;
+                // FIXME: HERE
                 let price = converter.convert_to(util::today(), currency_price, currency)?;
 
                 let shares = stocks.remove(symbol).unwrap_or(0);
