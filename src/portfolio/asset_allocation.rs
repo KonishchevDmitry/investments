@@ -7,7 +7,6 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
-use crate::util;
 
 use super::Assets;
 
@@ -160,8 +159,7 @@ impl AssetAllocation {
                 }
 
                 let currency_price = quotes.get(symbol)?;
-                // FIXME: HERE
-                let price = converter.convert_to(util::today(), currency_price, currency)?;
+                let price = converter.real_time_convert_to(currency_price, currency)?;
 
                 let shares = stocks.remove(symbol).unwrap_or(0);
                 let current_value = Decimal::from(shares) * price;
