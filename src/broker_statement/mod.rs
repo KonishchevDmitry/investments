@@ -184,14 +184,14 @@ impl BrokerStatement {
     pub fn emulate_sell(
         &mut self, symbol: &str, quantity: u32, price: Cash, commission_calc: &mut CommissionCalc
     ) -> EmptyResult {
-        // FIXME: HERE
-        let today = util::today();
+        let conclusion_date = util::today_trade_conclusion_date();
 
-        let conclusion_date = today;
-        let execution_date = match self.stock_sells.last() {
-            Some(last_trade) if last_trade.execution_date > today => last_trade.execution_date,
-            _ => today,
-        };
+        let mut execution_date = util::today_trade_execution_date();
+        if let Some(last_trade) = self.stock_sells.last() {
+            if last_trade.execution_date > execution_date {
+                execution_date = last_trade.execution_date;
+            }
+        }
 
         let commission = commission_calc.add_trade(
             conclusion_date, TradeType::Sell, quantity, price)?;
