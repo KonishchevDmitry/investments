@@ -217,13 +217,25 @@ impl MultiCurrencyCashAccount {
         self.deposit(-amount)
     }
 
+    // FIXME: Deprecate
     pub fn total_assets(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let mut total_assets = dec!(0);
 
         for (other_currency, amount) in &self.assets {
             let assets = Cash::new(other_currency, *amount);
-            // FIXME: HERE
             total_assets += converter.convert_to(util::today(), assets, currency)?;
+        }
+
+        Ok(total_assets)
+    }
+
+    pub fn total_assets_real_time(
+        &self, currency: &str, converter: &CurrencyConverter
+    ) -> GenericResult<Decimal> {
+        let mut total_assets = dec!(0);
+
+        for assets in self.iter() {
+            total_assets += converter.real_time_convert_to(assets, currency)?;
         }
 
         Ok(total_assets)

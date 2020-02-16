@@ -43,7 +43,7 @@ impl CurrencyConverter {
     }
 
     pub fn real_time_convert_to(&self, cash: Cash, to: &str) -> GenericResult<Decimal> {
-        self.convert(cash.currency, to, self.real_time_date(), cash.amount)
+        self.convert_to(self.real_time_date(), cash, to)
     }
 
     pub fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {

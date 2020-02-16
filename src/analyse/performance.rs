@@ -151,7 +151,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             investments += transaction.amount;
         }
 
-        let current_assets = self.statement.cash_assets.total_assets(
+        let current_assets = self.statement.cash_assets.total_assets_real_time(
             self.currency, self.converter)?;
 
         let (interest, difference) = compare_to_bank_deposit(
