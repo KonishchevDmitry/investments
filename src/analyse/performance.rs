@@ -208,41 +208,29 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn calculate_open_position_periods(&mut self) -> EmptyResult {
-        struct Trade {
-            quantity: i32,
-            conclusion_date: Date,
-        }
-        type Trades = BTreeMap<Date, Trade>;
+        type Trades = BTreeMap<Date, i32>;
         let mut trades: HashMap<&str, Trades> = HashMap::new();
 
         let add_trade = |
-            symbol_trades: std::collections::hash_map::Entry<&str, Trades>, quantity: i32,
-            conclusion_date: Date, execution_date: Date
+            symbol_trades: std::collections::hash_map::Entry<&str, Trades>,
+            date: Date, quantity: i32
         | {
             symbol_trades.or_insert_with(BTreeMap::new)
-                .entry(execution_date)
-                .and_modify(|trade| {
-                    if quantity > 0 {
-                        trade.conclusion_date = std::cmp::min(trade.conclusion_date, conclusion_date);
-                    }
-                    trade.quantity += quantity;
-                })
-                .or_insert_with(|| Trade {
-                    conclusion_date: conclusion_date,
-                    quantity: quantity,
-                });
+                .entry(date)
+                .and_modify(|total_quantity| *total_quantity += quantity)
+                .or_insert(quantity);
         };
 
         for stock_buy in &self.statement.stock_buys {
-            add_trade(trades.entry(&stock_buy.symbol),
-                      i32::cast(stock_buy.quantity).unwrap(),
-                      stock_buy.conclusion_date, stock_buy.execution_date);
+            add_trade(
+                trades.entry(&stock_buy.symbol), stock_buy.conclusion_date,
+                i32::cast(stock_buy.quantity).unwrap());
         }
 
         for stock_sell in &self.statement.stock_sells {
-            add_trade(trades.entry(&stock_sell.symbol),
-                      -i32::cast(stock_sell.quantity).unwrap(),
-                      stock_sell.conclusion_date, stock_sell.execution_date);
+            add_trade(
+                trades.entry(&stock_sell.symbol), stock_sell.conclusion_date,
+                -i32::cast(stock_sell.quantity).unwrap());
         }
 
         struct OpenPosition {
@@ -252,39 +240,37 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         trace!("Open positions periods:");
 
-        for (symbol, symbol_trades) in &trades {
-            let symbol = *symbol;
+        for (&symbol, symbol_trades) in &trades {
             let mut open_position = None;
             let mut open_periods: Vec<InterestPeriod> = Vec::new();
 
-            for (execution_date, trade) in symbol_trades {
-                let execution_date = *execution_date;
+            for (&date, &quantity) in symbol_trades {
                 let current = open_position.get_or_insert_with(|| {
                     OpenPosition {
-                        start_date: trade.conclusion_date,
+                        start_date: date,
                         quantity: 0,
                     }
                 });
-
-                current.quantity += trade.quantity;
+                current.quantity += quantity;
 
                 if current.quantity > 0 {
                     continue;
                 } else if current.quantity < 0 {
                     return Err!(
                         "Error while processing {} sell operations: Got a negative balance on {}",
-                        symbol, formatting::format_date(execution_date));
+                        symbol, formatting::format_date(date));
                 }
 
                 let start_date = current.start_date;
-                let end_date = if execution_date == start_date {
-                    start_date + Duration::days(1)
+                let end_date = if date == start_date {
+                    date + Duration::days(1)
                 } else {
-                    execution_date
+                    date
                 };
 
                 match open_periods.last_mut() {
                     Some(ref mut period) if period.end >= start_date => {
+                        assert_eq!(period.end, start_date);
                         assert!(period.end < end_date);
                         period.end = end_date;
                     },
@@ -372,7 +358,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 let deposit_view = self.get_deposit_view(&stock_sell.symbol)?;
 
                 deposit_view.transactions.push(Transaction::new(
-                    stock_sell.execution_date, -assets));
+                    stock_sell.conclusion_date, -assets));
 
                 deposit_view.transactions.push(Transaction::new(
                     stock_sell.conclusion_date, commission));
