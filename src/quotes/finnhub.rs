@@ -5,12 +5,12 @@ use std::time::Duration;
 #[cfg(test)] use indoc::indoc;
 use log::trace;
 #[cfg(test)] use mockito::{self, Mock, mock};
-use num_traits::FromPrimitive;
+use num_traits::Zero;
 use rayon::prelude::*;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use serde::de::{Deserializer, DeserializeOwned, Error};
+use serde::de::DeserializeOwned;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
@@ -39,24 +39,32 @@ impl Finnhub {
 
     fn get_quote(&self, symbol: &str) -> GenericResult<Option<Cash>> {
         #[derive(Deserialize)]
-        struct Profile {
-            currency: Option<String>,
-        }
-
-        #[derive(Deserialize)]
         struct Quote {
-            #[serde(rename = "c", deserialize_with = "deserialize_price")]
+            #[serde(rename = "c")]
             current: Decimal,
         }
 
-        let profile: Profile = self.query("stock/profile", symbol)?;
-        let currency = match profile.currency {
-            Some(currency) => currency,
-            None => return Ok(None)
+        let quote: Quote = self.query("quote", symbol)?;
+        if quote.current.is_zero() {
+            return Ok(None)
+        }
+
+        let price = util::validate_decimal(quote.current, DecimalRestrictions::StrictlyPositive)
+            .map_err(|_| format!("Got an invalid {} price: {:?}", symbol, quote.current))?;
+
+        // Profile API has too expensive rate limit weight, so try to avoid using it
+        let currency = if symbol.contains('.') {
+            #[derive(Deserialize)]
+            struct Profile {
+                currency: String,
+            }
+
+            self.query::<Profile>("stock/profile", symbol)?.currency
+        } else {
+            "USD".to_owned()
         };
 
-        let quote: Quote = self.query("quote", symbol)?;
-        Ok(Some(Cash::new(&currency, quote.current)))
+        Ok(Some(Cash::new(&currency, price)))
     }
 
     fn query<T: DeserializeOwned>(&self, method: &str, symbol: &str) -> GenericResult<T> {
@@ -115,15 +123,6 @@ impl QuotesProvider for Finnhub {
     }
 }
 
-fn deserialize_price<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
-    where D: Deserializer<'de>
-{
-    let price: f64 = Deserialize::deserialize(deserializer)?;
-    Ok(Decimal::from_f64(price).and_then(|price| {
-        util::validate_decimal(price, DecimalRestrictions::StrictlyPositive).ok()
-    }).ok_or_else(|| format!("Invalid price: {:?}", price)).map_err(D::Error::custom)?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,6 +164,15 @@ mod tests {
 
         let _unknown_profile_mock = mock_response("/api/v1/stock/profile?symbol=UNKNOWN&token=mock", indoc!(r#"
             {}
+        "#));
+        let _unknown_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN&token=mock", indoc!(r#"
+            {
+                "c": 0,
+                "h": 0,
+                "l": 0,
+                "o": 0,
+                "pc": 0
+            }
         "#));
 
         let _bndx_profile_mock = mock_response("/api/v1/stock/profile?symbol=BNDX&token=mock", indoc!(r#"
