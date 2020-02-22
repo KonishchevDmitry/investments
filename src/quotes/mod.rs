@@ -88,7 +88,8 @@ impl Quotes {
                 debug!("Getting quotes from {} for the following symbols: {}...",
                        provider.name(), symbols.join(", "));
 
-                provider.get_quotes(&symbols)?
+                provider.get_quotes(&symbols).map_err(|e| format!(
+                    "Failed to get quotes from {}: {}", provider.name(), e))?
             };
 
             for (other_symbol, &other_price) in quotes.iter() {
