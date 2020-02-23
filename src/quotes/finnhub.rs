@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 #[cfg(test)] use indoc::indoc;
-use log::trace;
+use log::{debug, trace};
 #[cfg(test)] use mockito::{self, Mock, mock};
 use num_traits::Zero;
 use rayon::prelude::*;
@@ -40,17 +41,30 @@ impl Finnhub {
     fn get_quote(&self, symbol: &str) -> GenericResult<Option<Cash>> {
         #[derive(Deserialize)]
         struct Quote {
+            #[serde(rename = "t")]
+            day_start_time: Option<i64>,
+
             #[serde(rename = "c")]
-            current: Decimal,
+            current_price: Decimal,
         }
 
         let quote: Quote = self.query("quote", symbol)?;
-        if quote.current.is_zero() {
+        if quote.current_price.is_zero() {
             return Ok(None)
         }
 
-        let price = util::validate_decimal(quote.current, DecimalRestrictions::StrictlyPositive)
-            .map_err(|_| format!("Got an invalid {} price: {:?}", symbol, quote.current))?;
+        if let Some(time) = quote.day_start_time {
+            if is_outdated(time)? {
+                let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(time, 0), Utc);
+                debug!("{}: Got outdated quotes: {}.", symbol, time);
+                return Ok(None);
+            }
+        } else {
+            return Ok(None);
+        }
+
+        let price = util::validate_decimal(quote.current_price, DecimalRestrictions::StrictlyPositive)
+            .map_err(|_| format!("Got an invalid {} price: {:?}", symbol, quote.current_price))?;
 
         // Profile API has too expensive rate limit weight, so try to avoid using it
         let currency = if symbol.contains('.') {
@@ -128,6 +142,19 @@ impl QuotesProvider for Finnhub {
     }
 }
 
+#[cfg(not(test))]
+fn is_outdated(time: i64) -> GenericResult<bool> {
+    let date_time = NaiveDateTime::from_timestamp_opt(time, 0).ok_or_else(|| format!(
+        "Got an invalid UNIX time: {}", time))?;
+    Ok(super::is_outdated_quote::<Utc>(DateTime::from_utc(date_time, Utc)))
+}
+
+#[cfg(test)]
+fn is_outdated(time: i64) -> GenericResult<bool> {
+    #![allow(clippy::unreadable_literal)]
+    Ok(time < 1582295400)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,11 +186,46 @@ mod tests {
         "#));
         let _bnd_quote_mock = mock_response("/api/v1/quote?symbol=BND&token=mock", indoc!(r#"
             {
-                "c": 84.91,
-                "h": 85,
-                "l": 84.8,
-                "o": 84.83,
-                "pc": 84.78
+                "c": 85.80000305175781,
+                "h": 85.93000030517578,
+                "l": 85.7300033569336,
+                "o": 85.76000213623047,
+                "pc": 85.58999633789062,
+                "t": 1582295400
+            }
+        "#));
+
+        let _outdated_profile_mock = mock_response("/api/v1/stock/profile?symbol=AMZN&token=mock", indoc!(r#"
+            {
+                "address": "410 Terry Avenue North",
+                "city": "Seattle",
+                "country": "USA",
+                "currency": "USD",
+                "cusip": "023135106",
+                "description": "Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally. The company operates through three segments: North America, International, and Amazon Web Services (AWS) segments.",
+                "exchange": "NASDAQ-NMS Stock Market",
+                "ggroup": "Retailing",
+                "gind": "Internet & Direct Marketing Retail",
+                "gsector": "Consumer Discretionary",
+                "gsubind": "Internet & Direct Marketing Retail",
+                "ipo": "1997-05-15",
+                "isin": "",
+                "naics": "",
+                "name": "AMAZON.COM INC",
+                "phone": "206-266-1000",
+                "state": "WA",
+                "ticker": "AMZN",
+                "weburl": "www.amazon.com"
+            }
+        "#));
+        let _outdated_quote_mock = mock_response("/api/v1/quote?symbol=AMZN&token=mock", indoc!(r#"
+            {
+                "c": 2095.969970703125,
+                "h": 2144.550048828125,
+                "l": 2088,
+                "o": 2142.14990234375,
+                "pc": 2153.10009765625,
+                "t": 1
             }
         "#));
 
@@ -205,20 +267,21 @@ mod tests {
         "#));
         let _bndx_quote_mock = mock_response("/api/v1/quote?symbol=BNDX&token=mock", indoc!(r#"
             {
-                "c": 57.26,
-                "h": 57.29,
-                "l": 57.2,
-                "o": 57.21,
-                "pc": 57.17
+                "c": 57.86000061035156,
+                "h": 57.900001525878906,
+                "l": 57.849998474121094,
+                "o": 57.86000061035156,
+                "pc": 57.7599983215332,
+                "t": 1582295400
             }
         "#));
 
         let client = Finnhub::new("mock");
 
         let mut quotes = HashMap::new();
-        quotes.insert(s!("BND"), Cash::new("USD", dec!(84.91)));
-        quotes.insert(s!("BNDX"), Cash::new("USD", dec!(57.26)));
-        assert_eq!(client.get_quotes(&["BND", "UNKNOWN", "BNDX"]).unwrap(), quotes);
+        quotes.insert(s!("BND"), Cash::new("USD", dec!(85.80000305175781)));
+        quotes.insert(s!("BNDX"), Cash::new("USD", dec!(57.86000061035156)));
+        assert_eq!(client.get_quotes(&["BND", "AMZN", "UNKNOWN", "BNDX"]).unwrap(), quotes);
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {
