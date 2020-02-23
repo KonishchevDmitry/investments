@@ -2,7 +2,7 @@ git:
   submodules: false
 
 language: rust
-cache: cargo
+#cache: cargo
 rust:
   - stable
   - beta
