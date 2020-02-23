@@ -13,6 +13,20 @@ use crate::quotes::{Quotes, get_currency_pair};
 use crate::types::{Date, Decimal};
 use crate::util;
 
+// Official CBR currency rate is calculated as following:
+// 1. Every weekday a weighted average price is calculated for 10:00 - 11:30 period.
+// 2. The calculated value is published around 15:00 and will be the official currency rate starting
+//    from the next day.
+// 3. The calculated currency rate will be valid until the next official currency rate.
+//
+// So, effectively with some approximations CBR currency rate can be considered as T+2 relating to
+// US stock market.
+//
+// The converter uses CBR currency rate for dates <= today and real time forex quotes for dates >
+// today. It works great for both tax calculations where only official currency rates must be used
+// and portfolio analysis / sell simulations where all calculations are processed in T+2 mode and
+// forex quotes at conclusion date will be the closest approximation to the future CBR currency rate
+// for trade execution date.
 pub struct CurrencyConverter {
     backend: Box<dyn CurrencyConverterBackend>,
 }
@@ -55,7 +69,7 @@ impl CurrencyConverter {
     }
 
     fn real_time_date(&self) -> Date {
-        util::today_trade_execution_date() // FIXME
+        util::today_trade_execution_date()
     }
 }
 
@@ -111,7 +125,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
 
         if
             // Strict mode is for tax calculations when we must provide only official currency rates
-            self.strict_mode && date >= today ||
+            self.strict_mode && date > today ||
 
             // Default mode for portfolio performance and other calculations where we have to
             // operate with future dates because of T+2 trade mode with vacations
@@ -121,8 +135,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
                 formatting::format_date(date));
         }
 
-        // FIXME: Do we need more modes for T+2 calculations?
-        if !self.strict_mode && date >= today {
+        if !self.strict_mode && date > today {
             if let Some(ref quotes) = self.quotes {
                 let price = quotes.get(&get_currency_pair(from, to))?;
                 assert_eq!(price.currency, to);
@@ -136,12 +149,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             _ => return Err!("Unsupported currency conversion: {} -> {}", from, to),
         };
 
-        let mut cur_date = if date < today {
-            date
-        } else {
-            today - Duration::days(1)
-        };
-
+        let mut cur_date = date;
         let min_date = localities::get_russian_stock_exchange_min_last_working_day(cur_date);
 
         while cur_date >= min_date {

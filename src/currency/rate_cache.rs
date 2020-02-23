@@ -34,7 +34,7 @@ impl CurrencyRateCache {
     }
 
     pub fn get(&self, currency: &str, date: Date) -> GenericResult<CurrencyRateCacheResult> {
-        if date >= self.today {
+        if date > self.today {
             return Err!("An attempt to get price for the future")
         }
 
@@ -70,15 +70,8 @@ impl CurrencyRateCache {
                 Some(last_date) => last_date + Duration::days(1),
                 None => year_start,
             };
-
-            let end_date = if year_end >= self.today {
-                self.today - Duration::days(1)
-            } else {
-                year_end
-            };
-
+            let end_date = std::cmp::min(year_end, self.today);
             assert!(start_date <= end_date);
-            assert!(end_date < self.today);
 
             Ok(CurrencyRateCacheResult::Missing(start_date, end_date))
         })
@@ -88,7 +81,7 @@ impl CurrencyRateCache {
         if start_date > end_date {
             return Err!("Invalid date range: {} - {}",
                 formatting::format_date(start_date), formatting::format_date(end_date));
-        } else if end_date >= self.today {
+        } else if end_date > self.today {
             return Err!("An attempt to save currency rates for the future");
         }
 
@@ -151,7 +144,9 @@ mod tests {
         let currency = "USD";
         let (_database, mut cache) = CurrencyRateCache::new_temporary();
 
-        let today = date!(9, 2, 2018);
+        let year_start = date!(1, 1, 2018);
+        let today = date!(8, 2, 2018);
+        let tomorrow = today + Duration::days(1);
         cache.today = today;
 
         let currency_rates = vec![CurrencyRate {
@@ -163,17 +158,16 @@ mod tests {
         }];
 
         assert_matches!(
-            cache.get(currency, today),
+            cache.get(currency, tomorrow),
             Err(ref e) if e.to_string() == "An attempt to get price for the future"
         );
 
         assert_matches!(
             cache.get(currency, currency_rates.first().unwrap().date).unwrap(),
-            CurrencyRateCacheResult::Missing(from, to) if (
-                from == date!(1, 1, 2018) && to == date!(8, 2, 2018))
+            CurrencyRateCacheResult::Missing(from, to) if from == year_start && to == today
         );
 
-        cache.save(currency, date!(1, 1, 2018), date!(8, 2, 2018), currency_rates.clone()).unwrap();
+        cache.save(currency, year_start, today, currency_rates.clone()).unwrap();
 
         for currency_rate in &currency_rates {
             assert_matches!(
@@ -182,8 +176,8 @@ mod tests {
             );
         }
 
-        let mut date = date!(1, 1, 2018);
-        while date < cache.today {
+        let mut date = year_start;
+        while date <= today {
             let mut skip = false;
 
             for currency_rate in &currency_rates {
@@ -210,9 +204,9 @@ mod tests {
         cache.today = today + Duration::days(10);
 
         assert_matches!(
-            cache.get(currency, today).unwrap(),
+            cache.get(currency, tomorrow).unwrap(),
             CurrencyRateCacheResult::Missing(from, to) if (
-                from == today && to == cache.today - Duration::days(1))
+                from == tomorrow && to == cache.today)
         );
     }
 }
