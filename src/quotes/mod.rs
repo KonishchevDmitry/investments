@@ -92,7 +92,22 @@ impl Quotes {
                     "Failed to get quotes from {}: {}", provider.name(), e))?
             };
 
-            for (other_symbol, &other_price) in quotes.iter() {
+            for (other_symbol, other_price) in quotes.iter() {
+                let mut other_price = *other_price;
+
+                // Some providers return stock quotes with unnecessary very high precision, so add
+                // rounding here. But don't round Forex pairs since we always round conversion
+                // result + reverse pairs always need high precision.
+                if provider.high_precision() && !is_currency_pair(other_symbol) {
+                    let rounded_price = other_price.round();
+                    let round_precision =
+                        (other_price.amount - rounded_price.amount).abs() / other_price.amount;
+
+                    if round_precision < dec!(0.0001) {
+                        other_price = rounded_price;
+                    }
+                };
+
                 if *other_symbol == symbol {
                     price.replace(other_price);
                 }
@@ -121,6 +136,7 @@ trait QuotesProvider {
     fn name(&self) -> &'static str;
     fn supports_stocks(&self) -> bool {true}
     fn supports_forex(&self) -> bool {true}
+    fn high_precision(&self) -> bool {false}
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
 }
 

@@ -100,9 +100,14 @@ impl QuotesProvider for Finnhub {
         "Finnhub"
     }
 
+    fn high_precision(&self) -> bool {
+        true
+    }
+
     fn supports_forex(&self) -> bool {
         false
     }
+
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         let quotes = Mutex::new(HashMap::new());
 
