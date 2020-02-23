@@ -5,11 +5,15 @@
 
 set -eu
 
+wait-api-rate-limits() {
+    sleep 1
+}
+
 (cd testdata && ./update)
 
 for broker in bcs ib open; do
     ./regression_tests/investments sync "$broker"
-    ./regression_tests/investments analyse "$broker" > /dev/null
+    ./regression_tests/investments analyse "$broker" > /dev/null && wait-api-rate-limits
 done
 
 ./regression_tests/investments cash bcs 100000
