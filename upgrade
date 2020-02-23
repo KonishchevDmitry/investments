@@ -6,5 +6,4 @@
 set -eu
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
-find . -name Cargo.toml -execdir cargo upgrade \;
-cargo update
+find . -name Cargo.toml -execdir cargo upgrade \; -execdir cargo update \;
