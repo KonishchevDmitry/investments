@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use log::error;
+use log::{error, trace};
 use num_traits::Zero;
 use reqwest::Url;
 use reqwest::blocking::Client;
@@ -44,7 +44,10 @@ impl QuotesProvider for Moex {
         )?;
 
         let get = |url| -> GenericResult<HashMap<String, Cash>> {
+            trace!("Sending request to {}...", url);
             let response = Client::new().get(url).send()?;
+            trace!("Got response from {}.", url);
+
             if !response.status().is_success() {
                 return Err!("The server returned an error: {}", response.status());
             }
