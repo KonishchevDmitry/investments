@@ -7,6 +7,7 @@ use serde_xml_rs;
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
+#[cfg(test)] use crate::taxes::TaxRemapping;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -61,7 +62,7 @@ mod tests {
     #[test]
     fn parse_real() {
         let statement = BrokerStatement::read(
-            &Config::mock(), Broker::OpenBroker, "testdata/open-broker", true).unwrap();
+            &Config::mock(), Broker::OpenBroker, "testdata/open-broker", TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());

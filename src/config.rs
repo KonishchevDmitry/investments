@@ -14,7 +14,7 @@ use crate::brokers::Broker;
 use crate::core::GenericResult;
 use crate::formatting;
 use crate::localities::{self, Country};
-use crate::taxes::TaxPaymentDay;
+use crate::taxes::{TaxPaymentDay, TaxRemapping};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -94,7 +94,10 @@ pub struct DepositConfig {
 pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
+
     pub statements: String,
+    #[serde(default)]
+    tax_remapping: Vec<TaxRemappingConfig>,
 
     pub currency: Option<String>,
     pub min_trade_volume: Option<Decimal>,
@@ -129,6 +132,26 @@ impl PortfolioConfig {
     pub fn get_tax_country(&self) -> Country {
         localities::russia()
     }
+
+    pub fn get_tax_remapping(&self) -> GenericResult<TaxRemapping> {
+        let mut remapping = TaxRemapping::new();
+
+        for config in &self.tax_remapping {
+            remapping.add(config.date, &config.description, config.to_date)?;
+        }
+
+        Ok(remapping)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+struct TaxRemappingConfig {
+    #[serde(deserialize_with = "deserialize_date")]
+    pub date: Date,
+    pub description: String,
+    #[serde(deserialize_with = "deserialize_date")]
+    pub to_date: Date,
 }
 
 #[derive(Deserialize, Debug)]

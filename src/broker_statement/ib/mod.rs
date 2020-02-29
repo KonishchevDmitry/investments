@@ -14,10 +14,12 @@ use csv::{self, StringRecord};
 use log::{trace, warn};
 
 use crate::brokers::{Broker, BrokerInfo};
+#[cfg(test)] use crate::config;
 use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::formatting::format_date;
+#[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::types::Date;
 
 #[cfg(test)] use super::{BrokerStatement};
@@ -232,7 +234,7 @@ mod tests {
 
     #[test]
     fn parse_real_empty() {
-        let statement = parse_full("empty");
+        let statement = parse_full("empty", None);
 
         assert!(statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
@@ -248,7 +250,9 @@ mod tests {
 
     #[test]
     fn parse_real_current() {
-        let statement = parse_full("current");
+        let tax_remapping = config::load_config("testdata/config/config.yaml").unwrap()
+            .get_portfolio("ib").unwrap().get_tax_remapping().unwrap();
+        let statement = parse_full("current", Some(tax_remapping));
         let current_year = statement.period.1.year();
 
         assert!(!statement.cash_flows.is_empty());
@@ -285,12 +289,14 @@ mod tests {
 
     #[rstest(name => ["return-of-capital-with-tax", "return-of-capital-without-tax"])]
     fn parse_real(name: &str) {
-        parse_full(name);
+        parse_full(name, None);
     }
 
-    fn parse_full(name: &str) -> BrokerStatement {
+    fn parse_full(name: &str, tax_remapping: Option<TaxRemapping>) -> BrokerStatement {
         let path = format!("testdata/interactive-brokers/{}", name);
-        BrokerStatement::read(&Config::mock(), Broker::InteractiveBrokers, &path, true).unwrap()
+        BrokerStatement::read(
+            &Config::mock(), Broker::InteractiveBrokers, &path,
+            tax_remapping.unwrap_or_else(TaxRemapping::new), true).unwrap()
     }
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]

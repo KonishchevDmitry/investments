@@ -21,7 +21,7 @@ pub fn generate_tax_statement(
 ) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let broker_statement = BrokerStatement::read(
-        config, portfolio.broker, &portfolio.statements, true)?;
+        config, portfolio.broker, &portfolio.statements, portfolio.get_tax_remapping()?, true)?;
 
     if let Some(year) = year {
         if year > util::today().year() {

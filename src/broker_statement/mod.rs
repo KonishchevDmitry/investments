@@ -13,6 +13,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::quotes::Quotes;
+use crate::taxes::TaxRemapping;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
@@ -50,7 +51,10 @@ pub struct BrokerStatement {
 }
 
 impl BrokerStatement {
-    pub fn read(config: &Config, broker: Broker, statement_dir_path: &str, strict_mode: bool) -> GenericResult<BrokerStatement> {
+    pub fn read(
+        config: &Config, broker: Broker, statement_dir_path: &str, _tax_remapping: TaxRemapping,
+        strict_mode: bool,
+    ) -> GenericResult<BrokerStatement> {
         let mut statement_reader = match broker {
             Broker::Bcs => bcs::StatementReader::new(config),
             Broker::InteractiveBrokers => ib::StatementReader::new(config, strict_mode),

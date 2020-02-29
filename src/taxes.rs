@@ -4,6 +4,8 @@ use std::default::Default;
 use chrono::Datelike;
 use lazy_static::lazy_static;
 
+use crate::core::EmptyResult;
+use crate::formatting::format_date;
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
 use crate::util;
@@ -34,6 +36,27 @@ impl TaxPaymentDay {
             TaxPaymentDay::Day {month, day} => Date::from_ymd(income_date.year() + 1, month, day),
             TaxPaymentDay::OnClose => *ACCOUNT_CLOSE_DATE,
         }
+    }
+}
+
+pub struct TaxRemapping {
+    remapping: HashMap<(Date, String), (Date, bool)>
+}
+
+impl TaxRemapping {
+    pub fn new() -> TaxRemapping {
+        TaxRemapping {
+            remapping: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, date: Date, description: &str, to_date: Date) -> EmptyResult {
+        if self.remapping.insert((date, description.to_owned()), (to_date, false)).is_some() {
+            return Err!(
+                "Invalid tax remapping configuration: Duplicated match: {} - {:?}",
+                format_date(date), description);
+        }
+        Ok(())
     }
 }
 

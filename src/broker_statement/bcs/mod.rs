@@ -8,6 +8,7 @@ mod trades;
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
+#[cfg(test)] use crate::taxes::TaxRemapping;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -43,7 +44,7 @@ mod tests {
     #[test]
     fn parse_real() {
         let statement = BrokerStatement::read(
-            &Config::mock(), Broker::Bcs, "testdata/bcs", true).unwrap();
+            &Config::mock(), Broker::Bcs, "testdata/bcs", TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
