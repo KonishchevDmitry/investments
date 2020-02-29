@@ -31,16 +31,10 @@ impl RecordParser for WithholdingTaxParser {
 
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        let mut date = parse_date(record.get_value("Date")?)?;
-        let issuer = parse_tax_description(record.get_value("Description")?)?;
+        let description = record.get_value("Description")?;
+        let date = parser.tax_remapping.map(parse_date(record.get_value("Date")?)?, description);
 
-        // FIXME: A temporary hack for the specific tax reclassification case until we'll be able
-        // to handle such cases.
-        if date == date!(13, 2, 2020) && record.get_value("Description")? ==
-            "BND(US9219378356) Cash Dividend 0.19834500 USD per Share - US Tax" {
-            date = date!(6, 2, 2019);
-        }
-
+        let issuer = parse_tax_description(description)?;
         let tax_id = TaxId::new(date, &issuer);
 
         // Tax amount is represented as a negative number.

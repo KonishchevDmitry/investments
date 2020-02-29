@@ -68,6 +68,7 @@ impl BrokerStatementReader for StatementReader {
             statement: PartialBrokerStatement::new(self.broker_info.clone()),
             base_currency: None,
             base_currency_summary: None,
+            tax_remapping: &mut self.tax_remapping.borrow_mut(),
             trade_execution_dates: &self.trade_execution_dates.borrow(),
             warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
         }.parse(path)
@@ -88,6 +89,7 @@ pub struct StatementParser<'a> {
     statement: PartialBrokerStatement,
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
+    tax_remapping: &'a mut TaxRemapping,
     trade_execution_dates: &'a TradeExecutionDates,
     warn_on_missing_execution_date: &'a mut bool,
 }
