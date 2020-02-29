@@ -16,10 +16,10 @@ use log::{trace, warn};
 use crate::brokers::{Broker, BrokerInfo};
 #[cfg(test)] use crate::config;
 use crate::config::Config;
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::formatting::format_date;
-#[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::taxes::TaxRemapping;
 use crate::types::Date;
 
 #[cfg(test)] use super::{BrokerStatement};
@@ -30,14 +30,16 @@ use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
+    tax_remapping: RefCell<TaxRemapping>,
     trade_execution_dates: RefCell<TradeExecutionDates>,
     warn_on_missing_execution_date: bool,
 }
 
 impl StatementReader {
-    pub fn new(config: &Config, strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
+    pub fn new(config: &Config, tax_remapping: TaxRemapping, strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info: Broker::InteractiveBrokers.get_info(config)?,
+            tax_remapping: RefCell::new(tax_remapping),
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
             warn_on_missing_execution_date: strict_mode,
         }))
@@ -69,6 +71,10 @@ impl BrokerStatementReader for StatementReader {
             trade_execution_dates: &self.trade_execution_dates.borrow(),
             warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
         }.parse(path)
+    }
+
+    fn close(self: Box<StatementReader>) -> EmptyResult {
+        self.tax_remapping.borrow().ensure_all_mapped()
     }
 }
 
@@ -302,6 +308,6 @@ mod tests {
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(&Config::mock(), true).unwrap().read(&path).unwrap();
+        StatementReader::new(&Config::mock(), TaxRemapping::new(), true).unwrap().read(&path).unwrap();
     }
 }

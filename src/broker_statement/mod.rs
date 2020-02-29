@@ -55,9 +55,11 @@ impl BrokerStatement {
         config: &Config, broker: Broker, statement_dir_path: &str, tax_remapping: TaxRemapping,
         strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
+        let mut tax_remapping = Some(tax_remapping);
         let mut statement_reader = match broker {
             Broker::Bcs => bcs::StatementReader::new(config),
-            Broker::InteractiveBrokers => ib::StatementReader::new(config, strict_mode),
+            Broker::InteractiveBrokers => ib::StatementReader::new(
+                config, tax_remapping.take().unwrap(), strict_mode),
             Broker::OpenBroker => open_broker::StatementReader::new(config),
         }?;
 
@@ -82,7 +84,10 @@ impl BrokerStatement {
             statements.push(statement);
         }
 
-        tax_remapping.ensure_all_mapped()?;
+        if let Some(tax_remapping) = tax_remapping {
+            tax_remapping.ensure_all_mapped()?;
+        }
+        statement_reader.close()?;
 
         let joint_statement = BrokerStatement::new_from(statements)?;
         debug!("{:#?}", joint_statement);
@@ -539,4 +544,6 @@ fn get_statement_files(
 pub trait BrokerStatementReader {
     fn is_statement(&self, path: &str) -> GenericResult<bool>;
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement>;
+    #[allow(clippy::boxed_local)]
+    fn close(self: Box<Self>) -> EmptyResult { Ok(()) }
 }
