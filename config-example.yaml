@@ -9,6 +9,12 @@ portfolios:
     # Path to a directory with broker statements (*.csv for Interactive Brokers)
     statements: ~/Brokerage/Interactive Brokers/Statements
 
+    # Tax remapping rules (see README for details)
+    #tax_remapping:
+    #  - date: 13.02.2020
+    #    description: BND(US9219378356) Cash Dividend 0.19834500 USD per Share - US Tax
+    #    to_date: 06.02.2019
+
     # Base currency of your account
     currency: USD
 

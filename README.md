@@ -116,6 +116,16 @@ few), commit the current result, execute `investments rebalance` and submit the 
 
 #### Interactive Brokers
 
+##### Recommendations
+      
+Download broker statements periodically and run the tool against them to be sure that it's still able to parse them and
+won't fail when you'll need it.
+
+Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their mid-February
+statements and if you generate tax statement earlier, it may contain inaccurate data.
+
+##### T+2 trading mode
+
 Activity statements don't provide trade settle date. So by default all calculations will be made in T+0 mode and
 `simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects correctness of
 tax calculations.
@@ -127,6 +137,22 @@ the IB `Reports -> Flex Queries` tab with the following parameters:
 
 and download the statements for all periods where you have any trades. Investments will catch these statements and use
 information from them for calculations in T+2 mode.
+
+##### Dividend reclassifications
+
+Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
+dividend reclassifications. This is typically done in February the following year. As such, the majority of these
+adjustments are refunds to customers. The typical case is when IB's best information at the time of paying a dividend
+indicates that the distribution is an ordinary dividend (and therefore subject to withholding), then later at year end,
+the dividend is reclassified as Return of Capital, proceeds, or capital gains (all of which are not subject to 1042
+withholding).
+
+So withholding in previous year's statements should be reviewed against February statement's withholding adjustments.
+Investments finds such reclassifications an handles them properly, but at this time it matches dividends on taxes using
+(date, symbol) pair, because matching by description turned out to be too fragile. As it turns out, sometimes dates
+of reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option
+using which you can manually map reclassified tax to date of its origin dividend.
+
 
 #### БКС and Открытие Брокер
 
@@ -163,18 +189,10 @@ The following deposits are closed:
 ```
 
 
-## Recommendations
-
-Download broker statements periodically and run the tool against them to be sure that it's still able to parse them and
-won't fail when you'll need it.
-
-Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their mid-February
-statements and if you generate tax statement earlier, it may contain inaccurate data.
-
-
 ## Unsupported features
 
-The program supports only those cases which I saw in my broker statements (or statements sent to me by my friends), which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
+The program supports only those cases which I saw in my broker statements (or statements sent to me by my friends),
+which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
 * Bonds
 * Futures
 * Stock split
