@@ -52,7 +52,7 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        config: &Config, broker: Broker, statement_dir_path: &str, _tax_remapping: TaxRemapping,
+        config: &Config, broker: Broker, statement_dir_path: &str, tax_remapping: TaxRemapping,
         strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
         let mut statement_reader = match broker {
@@ -81,6 +81,8 @@ impl BrokerStatement {
 
             statements.push(statement);
         }
+
+        tax_remapping.ensure_all_mapped()?;
 
         let joint_statement = BrokerStatement::new_from(statements)?;
         debug!("{:#?}", joint_statement);

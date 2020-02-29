@@ -40,22 +40,34 @@ impl TaxPaymentDay {
 }
 
 pub struct TaxRemapping {
-    remapping: HashMap<(Date, String), (Date, bool)>
+    map: HashMap<(Date, String), (Date, bool)>
 }
 
 impl TaxRemapping {
     pub fn new() -> TaxRemapping {
         TaxRemapping {
-            remapping: HashMap::new(),
+            map: HashMap::new(),
         }
     }
 
     pub fn add(&mut self, date: Date, description: &str, to_date: Date) -> EmptyResult {
-        if self.remapping.insert((date, description.to_owned()), (to_date, false)).is_some() {
+        if self.map.insert((date, description.to_owned()), (to_date, false)).is_some() {
             return Err!(
                 "Invalid tax remapping configuration: Duplicated match: {} - {:?}",
                 format_date(date), description);
         }
+        Ok(())
+    }
+
+    pub fn ensure_all_mapped(&self) -> EmptyResult {
+        for ((date, description), (_, mapped)) in self.map.iter() {
+            if !mapped {
+                return Err!(
+                    "The following tax remapping rule hasn't been mapped to any tax: {} - {:?}",
+                    format_date(*date), description)
+            }
+        }
+
         Ok(())
     }
 }
