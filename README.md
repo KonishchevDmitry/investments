@@ -148,8 +148,8 @@ the dividend is reclassified as Return of Capital, proceeds, or capital gains (a
 withholding).
 
 So withholding in previous year's statements should be reviewed against February statement's withholding adjustments.
-Investments finds such reclassifications an handles them properly, but at this time it matches dividends on taxes using
-(date, symbol) pair, because matching by description turned out to be too fragile. As it turns out, sometimes dates
+Investments finds such reclassifications and handles them properly, but at this time it matches dividends on taxes using
+(date, symbol) pair, because matching by description turned out to be too fragile. As it turns out sometimes dates
 of reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option
 using which you can manually map reclassified tax to date of its origin dividend.
 
