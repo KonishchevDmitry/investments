@@ -1,25 +1,28 @@
 use std::num::NonZeroU32;
 use std::time::Duration;
 
-use governor::{Quota, DirectRateLimiter};
-use governor::clock::Clock;
+use governor::Quota;
+use governor::clock::{Clock, DefaultClock};
+use governor::state::{RateLimiter as Limiter, NotKeyed, InMemoryState};
 use log::debug;
 
 pub struct RateLimiter {
-    limiters: Vec<DirectRateLimiter>,
+    clock: DefaultClock,
+    limiters: Vec<Limiter<NotKeyed, InMemoryState, DefaultClock>>,
 }
 
 impl RateLimiter {
     pub fn new() -> RateLimiter {
         RateLimiter {
+            clock: DefaultClock::default(),
             limiters: Vec::new(),
         }
     }
 
     pub fn with_limit(mut self, max_burst: u32, duration: Duration) -> RateLimiter {
-        let max_burst = NonZeroU32::new(max_burst).unwrap();
-        let quota = Quota::new(max_burst, duration).unwrap();
-        self.limiters.push(DirectRateLimiter::new(quota));
+        let quota = Quota::with_period(duration / max_burst).unwrap()
+            .allow_burst(NonZeroU32::new(max_burst).unwrap());
+        self.limiters.push(Limiter::direct_with_clock(quota, &self.clock));
         self
     }
 
@@ -35,7 +38,7 @@ impl RateLimiter {
                     debug!("Rate limiting {}...", name);
                     limited = true;
                 }
-                std::thread::sleep(until.wait_time_from(limiter.get_clock().now()));
+                std::thread::sleep(until.wait_time_from(self.clock.now()));
             }
         }
     }
