@@ -3,7 +3,7 @@ use std::collections::{HashMap, BTreeMap};
 
 use cast::From as CastFrom;
 use chrono::Duration;
-use log::{self, debug, log_enabled, trace};
+use log::{self, debug, log_enabled, trace, warn};
 use num_traits::Zero;
 use static_table_derive::StaticTable;
 
@@ -115,8 +115,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             &deposit_view.transactions, &deposit_view.interest_periods, dec!(0))?;
 
         check_emulation_precision(
-            &format!("{} {}", symbol, self.currency),
-            deposit_view.last_sell_volume.unwrap(), difference)?;
+            symbol, self.currency, deposit_view.last_sell_volume.unwrap(), difference)?;
 
         let mut investments = dec!(0);
         let mut result = dec!(0);
@@ -157,8 +156,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let (interest, difference) = compare_to_bank_deposit(
             &self.transactions, &activity_periods, current_assets)?;
 
-        check_emulation_precision(
-            &format!("portfolio {}", self.currency), current_assets, difference)?;
+        check_emulation_precision("portfolio", self.currency, current_assets, difference)?;
 
         let days = get_total_activity_duration(&activity_periods);
         self.add_results("", investments, current_assets, interest, days, false);
@@ -540,17 +538,22 @@ fn compare_to_bank_deposit(
     Ok((interest, difference))
 }
 
-fn check_emulation_precision(name: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
-    let precision = (difference / assets).abs();
+fn check_emulation_precision(name: &str, currency: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
+    let precision = (difference / assets).abs() * dec!(100);
+    let difference = Cash::new(currency, difference).round();
 
-    if precision >= dec!(0.01) {
-        return Err!(concat!(
-            "Failed to compare {} performance to bank deposit: ",
-            "got a result with too low precision ({})"), name, util::round(precision, 3));
+    if precision >= dec!(1) {
+        // FIXME
+        // return Err!(concat!(
+        warn!(concat!(
+            "Failed to compare {} {} performance to bank deposit: ",
+            "got a result with too low precision ({}%, {})."),
+            name, currency, util::round(precision, 3), difference);
+        return Ok(());
     }
 
-    debug!("Got a result of comparing {} performance to bank deposit: {}% precision.",
-           name, util::round(precision * dec!(100), 4));
+    debug!("Got a result of comparing {} {} performance to bank deposit: {}% precision ({}).",
+           name, currency, util::round(precision, 4), difference);
 
     Ok(())
 }
