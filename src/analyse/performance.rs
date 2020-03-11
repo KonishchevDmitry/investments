@@ -503,12 +503,12 @@ fn compare_to_bank_deposit(
     let mut interest = dec!(0);
     let mut difference = emulate(interest);
 
-    for mut step in [dec!(1), dec!(0.1), dec!(0.01)].iter().cloned() {
+    for mut step in [dec!(10), dec!(1), dec!(0.1), dec!(0.01)].iter().cloned() {
         let decreasing_difference = emulate(interest - step);
         let increasing_difference = emulate(interest + step);
 
         if decreasing_difference > difference && difference < increasing_difference {
-            break;
+            continue;
         }
 
         if decreasing_difference < increasing_difference {
