@@ -543,12 +543,16 @@ fn check_emulation_precision(name: &str, currency: &str, assets: Decimal, differ
     let difference = Cash::new(currency, difference).round();
 
     if precision >= dec!(1) {
-        // FIXME
-        // return Err!(concat!(
-        warn!(concat!(
+        let message = format!(concat!(
             "Failed to compare {} {} performance to bank deposit: ",
-            "got a result with too low precision ({}%, {})."),
+            "got a result with too low precision ({}%, {})"),
             name, currency, util::round(precision, 3), difference);
+
+        if cfg!(debug_assertions) {
+            return Err(message.into());
+        }
+
+        warn!("{}.", message);
         return Ok(());
     }
 
