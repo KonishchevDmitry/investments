@@ -21,7 +21,10 @@ pub struct AlphaVantage {
 }
 
 impl AlphaVantage {
-    #[allow(dead_code)] // FIXME: Deprecate Alpha Vantage support?
+    // At some time has become too restrictive in API limits - only 5 RPM and deprecated batch
+    // quotes API which makes it unusable for stocks now, but maybe will be useful for forex quotes
+    // in the future.
+    #[allow(dead_code)]
     pub fn new(token: &str) -> AlphaVantage {
         AlphaVantage {
             api_key: token.to_owned(),
