@@ -208,7 +208,7 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             let params = ColumnParams::from_meta(&meta).map_err(|e| format!(
                 "{:?} attribute on {:?} field validation error: {}", COLUMN_ATTR_NAME, field_name, e))?;
 
-            match params.align.as_ref().map(|value| value.as_str()) {
+            match params.align.as_deref() {
                 Some("left") | Some("center") | Some("right") | None => {},
                 _ => return Err!("Invalid alignment of {:?}: {:?}",
                                  field_name, params.align.unwrap()),
