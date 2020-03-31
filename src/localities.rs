@@ -59,6 +59,7 @@ pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     } else if today.month() == 5 && today.day() >= 3 && today.day() <= 13 {
         today - Duration::days(5)
     } else {
-        today - Duration::days(3)
+        // FIXME: Unable to find USD currency rate for 01.04.2020 with 3 days precision
+        today - Duration::days(7)
     }
 }
