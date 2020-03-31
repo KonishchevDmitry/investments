@@ -12,6 +12,7 @@ use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde_json;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
@@ -48,10 +49,10 @@ impl Finnhub {
             current_price: Decimal,
         }
 
-        let quote: Quote = self.query("quote", symbol)?;
-        if quote.current_price.is_zero() {
-            return Ok(None)
-        }
+        let quote = match self.query::<Quote>("quote", symbol)? {
+            Some(quote) if !quote.current_price.is_zero() => quote,
+            _ => return Ok(None),
+        };
 
         if let Some(time) = quote.day_start_time {
             if is_outdated(time)? {
@@ -73,7 +74,12 @@ impl Finnhub {
                 currency: String,
             }
 
-            self.query::<Profile>("stock/profile", symbol)?.currency
+            let profile = match self.query::<Profile>("stock/profile", symbol)? {
+                Some(profile) => profile,
+                None => return Ok(None),
+            };
+
+            profile.currency
         } else {
             "USD".to_owned()
         };
@@ -81,7 +87,7 @@ impl Finnhub {
         Ok(Some(Cash::new(&currency, price)))
     }
 
-    fn query<T: DeserializeOwned>(&self, method: &str, symbol: &str) -> GenericResult<T> {
+    fn query<T: DeserializeOwned>(&self, method: &str, symbol: &str) -> GenericResult<Option<T>> {
         #[cfg(not(test))] let base_url = "https://finnhub.io";
         #[cfg(test)] let base_url = mockito::server_url();
 
@@ -90,7 +96,7 @@ impl Finnhub {
             ("token", self.token.as_ref()),
         ])?;
 
-        let get = |url| -> GenericResult<T> {
+        let get = |url| -> GenericResult<Option<T>> {
             self.rate_limiter.wait(&format!("request to {}", url));
 
             trace!("Sending request to {}...", url);
@@ -100,8 +106,13 @@ impl Finnhub {
             if !response.status().is_success() {
                 return Err!("Server returned an error: {}", response.status());
             }
+            let reply = response.text()?;
 
-            Ok(response.json()?)
+            if reply.trim() == "Symbol not supported" {
+                return Ok(None);
+            }
+
+            Ok(serde_json::from_str(&reply)?)
         };
 
         Ok(get(url.as_str()).map_err(|e| format!(
@@ -229,10 +240,9 @@ mod tests {
             }
         "#));
 
-        let _unknown_profile_mock = mock_response("/api/v1/stock/profile?symbol=UNKNOWN&token=mock", indoc!(r#"
-            {}
-        "#));
-        let _unknown_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN&token=mock", indoc!(r#"
+        // Old response for unknown symbols
+        let _unknown_old_profile_mock = mock_response("/api/v1/stock/profile?symbol=UNKNOWN_OLD&token=mock", "{}");
+        let _unknown_old_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN_OLD&token=mock", indoc!(r#"
             {
                 "c": 0,
                 "h": 0,
@@ -241,6 +251,9 @@ mod tests {
                 "pc": 0
             }
         "#));
+
+        let _unknown_profile_mock = mock_response("/api/v1/stock/profile?symbol=UNKNOWN&token=mock", "{}");
+        let _unknown_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN&token=mock", "Symbol not supported");
 
         let _bndx_profile_mock = mock_response("/api/v1/stock/profile?symbol=BNDX&token=mock", indoc!(r#"
             {
@@ -281,13 +294,14 @@ mod tests {
         let mut quotes = HashMap::new();
         quotes.insert(s!("BND"), Cash::new("USD", dec!(85.80000305175781)));
         quotes.insert(s!("BNDX"), Cash::new("USD", dec!(57.86000061035156)));
-        assert_eq!(client.get_quotes(&["BND", "AMZN", "UNKNOWN", "BNDX"]).unwrap(), quotes);
+        assert_eq!(client.get_quotes(&["BND", "AMZN", "UNKNOWN_OLD", "UNKNOWN", "BNDX"]).unwrap(), quotes);
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {
+        // All responses are always 200 OK, some of them are returned with application/json content
+        // type, some - with text/plain even for JSON payload.
         mock("GET", path)
             .with_status(200)
-            .with_header("Content-Type", "application/json")
             .with_body(data)
             .create()
     }
