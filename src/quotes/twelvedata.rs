@@ -66,7 +66,7 @@ impl QuotesProvider for TwelveData {
         "Twelve Data"
     }
 
-    // FIXME: Waiting for ETF support
+    // Stocks are actually supported, but use Finnhub for them now to diversify over quote providers
     fn supports_stocks(&self) -> bool {
         false
     }
