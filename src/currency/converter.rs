@@ -237,13 +237,10 @@ mod tests {
                 date += Duration::days(1);
             }
 
-            // FIXME
-            if false {
-                assert_matches!(
-                    converter.convert(from, to, date, *value),
-                    Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
-                );
-            }
+            assert_matches!(
+                converter.convert(from, to, date, *value),
+                Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
+            );
         }
     }
 }

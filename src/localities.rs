@@ -52,14 +52,20 @@ pub fn russia() -> Country {
 }
 
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
+    // New Year holidays
     if today.month() == 1 && today.day() < 10 {
         Date::from_ymd(today.year() - 1, 12, 30)
+    // 8 march holidays
     } else if today.month() == 3 && today.day() == 12 {
         today - Duration::days(4)
+    // May holidays
     } else if today.month() == 5 && today.day() >= 3 && today.day() <= 13 {
         today - Duration::days(5)
+    // COVID-19 pandemic
+    // FIXME: Alter to actual dates
+    } else if today.year() == 2020 && today.month() == 4 {
+        Date::from_ymd(2020, 3, 28)
     } else {
-        // FIXME: Unable to find USD currency rate for 01.04.2020 with 3 days precision
-        today - Duration::days(7)
+        today - Duration::days(3)
     }
 }
