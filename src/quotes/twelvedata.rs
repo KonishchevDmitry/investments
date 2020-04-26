@@ -10,7 +10,6 @@ use rayon::prelude::*;
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::{Deserialize, de::DeserializeOwned};
-use serde_json;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;

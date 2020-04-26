@@ -1,9 +1,6 @@
 use std::fs::File;
 use std::io::{Read, BufReader};
 
-use encoding_rs;
-use serde_xml_rs;
-
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;

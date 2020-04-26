@@ -7,8 +7,6 @@ use num_traits::FromPrimitive;
 use regex::Regex;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
-use serde_yaml;
-use shellexpand;
 
 use crate::brokers::Broker;
 use crate::core::GenericResult;

@@ -4,9 +4,7 @@ use std::process;
 use std::str::FromStr;
 
 use clap::{App, Arg, AppSettings, SubCommand, ArgMatches};
-use easy_logging;
 use log::{self, debug, error};
-use shellexpand;
 
 use investments::config::{Config, load_config};
 use investments::core::GenericResult;

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-#[cfg(not(test))] use chrono;
 #[cfg(test)] use chrono::NaiveDate;
 #[cfg(test)] use indoc::indoc;
 use chrono::{DateTime, TimeZone};

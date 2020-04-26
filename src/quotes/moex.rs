@@ -257,7 +257,6 @@ mod tests {
     use std::path::Path;
 
     use mockito::{self, Mock, mock};
-    use url;
 
     use super::*;
 

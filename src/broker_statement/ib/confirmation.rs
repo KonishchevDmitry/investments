@@ -2,8 +2,6 @@ use std::collections::HashMap;
 #[cfg(test)] use std::fs;
 #[cfg(test)] use std::path::Path;
 
-use csv;
-
 use crate::core::{GenericResult};
 use crate::formatting::format_date;
 use crate::types::Date;

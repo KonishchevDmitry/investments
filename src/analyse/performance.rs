@@ -1,4 +1,3 @@
-use std;
 use std::collections::{HashMap, BTreeMap};
 
 use cast::From as CastFrom;

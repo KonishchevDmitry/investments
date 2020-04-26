@@ -12,7 +12,6 @@ use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;

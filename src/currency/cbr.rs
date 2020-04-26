@@ -6,7 +6,6 @@ use log::debug;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use serde_xml_rs;
 
 use crate::core::GenericResult;
 use crate::currency::CurrencyRate;

@@ -1,4 +1,3 @@
-use std;
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::str::FromStr;
