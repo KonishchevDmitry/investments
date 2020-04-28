@@ -19,6 +19,9 @@ use crate::util;
 //    from the next day.
 // 3. The calculated currency rate will be valid until the next official currency rate.
 //
+// See https://bcs-express.ru/novosti-i-analitika/ofitsial-nyi-kurs-tsb-rf-kak-on-schitaetsia-i-kto-im-pol-zuetsia
+// for details.
+//
 // So, effectively with some approximations CBR currency rate can be considered as T+2 relating to
 // US stock market.
 //
