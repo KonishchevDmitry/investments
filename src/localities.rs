@@ -62,8 +62,7 @@ pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     } else if today.month() == 5 && today.day() >= 3 && today.day() <= 13 {
         today - Duration::days(5)
     // COVID-19 pandemic
-    // FIXME: Alter to actual dates
-    } else if today.year() == 2020 && today.month() == 4 {
+    } else if today.year() == 2020 && today.month() == 4 && today.day() <= 6 {
         Date::from_ymd(2020, 3, 28)
     } else {
         today - Duration::days(3)
