@@ -82,15 +82,14 @@ pub fn process_income(
         let foreign_paid_tax = dividend.paid_tax;
         total_foreign_paid_tax.deposit(foreign_paid_tax);
 
-        let non_rounded_paid_tax =
-            converter.convert_to(dividend.date, dividend.paid_tax, country.currency)?;
-        let tax_deduction = country.round_tax(non_rounded_paid_tax);
-        let paid_tax = currency::round(non_rounded_paid_tax);
+        let paid_tax = currency::round(converter.convert_to(
+            dividend.date, dividend.paid_tax, country.currency)?);
         total_paid_tax += paid_tax;
 
         let tax_to_pay = dividend.tax_to_pay(&country, converter)?;
         total_tax_to_pay += tax_to_pay;
 
+        let tax_deduction = country.round_tax(paid_tax);
         if !tax_to_pay.is_zero() {
             assert_eq!(tax_deduction, tax - tax_to_pay);
         }
