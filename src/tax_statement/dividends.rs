@@ -91,7 +91,8 @@ pub fn process_income(
 
         let tax_deduction = country.round_tax(paid_tax);
         if !tax_to_pay.is_zero() {
-            assert_eq!(tax_deduction, tax - tax_to_pay);
+            // FIXME(konishchev): A temporary workaround for https://github.com/KonishchevDmitry/investments/pull/9
+            // assert_eq!(tax_deduction, tax - tax_to_pay);
         }
         total_tax_deduction += tax_deduction;
 
