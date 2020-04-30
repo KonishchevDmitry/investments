@@ -74,16 +74,16 @@ pub fn process_income(
             dividend.date, foreign_amount.currency, country.currency)?;
 
         let amount = currency::round(converter.convert_to(
-            dividend.date, dividend.amount, country.currency)?);
+            dividend.date, foreign_amount, country.currency)?);
         total_amount += amount;
 
         let tax = dividend.tax(&country, converter)?;
 
-        let foreign_paid_tax = dividend.paid_tax;
+        let foreign_paid_tax = dividend.paid_tax.round();
         total_foreign_paid_tax.deposit(foreign_paid_tax);
 
         let paid_tax = currency::round(converter.convert_to(
-            dividend.date, dividend.paid_tax, country.currency)?);
+            dividend.date, foreign_paid_tax, country.currency)?);
         total_paid_tax += paid_tax;
 
         let tax_to_pay = dividend.tax_to_pay(&country, converter)?;

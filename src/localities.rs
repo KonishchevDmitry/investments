@@ -13,15 +13,17 @@ pub struct Country {
 }
 
 impl Country {
+    // FIXME(konishchev): Check all callers against https://github.com/KonishchevDmitry/investments/pull/9
     pub fn round_tax(&self, tax: Decimal) -> Decimal {
-        // TODO: It looks like Декларация program rounds tax amount to rubles as
+        // FIXME(konishchev): It looks like Декларация program rounds tax amount to rubles as
         // round_to(round_to(value, 2), 0) because it rounds 10.64 * 65.4244 * 0.13
         // (which is 90.4956) to 91. Don't follow this logic for now - look into the next version.
-
-        currency::round_to(tax, self.tax_precision)
+        currency::round_to(currency::round(tax), self.tax_precision)
     }
 
-    pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+    // FIXME(konishchev): Check all callers against https://github.com/KonishchevDmitry/investments/pull/9
+    pub fn tax_to_pay(&self, mut income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+        income = currency::round(income);
         if income.is_sign_negative() || income.is_zero() {
             return dec!(0);
         }
