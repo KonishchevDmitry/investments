@@ -40,6 +40,10 @@ pub enum Action {
         year: Option<i32>,
         tax_statement_path: Option<String>,
     },
+    CashFlow {
+        name: String,
+        year: Option<i32>,
+    },
 
     Deposits {
         date: Date,
@@ -132,6 +136,13 @@ pub fn initialize() -> (Action, Config) {
                 .help("Year to generate the statement for"))
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
+        // FIXME(konishchev): Enable after release
+        .subcommand(SubCommand::with_name("cash-flow")
+            .about("Generate cash flow report")
+            .long_about("Generates cash flow report for tax inspection notification")
+            .arg(portfolio::arg())
+            .arg(Arg::with_name("YEAR")
+                .help("Year to generate the report for")))
         .subcommand(SubCommand::with_name("deposits")
             .about("List deposits")
             .arg(Arg::with_name("date")
@@ -280,25 +291,33 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
         }
 
         "tax-statement" => {
-            let year = match matches.value_of("YEAR") {
-                Some(year) => {
-                    Some(year.trim().parse::<i32>().ok()
-                        .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
-                        .ok_or_else(|| format!("Invalid year: {}", year))?)
-                },
-                None => None,
-            };
-
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
                 name: portfolio_name,
-                year: year,
+                year: get_year(matches)?,
                 tax_statement_path: tax_statement_path,
+            }
+        },
+        "cash-flow" => {
+            Action::CashFlow {
+                name: portfolio_name,
+                year: get_year(matches)?,
             }
         },
 
         _ => unreachable!(),
+    })
+}
+
+fn get_year(matches: &ArgMatches) -> GenericResult<Option<i32>> {
+    Ok(match matches.value_of("YEAR") {
+        Some(year) => {
+            Some(year.trim().parse::<i32>().ok()
+                .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
+                .ok_or_else(|| format!("Invalid year: {}", year))?)
+        },
+        None => None,
     })
 }
 

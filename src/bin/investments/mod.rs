@@ -5,6 +5,7 @@ use std::process;
 use log::error;
 
 use investments::analyse;
+use investments::cash_flow;
 use investments::config::Config;
 use investments::core::EmptyResult;
 use investments::deposits;
@@ -48,12 +49,14 @@ fn run(action: Action, config: Config) -> EmptyResult {
         Action::SetCashAssets(name, cash_assets) =>
             portfolio::set_cash_assets(&config, &name, cash_assets)?,
 
-        Action::Show { name, flat } => portfolio::show(&config, &name, flat)?,
-        Action::Rebalance { name, flat } => portfolio::rebalance(&config, &name, flat)?,
+        Action::Show {name, flat} => portfolio::show(&config, &name, flat)?,
+        Action::Rebalance {name, flat} => portfolio::rebalance(&config, &name, flat)?,
 
-        Action::TaxStatement { name, year, tax_statement_path } =>
+        Action::TaxStatement {name, year, tax_statement_path} =>
             tax_statement::generate_tax_statement(
                 &config, &name, year, tax_statement_path.as_deref())?,
+        Action::CashFlow {name, year} =>
+            cash_flow::generate_cash_flow_report(&config, &name, year)?,
 
         Action::Deposits { date, cron_mode } => deposits::list(
             config.deposits, date, cron_mode, config.notify_deposit_closing_days),

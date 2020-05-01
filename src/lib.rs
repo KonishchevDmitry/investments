@@ -8,6 +8,7 @@
 pub mod analyse;
 pub mod broker_statement;
 pub mod brokers;
+pub mod cash_flow;
 pub mod commissions;
 pub mod config;
 pub mod currency;
