@@ -178,6 +178,27 @@ impl BrokerStatement {
         }
     }
 
+    pub fn check_period_against_tax_year(&self, year: i32) -> EmptyResult {
+        let tax_period_start = date!(1, 1, year);
+        let tax_period_end = date!(1, 1, year + 1);
+
+        if tax_period_start >= self.period.0 && tax_period_end <= self.period.1 {
+            // Broker statement period more or equal to the tax year period
+        } else if tax_period_end > self.period.0 && tax_period_start < self.period.1 {
+            warn!(concat!(
+                "Period of the specified broker statement ({}) ",
+                "doesn't fully overlap with the requested tax year ({})."),
+                formatting::format_period(self.period.0, self.period.1), year);
+        } else {
+            return Err!(concat!(
+                "Period of the specified broker statement ({}) ",
+                "doesn't overlap with the requested tax year ({})"),
+                formatting::format_period(self.period.0, self.period.1), year);
+        }
+
+        Ok(())
+    }
+
     pub fn get_instrument_name(&self, symbol: &str) -> String {
         if let Some(name) = self.instrument_names.get(symbol) {
             format!("{} ({})", name, symbol)
