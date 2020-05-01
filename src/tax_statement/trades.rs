@@ -1,8 +1,7 @@
 use chrono::Datelike;
 use static_table_derive::StaticTable;
 
-use crate::broker_statement::BrokerStatement;
-use crate::broker_statement::trades::{StockSell, SellDetails, FifoDetails};
+use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails};
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::Cash;

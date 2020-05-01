@@ -1,7 +1,6 @@
 use static_table_derive::StaticTable;
 
-use crate::broker_statement::BrokerStatement;
-use crate::broker_statement::trades::StockSell;
+use crate::broker_statement::{BrokerStatement, StockSell};
 use crate::commissions::CommissionCalc;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;

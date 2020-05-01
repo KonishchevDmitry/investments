@@ -1,3 +1,13 @@
+mod bcs;
+mod dividends;
+mod ib;
+mod interest;
+mod open_broker;
+mod partial;
+mod payments;
+mod taxes;
+mod trades;
+
 use std::{self, fs};
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
@@ -17,21 +27,13 @@ use crate::taxes::TaxRemapping;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
-use self::dividends::{Dividend, DividendAccruals, process_dividend_accruals};
+use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::interest::IdleCashInterest;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
-use self::trades::{StockBuy, StockSell, StockSellSource};
 
-mod bcs;
-mod dividends;
-mod ib;
-mod interest;
-mod open_broker;
-mod partial;
-mod payments;
-mod taxes;
-pub mod trades;
+pub use self::dividends::Dividend;
+pub use self::trades::{StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
 
 #[derive(Debug)]
 pub struct BrokerStatement {

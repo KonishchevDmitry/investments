@@ -1,4 +1,4 @@
-use crate::broker_statement::{BrokerStatement, trades::StockBuy};
+use crate::broker_statement::{BrokerStatement, StockBuy, Dividend};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::types::Date;
 
@@ -10,10 +10,19 @@ pub fn calculate(statement: &BrokerStatement) {
     cash_flows.extend(statement.cash_flows.iter().map(new_from_cash_flow));
 
     for trade in &statement.stock_buys {
-        let (trade_cash_flow, commission_cash_flow) = new_from_stock_buy(trade);
+        let (cash_flow, commission) = new_from_stock_buy(trade);
 
-        cash_flows.push(trade_cash_flow);
-        if let Some(cash_flow) = commission_cash_flow {
+        cash_flows.push(cash_flow);
+        if let Some(cash_flow) = commission {
+            cash_flows.push(cash_flow);
+        }
+    }
+
+    for dividend in &statement.dividends {
+        let (cash_flow, paid_tax) = new_from_dividend(dividend);
+
+        cash_flows.push(cash_flow);
+        if let Some(cash_flow) = paid_tax {
             cash_flows.push(cash_flow);
         }
     }
@@ -28,6 +37,7 @@ pub fn calculate(statement: &BrokerStatement) {
         println!("{}", assets);
     }
 
+    println!();
     for assets in statement.cash_assets.iter() {
         println!("{}", assets);
     }
@@ -41,7 +51,7 @@ struct CashFlow {
 
 impl CashFlow {
     fn new(date: Date, amount: Cash, description: String) -> CashFlow {
-        return CashFlow {date, amount, description}
+        CashFlow {date, amount, description}
     }
 }
 
@@ -59,9 +69,9 @@ fn new_from_stock_buy(trade: &StockBuy) -> (CashFlow, Option<CashFlow>) {
     // FIXME(konishchev): Rounding
     let volume = trade.price * trade.quantity;
     let description = format!("Покупка {} {}", trade.quantity, trade.symbol);
-    let trade_cash_flow = CashFlow::new(trade.conclusion_date, -volume, description);
+    let cash_flow = CashFlow::new(trade.conclusion_date, -volume, description);
 
-    let commission_cash_flow = if !trade.commission.is_zero() {
+    let commission = if !trade.commission.is_zero() {
         let description = format!("Комиссия за покупку {} {}", trade.quantity, trade.symbol);
         // FIXME(konishchev): Rounding
         Some(CashFlow::new(trade.conclusion_date, -trade.commission, description))
@@ -69,5 +79,21 @@ fn new_from_stock_buy(trade: &StockBuy) -> (CashFlow, Option<CashFlow>) {
         None
     };
 
-    (trade_cash_flow, commission_cash_flow)
+    (cash_flow, commission)
+}
+
+fn new_from_dividend(dividend: &Dividend) -> (CashFlow, Option<CashFlow>) {
+    // FIXME(konishchev): Rounding
+    let description = format!("Дивиденд от {}", dividend.issuer);
+    let cash_flow = CashFlow::new(dividend.date, dividend.amount, description);
+
+    let paid_tax = if !dividend.paid_tax.is_zero() {
+        let description = format!("Налог, удержанный с дивиденда от {}", dividend.issuer);
+        // FIXME(konishchev): Rounding
+        Some(CashFlow::new(dividend.date, -dividend.paid_tax, description))
+    } else {
+        None
+    };
+
+    (cash_flow, paid_tax)
 }
