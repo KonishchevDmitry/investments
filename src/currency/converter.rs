@@ -55,12 +55,11 @@ impl CurrencyConverter {
         self.currency_rate(date, from, to)
     }
 
-    // FIXME(konishchev): Check all usage
     pub fn convert_to(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
         self.convert(cash.currency, to, date, cash.amount)
     }
 
-    // FIXME(konishchev): Use everywhere + add clarification
+    // Implements rounding according to Russian taxation rules
     pub fn convert_to_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
         Ok(currency::round(self.convert_to(date, cash.round(), to)?))
     }
@@ -69,13 +68,13 @@ impl CurrencyConverter {
         self.convert_to(self.real_time_date(), cash, to)
     }
 
-    pub fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
-        Ok(Cash::new(to, self.convert_to(date, cash, to)?))
-    }
-
-    // FIXME(konishchev): Use everywhere + add clarification
+    // Implements rounding according to Russian taxation rules
     pub fn convert_to_cash_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
         Ok(self.convert_to_cash(date, cash.round(), to)?.round())
+    }
+
+    fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
+        Ok(Cash::new(to, self.convert_to(date, cash, to)?))
     }
 
     pub fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {

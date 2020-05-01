@@ -63,10 +63,6 @@ impl Cash {
         Ok(())
     }
 
-    pub fn add_convert(self, date: Date, amount: Cash, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        self.add(converter.convert_to_cash(date, amount, self.currency)?)
-    }
-
     #[allow(clippy::should_implement_trait)]
     pub fn sub(self, amount: Cash) -> GenericResult<Cash> {
         self.add(-amount)
@@ -74,10 +70,6 @@ impl Cash {
 
     pub fn sub_assign(&mut self, amount: Cash) -> EmptyResult {
         self.add_assign(-amount)
-    }
-
-    pub fn sub_convert(self, date: Date, amount: Cash, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        self.add_convert(date, -amount, converter)
     }
 
     #[allow(clippy::should_implement_trait)]

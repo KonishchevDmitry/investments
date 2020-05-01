@@ -13,17 +13,27 @@ pub struct Country {
 }
 
 impl Country {
-    // FIXME(konishchev): Check all callers against https://github.com/KonishchevDmitry/investments/pull/9
+    // When we work with taxes in Russia, the following rounding rules are applied:
+    // 1. Result of all calculations must be with kopecks precision
+    // 2. If we have income in foreign currency then:
+    //    2.1. Round it to cents
+    //    2.2. Convert to rubles using precise currency rate (65.4244 for example)
+    //    2.3. Round to kopecks
+    // 3. Taxes are calculated with rouble precision. But we should use double rounding here:
+    //    calculate them with kopecks precision first and then round to roubles.
+    //
+    // Декларация program allows to enter income only with kopecks precision - not bigger.
+    // It calculates tax for $10.64 income with 65.4244 currency rate as following:
+    // 1. income = round(10.64 * 65.4244, 2) = 696.12 (696.115616 without rounding)
+    // 2. tax = round(round(696.12 * 0.13, 2), 0) = 91 (90.4956 without rounding)
+
     pub fn round_tax(&self, tax: Decimal) -> Decimal {
-        // FIXME(konishchev): It looks like Декларация program rounds tax amount to rubles as
-        // round_to(round_to(value, 2), 0) because it rounds 10.64 * 65.4244 * 0.13
-        // (which is 90.4956) to 91. Don't follow this logic for now - look into the next version.
         currency::round_to(currency::round(tax), self.tax_precision)
     }
 
-    // FIXME(konishchev): https://github.com/KonishchevDmitry/investments/pull/9
-    pub fn tax_to_pay(&self, mut income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
-        income = currency::round(income);
+    pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+        let income = currency::round(income);
+
         if income.is_sign_negative() || income.is_zero() {
             return dec!(0);
         }

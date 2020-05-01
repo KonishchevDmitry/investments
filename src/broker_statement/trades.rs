@@ -127,7 +127,8 @@ impl StockSell {
             Some(converter.convert_to(self.execution_date, tax_to_pay, profit.currency)? / profit.amount)
         };
 
-        let real_profit = profit.sub_convert(self.execution_date, tax_to_pay, converter)?;
+        let real_profit = profit.sub(converter.convert_to_cash_rounding(
+            self.execution_date, tax_to_pay, profit.currency)?)?;
         let real_profit_ratio = real_profit.div(purchase_cost).unwrap();
 
         let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
