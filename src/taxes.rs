@@ -5,6 +5,7 @@ use chrono::Datelike;
 use lazy_static::lazy_static;
 
 use crate::core::EmptyResult;
+use crate::currency;
 use crate::formatting::format_date;
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
@@ -97,6 +98,7 @@ impl NetTaxCalculator {
     }
 
     pub fn add_profit(&mut self, date: Date, amount: Decimal) {
+        let amount = currency::round(amount);
         self.profit.entry(self.tax_payment_day.get(date))
             .and_modify(|profit| *profit += amount)
             .or_insert(amount);

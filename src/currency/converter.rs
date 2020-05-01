@@ -4,7 +4,7 @@ use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
 use crate::core::GenericResult;
-use crate::currency::{Cash, CurrencyRate};
+use crate::currency::{self, Cash, CurrencyRate};
 use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
@@ -59,11 +59,21 @@ impl CurrencyConverter {
         self.convert(cash.currency, to, date, cash.amount)
     }
 
+    // Implements rounding according to Russian taxation rules
+    pub fn convert_to_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
+        Ok(currency::round(self.convert_to(date, cash.round(), to)?))
+    }
+
     pub fn real_time_convert_to(&self, cash: Cash, to: &str) -> GenericResult<Decimal> {
         self.convert_to(self.real_time_date(), cash, to)
     }
 
-    pub fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
+    // Implements rounding according to Russian taxation rules
+    pub fn convert_to_cash_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
+        Ok(self.convert_to_cash(date, cash.round(), to)?.round())
+    }
+
+    fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
         Ok(Cash::new(to, self.convert_to(date, cash, to)?))
     }
 

@@ -5,7 +5,7 @@ use static_table_derive::StaticTable;
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
-use crate::currency::{self, Cash, MultiCurrencyCashAccount};
+use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::types::{Date, Decimal};
 
@@ -73,8 +73,8 @@ pub fn process_income(
         let precise_currency_rate = converter.precise_currency_rate(
             dividend.date, foreign_amount.currency, country.currency)?;
 
-        let amount = currency::round(converter.convert_to(
-            dividend.date, foreign_amount, country.currency)?);
+        let amount = converter.convert_to_rounding(
+            dividend.date, foreign_amount, country.currency)?;
         total_amount += amount;
 
         let tax = dividend.tax(&country, converter)?;
@@ -82,8 +82,8 @@ pub fn process_income(
         let foreign_paid_tax = dividend.paid_tax.round();
         total_foreign_paid_tax.deposit(foreign_paid_tax);
 
-        let paid_tax = currency::round(converter.convert_to(
-            dividend.date, foreign_paid_tax, country.currency)?);
+        let paid_tax = converter.convert_to_rounding(
+            dividend.date, foreign_paid_tax, country.currency)?;
         total_paid_tax += paid_tax;
 
         let tax_to_pay = dividend.tax_to_pay(&country, converter)?;
