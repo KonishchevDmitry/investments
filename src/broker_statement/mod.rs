@@ -33,7 +33,7 @@ use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
 
 pub use self::dividends::Dividend;
-pub use self::trades::{StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
+pub use self::trades::{ForexTrade, StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -44,6 +44,7 @@ pub struct BrokerStatement {
     pub cash_assets: MultiCurrencyCashAccount,
     pub idle_cash_interest: Vec<IdleCashInterest>,
 
+    pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
@@ -160,6 +161,7 @@ impl BrokerStatement {
             cash_assets: MultiCurrencyCashAccount::new(),
             idle_cash_interest: Vec::new(),
 
+            forex_trades: Vec::new(),
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
             dividends: Vec::new(),
@@ -410,6 +412,7 @@ impl BrokerStatement {
         self.cash_assets = statement.cash_assets;
         self.idle_cash_interest.extend(statement.idle_cash_interest.drain(..));
 
+        self.forex_trades.extend(statement.forex_trades.drain(..));
         self.stock_buys.extend(statement.stock_buys.drain(..));
         self.stock_sells.extend(statement.stock_sells.drain(..));
         self.dividends.extend(statement.dividends.drain(..));
@@ -424,6 +427,8 @@ impl BrokerStatement {
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.idle_cash_interest.sort_by_key(|interest| interest.date);
         self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+        // FIXME(konishchev): Execution date?
+        self.forex_trades.sort_by_key(|trade| trade.conclusion_date);
         self.sort_stock_buys()?;
         self.sort_stock_sells()?;
         Ok(())
@@ -492,6 +497,12 @@ impl BrokerStatement {
             let first_date = self.idle_cash_interest.first().unwrap().date;
             let last_date = self.idle_cash_interest.last().unwrap().date;
             validate_date("idle cash interest", first_date, last_date)?;
+        }
+
+        if !self.forex_trades.is_empty() {
+            let first_date = self.forex_trades.first().unwrap().conclusion_date;
+            let last_date = self.forex_trades.last().unwrap().conclusion_date;
+            validate_date("forex trade", first_date, last_date)?;
         }
 
         if !self.stock_buys.is_empty() {
