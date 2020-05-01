@@ -62,8 +62,7 @@ impl CurrencyConverter {
 
     // FIXME(konishchev): Use everywhere + add clarification
     pub fn convert_to_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
-        let cash = cash.round();
-        Ok(currency::round(self.convert(cash.currency, to, date, cash.amount)?))
+        Ok(currency::round(self.convert_to(date, cash.round(), to)?))
     }
 
     pub fn real_time_convert_to(&self, cash: Cash, to: &str) -> GenericResult<Decimal> {
@@ -72,6 +71,11 @@ impl CurrencyConverter {
 
     pub fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
         Ok(Cash::new(to, self.convert_to(date, cash, to)?))
+    }
+
+    // FIXME(konishchev): Use everywhere + add clarification
+    pub fn convert_to_cash_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
+        Ok(self.convert_to_cash(date, cash.round(), to)?.round())
     }
 
     pub fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {

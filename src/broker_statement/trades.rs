@@ -1,5 +1,5 @@
 use crate::core::GenericResult;
-use crate::currency::{self, Cash};
+use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
@@ -86,13 +86,14 @@ impl StockSell {
 
     fn calculate_impl(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
         let revenue = (self.price * self.quantity).round();
-        let local_revenue = converter.convert_to_cash(
-            self.execution_date, revenue, country.currency)?.round();
+        let local_revenue = converter.convert_to_cash_rounding(
+            self.execution_date, revenue, country.currency)?;
 
-        let local_commission = converter.convert_to_cash(
-            self.conclusion_date, self.commission, country.currency)?.round();
+        let commission = self.commission.round();
+        let local_commission = converter.convert_to_cash_rounding(
+            self.conclusion_date, commission, country.currency)?;
 
-        let mut total_cost = self.commission;
+        let mut total_cost = commission;
         let mut total_local_cost = local_commission;
 
         let mut purchase_cost = Cash::new(total_cost.currency, dec!(0));
@@ -118,7 +119,6 @@ impl StockSell {
             "Sell and buy trade have different currency: {}", e))?;
 
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
-        // FIXME(konishchev): Check rounding
         let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(local_profit.amount, None));
 
         let real_tax_ratio = if profit.is_zero() {
@@ -170,16 +170,17 @@ pub struct StockSellSource {
 impl StockSellSource {
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
         let cost = (self.price * self.quantity).round();
-        let local_cost = currency::round(converter.convert_to(
-            self.execution_date, cost, country.currency)?);
+        let local_cost = converter.convert_to_rounding(
+            self.execution_date, cost, country.currency)?;
 
-        let local_commission = currency::round(converter.convert_to(
-            self.conclusion_date, self.commission, country.currency)?);
+        let commission = self.commission.round();
+        let local_commission = converter.convert_to_rounding(
+            self.conclusion_date, commission, country.currency)?;
 
         let mut total_cost = cost;
         let mut total_local_cost = local_cost;
 
-        total_cost.add_assign(self.commission).map_err(|e| format!(
+        total_cost.add_assign(self.commission.round()).map_err(|e| format!(
             "Trade and commission have different currency: {}", e))?;
         total_local_cost += local_commission;
 
@@ -187,7 +188,7 @@ impl StockSellSource {
             quantity: self.quantity,
             price: self.price,
 
-            commission: self.commission,
+            commission: commission,
             local_commission: Cash::new(country.currency, local_commission),
 
             conclusion_date: self.conclusion_date,
