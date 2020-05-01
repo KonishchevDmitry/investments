@@ -118,6 +118,7 @@ impl StockSell {
             "Sell and buy trade have different currency: {}", e))?;
 
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
+        // FIXME(konishchev): Check rounding
         let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(local_profit.amount, None));
 
         let real_tax_ratio = if profit.is_zero() {

@@ -165,6 +165,7 @@ fn print_results(
         });
     }
 
+    // FIXME(konishchev): Check rounding
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(total_local_profit.amount, None));
 
     let mut totals = trades_table.add_empty_row();

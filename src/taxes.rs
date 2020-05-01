@@ -110,6 +110,7 @@ impl NetTaxCalculator {
             let year = tax_payment_date.year();
             assert!(years.insert(year)); // Ensure that we have only one tax payment date per year
 
+            // FIXME(konishchev): Check rounding
             let tax_to_pay = self.country.tax_to_pay(profit, None);
             assert_eq!(taxes.insert(tax_payment_date, tax_to_pay), None);
         }

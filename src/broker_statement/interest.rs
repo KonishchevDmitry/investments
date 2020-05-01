@@ -13,6 +13,7 @@ pub struct IdleCashInterest {
 impl IdleCashInterest {
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to(self.date, self.amount, country.currency)?;
+        // FIXME(konishchev): Check rounding
         Ok(country.tax_to_pay(amount, None))
     }
 }
