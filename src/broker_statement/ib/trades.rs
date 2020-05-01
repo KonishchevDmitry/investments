@@ -65,16 +65,24 @@ fn parse_forex_record(
         return Err!("Invalid forex pair: {}", symbol)
     }
 
+    let base = pair.first().unwrap().deref();
+    let quote = pair.last().unwrap().deref();
+
     let quantity = record.parse_cash("Quantity", DecimalRestrictions::NonZero)?;
-    let commission = Cash::new("USD", record.parse_cash(
+    let commission = -Cash::new("USD", record.parse_cash(
         "Comm in USD", DecimalRestrictions::NegativeOrZero)?);
 
+    // FIXME(konishchev): A temporary check during cash flow report developing
+    let volume = record.parse_cash("Proceeds", DecimalRestrictions::NonZero)?;
+    // debug_assert_eq!(-quantity, currency::round_to(volume / price, 4));
+
     parser.statement.forex_trades.push(ForexTrade{
-        base: pair.first().unwrap().deref().to_owned(),
-        quote: pair.last().unwrap().deref().to_owned(),
+        base: base.to_owned(),
+        quote: quote.to_owned(),
 
         quantity: quantity,
         price: price,
+        volume: volume,
         commission: commission,
 
         conclusion_date: conclusion_date,

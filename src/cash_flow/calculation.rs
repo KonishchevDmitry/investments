@@ -1,4 +1,4 @@
-use crate::broker_statement::{BrokerStatement, StockBuy, Dividend};
+use crate::broker_statement::{BrokerStatement, ForexTrade, StockBuy, Dividend};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::types::Date;
 
@@ -8,6 +8,16 @@ pub fn calculate(statement: &BrokerStatement) {
     let mut cash_assets = MultiCurrencyCashAccount::new();
 
     cash_flows.extend(statement.cash_flows.iter().map(new_from_cash_flow));
+
+    for trade in &statement.forex_trades {
+        let (from, to, commission) = new_from_forex_trade(trade);
+
+        cash_flows.push(from);
+        cash_flows.push(to);
+        if let Some(cash_flow) = commission {
+            cash_flows.push(cash_flow);
+        }
+    }
 
     for trade in &statement.stock_buys {
         let (cash_flow, commission) = new_from_stock_buy(trade);
@@ -41,6 +51,12 @@ pub fn calculate(statement: &BrokerStatement) {
     for assets in statement.cash_assets.iter() {
         println!("{}", assets);
     }
+
+    let mut calculated = cash_assets.iter().collect::<Vec<_>>();
+    calculated.sort_by_key(|cash| cash.currency);
+    let mut actual = statement.cash_assets.iter().collect::<Vec<_>>();
+    actual.sort_by_key(|cash| cash.currency);
+    assert_eq!(calculated, actual);
 }
 
 struct CashFlow {
@@ -96,4 +112,31 @@ fn new_from_dividend(dividend: &Dividend) -> (CashFlow, Option<CashFlow>) {
     };
 
     (cash_flow, paid_tax)
+}
+
+fn new_from_forex_trade(trade: &ForexTrade) -> (CashFlow, CashFlow, Option<CashFlow>) {
+    // FIXME(konishchev): Rounding
+    let (from, to) = if trade.volume.is_sign_positive() {
+        let from = Cash::new(&trade.base, trade.quantity);
+        let to = Cash::new(&trade.quote, trade.volume);
+        (from, to)
+    } else {
+        let from = Cash::new(&trade.quote, trade.volume);
+        let to = Cash::new(&trade.base, trade.quantity);
+        (from, to)
+    };
+
+    let description = format!("Конвертация {} -> {}", -from, to);
+    let from_cash_flow = CashFlow::new(trade.conclusion_date, from, description.clone());
+    let to_cash_flow = CashFlow::new(trade.conclusion_date, to, description);
+
+    let commission = if !trade.commission.is_zero() {
+        let description = format!("Комиссия за конвертацию {} -> {}", -from, to);
+        // FIXME(konishchev): Rounding
+        Some(CashFlow::new(trade.conclusion_date, -trade.commission, description))
+    } else {
+        None
+    };
+
+    (from_cash_flow, to_cash_flow, commission)
 }

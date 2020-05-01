@@ -12,6 +12,7 @@ pub struct ForexTrade {
 
     pub quantity: Decimal,
     pub price: Decimal,
+    pub volume: Decimal,
     pub commission: Cash,
 
     pub conclusion_date: Date,
