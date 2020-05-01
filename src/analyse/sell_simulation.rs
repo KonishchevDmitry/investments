@@ -106,12 +106,17 @@ fn print_results(
     let mut total_profit = MultiCurrencyCashAccount::new();
     let mut total_local_profit = Cash::new(country.currency, dec!(0));
 
+    let mut total_commission = MultiCurrencyCashAccount::new();
+
     for commission in additional_commissions.iter() {
+        let commission = commission.round();
+
         total_profit.withdraw(commission);
-        total_local_profit.sub_convert_assign(
-            util::today_trade_conclusion_date(), commission, converter)?;
+        total_local_profit.amount -= converter.convert_to_rounding(
+            util::today_trade_conclusion_date(), commission, total_local_profit.currency)?;
+
+        total_commission.deposit(commission);
     }
-    let mut total_commission = additional_commissions;
 
     let mut trades_table = TradesTable::new();
     if same_currency {
@@ -124,18 +129,20 @@ fn print_results(
     let mut fifo_table = FifoTable::new();
 
     for trade in stock_sells {
+        let commission = trade.commission.round();
         let details = trade.calculate(&country, &converter)?;
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
-        total_commission.deposit(trade.commission);
+        total_commission.deposit(commission);
         total_revenue.deposit(details.revenue);
         total_local_revenue.add_assign(details.local_revenue).unwrap();
         total_profit.deposit(details.profit);
         total_local_profit.add_assign(details.local_profit).unwrap();
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            purchase_cost.add_convert_assign(
-                buy_trade.execution_date, buy_trade.price * buy_trade.quantity, converter)?;
+            purchase_cost.amount += converter.convert_to_rounding(
+                buy_trade.execution_date, buy_trade.price * buy_trade.quantity,
+                purchase_cost.currency)?;
 
             fifo_table.add_row(FifoRow {
                 symbol: if index == 0 {
@@ -153,7 +160,7 @@ fn print_results(
             quantity: trade.quantity,
             buy_price: (purchase_cost / trade.quantity).round(),
             sell_price: trade.price,
-            commission: trade.commission,
+            commission: commission,
             revenue: details.revenue,
             local_revenue: details.local_revenue,
             profit: details.profit,
@@ -165,7 +172,6 @@ fn print_results(
         });
     }
 
-    // FIXME(konishchev): Check rounding
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(total_local_profit.amount, None));
 
     let mut totals = trades_table.add_empty_row();

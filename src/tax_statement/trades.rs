@@ -280,7 +280,6 @@ impl<'a> TradesProcessor<'a> {
         };
 
         if show_net_tax {
-            // FIXME(konishchev): Check rounding
             let tax_to_pay = self.country.tax_to_pay(self.total_local_profit.amount, None);
             totals.set_tax_to_pay(Cash::new(self.country.currency, tax_to_pay));
         }
