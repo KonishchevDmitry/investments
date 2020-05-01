@@ -17,26 +17,33 @@ get_lint_args() {
 }
 
 check() {
-    local target="$1"
+    local args="$1"
     local lints="$2"
-    cargo clippy "--$target" --all-features -- -Dwarnings $(get_lint_args -A "$lints")
+    cargo clippy $args --all-features -- -Dwarnings $(get_lint_args -A "$lints")
 }
 
-# A workaround to force recheck
-touch src/lib.rs
+main() {
+    local blacklist
 
-blacklist='
-collapsible_if
-comparison_chain
-new_ret_no_self
-new_without_default
-redundant_field_names
-too_many_arguments
-unit_arg
-'
-check bins "$blacklist"
+    # A workaround to force recheck
+    touch src/lib.rs
 
-blacklist="$blacklist
-redundant-clone
-"
-check tests "$blacklist"
+    blacklist='
+    collapsible_if
+    comparison_chain
+    new_ret_no_self
+    new_without_default
+    redundant_field_names
+    too_many_arguments
+    unit_arg
+    '
+    check --bins "$blacklist"
+    check '--bins --release' "$blacklist"
+
+    blacklist="$blacklist
+    redundant-clone
+    "
+    check --tests "$blacklist"
+}
+
+main
