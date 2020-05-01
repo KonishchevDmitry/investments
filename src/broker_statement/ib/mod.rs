@@ -1,6 +1,7 @@
 mod common;
 mod confirmation;
 mod dividends;
+mod fees;
 mod interest;
 mod parsers;
 mod taxes;
@@ -136,6 +137,7 @@ impl<'a> StatementParser<'a> {
                         "Open Positions" => Box::new(trades::OpenPositionsParser {}),
                         "Trades" => Box::new(trades::TradesParser {}),
                         "Deposits & Withdrawals" => Box::new(parsers::DepositsAndWithdrawalsParser {}),
+                        "Fees" => Box::new(fees::FeesParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
                         "Interest" => Box::new(interest::InterestParser {}),
@@ -246,6 +248,8 @@ mod tests {
 
         assert!(statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
+
+        assert!(statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
 
         assert!(statement.forex_trades.is_empty());
@@ -266,6 +270,8 @@ mod tests {
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
+
+        assert!(!statement.fees.is_empty());
         assert!(!statement.idle_cash_interest.is_empty());
 
         assert!(!statement.forex_trades.is_empty());

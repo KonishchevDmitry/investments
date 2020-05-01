@@ -45,7 +45,7 @@ impl RecordParser for TradesParser {
 
         let asset_category = record.get_value("Asset Category")?;
         let symbol = record.get_value("Symbol")?;
-        let price = record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?;
+        let price = record.parse_amount("T. Price", DecimalRestrictions::StrictlyPositive)?;
         let conclusion_date = parse_date_time(record.get_value("Date/Time")?)?.date();
 
         match asset_category {
@@ -56,6 +56,7 @@ impl RecordParser for TradesParser {
     }
 }
 
+// FIXME(konishchev): Rewrite
 fn parse_forex_record(
     parser: &mut StatementParser, record: &Record,
     symbol: &str, price: Decimal, conclusion_date: Date
@@ -68,12 +69,11 @@ fn parse_forex_record(
     let base = pair.first().unwrap().deref();
     let quote = pair.last().unwrap().deref();
 
-    let quantity = record.parse_cash("Quantity", DecimalRestrictions::NonZero)?;
-    let commission = -Cash::new("USD", record.parse_cash(
-        "Comm in USD", DecimalRestrictions::NegativeOrZero)?);
+    let quantity = record.parse_amount("Quantity", DecimalRestrictions::NonZero)?;
+    let commission = -record.parse_cash("Comm in USD", "USD", DecimalRestrictions::NegativeOrZero)?;
 
     // FIXME(konishchev): A temporary check during cash flow report developing
-    let volume = record.parse_cash("Proceeds", DecimalRestrictions::NonZero)?;
+    let volume = record.parse_amount("Proceeds", DecimalRestrictions::NonZero)?;
     // debug_assert_eq!(-quantity, currency::round_to(volume / price, 4));
 
     parser.statement.forex_trades.push(ForexTrade{
@@ -101,13 +101,14 @@ fn parse_stock_record(
     let execution_date = parser.get_execution_date(symbol, conclusion_date);
 
     let price = Cash::new(currency, price);
-    let commission = -record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?;
+    let mut commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
 
+    // FIXME(konishchev): This may be a problem for cash flow report
     // Commission may be 1.06 in *.pdf but 1.0619736 in *.csv, so round it to cents
-    let commission = Cash::new(currency, commission).round();
+    commission = commission.round();
 
     // FIXME(konishchev): A temporary check during cash flow report developing
-    let volume = Cash::new(currency, record.parse_cash("Proceeds", DecimalRestrictions::NonZero)?);
+    let volume = record.parse_cash("Proceeds", currency, DecimalRestrictions::NonZero)?;
     debug_assert_eq!(volume.amount, -currency::round_to((price * quantity).amount, 4));
 
     if quantity > 0 {

@@ -115,7 +115,7 @@ fn new_from_dividend(dividend: &Dividend) -> (CashFlow, Option<CashFlow>) {
 }
 
 fn new_from_forex_trade(trade: &ForexTrade) -> (CashFlow, CashFlow, Option<CashFlow>) {
-    // FIXME(konishchev): Rounding
+    // FIXME(konishchev): Rewrite
     let (from, to) = if trade.volume.is_sign_positive() {
         let from = Cash::new(&trade.base, trade.quantity);
         let to = Cash::new(&trade.quote, trade.volume);

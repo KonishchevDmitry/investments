@@ -5,6 +5,7 @@ use csv::StringRecord;
 
 use crate::broker_statement::ib::StatementParser;
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
 use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -60,10 +61,18 @@ impl<'a> Record<'a> {
             "{:?} field has an invalid value: {:?}", field, value))?)
     }
 
-    pub fn parse_cash(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
+    pub fn parse_date(&self, field: &str) -> GenericResult<Date> {
+        parse_date(self.get_value(field)?)
+    }
+
+    pub fn parse_amount(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let value = self.get_value(field)?;
         Ok(util::parse_decimal(&value.replace(',', ""), restrictions).map_err(|_| format!(
             "Invalid amount: {:?}", value))?)
+    }
+
+    pub fn parse_cash(&self, field: &str, currency: &str, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
+        Ok(Cash::new(currency, self.parse_amount(field, restrictions)?))
     }
 }
 
@@ -83,7 +92,7 @@ pub fn format_record<'a, I>(iter: I) -> String
         .join(", ")
 }
 
-pub fn parse_date(date: &str) -> GenericResult<Date> {
+fn parse_date(date: &str) -> GenericResult<Date> {
     util::parse_date(date, "%Y-%m-%d")
 }
 

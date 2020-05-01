@@ -7,6 +7,7 @@ use crate::formatting;
 use crate::types::Date;
 
 use super::dividends::{Dividend, DividendId, DividendAccruals};
+use super::fees::Fee;
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxAccruals};
@@ -18,6 +19,8 @@ pub struct PartialBrokerStatement {
     pub starting_assets: Option<bool>,
     pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
+
+    pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
 
     pub forex_trades: Vec<ForexTrade>,
@@ -41,6 +44,8 @@ impl PartialBrokerStatement {
             starting_assets: None,
             cash_flows: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
+
+            fees: Vec::new(),
             idle_cash_interest: Vec::new(),
 
             forex_trades: Vec::new(),

@@ -1,13 +1,13 @@
 use crate::core::EmptyResult;
-use crate::broker_statement::interest::IdleCashInterest;
+use crate::broker_statement::fees::Fee;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser};
 
-pub struct InterestParser {}
+pub struct FeesParser {}
 
-impl RecordParser for InterestParser {
+impl RecordParser for FeesParser {
     fn skip_totals(&self) -> bool {
         true
     }
@@ -15,9 +15,10 @@ impl RecordParser for InterestParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;
-        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::StrictlyPositive)?;
+        // FIXME(konishchev): Fee return is not supported yet
+        let amount = -record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
-        parser.statement.idle_cash_interest.push(IdleCashInterest {
+        parser.statement.fees.push(Fee {
             date: date,
             amount: amount,
         });

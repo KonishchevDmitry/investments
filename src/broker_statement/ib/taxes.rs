@@ -3,11 +3,10 @@ use regex::Regex;
 
 use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::{GenericResult, EmptyResult};
-use crate::currency::Cash;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_date};
+use super::common::{Record, RecordParser};
 
 // Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US
 // accounts) to reflect dividend reclassifications. This is typically done in February the following
@@ -32,7 +31,7 @@ impl RecordParser for WithholdingTaxParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let description = record.get_value("Description")?;
-        let date = parser.tax_remapping.map(parse_date(record.get_value("Date")?)?, description);
+        let date = parser.tax_remapping.map(record.parse_date("Date")?, description);
 
         let issuer = parse_tax_description(description)?;
         let tax_id = TaxId::new(date, &issuer);
@@ -41,7 +40,7 @@ impl RecordParser for WithholdingTaxParser {
         //
         // Positive number is used to cancel a previous tax payment and usually followed by another
         // negative number.
-        let tax = Cash::new(currency, record.parse_cash("Amount", DecimalRestrictions::NonZero)?);
+        let tax = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
         let accruals = parser.statement.tax_accruals.entry(tax_id)
             .or_insert_with(TaxAccruals::new);

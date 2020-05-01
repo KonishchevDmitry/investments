@@ -1,5 +1,6 @@
 mod bcs;
 mod dividends;
+mod fees;
 mod ib;
 mod interest;
 mod open_broker;
@@ -33,6 +34,7 @@ use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
 
 pub use self::dividends::Dividend;
+pub use self::fees::Fee;
 pub use self::trades::{ForexTrade, StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
 
 #[derive(Debug)]
@@ -42,6 +44,8 @@ pub struct BrokerStatement {
 
     pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
+
+    pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
 
     pub forex_trades: Vec<ForexTrade>,
@@ -159,6 +163,8 @@ impl BrokerStatement {
 
             cash_flows: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
+
+            fees: Vec::new(),
             idle_cash_interest: Vec::new(),
 
             forex_trades: Vec::new(),
@@ -410,6 +416,8 @@ impl BrokerStatement {
 
         self.cash_flows.extend(statement.cash_flows.drain(..));
         self.cash_assets = statement.cash_assets;
+
+        self.fees.extend(statement.fees.drain(..));
         self.idle_cash_interest.extend(statement.idle_cash_interest.drain(..));
 
         self.forex_trades.extend(statement.forex_trades.drain(..));
@@ -425,6 +433,7 @@ impl BrokerStatement {
 
     fn sort(&mut self) -> EmptyResult {
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
+        self.fees.sort_by_key(|fee| fee.date);
         self.idle_cash_interest.sort_by_key(|interest| interest.date);
         self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
         // FIXME(konishchev): Execution date?
@@ -491,6 +500,12 @@ impl BrokerStatement {
             let first_date = self.cash_flows.first().unwrap().date;
             let last_date = self.cash_flows.last().unwrap().date;
             validate_date("cash flow", first_date, last_date)?;
+        }
+
+        if !self.fees.is_empty() {
+            let first_date = self.fees.first().unwrap().date;
+            let last_date = self.fees.last().unwrap().date;
+            validate_date("fee", first_date, last_date)?;
         }
 
         if !self.idle_cash_interest.is_empty() {

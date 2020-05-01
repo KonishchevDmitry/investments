@@ -2,12 +2,11 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::Cash;
 use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_date};
+use super::common::{Record, RecordParser};
 
 pub struct DividendsParser {}
 
@@ -18,10 +17,9 @@ impl RecordParser for DividendsParser {
 
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        let date = parse_date(record.get_value("Date")?)?;
+        let date = record.parse_date("Date")?;
         let issuer = parse_dividend_description(record.get_value("Description")?)?;
-        let amount = Cash::new(currency, record.parse_cash(
-            "Amount", DecimalRestrictions::NonZero)?);
+        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
         let accruals = parser.statement.dividend_accruals.entry(DividendId {
             date: date,

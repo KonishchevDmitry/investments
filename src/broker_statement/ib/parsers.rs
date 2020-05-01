@@ -10,7 +10,7 @@ use crate::types::Date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_date, format_record};
+use super::common::{Record, RecordParser, format_record};
 
 pub struct StatementInfoParser {}
 
@@ -70,7 +70,7 @@ impl RecordParser for CashReportParser {
         }
 
         let currency = record.get_value("Currency")?;
-        let amount = record.parse_cash("Total", DecimalRestrictions::PositiveOrZero)?;
+        let amount = record.parse_amount("Total", DecimalRestrictions::PositiveOrZero)?;
 
         record.check_value("Futures", "0")?;
         record.check_value("Total", record.get_value("Securities")?)?;
@@ -103,12 +103,9 @@ impl RecordParser for DepositsAndWithdrawalsParser {
 
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        let date = parse_date(record.get_value("Settle Date")?)?;
-        let amount = record.parse_cash("Amount", DecimalRestrictions::NonZero)?;
-
-        parser.statement.cash_flows.push(
-            CashAssets::new_from_cash(date, Cash::new(currency, amount)));
-
+        let date = record.parse_date("Settle Date")?;
+        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
+        parser.statement.cash_flows.push(CashAssets::new_from_cash(date, amount));
         Ok(())
     }
 }

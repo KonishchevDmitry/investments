@@ -6,7 +6,7 @@ use crate::core::{GenericResult};
 use crate::formatting::format_date;
 use crate::types::Date;
 
-use super::common::{Record, RecordSpec, parse_date};
+use super::common::{Record, RecordSpec};
 
 pub type TradeExecutionDates = HashMap<OrderId, Date>;
 
@@ -50,8 +50,8 @@ pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> Gener
         }
 
         let symbol = record.get_value("Symbol")?;
-        let conclusion_date = parse_date(record.get_value("TradeDate")?)?;
-        let execution_date = parse_date(record.get_value("SettleDate")?)?;
+        let conclusion_date = record.parse_date("TradeDate")?;
+        let execution_date = record.parse_date("SettleDate")?;
 
         match execution_dates.insert(OrderId {
             symbol: symbol.to_owned(),

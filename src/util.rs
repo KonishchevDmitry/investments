@@ -17,6 +17,7 @@ pub enum DecimalRestrictions {
     NegativeOrZero,
     PositiveOrZero,
     StrictlyPositive,
+    StrictlyNegative,
 }
 
 pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
@@ -31,6 +32,7 @@ pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> Ge
         DecimalRestrictions::NegativeOrZero => value.is_sign_negative() || value.is_zero(),
         DecimalRestrictions::PositiveOrZero => value.is_sign_positive() || value.is_zero(),
         DecimalRestrictions::StrictlyPositive => value.is_sign_positive() && !value.is_zero(),
+        DecimalRestrictions::StrictlyNegative => value.is_sign_negative() && !value.is_zero(),
     } {
         return Err!("The value doesn't comply to the specified restrictions");
     }
