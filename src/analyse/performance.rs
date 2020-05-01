@@ -405,7 +405,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             self.get_deposit_view(&dividend.issuer)?.transactions.push(
                 Transaction::new(dividend.date, -profit));
 
-            // FIXME(konishchev): Check rounding
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
             let tax_payment_date = self.portfolio.tax_payment_day.get(dividend.date);
 

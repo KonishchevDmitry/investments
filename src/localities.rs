@@ -21,7 +21,7 @@ impl Country {
         currency::round_to(currency::round(tax), self.tax_precision)
     }
 
-    // FIXME(konishchev): Check all callers against https://github.com/KonishchevDmitry/investments/pull/9
+    // FIXME(konishchev): https://github.com/KonishchevDmitry/investments/pull/9
     pub fn tax_to_pay(&self, mut income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
         income = currency::round(income);
         if income.is_sign_negative() || income.is_zero() {
