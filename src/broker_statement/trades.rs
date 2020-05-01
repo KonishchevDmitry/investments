@@ -6,6 +6,19 @@ use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
 #[derive(Debug)]
+pub struct ForexTrade {
+    pub base: String,
+    pub quote: String,
+
+    pub quantity: Decimal,
+    pub price: Decimal,
+    pub commission: Cash,
+
+    pub conclusion_date: Date,
+    pub execution_date: Date,
+}
+
+#[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
     pub quantity: u32,

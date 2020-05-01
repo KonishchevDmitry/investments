@@ -1,10 +1,12 @@
-use crate::broker_statement::trades::{StockBuy, StockSell};
+use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
-use crate::currency::Cash;
+use crate::currency::{self, Cash};
+use crate::types::{Date, Decimal};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date_time};
+use std::ops::Deref;
 
 pub struct OpenPositionsParser {}
 
@@ -41,36 +43,74 @@ impl RecordParser for TradesParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_value("DataDiscriminator", "Order")?;
 
-        if record.get_value("Asset Category")? == "Forex" {
-            return Ok(());
-        }
-
-        record.check_value("Asset Category", "Stocks")?;
-
-        let currency = record.get_value("Currency")?;
+        let asset_category = record.get_value("Asset Category")?;
         let symbol = record.get_value("Symbol")?;
-        let quantity: i32 = record.parse_value("Quantity")?;
-
+        let price = record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?;
         let conclusion_date = parse_date_time(record.get_value("Date/Time")?)?.date();
-        let execution_date = parser.get_execution_date(symbol, conclusion_date);
 
-        let price = Cash::new(
-            currency, record.parse_cash("T. Price", DecimalRestrictions::StrictlyPositive)?);
-        let commission = -record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?;
-
-        // Commission may be 1.06 in *.pdf but 1.0619736 in *.csv, so round it to cents
-        let commission = Cash::new(currency, commission).round();
-
-        if quantity > 0 {
-            parser.statement.stock_buys.push(StockBuy::new(
-                symbol, quantity as u32, price, commission, conclusion_date, execution_date));
-        } else if quantity < 0 {
-            parser.statement.stock_sells.push(StockSell::new(
-                symbol, -quantity as u32, price, commission, conclusion_date, execution_date, false));
-        } else {
-            return Err!("Invalid quantity: {}", quantity)
+        match asset_category {
+            "Forex" => parse_forex_record(parser, record, symbol, price, conclusion_date),
+            "Stocks" => parse_stock_record(parser, record, symbol, price, conclusion_date),
+            _ => return Err!("Unsupported asset category: {}", asset_category)
         }
-
-        Ok(())
     }
+}
+
+fn parse_forex_record(
+    parser: &mut StatementParser, record: &Record,
+    symbol: &str, price: Decimal, conclusion_date: Date
+) -> EmptyResult {
+    let pair: Vec<&str> = symbol.split('.').collect();
+    if pair.len() != 2 {
+        return Err!("Invalid forex pair: {}", symbol)
+    }
+
+    let quantity = record.parse_cash("Quantity", DecimalRestrictions::NonZero)?;
+    let commission = Cash::new("USD", record.parse_cash(
+        "Comm in USD", DecimalRestrictions::NegativeOrZero)?);
+
+    parser.statement.forex_trades.push(ForexTrade{
+        base: pair.first().unwrap().deref().to_owned(),
+        quote: pair.last().unwrap().deref().to_owned(),
+
+        quantity: quantity,
+        price: price,
+        commission: commission,
+
+        conclusion_date: conclusion_date,
+        execution_date: conclusion_date, // FIXME(konishchev): Not implemented yet
+    });
+
+    Ok(())
+}
+
+fn parse_stock_record(
+    parser: &mut StatementParser, record: &Record,
+    symbol: &str, price: Decimal, conclusion_date: Date,
+) -> EmptyResult {
+    let currency = record.get_value("Currency")?;
+    let quantity: i32 = record.parse_value("Quantity")?;
+    let execution_date = parser.get_execution_date(symbol, conclusion_date);
+
+    let price = Cash::new(currency, price);
+    let commission = -record.parse_cash("Comm/Fee", DecimalRestrictions::NegativeOrZero)?;
+
+    // Commission may be 1.06 in *.pdf but 1.0619736 in *.csv, so round it to cents
+    let commission = Cash::new(currency, commission).round();
+
+    // FIXME(konishchev): A temporary check during cash flow report developing
+    let volume = Cash::new(currency, record.parse_cash("Proceeds", DecimalRestrictions::NonZero)?);
+    debug_assert_eq!(volume.amount, -currency::round_to((price * quantity).amount, 4));
+
+    if quantity > 0 {
+        parser.statement.stock_buys.push(StockBuy::new(
+            symbol, quantity as u32, price, commission, conclusion_date, execution_date));
+    } else if quantity < 0 {
+        parser.statement.stock_sells.push(StockSell::new(
+            symbol, -quantity as u32, price, commission, conclusion_date, execution_date, false));
+    } else {
+        return Err!("Invalid quantity: {}", quantity)
+    }
+
+    Ok(())
 }
