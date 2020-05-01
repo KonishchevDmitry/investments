@@ -1,4 +1,4 @@
-use crate::broker_statement::{BrokerStatement, ForexTrade, StockBuy, Dividend};
+use crate::broker_statement::{BrokerStatement, Fee, ForexTrade, StockBuy, Dividend};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::types::Date;
 
@@ -8,6 +8,7 @@ pub fn calculate(statement: &BrokerStatement) {
     let mut cash_assets = MultiCurrencyCashAccount::new();
 
     cash_flows.extend(statement.cash_flows.iter().map(new_from_cash_flow));
+    cash_flows.extend(statement.fees.iter().map(new_from_fee));
 
     for trade in &statement.forex_trades {
         let (from, to, commission) = new_from_forex_trade(trade);
@@ -139,4 +140,8 @@ fn new_from_forex_trade(trade: &ForexTrade) -> (CashFlow, CashFlow, Option<CashF
     };
 
     (from_cash_flow, to_cash_flow, commission)
+}
+
+fn new_from_fee(fee: &Fee) -> CashFlow {
+    CashFlow::new(fee.date, -fee.amount, "Комиссия брокера".to_ascii_lowercase())
 }
