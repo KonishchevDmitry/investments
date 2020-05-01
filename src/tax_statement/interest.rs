@@ -4,7 +4,7 @@ use static_table_derive::StaticTable;
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
-use crate::currency::{self, Cash, MultiCurrencyCashAccount};
+use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::types::{Date, Decimal};
@@ -54,8 +54,7 @@ pub fn process_income(
         let precise_currency_rate = converter.precise_currency_rate(
             interest.date, foreign_amount.currency, country.currency)?;
 
-        let amount = currency::round(converter.convert_to(
-            interest.date, interest.amount, country.currency)?);
+        let amount = converter.convert_to_rounding(interest.date, foreign_amount, country.currency)?;
         total_amount += amount;
 
         let tax_to_pay = interest.tax_to_pay(&country, converter)?;

@@ -4,7 +4,7 @@ use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
 use crate::core::GenericResult;
-use crate::currency::{Cash, CurrencyRate};
+use crate::currency::{self, Cash, CurrencyRate};
 use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
@@ -55,8 +55,15 @@ impl CurrencyConverter {
         self.currency_rate(date, from, to)
     }
 
+    // FIXME(konishchev): Check all usage
     pub fn convert_to(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
         self.convert(cash.currency, to, date, cash.amount)
+    }
+
+    // FIXME(konishchev): Use everywhere + add clarification
+    pub fn convert_to_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
+        let cash = cash.round();
+        Ok(currency::round(self.convert(cash.currency, to, date, cash.amount)?))
     }
 
     pub fn real_time_convert_to(&self, cash: Cash, to: &str) -> GenericResult<Decimal> {
