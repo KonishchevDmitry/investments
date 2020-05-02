@@ -8,4 +8,4 @@ set -eu
 INVESTMENTS_NOW=$(< testdata/time)
 export INVESTMENTS_NOW
 
-cargo run -- --config testdata/config "$@"
+cargo run --quiet -- --config testdata/config "$@" 2>&1
