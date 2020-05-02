@@ -160,7 +160,7 @@ pub struct CurrencyRate {
     price: Decimal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct MultiCurrencyCashAccount {
     assets: HashMap<&'static str, Decimal>,

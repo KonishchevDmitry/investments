@@ -42,10 +42,11 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
 
-    pub cash_flows: Vec<CashAssets>,
     pub cash_assets: MultiCurrencyCashAccount,
+    pub historical_cash_assets: HashMap<Date, MultiCurrencyCashAccount>,
 
     pub fees: Vec<Fee>,
+    pub cash_flows: Vec<CashAssets>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
 
     pub forex_trades: Vec<ForexTrade>,
@@ -161,10 +162,11 @@ impl BrokerStatement {
             broker: statement.broker.clone(),
             period: period,
 
-            cash_flows: Vec::new(),
             cash_assets: MultiCurrencyCashAccount::new(),
+            historical_cash_assets: HashMap::new(),
 
             fees: Vec::new(),
+            cash_flows: Vec::new(),
             idle_cash_interest: Vec::new(),
 
             forex_trades: Vec::new(),
@@ -177,9 +179,12 @@ impl BrokerStatement {
         })
     }
 
+    pub fn last_date(&self) -> Date {
+        self.period.1 - Duration::days(1)
+    }
+
     pub fn check_date(&self) {
-        let date = self.period.1 - Duration::days(1);
-        let days = (util::today() - date).num_days();
+        let days = (util::today() - self.last_date()).num_days();
         let months = Decimal::from(days) / dec!(30);
 
         if months >= dec!(1) {
@@ -401,23 +406,24 @@ impl BrokerStatement {
         if statement.broker.allow_sparse_broker_statements {
             if period.0 < self.period.1 {
                 return Err!("Overlapping periods: {}, {}",
-                formatting::format_period(self.period.0, self.period.1),
-                formatting::format_period(period.0, period.1));
+                    formatting::format_period(self.period.0, self.period.1),
+                    formatting::format_period(period.0, period.1));
             }
         } else {
             if period.0 != self.period.1 {
                 return Err!("Non-continuous periods: {}, {}",
-                formatting::format_period(self.period.0, self.period.1),
-                formatting::format_period(period.0, period.1));
+                    formatting::format_period(self.period.0, self.period.1),
+                    formatting::format_period(period.0, period.1));
             }
         }
 
         self.period.1 = period.1;
 
-        self.cash_flows.extend(statement.cash_flows.drain(..));
-        self.cash_assets = statement.cash_assets;
+        self.cash_assets = statement.cash_assets.clone();
+        assert!(self.historical_cash_assets.insert(self.last_date(), statement.cash_assets).is_none());
 
         self.fees.extend(statement.fees.drain(..));
+        self.cash_flows.extend(statement.cash_flows.drain(..));
         self.idle_cash_interest.extend(statement.idle_cash_interest.drain(..));
 
         self.forex_trades.extend(statement.forex_trades.drain(..));
@@ -481,7 +487,7 @@ impl BrokerStatement {
 
     fn validate(&self) -> EmptyResult {
         let min_date = self.period.0;
-        let max_date = self.period.1 - Duration::days(1);
+        let max_date = self.last_date();
         let validate_date = |name, first_date, last_date| -> EmptyResult {
             if first_date < min_date {
                 return Err!("Got a {} outside of statement period: {}",
