@@ -181,6 +181,10 @@ impl MultiCurrencyCashAccount {
         self.assets.get(currency).is_some()
     }
 
+    pub fn get(&self, currency: &str) -> Option<Cash> {
+        self.assets.get(currency).map(|&amount| Cash::new(currency, amount))
+    }
+
     pub fn iter(&self) -> impl Iterator<Item=Cash> + '_ {
         self.assets.iter().map(|(&currency, &amount)| {
             Cash::new(currency, amount)

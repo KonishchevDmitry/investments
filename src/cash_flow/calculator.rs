@@ -3,6 +3,8 @@ use crate::broker_statement::{BrokerStatement, Fee, ForexTrade, StockBuy, StockS
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::types::Date;
 
+use super::comparator::CashAssetsComparator;
+
 // FIXME(konishchev): It's only a prototype
 pub fn calculate(statement: &BrokerStatement) {
     let mut cash_flows = Vec::new();
@@ -50,10 +52,15 @@ pub fn calculate(statement: &BrokerStatement) {
     }
 
     cash_flows.sort_by_key(|cash_flow| cash_flow.date);
+
+    let mut cash_assets_comparator = CashAssetsComparator::new(&statement.historical_cash_assets);
+
     for cash_flow in &cash_flows {
+        cash_assets_comparator.compare(cash_flow.date, &cash_assets);
         cash_assets.deposit(cash_flow.amount);
         println!("{}: {} - {}", cash_flow.date, cash_flow.description, cash_flow.amount);
     }
+    assert!(cash_assets_comparator.compare(statement.period.1, &cash_assets));
 
     for assets in cash_assets.iter() {
         println!("{}", assets);

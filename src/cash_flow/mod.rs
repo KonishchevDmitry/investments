@@ -1,4 +1,5 @@
-mod calculation;
+mod calculator;
+mod comparator;
 
 use chrono::Datelike;
 
@@ -21,7 +22,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
         broker_statement.check_period_against_tax_year(year)?;
     }
 
-    calculation::calculate(&broker_statement);
+    calculator::calculate(&broker_statement);
 
     Ok(())
 }

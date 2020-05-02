@@ -10,7 +10,7 @@ mod taxes;
 mod trades;
 
 use std::{self, fs};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeMap};
 use std::collections::hash_map::Entry;
 use std::path::Path;
 
@@ -43,7 +43,7 @@ pub struct BrokerStatement {
     pub period: (Date, Date),
 
     pub cash_assets: MultiCurrencyCashAccount,
-    pub historical_cash_assets: HashMap<Date, MultiCurrencyCashAccount>,
+    pub historical_cash_assets: BTreeMap<Date, MultiCurrencyCashAccount>,
 
     pub fees: Vec<Fee>,
     pub cash_flows: Vec<CashAssets>,
@@ -163,7 +163,7 @@ impl BrokerStatement {
             period: period,
 
             cash_assets: MultiCurrencyCashAccount::new(),
-            historical_cash_assets: HashMap::new(),
+            historical_cash_assets: BTreeMap::new(),
 
             fees: Vec::new(),
             cash_flows: Vec::new(),
