@@ -1,3 +1,5 @@
+use nanoid::nanoid;
+
 use crate::broker_statement::{BrokerStatement, Fee, ForexTrade, StockBuy, StockSell, Dividend,
                               IdleCashInterest};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
@@ -6,7 +8,7 @@ use crate::types::Date;
 use super::comparator::CashAssetsComparator;
 
 // FIXME(konishchev): It's only a prototype
-pub fn calculate(statement: &BrokerStatement) {
+pub fn calculate(statement: &BrokerStatement) -> Vec<CashFlow> {
     let mut cash_flows = Vec::new();
     let mut cash_assets = MultiCurrencyCashAccount::new();
 
@@ -71,14 +73,11 @@ pub fn calculate(statement: &BrokerStatement) {
         println!("{}", assets);
     }
 
-    let mut calculated = cash_assets.iter().collect::<Vec<_>>();
-    calculated.sort_by_key(|cash| cash.currency);
-    let mut actual = statement.cash_assets.iter().collect::<Vec<_>>();
-    actual.sort_by_key(|cash| cash.currency);
-    assert_eq!(calculated, actual);
+    cash_flows
 }
 
-struct CashFlow {
+pub struct CashFlow {
+    pub id: String,
     pub date: Date,
     pub amount: Cash,
     pub description: String,
@@ -86,7 +85,7 @@ struct CashFlow {
 
 impl CashFlow {
     fn new(date: Date, amount: Cash, description: String) -> CashFlow {
-        CashFlow {date, amount, description}
+        CashFlow {id: nanoid!(), date, amount, description}
     }
 }
 
