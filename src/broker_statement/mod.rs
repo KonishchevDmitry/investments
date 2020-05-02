@@ -29,12 +29,12 @@ use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
 use self::dividends::{DividendAccruals, process_dividend_accruals};
-use self::interest::IdleCashInterest;
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
 
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
+pub use self::interest::IdleCashInterest;
 pub use self::trades::{ForexTrade, StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
 
 #[derive(Debug)]
