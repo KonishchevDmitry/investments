@@ -27,13 +27,13 @@ impl<'a> CashAssetsComparator<'a> {
         comparator
     }
 
-    pub fn compare(&mut self, date: Date, calculated: &MultiCurrencyCashAccount) -> bool {
+    pub fn compare(&mut self, date: Date, calculated: &MultiCurrencyCashAccount) {
         let (&date, actual) = match self.next {
             Some(data) if *data.0 < date => {
                 self.next();
                 (data.0, data.1)
             },
-            _ => return self.next.is_none(),
+            _ => return,
         };
 
         self.currencies.extend(actual.iter().map(|assets| assets.currency));
@@ -65,7 +65,9 @@ impl<'a> CashAssetsComparator<'a> {
             log!(level, "* {} vs {} ({})",
                  calculated_amount, actual_amount, calculated_amount.sub(actual_amount).unwrap());
         }
+    }
 
+    pub fn consumed(&self) -> bool {
         self.next.is_none()
     }
 

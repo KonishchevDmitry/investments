@@ -49,7 +49,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
 
     let mut starting_assets_row = vec![start_date.into()];
     for (&currency, summary) in &summaries {
-        starting_assets_row.push(Cash::new(currency, summary.start).into());
+        starting_assets_row.push(Cash::new(currency, summary.starting).into());
     }
     summary_table.add_row(starting_assets_row);
 
@@ -67,7 +67,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
 
     let mut ending_assets_row = vec![(end_date - Duration::days(1)).into()];
     for (&currency, summary) in &summaries {
-        ending_assets_row.push(Cash::new(currency, summary.end).into());
+        ending_assets_row.push(Cash::new(currency, summary.ending).into());
     }
     summary_table.add_row(ending_assets_row);
 

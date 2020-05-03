@@ -3,15 +3,15 @@ use crate::broker_statement::{
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
-pub struct CashFlowMapper {
+pub fn map_broker_statement_to_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
+    CashFlowMapper{cash_flows: Vec::new()}.process(statement)
+}
+
+struct CashFlowMapper {
     cash_flows: Vec<CashFlow>,
 }
 
 impl CashFlowMapper {
-    pub fn map(statement: &BrokerStatement) -> Vec<CashFlow> {
-        CashFlowMapper{cash_flows: Vec::new()}.process(statement)
-    }
-
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
         for cash_flow in &statement.cash_flows {
             self.deposit_or_withdrawal(cash_flow)
