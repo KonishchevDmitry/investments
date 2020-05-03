@@ -21,62 +21,79 @@ pub struct CashFlowSummary {
 pub fn calculate(statement: &BrokerStatement, start_date: Date, end_date: Date) -> (
     BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>
 ) {
-    let cash_flows = CashFlowMapper::map(statement);
-
     let starting_assets_date = start_date - Duration::days(1);
     let ending_assets_date = end_date - Duration::days(1);
-    let mut comparator = CashAssetsComparator::new(
+    let comparator = CashAssetsComparator::new(
         &statement.historical_cash_assets, vec![starting_assets_date, ending_assets_date]);
 
-    let mut starting_assets = None;
-    let mut assets = MultiCurrencyCashAccount::new();
+    Calculator {
+        statement, comparator,
+        start_date, starting_assets_date, ending_assets_date,
+        starting_assets: None, ending_assets: None,
+        assets: MultiCurrencyCashAccount::new(),
+    }.process()
+}
 
-    // FIXME(konishchev): Rewrite all below
-    for cash_flow in &cash_flows {
-        comparator.compare(cash_flow.date, &assets);
+struct Calculator<'a> {
+    statement: &'a BrokerStatement,
+    comparator: CashAssetsComparator<'a>,
 
-        if starting_assets.is_none() && starting_assets_date < cash_flow.date {
-            starting_assets.replace(match statement.historical_cash_assets.get(&starting_assets_date) {
-                Some(actual) => {
-                    assets = actual.clone();
-                    actual.clone()
-                },
-                None => {
-                    if statement.period.0 <= starting_assets_date {
-                        warn!("Using calculated assets value for {}.", format_date(start_date));
-                    }
-                    assets.clone()
-                },
+    start_date: Date,
+    starting_assets_date: Date,
+    ending_assets_date: Date,
+
+    starting_assets: Option<MultiCurrencyCashAccount>,
+    ending_assets: Option<MultiCurrencyCashAccount>,
+    assets: MultiCurrencyCashAccount,
+}
+
+impl<'a> Calculator<'a> {
+    fn process(&mut self) -> (BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>) {
+        let cash_flows = CashFlowMapper::map(self.statement);
+
+        // FIXME(konishchev): Rewrite all below
+        for cash_flow in &cash_flows {
+            self.process_date(cash_flow.date);
+            self.assets.deposit(cash_flow.amount);
+        }
+
+        self.process_date(self.statement.period.1);
+
+        // assert!(comparator.compare(statement.period.1, &assets));
+
+        let starting_assets = self.starting_assets.clone().unwrap();
+        let ending_assets = self.assets.clone();
+
+        let mut summaries = BTreeMap::new();
+        for assets in ending_assets.iter() {
+            summaries.insert(assets.currency, CashFlowSummary {
+                start: starting_assets.get(assets.currency).unwrap_or_else(|| Cash::new(assets.currency, dec!(0))).amount,
+                deposits: dec!(0),
+                withdrawals: dec!(0),
+                end: assets.amount,
             });
         }
 
-        assets.deposit(cash_flow.amount);
+        (summaries, cash_flows)
     }
-    assert!(comparator.compare(statement.period.1, &assets));
 
-    if false {
-        for assets in assets.iter() {
-            println!("{}", assets);
+    fn process_date(&mut self, date: Date) {
+        self.comparator.compare(date, &self.assets);
+
+        if self.starting_assets.is_none() && self.starting_assets_date < date {
+            let historical = &self.statement.historical_cash_assets;
+            self.starting_assets.replace(match historical.get(&self.starting_assets_date) {
+                Some(actual) => {
+                    self.assets = actual.clone();
+                    actual.clone()
+                },
+                None => {
+                    if self.statement.period.0 <= self.starting_assets_date {
+                        warn!("Using calculated assets value for {}.", format_date(self.start_date));
+                    }
+                    self.assets.clone()
+                },
+            });
         }
-
-        println!();
-        for assets in statement.cash_assets.iter() {
-            println!("{}", assets);
-        }
     }
-
-    let starting_assets = starting_assets.unwrap();
-    let ending_assets = assets.clone();
-
-    let mut summaries = BTreeMap::new();
-    for assets in ending_assets.iter() {
-        summaries.insert(assets.currency, CashFlowSummary {
-            start: starting_assets.get(assets.currency).unwrap_or_else(|| Cash::new(assets.currency, dec!(0))).amount,
-            deposits: dec!(0),
-            withdrawals: dec!(0),
-            end: assets.amount,
-        });
-    }
-
-    (summaries, cash_flows)
 }
