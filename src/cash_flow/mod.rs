@@ -1,6 +1,6 @@
 mod calculator;
-mod cash_flow;
 mod comparator;
+mod mapper;
 
 use std::collections::HashMap;
 

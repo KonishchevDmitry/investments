@@ -3,11 +3,41 @@ use crate::broker_statement::{
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
-// FIXME(konishchev): Rewrite all below
-pub fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
-    let mut cash_flows = Vec::new();
+pub struct CashFlowMapper {
+    cash_flows: Vec<CashFlow>,
+}
 
-    cash_flows.extend(statement.cash_flows.iter().map(new_from_cash_flow));
+impl CashFlowMapper {
+    pub fn map(statement: &BrokerStatement) -> Vec<CashFlow> {
+        CashFlowMapper{cash_flows: Vec::new()}.process(statement)
+    }
+
+    fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
+        for cash_flow in &statement.cash_flows {
+            self.deposit_or_withdrawal(cash_flow)
+        }
+
+        self.cash_flows
+    }
+
+    fn deposit_or_withdrawal(&mut self, assets: &CashAssets) {
+        let description = if assets.cash.is_positive() {
+            "Ввод денежных средств"
+        } else {
+            "Вывод денежных средств"
+        };
+        self.add(assets.date, assets.cash, description.to_owned());
+    }
+
+    fn add(&mut self, date: Date, amount: Cash, description: String) {
+        self.cash_flows.push(CashFlow{date, amount, description});
+    }
+}
+
+// FIXME(konishchev): Rewrite all below
+#[allow(dead_code)]
+fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
+    let mut cash_flows = Vec::new();
     cash_flows.extend(statement.fees.iter().map(new_from_fee));
     cash_flows.extend(statement.idle_cash_interest.iter().map(new_from_interest));
 
@@ -63,16 +93,6 @@ impl CashFlow {
     fn new(date: Date, amount: Cash, description: String) -> CashFlow {
         CashFlow {date, amount, description}
     }
-}
-
-fn new_from_cash_flow(assets: &CashAssets) -> CashFlow {
-    let description = if assets.cash.is_positive() {
-        "Ввод денежных средств"
-    } else {
-        "Вывод денежных средств"
-    };
-
-    CashFlow::new(assets.date, assets.cash, description.to_owned())
 }
 
 fn new_from_stock_buy(trade: &StockBuy) -> (CashFlow, Option<CashFlow>) {

@@ -4,14 +4,14 @@ use crate::broker_statement::{BrokerStatement};
 use crate::currency::MultiCurrencyCashAccount;
 use crate::types::{Date, Decimal};
 
-use super::cash_flow::{CashFlow, get_account_cash_flow};
+use super::mapper::{CashFlowMapper, CashFlow};
 use super::comparator::CashAssetsComparator;
 
 // FIXME(konishchev): Rewrite all below
 pub fn calculate(statement: &BrokerStatement, _start_date: Date, _end_date: Date) -> (
     BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>
 ) {
-    let cash_flows = get_account_cash_flow(statement);
+    let cash_flows = CashFlowMapper::map(statement);
     let mut cash_assets = MultiCurrencyCashAccount::new();
     let mut cash_assets_comparator = CashAssetsComparator::new(&statement.historical_cash_assets);
 
