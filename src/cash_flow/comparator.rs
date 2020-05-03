@@ -9,14 +9,18 @@ use crate::types::Date;
 pub struct CashAssetsComparator<'a> {
     iter: btree_map::Iter<'a, Date, MultiCurrencyCashAccount>,
     next: Option<(&'a Date, &'a MultiCurrencyCashAccount)>,
+    important_dates: Vec<Date>,
     currencies: BTreeSet<&'static str>,
 }
 
 impl<'a> CashAssetsComparator<'a> {
-    pub fn new(historical: &'a BTreeMap<Date, MultiCurrencyCashAccount>) -> CashAssetsComparator<'a> {
+    pub fn new(
+        historical: &'a BTreeMap<Date, MultiCurrencyCashAccount>, important_dates: Vec<Date>,
+    ) -> CashAssetsComparator<'a> {
         let mut comparator = CashAssetsComparator {
             iter: historical.iter(),
             next: None,
+            important_dates,
             currencies: BTreeSet::new(),
         };
         comparator.next();
@@ -48,10 +52,10 @@ impl<'a> CashAssetsComparator<'a> {
                 continue;
             }
 
-            let level = if self.next.is_some() {
-                Level::Debug
-            } else {
+            let level = if self.next.is_none() || self.important_dates.contains(&date) {
                 Level::Warn
+            } else {
+                Level::Debug
             };
 
             if !reported {

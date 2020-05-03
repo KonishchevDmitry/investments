@@ -100,7 +100,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
 
         details_table.add_row(row);
     }
-    if false {
+    if true {
         details_table.print(&details_title);
     }
 
