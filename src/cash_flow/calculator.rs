@@ -60,9 +60,17 @@ struct Calculator<'a> {
 
 impl<'a> Calculator<'a> {
     fn process(mut self) -> (BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>) {
-        let cash_flows = map_broker_statement_to_cash_flow(self.statement);
+        let mut cash_flows = map_broker_statement_to_cash_flow(self.statement);
+        let mut begin_index = None;
+        let mut end_index = None;
 
-        for cash_flow in &cash_flows {
+        for (index, cash_flow) in cash_flows.iter().enumerate() {
+            if cash_flow.date < self.start_date {
+                begin_index.replace(index);
+            } else if end_index.is_none() && self.end_date <= cash_flow.date {
+                end_index.replace(index);
+            }
+
             self.process_date(cash_flow.date);
             self.assets.deposit(cash_flow.amount);
 
@@ -73,6 +81,14 @@ impl<'a> Calculator<'a> {
                     self.deposits.deposit(cash_flow.amount);
                 }
             }
+        }
+
+        if let Some(index) = end_index {
+            cash_flows.drain(index..);
+        }
+
+        if let Some(index) = begin_index {
+            cash_flows.drain(..=index);
         }
 
         self.process_date(self.statement.period.1);

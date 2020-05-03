@@ -7,15 +7,21 @@ use std::collections::HashMap;
 use chrono::{Datelike, Duration};
 
 use crate::broker_statement::BrokerStatement;
+use crate::brokers::Broker;
 use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::formatting::table::{Table, Column, Cell};
 use crate::util;
 
-// FIXME(konishchev): It's only a prototype
+// FIXME(konishchev): Rewrite all below
 pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
+    if !matches!(portfolio.broker, Broker::InteractiveBrokers) {
+        return Err!(
+            "Cash flow report is not supported for {}", portfolio.broker.get_info(config)?.name);
+    }
+
     let statement = BrokerStatement::read(
         config, portfolio.broker, &portfolio.statements, portfolio.get_tax_remapping()?, false)?;
 
