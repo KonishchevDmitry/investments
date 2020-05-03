@@ -1,14 +1,16 @@
-use nanoid::nanoid;
+use std::collections::BTreeMap;
 
 use crate::broker_statement::{BrokerStatement, Fee, ForexTrade, StockBuy, StockSell, Dividend,
                               IdleCashInterest};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
-use crate::types::Date;
+use crate::types::{Date, Decimal};
 
 use super::comparator::CashAssetsComparator;
 
 // FIXME(konishchev): It's only a prototype
-pub fn calculate(statement: &BrokerStatement, _start_date: Date, _end_date: Date) -> Vec<CashFlow> {
+pub fn calculate(statement: &BrokerStatement, _start_date: Date, _end_date: Date) -> (
+    BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>
+) {
     let mut cash_flows = Vec::new();
     let mut cash_assets = MultiCurrencyCashAccount::new();
 
@@ -60,24 +62,34 @@ pub fn calculate(statement: &BrokerStatement, _start_date: Date, _end_date: Date
     for cash_flow in &cash_flows {
         cash_assets_comparator.compare(cash_flow.date, &cash_assets);
         cash_assets.deposit(cash_flow.amount);
-        println!("{}: {} - {}", cash_flow.date, cash_flow.description, cash_flow.amount);
+        if false {
+            println!("{}: {} - {}", cash_flow.date, cash_flow.description, cash_flow.amount);
+        }
     }
     assert!(cash_assets_comparator.compare(statement.period.1, &cash_assets));
 
-    for assets in cash_assets.iter() {
-        println!("{}", assets);
+    if false {
+        for assets in cash_assets.iter() {
+            println!("{}", assets);
+        }
+
+        println!();
+        for assets in statement.cash_assets.iter() {
+            println!("{}", assets);
+        }
     }
 
-    println!();
-    for assets in statement.cash_assets.iter() {
-        println!("{}", assets);
-    }
+    (BTreeMap::new(), cash_flows)
+}
 
-    cash_flows
+pub struct CashFlowSummary {
+    pub start: Decimal,
+    pub deposits: Decimal,
+    pub withdrawals: Decimal,
+    pub end: Decimal,
 }
 
 pub struct CashFlow {
-    pub id: String,
     pub date: Date,
     pub amount: Cash,
     pub description: String,
@@ -85,7 +97,7 @@ pub struct CashFlow {
 
 impl CashFlow {
     fn new(date: Date, amount: Cash, description: String) -> CashFlow {
-        CashFlow {id: nanoid!(), date, amount, description}
+        CashFlow {date, amount, description}
     }
 }
 

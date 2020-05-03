@@ -118,7 +118,7 @@ impl Cell {
         Cell {text, default_alignment, style: None}
     }
 
-    fn new_empty() -> Cell {
+    pub fn new_empty() -> Cell {
         Cell::new(String::new(), Alignment::LEFT)
     }
 
