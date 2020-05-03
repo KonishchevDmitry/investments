@@ -197,18 +197,18 @@ impl BrokerStatement {
         let tax_period_start = date!(1, 1, year);
         let tax_period_end = date!(1, 1, year + 1);
 
-        if tax_period_start >= self.period.0 && tax_period_end <= self.period.1 {
-            // Broker statement period more or equal to the tax year period
-        } else if tax_period_end > self.period.0 && tax_period_start < self.period.1 {
-            warn!(concat!(
-                "Period of the specified broker statement ({}) ",
-                "doesn't fully overlap with the requested tax year ({})."),
-                formatting::format_period(self.period.0, self.period.1), year);
-        } else {
+        if tax_period_end <= self.period.0 || self.period.1 <= tax_period_start {
             return Err!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't overlap with the requested tax year ({})"),
                 formatting::format_period(self.period.0, self.period.1), year);
+        }
+
+        if self.period.1 < tax_period_end {
+            warn!(concat!(
+                "Period of the specified broker statement ({}) ",
+                "doesn't fully overlap with the requested tax year ({})."
+            ), formatting::format_period(self.period.0, self.period.1), year);
         }
 
         Ok(())
