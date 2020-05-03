@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet, btree_map};
+use std::collections::{BTreeMap, BTreeSet, btree_map};
 
 use log::{Level, log};
 
@@ -9,7 +9,7 @@ use crate::types::Date;
 pub struct CashAssetsComparator<'a> {
     iter: btree_map::Iter<'a, Date, MultiCurrencyCashAccount>,
     next: Option<(&'a Date, &'a MultiCurrencyCashAccount)>,
-    currencies: HashSet<&'static str>,
+    currencies: BTreeSet<&'static str>,
 }
 
 impl<'a> CashAssetsComparator<'a> {
@@ -17,7 +17,7 @@ impl<'a> CashAssetsComparator<'a> {
         let mut comparator = CashAssetsComparator {
             iter: historical.iter(),
             next: None,
-            currencies: HashSet::new(),
+            currencies: BTreeSet::new(),
         };
         comparator.next();
         comparator
@@ -34,12 +34,10 @@ impl<'a> CashAssetsComparator<'a> {
 
         self.currencies.extend(actual.iter().map(|assets| assets.currency));
         self.currencies.extend(calculated.iter().map(|assets| assets.currency));
-        let currencies = self.currencies();
 
-        // FIXME(konishchev): HERE
         let mut reported = false;
 
-        for &currency in &currencies {
+        for &currency in &self.currencies {
             let calculated_amount = calculated.get(currency).unwrap_or_else(||
                 Cash::new(currency, dec!(0)));
 
@@ -65,12 +63,6 @@ impl<'a> CashAssetsComparator<'a> {
         }
 
         self.next.is_none()
-    }
-
-    fn currencies(&self) -> Vec<&'static str> {
-        let mut currencies = self.currencies.iter().copied().collect::<Vec<_>>();
-        currencies.sort();
-        currencies
     }
 
     fn next(&mut self) {
