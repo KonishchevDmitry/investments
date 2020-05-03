@@ -18,19 +18,23 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     let mut title = format!("Движение средств по счету в {}", statement.broker.name);
     let mut details_title = format!("Детализация вижения средств по счету в {}", statement.broker.name);
 
-    if let Some(year) = year {
-        if year > util::today().year() {
-            return Err!("An attempt to generate cash flow report for the future");
-        }
+    let (start_date, end_date) = match year {
+        Some(year) => {
+            if year > util::today().year() {
+                return Err!("An attempt to generate cash flow report for the future");
+            }
 
-        let title_suffix = format!(" за {} год", year);
-        title += &title_suffix;
-        details_title += &title_suffix;
-        statement.check_period_against_tax_year(year)?;
-    }
+            let title_suffix = format!(" за {} год", year);
+            title += &title_suffix;
+            details_title += &title_suffix;
+            statement.check_period_against_tax_year(year)?;
 
-    let cash_flows = calculator::calculate(&statement);
+            (date!(1, 1, year), date!(1, 1, year + 1))
+        },
+        None => statement.period,
+    };
 
+    let cash_flows = calculator::calculate(&statement, start_date, end_date);
 
     let table = Table::new(vec![
         Column::new("Дата", None),

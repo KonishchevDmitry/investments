@@ -8,7 +8,7 @@ use crate::types::Date;
 use super::comparator::CashAssetsComparator;
 
 // FIXME(konishchev): It's only a prototype
-pub fn calculate(statement: &BrokerStatement) -> Vec<CashFlow> {
+pub fn calculate(statement: &BrokerStatement, _start_date: Date, _end_date: Date) -> Vec<CashFlow> {
     let mut cash_flows = Vec::new();
     let mut cash_assets = MultiCurrencyCashAccount::new();
 
