@@ -438,14 +438,13 @@ impl BrokerStatement {
     }
 
     fn sort(&mut self) -> EmptyResult {
-        self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.fees.sort_by_key(|fee| fee.date);
+        self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.idle_cash_interest.sort_by_key(|interest| interest.date);
-        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
-        // FIXME(konishchev): Execution date?
         self.forex_trades.sort_by_key(|trade| trade.conclusion_date);
         self.sort_stock_buys()?;
         self.sort_stock_sells()?;
+        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
         Ok(())
     }
 
