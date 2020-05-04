@@ -13,20 +13,44 @@ struct CashFlowMapper {
 
 impl CashFlowMapper {
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
+        for fee in &statement.fees {
+            self.fee(fee);
+        }
+
         for cash_flow in &statement.cash_flows {
             self.deposit_or_withdrawal(cash_flow)
         }
 
+        for interest in &statement.idle_cash_interest {
+            self.interest(interest);
+        }
+
+        self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.cash_flows
     }
 
+    fn fee(&mut self, fee: &Fee) {
+        self.add_static(fee.date, fee.amount, if fee.amount.is_negative() {
+            "Комиссия брокера"
+        } else {
+            "Возврат излишне удержанной комиссии"
+        })
+    }
+
     fn deposit_or_withdrawal(&mut self, assets: &CashAssets) {
-        let description = if assets.cash.is_positive() {
+        self.add_static(assets.date, assets.cash, if assets.cash.is_positive() {
             "Ввод денежных средств"
         } else {
             "Вывод денежных средств"
-        };
-        self.add(assets.date, assets.cash, description.to_owned());
+        });
+    }
+
+    fn interest(&mut self, interest: &IdleCashInterest) {
+        self.add_static(interest.date, interest.amount, "Проценты на остаток по счету");
+    }
+
+    fn add_static(&mut self, date: Date, amount: Cash, description: &str) {
+        self.add(date, amount, description.to_owned())
     }
 
     fn add(&mut self, date: Date, amount: Cash, description: String) {
@@ -38,9 +62,6 @@ impl CashFlowMapper {
 #[allow(dead_code)]
 fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
     let mut cash_flows = Vec::new();
-    cash_flows.extend(statement.fees.iter().map(new_from_fee));
-    cash_flows.extend(statement.idle_cash_interest.iter().map(new_from_interest));
-
     for trade in &statement.forex_trades {
         let (from, to, commission) = new_from_forex_trade(trade);
 
@@ -77,8 +98,6 @@ fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
             cash_flows.push(cash_flow);
         }
     }
-
-    cash_flows.sort_by_key(|cash_flow| cash_flow.date);
 
     cash_flows
 }
@@ -171,12 +190,4 @@ fn new_from_forex_trade(trade: &ForexTrade) -> (CashFlow, CashFlow, Option<CashF
     };
 
     (from_cash_flow, to_cash_flow, commission)
-}
-
-fn new_from_interest(interest: &IdleCashInterest) -> CashFlow {
-    CashFlow::new(interest.date, interest.amount, "Проценты на остаток по счету".to_owned())
-}
-
-fn new_from_fee(fee: &Fee) -> CashFlow {
-    CashFlow::new(fee.date, -fee.amount, "Комиссия брокера".to_owned())
 }

@@ -15,8 +15,7 @@ impl RecordParser for FeesParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;
-        // FIXME(konishchev): Fee return is not supported yet
-        let amount = -record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
+        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
         parser.statement.fees.push(Fee {
             date: date,
