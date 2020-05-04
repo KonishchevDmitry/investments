@@ -30,7 +30,7 @@ impl CashFlowMapper {
     }
 
     fn add(&mut self, date: Date, amount: Cash, description: String) {
-        self.cash_flows.push(CashFlow{date, amount, description});
+        self.cash_flows.push(CashFlow{date, amount, sibling_amount: None, description});
     }
 }
 
@@ -86,12 +86,13 @@ fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
 pub struct CashFlow {
     pub date: Date,
     pub amount: Cash,
+    pub sibling_amount: Option<Cash>,
     pub description: String,
 }
 
 impl CashFlow {
     fn new(date: Date, amount: Cash, description: String) -> CashFlow {
-        CashFlow {date, amount, description}
+        CashFlow {date, amount, sibling_amount: None, description}
     }
 }
 

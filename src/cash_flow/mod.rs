@@ -2,7 +2,7 @@ mod calculator;
 mod comparator;
 mod mapper;
 
-use std::collections::{HashMap, BTreeMap};
+use std::collections::BTreeMap;
 
 use chrono::Duration;
 
@@ -15,6 +15,7 @@ use crate::formatting::table::{Table, Column, Cell};
 use crate::types::Date;
 
 use self::calculator::CashFlowSummary;
+use self::mapper::CashFlow;
 
 pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
@@ -45,40 +46,9 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
         None => statement.period,
     };
 
-    // FIXME(konishchev): Rewrite all below
     let (summaries, cash_flows) = calculator::calculate(&statement, start_date, end_date);
     generate_summary_report(&summary_title, start_date, end_date, &summaries);
-
-    let mut details_columns = vec![
-        Column::new("Дата"),
-        Column::new("Операция"),
-    ];
-    let currencies = summaries.iter().enumerate().map(|(index, (&currency, _))| {
-        (currency, index + details_columns.len())
-    }).collect::<HashMap<&'static str, usize>>();
-    for &currency in currencies.keys() {
-        details_columns.push(Column::new(currency));
-    }
-
-    let mut details_table = Table::new(details_columns);
-    for cash_flow in cash_flows {
-        let mut row = Vec::with_capacity(2 + currencies.len());
-        row.push(cash_flow.date.into());
-        row.push(cash_flow.description.into());
-
-        for &currency in currencies.keys() {
-            if cash_flow.amount.currency == currency {
-                row.push(cash_flow.amount.into());
-            } else {
-                row.push(Cell::new_empty());
-            }
-        }
-
-        details_table.add_row(row);
-    }
-    if true {
-        details_table.print(&details_title);
-    }
+    generate_details_report(&details_title, &summaries, cash_flows);
 
     Ok(())
 }
@@ -109,4 +79,50 @@ fn generate_summary_report(
     table.add_row(withdrawals);
     table.add_row(ending_assets);
     table.print(&title);
+}
+
+fn generate_details_report(
+    title: &str, summaries: &BTreeMap<&'static str, CashFlowSummary>, cash_flows: Vec<CashFlow>
+) {
+    let mut columns = vec![Column::new("Дата"), Column::new("Операция")];
+    for &currency in summaries.keys() {
+        columns.push(Column::new(currency));
+    }
+    let mut table = Table::new(columns);
+
+    for cash_flow in cash_flows {
+        let mut row = Vec::with_capacity(2 + summaries.len());
+        row.push(cash_flow.date.into());
+        row.push(cash_flow.description.into());
+
+        let mut matched = 0;
+
+        for &currency in summaries.keys() {
+            if cash_flow.amount.currency == currency {
+                row.push(cash_flow.amount.into());
+                matched += 1;
+                continue
+            }
+
+            if let Some(amount) = cash_flow.sibling_amount {
+                if amount.currency == currency {
+                    row.push(amount.into());
+                    matched += 1;
+                    continue
+                }
+            }
+
+            row.push(Cell::new_empty());
+        }
+
+        assert_eq!(if cash_flow.sibling_amount.is_some() {
+            2
+        } else {
+            1
+        }, matched);
+
+        table.add_row(row);
+    }
+
+    table.print(title);
 }
