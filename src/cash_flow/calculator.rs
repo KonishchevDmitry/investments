@@ -4,7 +4,7 @@ use chrono::Duration;
 use log::warn;
 
 use crate::broker_statement::BrokerStatement;
-use crate::currency::MultiCurrencyCashAccount;
+use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::formatting::format_date;
 use crate::types::{Date, Decimal};
 
@@ -72,14 +72,10 @@ impl<'a> Calculator<'a> {
             }
 
             self.process_date(cash_flow.date);
-            self.assets.deposit(cash_flow.amount);
 
-            if self.start_date <= cash_flow.date && cash_flow.date < self.end_date {
-                if cash_flow.amount.is_negative() {
-                    self.withdrawals.deposit(-cash_flow.amount);
-                } else {
-                    self.deposits.deposit(cash_flow.amount);
-                }
+            self.process_cash_flow(cash_flow.date, cash_flow.amount);
+            if let Some(amount) = cash_flow.sibling_amount {
+                self.process_cash_flow(cash_flow.date, amount);
             }
         }
 
@@ -147,6 +143,18 @@ impl<'a> Calculator<'a> {
                     "There is no information about ending cash assets for {} in the broker statement.",
                     format_date(self.ending_assets_date)
                 );
+            }
+        }
+    }
+
+    fn process_cash_flow(&mut self, date: Date, amount: Cash) {
+        self.assets.deposit(amount);
+
+        if self.start_date <= date && date < self.end_date {
+            if amount.is_negative() {
+                self.withdrawals.deposit(-amount);
+            } else {
+                self.deposits.deposit(amount);
             }
         }
     }
