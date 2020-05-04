@@ -39,8 +39,6 @@ impl<'a> CashAssetsComparator<'a> {
         self.currencies.extend(actual.iter().map(|assets| assets.currency));
         self.currencies.extend(calculated.iter().map(|assets| assets.currency));
 
-        let mut reported = false;
-
         for &currency in &self.currencies {
             let calculated_amount = calculated.get(currency).unwrap_or_else(||
                 Cash::new(currency, dec!(0)));
@@ -52,18 +50,19 @@ impl<'a> CashAssetsComparator<'a> {
                 continue;
             }
 
-            let level = if self.next.is_none() || self.important_dates.contains(&date) {
+            // The calculations aren't 100% accurate. For example, Forex trades information contains
+            // rounded numbers which may lead to calculation error with around 0.00001 precision.
+            let equal = calculated_amount.round() == actual_amount.round();
+
+            let level = if !equal && (self.consumed() || self.important_dates.contains(&date)) {
                 Level::Warn
             } else {
                 Level::Debug
             };
 
-            if !reported {
-                log!(level, "Calculation error for {}:", format_date(date));
-                reported = true;
-            }
-            log!(level, "* {} vs {} ({})",
-                 calculated_amount, actual_amount, calculated_amount.sub(actual_amount).unwrap());
+            log!(level, "Calculation error for {}: {} vs {} ({})",
+                 format_date(date), calculated_amount, actual_amount,
+                 calculated_amount.sub(actual_amount).unwrap());
         }
     }
 
