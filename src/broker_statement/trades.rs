@@ -18,6 +18,7 @@ pub struct StockBuy {
     pub symbol: String,
     pub quantity: u32,
     pub price: Cash,
+    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
 
     pub conclusion_date: Date,
@@ -28,11 +29,11 @@ pub struct StockBuy {
 
 impl StockBuy {
     pub fn new(
-        symbol: &str, quantity: u32, price: Cash, commission: Cash,
+        symbol: &str, quantity: u32, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(), quantity, price, commission,
+            symbol: symbol.to_owned(), quantity, price, volume, commission,
             conclusion_date, execution_date, sold: 0,
         }
     }
@@ -56,6 +57,7 @@ pub struct StockSell {
     pub symbol: String,
     pub quantity: u32,
     pub price: Cash,
+    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
 
     pub conclusion_date: Date,
@@ -67,11 +69,11 @@ pub struct StockSell {
 
 impl StockSell {
     pub fn new(
-        symbol: &str, quantity: u32, price: Cash, commission: Cash,
+        symbol: &str, quantity: u32, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, emulation: bool,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(), quantity, price, commission,
+            symbol: symbol.to_owned(), quantity, price, volume, commission,
             conclusion_date, execution_date, emulation, sources: Vec::new(),
         }
     }
@@ -93,7 +95,7 @@ impl StockSell {
     }
 
     fn calculate_impl(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
-        let revenue = (self.price * self.quantity).round();
+        let revenue = self.volume.round();
         let local_revenue = converter.convert_to_cash_rounding(
             self.execution_date, revenue, country.currency)?;
 

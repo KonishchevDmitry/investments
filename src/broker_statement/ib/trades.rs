@@ -91,23 +91,22 @@ fn parse_stock_record(
     let currency = record.get_value("Currency")?;
     let quantity: i32 = record.parse_value("Quantity")?;
     let price = record.parse_cash("T. Price", currency, DecimalRestrictions::StrictlyPositive)?;
+    let commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
     let execution_date = parser.get_execution_date(symbol, conclusion_date);
 
-    let mut commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
-    // FIXME(konishchev): This may be a problem for cash flow report
-    // Commission may be 1.06 in *.pdf but 1.0619736 in *.csv, so round it to cents
-    commission = commission.round();
-
-    // FIXME(konishchev): A temporary check during cash flow report developing
-    let volume = record.parse_cash("Proceeds", currency, DecimalRestrictions::NonZero)?;
-    debug_assert_eq!(volume.amount, -currency::round_to((price * quantity).amount, 4));
+    let volume = record.parse_cash("Proceeds", currency, if quantity < 0 {
+        DecimalRestrictions::StrictlyPositive
+    } else {
+        DecimalRestrictions::StrictlyNegative
+    })?;
+    debug_assert_eq!(volume.amount, currency::round_to((price * -quantity).amount, 4));
 
     if quantity > 0 {
         parser.statement.stock_buys.push(StockBuy::new(
-            symbol, quantity as u32, price, commission, conclusion_date, execution_date));
+            symbol, quantity as u32, price, -volume, commission, conclusion_date, execution_date));
     } else if quantity < 0 {
         parser.statement.stock_sells.push(StockSell::new(
-            symbol, -quantity as u32, price, commission, conclusion_date, execution_date, false));
+            symbol, -quantity as u32, price, volume, commission, conclusion_date, execution_date, false));
     } else {
         return Err!("Invalid quantity: {}", quantity)
     }

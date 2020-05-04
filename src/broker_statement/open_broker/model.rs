@@ -198,6 +198,9 @@ struct ConcludedTrade {
 
     price: Decimal,
 
+    #[serde(rename="volume_currency")]
+    volume: Decimal,
+
     #[serde(rename = "broker_commission")]
     commission: Decimal,
 }
@@ -211,6 +214,8 @@ impl ConcludedTrades {
             let symbol = get_symbol(securities, &trade.security_name)?;
             let price = util::validate_decimal(trade.price, DecimalRestrictions::StrictlyPositive)
                 .map_err(|_| format!("Invalid {} price: {}", symbol, trade.price))?.normalize();
+            let volume = util::validate_decimal(trade.volume, DecimalRestrictions::StrictlyPositive)
+                .map_err(|_| format!("Invalid trade volume: {}", trade.volume))?.normalize();
             let commission = util::validate_decimal(trade.commission, DecimalRestrictions::PositiveOrZero)
                 .map_err(|_| format!("Invalid commission: {}", trade.commission))?;
 
@@ -222,6 +227,7 @@ impl ConcludedTrades {
             }
 
             let price = Cash::new(&trade.currency, price);
+            let volume = Cash::new(&trade.currency, volume);
             let commission = Cash::new(&trade.accounting_currency, commission);
             let execution_date = match trades_with_shifted_execution_date.remove(&trade.id) {
                 Some(execution_date) => {
@@ -238,16 +244,18 @@ impl ConcludedTrades {
             match (trade.buy_quantity, trade.sell_quantity) {
                 (Some(quantity), None) => {
                     let quantity = parse_quantity(quantity, false)?;
+                    debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_buys.push(StockBuy::new(
-                        symbol, quantity, price, commission,
+                        symbol, quantity, price, volume, commission,
                         trade.conclusion_date, execution_date));
                 },
                 (None, Some(quantity)) => {
                     let quantity = parse_quantity(quantity, false)?;
+                    debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_sells.push(StockSell::new(
-                        symbol, quantity, price, commission,
+                        symbol, quantity, price, volume, commission,
                         trade.conclusion_date, execution_date, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")

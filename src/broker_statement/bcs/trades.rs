@@ -83,13 +83,15 @@ impl TradesParser {
                 trade.payment_currency, trade.currency);
         }
 
-        let (buy, quantity, price) = match (
-            (trade.buy_quantity, trade.buy_price),
-            (trade.sell_quantity, trade.sell_price),
+        let (buy, quantity, price, volume) = match (
+            (trade.buy_quantity, trade.buy_price, trade.buy_volume),
+            (trade.sell_quantity, trade.sell_price, trade.sell_volume),
         ) {
-            ((Some(quantity), Some(price)), (None, None)) => (true, quantity, price),
-            ((None, None), (Some(quantity), Some(price))) => (false, quantity, price),
-            _ => return Err!("Got conflicting buy/sell quantity/price values"),
+            ((Some(quantity), Some(price), Some(volume)), (None, None, None)) => (
+                true, quantity, price, volume),
+            ((None, None, None), (Some(quantity), Some(price), Some(volume))) => (
+                false, quantity, price, volume),
+            _ => return Err!("Got conflicting buy/sell quantity/price/volume values"),
         };
 
         let quantity =
@@ -107,14 +109,19 @@ impl TradesParser {
             .map(|price| Cash::new(currency, price))
             .map_err(|_| format!("Invalid price: {}", price))?;
 
+        let volume = util::validate_decimal(volume, DecimalRestrictions::StrictlyPositive)
+            .map(|volume| Cash::new(currency, volume))
+            .map_err(|_| format!("Invalid trade volume: {}", volume))?;
+        debug_assert_eq!(volume, price * quantity);
+
         let commission = Cash::new(currency, dec!(0));
 
         if buy {
             statement.stock_buys.push(StockBuy::new(
-                symbol, quantity, price, commission, conclusion_date, execution_date));
+                symbol, quantity, price, volume, commission, conclusion_date, execution_date));
         } else {
             statement.stock_sells.push(StockSell::new(
-                symbol, quantity, price, commission, conclusion_date, execution_date, false));
+                symbol, quantity, price, volume, commission, conclusion_date, execution_date, false));
         }
 
         Ok(())
@@ -134,13 +141,13 @@ struct TradeRow {
     #[column(name="Цена")]
     buy_price: Option<Decimal>,
     #[column(name="Сумма платежа")]
-    _5: SkipCell,
+    buy_volume: Option<Decimal>,
     #[column(name="Продано, шт")]
     sell_quantity: Option<Decimal>,
     #[column(name="Цена")]
     sell_price: Option<Decimal>,
     #[column(name="Сумма выручки")]
-    _8: SkipCell,
+    sell_volume: Option<Decimal>,
     #[column(name="Валюта")]
     currency: String,
     #[column(name="Валюта платежа")]

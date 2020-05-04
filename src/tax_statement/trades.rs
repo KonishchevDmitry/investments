@@ -194,7 +194,7 @@ impl<'a> TradesProcessor<'a> {
             execution_currency_rate: execution_currency_rate,
             revenue: details.revenue,
             local_revenue: details.local_revenue,
-            commission: trade.commission,
+            commission: trade.commission.round(),
             local_commission: details.local_commission,
             purchase_local_cost: details.purchase_local_cost,
             total_local_cost: details.total_local_cost,

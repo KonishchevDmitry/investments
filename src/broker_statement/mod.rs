@@ -244,7 +244,8 @@ impl BrokerStatement {
             conclusion_date, TradeType::Sell, quantity, price)?;
 
         let stock_cell = StockSell::new(
-            symbol, quantity, price, commission, conclusion_date, execution_date, true);
+            symbol, quantity, price, price * quantity, commission,
+            conclusion_date, execution_date, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = *open_position.get();
@@ -322,12 +323,10 @@ impl BrokerStatement {
                 let sell_quantity = std::cmp::min(remaining_quantity, stock_buy.get_unsold());
                 assert!(sell_quantity > 0);
 
-                let commission = (stock_buy.commission / stock_buy.quantity * sell_quantity).round();
-
                 sources.push(StockSellSource {
                     quantity: sell_quantity,
                     price: stock_buy.price,
-                    commission: commission,
+                    commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
 
                     conclusion_date: stock_buy.conclusion_date,
                     execution_date: stock_buy.execution_date,

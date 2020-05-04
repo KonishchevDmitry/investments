@@ -84,9 +84,8 @@ impl CashFlowMapper {
     }
 
     fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
-        let volume = trade.price * trade.quantity;
         let description = format!("Покупка {} {}", trade.quantity, name);
-        self.add(trade.conclusion_date, -volume, description);
+        self.add(trade.conclusion_date, -trade.volume, description);
 
         if !trade.commission.is_zero() {
             let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
@@ -95,9 +94,8 @@ impl CashFlowMapper {
     }
 
     fn stock_sell(&mut self, name: &str, trade: &StockSell) {
-        let volume = trade.price * trade.quantity;
         let description = format!("Продажа {} {}", trade.quantity, name);
-        self.add(trade.conclusion_date, volume, description);
+        self.add(trade.conclusion_date, trade.volume, description);
 
         if !trade.commission.is_zero() {
             let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
