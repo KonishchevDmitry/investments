@@ -51,15 +51,13 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
     let columns_init_code = columns.iter().map(|column| {
         let name = column.name.as_ref().unwrap_or(&column.id);
-        let alignment = match column.alignment {
+        match column.alignment {
             Some(ref alignment) => {
                 let alignment_ident = Ident::new(&alignment.to_uppercase(), span);
-                quote!(Some(#mod_ident::Alignment::#alignment_ident))
+                quote!(#mod_ident::Column::new_aligned(
+                    #name, #mod_ident::Alignment::#alignment_ident))
             },
-            None => quote!(None),
-        };
-        quote! {
-            #mod_ident::Column::new(#name, #alignment)
+            None => quote!(#mod_ident::Column::new(#name))
         }
     });
 

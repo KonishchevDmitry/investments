@@ -1,11 +1,8 @@
-use chrono::Datelike;
-
 use crate::broker_statement::BrokerStatement;
 use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
-use crate::util;
 
 pub use self::statement::TaxStatement;
 
@@ -22,10 +19,6 @@ pub fn generate_tax_statement(
         config, portfolio.broker, &portfolio.statements, portfolio.get_tax_remapping()?, true)?;
 
     if let Some(year) = year {
-        if year > util::today().year() {
-            return Err!("An attempt to generate tax statement for the future");
-        }
-
         broker_statement.check_period_against_tax_year(year)?;
     }
 

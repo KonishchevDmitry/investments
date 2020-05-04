@@ -100,8 +100,12 @@ pub struct Column {
 }
 
 impl Column {
-    pub fn new(name: &'static str, alignment: Option<Alignment>) -> Column {
-        Column {name, alignment, hidden: false}
+    pub fn new(name: &'static str) -> Column {
+        Column {name, alignment: None, hidden: false}
+    }
+
+    pub fn new_aligned(name: &'static str, alignment: Alignment) -> Column {
+        Column {name, alignment: Some(alignment), hidden: false}
     }
 }
 
@@ -166,6 +170,12 @@ impl_from_number_to_cell!(Decimal);
 impl From<String> for Cell {
     fn from(text: String) -> Cell {
         Cell::new(text, Alignment::LEFT)
+    }
+}
+
+impl From<&str> for Cell {
+    fn from(text: &str) -> Cell {
+        text.to_owned().into()
     }
 }
 
