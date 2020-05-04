@@ -3,6 +3,13 @@ use crate::broker_statement::{
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
+pub struct CashFlow {
+    pub date: Date,
+    pub amount: Cash,
+    pub sibling_amount: Option<Cash>,
+    pub description: String,
+}
+
 pub fn map_broker_statement_to_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
     CashFlowMapper{cash_flows: Vec::new()}.process(statement)
 }
@@ -35,6 +42,10 @@ impl CashFlowMapper {
 
         for trade in &statement.stock_sells {
             self.stock_sell(&statement.get_instrument_name(&trade.symbol), trade);
+        }
+
+        for dividend in &statement.dividends {
+            self.dividend(&statement.get_instrument_name(&dividend.issuer), dividend);
         }
 
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
@@ -94,6 +105,16 @@ impl CashFlowMapper {
         };
     }
 
+    fn dividend(&mut self, name: &str, dividend: &Dividend) {
+        let description = format!("Дивиденд от {}", name);
+        self.add(dividend.date, dividend.amount, description);
+
+        if !dividend.paid_tax.is_zero() {
+            let description = format!("Налог, удержанный с дивиденда от {}", name);
+            self.add(dividend.date, -dividend.paid_tax, description);
+        };
+    }
+
     fn add_static(&mut self, date: Date, amount: Cash, description: &str) -> &mut CashFlow {
         self.add(date, amount, description.to_owned())
     }
@@ -102,50 +123,4 @@ impl CashFlowMapper {
         self.cash_flows.push(CashFlow{date, amount, sibling_amount: None, description});
         self.cash_flows.last_mut().unwrap()
     }
-}
-
-// FIXME(konishchev): Rewrite all below
-#[allow(dead_code)]
-fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
-    let mut cash_flows = Vec::new();
-
-    for dividend in &statement.dividends {
-        let (cash_flow, paid_tax) = new_from_dividend(dividend);
-
-        cash_flows.push(cash_flow);
-        if let Some(cash_flow) = paid_tax {
-            cash_flows.push(cash_flow);
-        }
-    }
-
-    cash_flows
-}
-
-pub struct CashFlow {
-    pub date: Date,
-    pub amount: Cash,
-    pub sibling_amount: Option<Cash>,
-    pub description: String,
-}
-
-impl CashFlow {
-    fn new(date: Date, amount: Cash, description: String) -> CashFlow {
-        CashFlow {date, amount, sibling_amount: None, description}
-    }
-}
-
-fn new_from_dividend(dividend: &Dividend) -> (CashFlow, Option<CashFlow>) {
-    // FIXME(konishchev): Rounding
-    let description = format!("Дивиденд от {}", dividend.issuer);
-    let cash_flow = CashFlow::new(dividend.date, dividend.amount, description);
-
-    let paid_tax = if !dividend.paid_tax.is_zero() {
-        let description = format!("Налог, удержанный с дивиденда от {}", dividend.issuer);
-        // FIXME(konishchev): Rounding
-        Some(CashFlow::new(dividend.date, -dividend.paid_tax, description))
-    } else {
-        None
-    };
-
-    (cash_flow, paid_tax)
 }
