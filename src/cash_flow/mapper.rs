@@ -29,6 +29,14 @@ impl CashFlowMapper {
             self.forex_trade(trade);
         }
 
+        for trade in &statement.stock_buys {
+            self.stock_buy(&statement.get_instrument_name(&trade.symbol), trade);
+        }
+
+        for trade in &statement.stock_sells {
+            self.stock_sell(&statement.get_instrument_name(&trade.symbol), trade);
+        }
+
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
         self.cash_flows
     }
@@ -64,6 +72,28 @@ impl CashFlowMapper {
         };
     }
 
+    fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
+        let volume = trade.price * trade.quantity;
+        let description = format!("Покупка {} {}", trade.quantity, name);
+        self.add(trade.conclusion_date, -volume, description);
+
+        if !trade.commission.is_zero() {
+            let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
+            self.add(trade.conclusion_date, -trade.commission, description);
+        };
+    }
+
+    fn stock_sell(&mut self, name: &str, trade: &StockSell) {
+        let volume = trade.price * trade.quantity;
+        let description = format!("Продажа {} {}", trade.quantity, name);
+        self.add(trade.conclusion_date, volume, description);
+
+        if !trade.commission.is_zero() {
+            let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
+            self.add(trade.conclusion_date, -trade.commission, description);
+        };
+    }
+
     fn add_static(&mut self, date: Date, amount: Cash, description: &str) -> &mut CashFlow {
         self.add(date, amount, description.to_owned())
     }
@@ -78,24 +108,6 @@ impl CashFlowMapper {
 #[allow(dead_code)]
 fn get_account_cash_flow(statement: &BrokerStatement) -> Vec<CashFlow> {
     let mut cash_flows = Vec::new();
-
-    for trade in &statement.stock_buys {
-        let (cash_flow, commission) = new_from_stock_buy(trade);
-
-        cash_flows.push(cash_flow);
-        if let Some(cash_flow) = commission {
-            cash_flows.push(cash_flow);
-        }
-    }
-
-    for trade in &statement.stock_sells {
-        let (cash_flow, commission) = new_from_stock_sell(trade);
-
-        cash_flows.push(cash_flow);
-        if let Some(cash_flow) = commission {
-            cash_flows.push(cash_flow);
-        }
-    }
 
     for dividend in &statement.dividends {
         let (cash_flow, paid_tax) = new_from_dividend(dividend);
@@ -120,40 +132,6 @@ impl CashFlow {
     fn new(date: Date, amount: Cash, description: String) -> CashFlow {
         CashFlow {date, amount, sibling_amount: None, description}
     }
-}
-
-fn new_from_stock_buy(trade: &StockBuy) -> (CashFlow, Option<CashFlow>) {
-    // FIXME(konishchev): Rounding
-    let volume = trade.price * trade.quantity;
-    let description = format!("Покупка {} {}", trade.quantity, trade.symbol);
-    let cash_flow = CashFlow::new(trade.conclusion_date, -volume, description);
-
-    let commission = if !trade.commission.is_zero() {
-        let description = format!("Комиссия за покупку {} {}", trade.quantity, trade.symbol);
-        // FIXME(konishchev): Rounding
-        Some(CashFlow::new(trade.conclusion_date, -trade.commission, description))
-    } else {
-        None
-    };
-
-    (cash_flow, commission)
-}
-
-fn new_from_stock_sell(trade: &StockSell) -> (CashFlow, Option<CashFlow>) {
-    // FIXME(konishchev): Rounding
-    let volume = trade.price * trade.quantity;
-    let description = format!("Продажа {} {}", trade.quantity, trade.symbol);
-    let cash_flow = CashFlow::new(trade.conclusion_date, volume, description);
-
-    let commission = if !trade.commission.is_zero() {
-        let description = format!("Комиссия за продажу {} {}", trade.quantity, trade.symbol);
-        // FIXME(konishchev): Rounding
-        Some(CashFlow::new(trade.conclusion_date, -trade.commission, description))
-    } else {
-        None
-    };
-
-    (cash_flow, commission)
 }
 
 fn new_from_dividend(dividend: &Dividend) -> (CashFlow, Option<CashFlow>) {
