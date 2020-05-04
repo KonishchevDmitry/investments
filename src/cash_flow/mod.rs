@@ -10,7 +10,7 @@ use crate::broker_statement::BrokerStatement;
 use crate::brokers::Broker;
 use crate::config::Config;
 use crate::core::EmptyResult;
-use crate::currency::Cash;
+use crate::currency::{self, Cash};
 use crate::formatting::table::{Table, Column, Cell};
 use crate::types::Date;
 
@@ -58,26 +58,32 @@ fn generate_summary_report(
     summaries: &BTreeMap<&'static str, CashFlowSummary>,
 ) {
     let mut columns = vec![Column::new("")];
-    let mut starting_assets = vec![start_date.into()];
-    let mut deposits = vec!["Зачисления".into()];
-    let mut withdrawals = vec!["Списания".into()];
-    let mut ending_assets = vec![(end_date - Duration::days(1)).into()];
+    let mut starting_assets_row = vec![start_date.into()];
+    let mut deposits_row = vec!["Зачисления".into()];
+    let mut withdrawals_row = vec!["Списания".into()];
+    let mut ending_assets_row = vec![(end_date - Duration::days(1)).into()];
 
     for (&currency, summary) in summaries {
         columns.push(Column::new(currency));
 
+        let starting = currency::round(summary.starting);
+        let deposits = currency::round(summary.deposits);
+        let withdrawals = currency::round(summary.withdrawals);
+        let ending = starting + deposits - withdrawals;
+        assert!(summary.ending - dec!(0.015) <= ending && ending <= summary.ending + dec!(0.015));
+
         let add_cell = |row: &mut Vec<Cell>, amount| row.push(Cash::new(currency, amount).into());
-        add_cell(&mut starting_assets, summary.starting);
-        add_cell(&mut deposits, summary.deposits);
-        add_cell(&mut withdrawals, -summary.withdrawals);
-        add_cell(&mut ending_assets, summary.ending);
+        add_cell(&mut starting_assets_row, starting);
+        add_cell(&mut deposits_row, deposits);
+        add_cell(&mut withdrawals_row, -withdrawals);
+        add_cell(&mut ending_assets_row, ending);
     }
 
     let mut table = Table::new(columns);
-    table.add_row(starting_assets);
-    table.add_row(deposits);
-    table.add_row(withdrawals);
-    table.add_row(ending_assets);
+    table.add_row(starting_assets_row);
+    table.add_row(deposits_row);
+    table.add_row(withdrawals_row);
+    table.add_row(ending_assets_row);
     table.print(&title);
 }
 
