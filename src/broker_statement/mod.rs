@@ -280,25 +280,19 @@ impl BrokerStatement {
     }
 
     pub fn process_trades(&mut self) -> EmptyResult {
-        let stock_buys_num = self.stock_buys.len();
-        let mut stock_buys = Vec::with_capacity(stock_buys_num);
-        let mut unsold_stock_buys: HashMap<String, Vec<StockBuy>> = HashMap::new();
+        let mut unsold_buys: HashMap<String, Vec<usize>> = HashMap::new();
 
-        for stock_buy in self.stock_buys.drain(..).rev() {
+        for (index, stock_buy) in self.stock_buys.iter().enumerate().rev() {
             if stock_buy.is_sold() {
-                stock_buys.push(stock_buy);
                 continue;
             }
 
-            let symbol_buys = match unsold_stock_buys.get_mut(&stock_buy.symbol) {
+            let symbol_buys = match unsold_buys.get_mut(&stock_buy.symbol) {
                 Some(symbol_buys) => symbol_buys,
-                None => {
-                    unsold_stock_buys.insert(stock_buy.symbol.clone(), Vec::new());
-                    unsold_stock_buys.get_mut(&stock_buy.symbol).unwrap()
-                },
+                None => unsold_buys.entry(stock_buy.symbol.clone()).or_insert_with(Vec::new),
             };
 
-            symbol_buys.push(stock_buy);
+            symbol_buys.push(index);
         }
 
         for stock_sell in &mut self.stock_sells {
@@ -309,16 +303,17 @@ impl BrokerStatement {
             let mut remaining_quantity = stock_sell.quantity;
             let mut sources = Vec::new();
 
-            let symbol_buys = unsold_stock_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
+            let symbol_buys = unsold_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
                 "Error while processing {} position closing: There are no open positions for it",
                 stock_sell.symbol
             ))?;
 
             while remaining_quantity > 0 {
-                let mut stock_buy = symbol_buys.pop().ok_or_else(|| format!(
+                let index = symbol_buys.last().copied().ok_or_else(|| format!(
                     "Error while processing {} position closing: There are no open positions for it",
                     stock_sell.symbol
                 ))?;
+                let stock_buy = &mut self.stock_buys[index];
 
                 let sell_quantity = std::cmp::min(remaining_quantity, stock_buy.get_unsold());
                 assert!(sell_quantity > 0);
@@ -336,27 +331,14 @@ impl BrokerStatement {
                 stock_buy.sell(sell_quantity);
 
                 if stock_buy.is_sold() {
-                    stock_buys.push(stock_buy);
-                } else {
-                    symbol_buys.push(stock_buy);
+                    symbol_buys.pop();
                 }
             }
 
             stock_sell.process(sources);
         }
 
-        for (_, mut symbol_buys) in unsold_stock_buys.drain() {
-            stock_buys.extend(symbol_buys.drain(..));
-        }
-        drop(unsold_stock_buys);
-
-        assert_eq!(stock_buys.len(), stock_buys_num);
-        self.stock_buys = stock_buys;
-        self.sort_stock_buys()?;
-
-        self.validate_open_positions()?;
-
-        Ok(())
+        self.validate_open_positions()
     }
 
     pub fn merge_symbols(&mut self, symbols_to_merge: &HashMap<String, HashSet<String>>) -> EmptyResult {
