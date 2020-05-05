@@ -156,25 +156,24 @@ APP: regression_tests/investments
      tax-statement
      bcs
 
-# FIXME(konishchev): Disabled temporary due to broken ordering
-# [40]
-# NAME: IB cash flow 2018
-# STDOUT: ib-cash-flow-2018
-# APP: regression_tests/investments
-#      cash-flow
-#      ib
-#      2018
-# [41]
-# NAME: IB cash flow 2019
-# STDOUT: ib-cash-flow-2019
-# APP: regression_tests/investments
-#      cash-flow
-#      ib
-#      2019
-# [42]
-# NAME: IB cash flow 2020
-# STDOUT: ib-cash-flow-2020
-# APP: regression_tests/investments
-#      cash-flow
-#      ib
-#      2020
+[40]
+NAME: IB cash flow 2018
+STDOUT: ib-cash-flow-2018
+APP: regression_tests/investments
+     cash-flow
+     ib
+     2018
+[41]
+NAME: IB cash flow 2019
+STDOUT: ib-cash-flow-2019
+APP: regression_tests/investments
+     cash-flow
+     ib
+     2019
+[42]
+NAME: IB cash flow 2020
+STDOUT: ib-cash-flow-2020
+APP: regression_tests/investments
+     cash-flow
+     ib
+     2020
