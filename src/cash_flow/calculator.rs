@@ -118,21 +118,16 @@ impl<'a> Calculator<'a> {
         self.comparator.compare(date, &self.assets);
 
         if self.starting_assets.is_none() && self.starting_assets_date < date {
-            self.starting_assets.replace(match self.statement.historical_cash_assets.get(&self.starting_assets_date) {
-                Some(actual) => {
-                    self.assets = actual.clone();
-                    actual.clone()
-                },
-                None => {
-                    if self.statement.period.0 <= self.starting_assets_date {
-                        warn!(concat!(
-                            "There is no information about starting cash assets for {} in the broker statement.",
-                            "Using calculated value."
-                        ), format_date(self.start_date));
-                    }
-                    self.assets.clone()
-                },
-            });
+            self.starting_assets.replace(self.assets.clone());
+
+            if self.statement.historical_cash_assets.get(&self.starting_assets_date).is_none() {
+                if self.statement.period.0 <= self.starting_assets_date {
+                    warn!(
+                        "There is no information about starting cash assets for {} in the broker statement.",
+                        format_date(self.start_date)
+                    );
+                }
+            }
         }
 
         if self.ending_assets.is_none() && self.ending_assets_date < date {
