@@ -136,7 +136,6 @@ pub fn initialize() -> (Action, Config) {
                 .help("Year to generate the statement for"))
             .arg(Arg::with_name("TAX_STATEMENT")
                 .help("Path to tax statement *.dcX file")))
-        // FIXME(konishchev): Enable after release
         .subcommand(SubCommand::with_name("cash-flow")
             .about("Generate cash flow report")
             .long_about("Generates cash flow report for tax inspection notification")
