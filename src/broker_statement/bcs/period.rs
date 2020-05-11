@@ -16,7 +16,7 @@ pub struct PeriodParser {
 impl SectionParser for PeriodParser {
     fn consume_title(&self) -> bool { false }
 
-    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult {
+    fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 2)?;
         let period = parse_period(xls::get_string_cell(row[1])?)?;
         parser.statement.set_period(period)?;

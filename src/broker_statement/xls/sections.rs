@@ -40,7 +40,7 @@ impl Section {
 
 pub trait SectionParser {
     fn consume_title(&self) -> bool { true }
-    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult;
+    fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult;
 }
 
 pub struct SectionState {
@@ -56,7 +56,7 @@ impl SectionState {
         }
     }
 
-    pub fn match_section(&mut self, row: &[Cell]) -> GenericResult<Option<&Section>> {
+    pub fn match_section(&mut self, row: &[Cell]) -> GenericResult<Option<&mut Section>> {
         if row.is_empty() {
             return Ok(None);
         }
@@ -81,7 +81,7 @@ impl SectionState {
         self.validate_missing_sections(start_from..current_id)?;
         self.last_id.replace(current_id);
 
-        Ok(Some(&self.sections[current_id]))
+        Ok(Some(&mut self.sections[current_id]))
     }
 
     fn start_from(&self) -> usize {

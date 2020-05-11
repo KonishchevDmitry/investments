@@ -32,7 +32,7 @@ impl XlsStatementParser {
                 None => continue,
             };
 
-            if let Some(parser) = section.parser.as_ref() {
+            if let Some(parser) = section.parser.as_mut() {
                 if !parser.consume_title() {
                     self.sheet.step_back();
                 }

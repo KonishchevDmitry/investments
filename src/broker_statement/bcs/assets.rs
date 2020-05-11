@@ -17,7 +17,7 @@ impl SectionParser for AssetsParser {
         false
     }
 
-    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult {
+    fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let mut has_starting_assets = false;
 
         for asset in &xls::read_table::<AssetRow>(&mut parser.sheet)? {
