@@ -1,4 +1,5 @@
 use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::Decimal;
@@ -6,7 +7,6 @@ use crate::xls::{self, TableReader, Cell, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 
-use super::{Parser, SectionParser};
 use super::common::{parse_currency, parse_symbol};
 
 pub struct AssetsParser {
@@ -17,7 +17,7 @@ impl SectionParser for AssetsParser {
         false
     }
 
-    fn parse(&self, parser: &mut Parser) -> EmptyResult {
+    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult {
         let mut has_starting_assets = false;
 
         for asset in &xls::read_table::<AssetRow>(&mut parser.sheet)? {

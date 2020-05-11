@@ -1,3 +1,4 @@
+use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::CashAssets;
 use crate::types::Decimal;
@@ -6,7 +7,6 @@ use crate::xls::{self, TableReader, Cell, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 
-use super::{Parser, SectionParser};
 use super::common::{parse_short_date, parse_currency};
 
 pub struct CashFlowParser {
@@ -17,7 +17,7 @@ impl SectionParser for CashFlowParser {
         false
     }
 
-    fn parse(&self, parser: &mut Parser) -> EmptyResult {
+    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult {
         let title_row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
         let currency = parse_currency(xls::get_string_cell(&title_row[0])?)?;
 
@@ -30,7 +30,7 @@ impl SectionParser for CashFlowParser {
 }
 
 impl CashFlowParser {
-    fn process_cash_flow(&self, parser: &mut Parser, currency: &str, cash_flow: &CashFlowRow) -> EmptyResult {
+    fn process_cash_flow(&self, parser: &mut XlsStatementParser, currency: &str, cash_flow: &CashFlowRow) -> EmptyResult {
         let date = parse_short_date(&cash_flow.date)?;
         let operation = cash_flow.operation.as_str();
 

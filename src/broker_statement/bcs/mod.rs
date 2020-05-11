@@ -1,7 +1,6 @@
 mod assets;
 mod cash_flow;
 mod common;
-mod parser;
 mod period;
 mod trades;
 
@@ -12,8 +11,12 @@ use crate::core::GenericResult;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
+use super::xls::{XlsStatementParser, Section};
 
-use parser::{Parser, SectionParser};
+use assets::AssetsParser;
+use cash_flow::CashFlowParser;
+use period::PeriodParser;
+use trades::TradesParser;
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
@@ -33,7 +36,26 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        Parser::read(self.broker_info.clone(), path)
+        XlsStatementParser::read(self.broker_info.clone(), path, "TDSheet", vec![
+            Section::new("Период:").parser(Box::new(PeriodParser{})).required(),
+
+            Section::new("1. Движение денежных средств").required(),
+            Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
+            Section::new(concat!(
+                "1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ",
+                "ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:",
+            )).required(),
+            Section::new("Остаток денежных средств на начало периода (Рубль):").required(),
+            Section::new("Остаток денежных средств на конец периода (Рубль):").required(),
+            Section::new("Рубль").parser(Box::new(CashFlowParser{})).required(),
+
+            Section::new("2.1. Сделки:"),
+            Section::new("Пай").parser(Box::new(TradesParser{})),
+            Section::new("2.3. Незавершенные сделки"),
+
+            Section::new("3. Активы:").required(),
+            Section::new("Вид актива").parser(Box::new(AssetsParser{})).required(),
+        ])
     }
 }
 

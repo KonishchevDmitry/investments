@@ -2,12 +2,12 @@ use chrono::Duration;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting;
 use crate::types::Date;
 use crate::xls;
 
-use super::{Parser, SectionParser};
 use super::common::parse_date;
 
 pub struct PeriodParser {
@@ -16,7 +16,7 @@ pub struct PeriodParser {
 impl SectionParser for PeriodParser {
     fn consume_title(&self) -> bool { false }
 
-    fn parse(&self, parser: &mut Parser) -> EmptyResult {
+    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult {
         let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 2)?;
         let period = parse_period(xls::get_string_cell(row[1])?)?;
         parser.statement.set_period(period)?;

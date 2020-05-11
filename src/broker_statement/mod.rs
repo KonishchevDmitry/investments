@@ -8,6 +8,7 @@ mod partial;
 mod payments;
 mod taxes;
 mod trades;
+mod xls;
 
 use std::{self, fs};
 use std::collections::{HashMap, HashSet, BTreeMap};

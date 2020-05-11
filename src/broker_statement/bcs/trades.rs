@@ -2,6 +2,7 @@ use num_traits::cast::ToPrimitive;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
+use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::Decimal;
@@ -10,14 +11,13 @@ use crate::xls::{self, TableRow, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 
-use super::{Parser, SectionParser};
 use super::common::{parse_short_date, parse_currency, parse_symbol};
 
 pub struct TradesParser {
 }
 
 impl SectionParser for TradesParser {
-    fn parse(&self, parser: &mut Parser) -> EmptyResult {
+    fn parse(&self, parser: &mut XlsStatementParser) -> EmptyResult {
         // Skip row: "Валюта цены = Рубль, валюта платежа = Рубль"
         parser.sheet.next_row_checked()?;
 

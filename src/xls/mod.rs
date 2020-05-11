@@ -1,6 +1,6 @@
-pub mod cell;
-pub mod reader;
-pub mod table;
+mod cell;
+mod reader;
+mod table;
 
 pub use self::cell::*;
 pub use self::reader::*;
