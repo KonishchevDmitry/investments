@@ -8,6 +8,7 @@ use super::XlsStatementParser;
 pub struct Section {
     title: &'static str,
     pub parser: Option<Box<dyn SectionParser>>,
+    by_prefix: bool,
     required: bool,
 }
 
@@ -15,9 +16,15 @@ impl Section {
     pub fn new(title: &'static str) -> Section {
         Section {
             title,
+            by_prefix: false,
             parser: None,
             required: false,
         }
+    }
+
+    pub fn by_prefix(mut self) -> Section {
+        self.by_prefix = true;
+        self
     }
 
     pub fn required(mut self) -> Section {
@@ -61,7 +68,11 @@ impl SectionState {
 
         let start_from = self.start_from();
         let current_id = match self.sections[start_from..].iter().position(|section| {
-            section.title == cell_value
+            if section.by_prefix {
+                cell_value.starts_with(section.title)
+            } else {
+                section.title == cell_value
+            }
         }) {
             Some(index) => start_from + index,
             None => return Ok(None),
