@@ -7,6 +7,7 @@ mod open_broker;
 mod partial;
 mod payments;
 mod taxes;
+mod tinkoff;
 mod trades;
 mod xls;
 
@@ -70,6 +71,7 @@ impl BrokerStatement {
             Broker::InteractiveBrokers => ib::StatementReader::new(
                 config, tax_remapping.take().unwrap(), strict_mode),
             Broker::OpenBroker => open_broker::StatementReader::new(config),
+            Broker::Tinkoff => tinkoff::StatementReader::new(config),
         }?;
 
         let mut file_names = get_statement_files(statement_dir_path, statement_reader.as_ref())

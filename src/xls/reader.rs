@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use calamine::{Range, Reader, Xls, open_workbook};
+use calamine::{Range, Reader, open_workbook_auto};
 
 use crate::core::GenericResult;
 
@@ -13,7 +13,7 @@ pub struct SheetReader {
 
 impl SheetReader {
     pub fn new(path: &str, sheet_name: &str) -> GenericResult<SheetReader> {
-        let mut workbook: Xls<_> = open_workbook(path)?;
+        let mut workbook = open_workbook_auto(path)?;
 
         let sheet = workbook.worksheet_range(sheet_name).ok_or_else(|| format!(
             "There is no {:?} sheet in the workbook", sheet_name))??;

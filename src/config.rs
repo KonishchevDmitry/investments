@@ -185,6 +185,7 @@ pub struct BrokersConfig {
     pub bcs: Option<BrokerConfig>,
     pub interactive_brokers: Option<BrokerConfig>,
     pub open_broker: Option<BrokerConfig>,
+    pub tinkoff: Option<BrokerConfig>,
 }
 
 impl BrokersConfig {
@@ -194,6 +195,7 @@ impl BrokersConfig {
             bcs: Some(BrokerConfig::mock()),
             interactive_brokers: Some(BrokerConfig::mock()),
             open_broker: Some(BrokerConfig::mock()),
+            tinkoff: Some(BrokerConfig::mock()),
         }
     }
 }

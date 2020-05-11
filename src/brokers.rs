@@ -20,6 +20,7 @@ pub enum Broker {
     Bcs,
     InteractiveBrokers,
     OpenBroker,
+    Tinkoff,
 }
 
 impl Broker {
@@ -37,6 +38,7 @@ impl Broker {
             Broker::Bcs => "ООО «Компания БКС»",
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
             Broker::OpenBroker => "АО «Открытие Брокер»",
+            Broker::Tinkoff => "АО «Тинькофф Банк»",
         }
     }
 
@@ -46,6 +48,7 @@ impl Broker {
                 Broker::Bcs => brokers.bcs.as_ref(),
                 Broker::InteractiveBrokers => brokers.interactive_brokers.as_ref(),
                 Broker::OpenBroker => brokers.open_broker.as_ref(),
+                Broker::Tinkoff => brokers.tinkoff.as_ref(),
             }
         }).ok_or_else(|| format!(
             "{} configuration is not set in the configuration file", self.get_name())
@@ -93,7 +96,8 @@ impl Broker {
                     .build())
                 .build(),
 
-            Broker::OpenBroker => CommissionSpecBuilder::new("RUB")
+            // FIXME(konishchev): Add Tinkoff commission
+            Broker::OpenBroker | Broker::Tinkoff => CommissionSpecBuilder::new("RUB")
                 .trade(TradeCommissionSpecBuilder::new()
                     .commission(TransactionCommissionSpecBuilder::new()
                         .minimum(dec!(0.04))
