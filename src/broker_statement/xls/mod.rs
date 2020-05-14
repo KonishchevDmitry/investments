@@ -6,7 +6,7 @@ use crate::brokers::BrokerInfo;
 use crate::xls::SheetReader;
 
 use self::sections::SectionState;
-pub use self::sections::{Section, SectionParser};
+pub use self::sections::{Section, SectionParser, SectionParserRc};
 
 pub struct XlsStatementParser {
     pub statement: PartialBrokerStatement,
@@ -32,7 +32,9 @@ impl XlsStatementParser {
                 None => continue,
             };
 
-            if let Some(parser) = section.parser.as_mut() {
+            if let Some(parser) = section.parser.as_ref() {
+                let mut parser = parser.as_ref().borrow_mut();
+
                 if !parser.consume_title() {
                     self.sheet.step_back();
                 }

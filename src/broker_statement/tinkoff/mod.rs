@@ -1,6 +1,9 @@
 mod common;
 mod period;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
@@ -8,7 +11,7 @@ use crate::core::GenericResult;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
-use super::xls::{XlsStatementParser, Section};
+use super::xls::{XlsStatementParser, Section, SectionParserRc};
 
 use period::PeriodParser;
 
@@ -31,9 +34,10 @@ impl BrokerStatementReader for StatementReader {
 
     // FIXME(konishchev): Work in progress
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+        let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
         XlsStatementParser::read(self.broker_info.clone(), path, "broker_rep", vec![
-            // Section::new("Дата расчета: ").by_prefix().parser(Box::new(PeriodParser{})).required(),
-            Section::new("Отчет о сделках и операциях за период ").by_prefix().parser(Box::new(PeriodParser{})).required(),
+            Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix().parser_rc(period_parser.clone()).required(),
+            Section::new(PeriodParser::PERIOD_PREFIX).by_prefix().parser_rc(period_parser).required(),
         ])
     }
 }

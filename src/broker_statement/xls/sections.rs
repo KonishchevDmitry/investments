@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::ops::Range;
+use std::rc::Rc;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::xls::Cell;
@@ -7,7 +9,7 @@ use super::XlsStatementParser;
 
 pub struct Section {
     title: &'static str,
-    pub parser: Option<Box<dyn SectionParser>>,
+    pub parser: Option<SectionParserRc>,
     by_prefix: bool,
     required: bool,
 }
@@ -33,6 +35,11 @@ impl Section {
     }
 
     pub fn parser(mut self, parser: Box<dyn SectionParser>) -> Section {
+        self.parser = Some(Rc::new(RefCell::new(parser)));
+        self
+    }
+
+    pub fn parser_rc(mut self, parser: SectionParserRc) -> Section {
         self.parser = Some(parser);
         self
     }
@@ -42,6 +49,8 @@ pub trait SectionParser {
     fn consume_title(&self) -> bool { true }
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult;
 }
+
+pub type SectionParserRc = Rc<RefCell<Box<dyn SectionParser>>>;
 
 pub struct SectionState {
     sections: Vec<Section>,
