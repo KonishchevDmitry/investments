@@ -10,6 +10,16 @@ pub trait TableRow: Sized {
 }
 
 pub trait TableReader {
+    fn next_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
+        sheet.next_row().and_then(|row| {
+            if is_empty_row(row) {
+                None
+            } else {
+                Some(row)
+            }
+        })
+    }
+
     fn skip_row(_row: &[&Cell]) -> GenericResult<bool> {
         Ok(false)
     }
@@ -21,11 +31,7 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
 
     let mut table = Vec::new();
 
-    while let Some(row) = sheet.next_row() {
-        if is_empty_row(row) {
-            break;
-        }
-
+    while let Some(row) = T::next_row(sheet) {
         let mapped_row = columns_mapping.map(row)?;
         if T::skip_row(&mapped_row)? {
             continue;
