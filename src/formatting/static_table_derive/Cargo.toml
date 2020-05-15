@@ -1,8 +1,12 @@
 [package]
 name = "static_table_derive"
 version = "0.1.0"
-edition = "2018"
+description = "Procedural macros for investments crate"
+
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
+homepage = "https://github.com/KonishchevDmitry/investments"
+license = "GPL-3.0+"
+edition = "2018"
 
 [lib]
 proc-macro = true
