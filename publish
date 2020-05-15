@@ -17,10 +17,19 @@ main() {
 
     git archive HEAD | (
         cd "$temp_dir"
+
         tar -x
         rmdir testdata
+
+        cd "$package"
         cargo publish
     )
 }
+
+case $# in
+0) package=. ;;
+1) package="$1" ;;
+*) echo "Usage: $0 [package]" >&2 && exit 1 ;;
+esac
 
 main
