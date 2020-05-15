@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# Bumps package version
+#
+
+set -eu
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 level" >&2
+    exit 1
+fi
+
+cargo release --no-dev-version --skip-push --skip-publish "$@"

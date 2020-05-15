@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#
+# Bumps subpackages' versions
+#
+
+set -eu
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 level" >&2
+    exit 1
+fi
+
+level="$1"
+
+for package in formatting/static_table_derive xls/xls_table_derive/; do
+    (
+        cd "src/$package"
+        cargo release --no-dev-version --skip-tag --skip-push --skip-publish "$level"
+    )
+done
