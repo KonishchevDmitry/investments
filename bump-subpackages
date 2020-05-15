@@ -11,6 +11,7 @@ if [ $# -ne 1 ]; then
 fi
 
 level="$1"
+command -v cargo-release > /dev/null || cargo install cargo-release
 
 for package in formatting/static_table_derive xls/xls_table_derive/; do
     (
