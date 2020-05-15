@@ -30,18 +30,18 @@ No action required.
 sudo apt install libsqlite3-dev
 ```
 
-3. Clone the repository:
+3. Install or upgrade the package:
+```
+cargo install investments --bin investments
+```
+If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
+
+If you want to install the package from sources, use:
 ```
 git clone https://github.com/KonishchevDmitry/investments.git
-```
-
-4. Compile and install the project:
-```
 cd investments
 cargo install --path . --bin investments --force
 ```
-
-If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
 
 # Configuration
 
