@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+# Publishes the crate
+#
+
+set -eu
+
+cleanup() {
+    [ -z "$temp_dir" ] || rm -rf "$temp_dir"
+}
+
+main() {
+    temp_dir=""
+    trap cleanup EXIT
+    trap "exit 1" SIGINT SIGTERM SIGQUIT
+    temp_dir="$(mktemp -d "/var/tmp/investments.XXXXXX")"
+
+    git archive HEAD | (
+        cd "$temp_dir"
+        tar -x
+        rmdir testdata
+        cargo publish
+    )
+}
+
+main
