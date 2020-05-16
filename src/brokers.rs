@@ -119,6 +119,7 @@ impl<'de> Deserialize<'de> for Broker {
             "bcs" => Broker::Bcs,
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::OpenBroker,
+            "tinkoff" if cfg!(debug_assertions) => Broker::Tinkoff,  // FIXME(konishchev): Support
 
             _ => return Err(D::Error::unknown_variant(&value, &[
                 "bcs", "interactive-brokers", "open-broker",
