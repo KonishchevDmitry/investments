@@ -11,4 +11,4 @@ if [ $# -ne 1 ]; then
 fi
 
 command -v cargo-release > /dev/null || cargo install cargo-release
-cargo release --no-dev-version --skip-push --skip-publish "$@"
+cargo release --no-dev-version --skip-publish "$@"
