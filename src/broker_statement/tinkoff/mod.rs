@@ -14,7 +14,7 @@ use crate::core::GenericResult;
 use super::{BrokerStatementReader, PartialBrokerStatement};
 use super::xls::{XlsStatementParser, Section, SectionParserRc};
 
-use cash_assets::CashFlowParser;
+use cash_assets::CashAssetsParser;
 use period::PeriodParser;
 
 pub struct StatementReader {
@@ -40,7 +40,7 @@ impl BrokerStatementReader for StatementReader {
         XlsStatementParser::read(self.broker_info.clone(), path, "broker_rep", vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix().parser_rc(period_parser.clone()).required(),
             Section::new(PeriodParser::PERIOD_PREFIX).by_prefix().parser_rc(period_parser).required(),
-            Section::new("2. Операции с денежными средствами").parser(Box::new(CashFlowParser{})).required(),
+            Section::new("2. Операции с денежными средствами").parser(Box::new(CashAssetsParser {})).required(),
         ])
     }
 }
@@ -54,7 +54,7 @@ mod tests {
         let statement = BrokerStatement::read(
             &Config::mock(), Broker::Tinkoff, "testdata/tinkoff", TaxRemapping::new(), true).unwrap();
 
-        assert!(statement.cash_flows.is_empty());
+        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
 
         assert!(statement.fees.is_empty());
