@@ -47,8 +47,6 @@ impl SectionParser for PeriodParser {
             }
 
             parser.statement.set_period(period)?;
-            parser.statement.set_starting_assets(false)?; // FIXME(konishchev): A temporary hack
-            parser.statement.cash_assets.deposit(crate::currency::Cash::new("RUB", dec!(0))); // FIXME(konishchev): A temporary hack
         } else {
             return Err!("Got an unexpected cell value: {:?}", cell);
         }

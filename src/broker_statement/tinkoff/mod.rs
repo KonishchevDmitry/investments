@@ -1,3 +1,4 @@
+mod cash_assets;
 mod common;
 mod period;
 
@@ -13,6 +14,7 @@ use crate::core::GenericResult;
 use super::{BrokerStatementReader, PartialBrokerStatement};
 use super::xls::{XlsStatementParser, Section, SectionParserRc};
 
+use cash_assets::CashFlowParser;
 use period::PeriodParser;
 
 pub struct StatementReader {
@@ -38,6 +40,7 @@ impl BrokerStatementReader for StatementReader {
         XlsStatementParser::read(self.broker_info.clone(), path, "broker_rep", vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix().parser_rc(period_parser.clone()).required(),
             Section::new(PeriodParser::PERIOD_PREFIX).by_prefix().parser_rc(period_parser).required(),
+            Section::new("2. Операции с денежными средствами").parser(Box::new(CashFlowParser{})).required(),
         ])
     }
 }

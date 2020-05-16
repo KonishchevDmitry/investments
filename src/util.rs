@@ -12,6 +12,7 @@ use crate::types::{Date, DateTime, Decimal};
 
 #[derive(Clone, Copy)]
 pub enum DecimalRestrictions {
+    No,
     Zero,
     NonZero,
     NegativeOrZero,
@@ -27,6 +28,7 @@ pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> Generic
 
 pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
     if !match restrictions {
+        DecimalRestrictions::No => true,
         DecimalRestrictions::Zero => value.is_zero(),
         DecimalRestrictions::NonZero => !value.is_zero(),
         DecimalRestrictions::NegativeOrZero => value.is_sign_negative() || value.is_zero(),
