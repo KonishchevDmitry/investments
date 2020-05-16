@@ -19,16 +19,8 @@ Targeted for Russian investors who use [Interactive Brokers](http://interactiveb
 
 1. Install Rust - https://www.rust-lang.org/tools/install
 2. Install build dependencies:
-
-**macOS:**
-
-No action required.
-
-**Ubuntu:**
-
-```
-sudo apt install libsqlite3-dev
-```
+   * macOS: no action required
+   * Ubuntu: `sudo apt install libsqlite3-dev`
 
 3. Install or upgrade the package:
 ```
