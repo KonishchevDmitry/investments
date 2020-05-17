@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use num_traits::Zero;
 
 use xls_table_derive::XlsTableRow;
@@ -6,10 +8,12 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
+use crate::types::{Date, Time};
 use crate::util::DecimalRestrictions;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{parse_date, parse_decimal, parse_cash, read_next_table_row};
+use crate::broker_statement::tinkoff::common::parse_time;
 
 pub struct CashAssetsParser {
 }
@@ -82,11 +86,10 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
 struct CashFlowRow {
     #[column(name="Дата")]
     date: Option<String>,
-    // FIXME(konishchev): Sort
     #[column(name="Время совершения")]
-    _1: SkipCell,
+    time: Option<String>,
     #[column(name="Дата исполнения")]
-    _2: SkipCell,
+    execution_date: String,
     #[column(name="Операция")]
     operation: String,
     #[column(name="Сумма зачисления")]
@@ -104,29 +107,67 @@ impl TableReader for CashFlowRow {
 }
 
 fn parse_cash_flows(parser: &mut XlsStatementParser) -> EmptyResult {
+    let mut cash_flows = Vec::new();
+
+    struct CashFlow {
+        date: Date,
+        time: Option<Time>,
+        currency: &'static str,
+        info: CashFlowRow,
+    }
+
     loop {
         let row = xls::strip_row_expecting_columns(&parser.sheet.next_row_checked()?, 1)?;
         let title = xls::get_string_cell(&row[0])?;
 
-        if !parser.statement.cash_assets.has_assets(title) {
-            parser.sheet.step_back();
-            break;
-        }
+        let currency = match parser.statement.cash_assets.get(title) {
+            Some(assets) => assets.currency,
+            None => {
+                parser.sheet.step_back();
+                break;
+            }
+        };
 
-        let currency = title.to_owned();
-        for cash_flow in &xls::read_table::<CashFlowRow>(&mut parser.sheet)? {
-            parse_cash_flow(&mut parser.statement, &currency, cash_flow)?;
+        for cash_flow in xls::read_table::<CashFlowRow>(&mut parser.sheet)? {
+            let (date, time) = match cash_flow.date.as_ref() {
+                Some(date) => {
+                    let date = parse_date(&date)?;
+                    let time = cash_flow.time.as_ref().map(|time| parse_time(&time)).transpose()?;
+                    (date, time)
+                },
+                None => (parse_date(&cash_flow.execution_date)?, None),
+            };
+
+            cash_flows.push(CashFlow {
+                date, time,
+                currency: currency,
+                info: cash_flow,
+            });
         }
+    }
+
+    cash_flows.sort_by(|a, b| {
+        a.date.cmp(&b.date).then_with(|| {
+            match (a.time, b.time) {
+                (Some(a), Some(b)) => a.cmp(&b),
+                _ => Ordering::Equal,
+            }
+        })
+    });
+
+    for CashFlow {date, currency, info: cash_flow, ..} in cash_flows {
+        parse_cash_flow(&mut parser.statement, date, currency, &cash_flow)?;
     }
 
     Ok(())
 }
 
-fn parse_cash_flow(statement: &mut PartialBrokerStatement, currency: &str, cash_flow: &CashFlowRow) -> EmptyResult {
-    let date = cash_flow.date.as_ref().map(|date| parse_date(&date)).transpose()?;
+fn parse_cash_flow(
+    statement: &mut PartialBrokerStatement, date: Date, currency: &str, cash_flow: &CashFlowRow
+) -> EmptyResult {
+    let operation = &cash_flow.operation;
     let deposit = parse_cash(currency, &cash_flow.deposit, DecimalRestrictions::PositiveOrZero)?;
     let withdrawal = parse_cash(currency, &cash_flow.withdrawal, DecimalRestrictions::PositiveOrZero)?;
-    let operation = &cash_flow.operation;
 
     let check_amount = |amount: Cash| -> GenericResult<Cash> {
         if amount.is_zero() || !matches!((deposit.is_zero(), withdrawal.is_zero()), (true, false) | (false, true)) {
@@ -139,14 +180,10 @@ fn parse_cash_flow(statement: &mut PartialBrokerStatement, currency: &str, cash_
     };
 
     match operation.as_str() {
-        "Пополнение счета" => {
-            let date = date.ok_or_else(|| "Got a deposit operation without date")?;
-            statement.cash_flows.push(CashAssets::new_from_cash(date, check_amount(deposit)?));
-        },
-        "Вывод средств" => {
-            let date = date.ok_or_else(|| "Got a withdrawal operation without date")?;
-            statement.cash_flows.push(CashAssets::new_from_cash(date, -check_amount(withdrawal)?));
-        },
+        "Пополнение счета" => statement.cash_flows.push(
+            CashAssets::new_from_cash(date, check_amount(deposit)?)),
+        "Вывод средств" => statement.cash_flows.push(
+            CashAssets::new_from_cash(date, -check_amount(withdrawal)?)),
         "Покупка/продажа" | "Комиссия за сделки" => {},
         _ => {
             if cfg!(debug_assertions) {
