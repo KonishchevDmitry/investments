@@ -55,6 +55,7 @@ impl Broker {
         )?.clone())
     }
 
+    // FIXME(konishchev): Configurable commissions support
     fn get_commission_spec(self) -> CommissionSpec {
         match self {
             Broker::Bcs => CommissionSpecBuilder::new("RUB")
@@ -96,8 +97,7 @@ impl Broker {
                     .build())
                 .build(),
 
-            // FIXME(konishchev): Add Tinkoff commission
-            Broker::OpenBroker | Broker::Tinkoff => CommissionSpecBuilder::new("RUB")
+            Broker::OpenBroker => CommissionSpecBuilder::new("RUB")
                 .trade(TradeCommissionSpecBuilder::new()
                     .commission(TransactionCommissionSpecBuilder::new()
                         .minimum(dec!(0.04))
@@ -106,6 +106,18 @@ impl Broker {
                     .build())
                 .cumulative(CumulativeCommissionSpecBuilder::new()
                     .monthly_depositary(dec!(175)).build())
+                .build(),
+
+            // FIXME(konishchev): Add tests
+            // FIXME(konishchev): Support Tinkoff tiers
+            Broker::Tinkoff => CommissionSpecBuilder::new("RUB")
+                .trade(TradeCommissionSpecBuilder::new()
+                    .commission(TransactionCommissionSpecBuilder::new()
+                        .percent(dec!(0.05))
+                        .build().unwrap())
+                    .build())
+                .cumulative(CumulativeCommissionSpecBuilder::new()
+                    .monthly_depositary(dec!(290)).build())
                 .build(),
         }
     }
@@ -119,10 +131,10 @@ impl<'de> Deserialize<'de> for Broker {
             "bcs" => Broker::Bcs,
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::OpenBroker,
-            "tinkoff" if cfg!(debug_assertions) => Broker::Tinkoff,  // FIXME(konishchev): Support
+            "tinkoff" => Broker::Tinkoff,
 
             _ => return Err(D::Error::unknown_variant(&value, &[
-                "bcs", "interactive-brokers", "open-broker",
+                "bcs", "interactive-brokers", "open-broker", "tinkoff",
             ])),
         })
     }

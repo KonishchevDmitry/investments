@@ -38,9 +38,9 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".xlsx"))
     }
 
-    // FIXME(konishchev): Work in progress
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
+
         XlsStatementParser::read(self.broker_info.clone(), path, "broker_rep", vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX)
                 .by_prefix().parser_rc(period_parser.clone()).required(),
