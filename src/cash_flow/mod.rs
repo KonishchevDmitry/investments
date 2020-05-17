@@ -19,7 +19,7 @@ use self::mapper::CashFlow;
 
 pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    if !matches!(portfolio.broker, Broker::InteractiveBrokers) {
+    if !matches!(portfolio.broker, Broker::InteractiveBrokers | Broker::Tinkoff) {
         return Err!(
             "Cash flow report is not supported for {}", portfolio.broker.get_info(config)?.name);
     }
