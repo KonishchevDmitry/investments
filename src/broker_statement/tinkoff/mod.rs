@@ -1,3 +1,4 @@
+mod assets;
 mod cash_assets;
 mod common;
 mod period;
@@ -14,6 +15,7 @@ use crate::core::GenericResult;
 use super::{BrokerStatementReader, PartialBrokerStatement};
 use super::xls::{XlsStatementParser, Section, SectionParserRc};
 
+use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
 use period::PeriodParser;
 
@@ -41,6 +43,7 @@ impl BrokerStatementReader for StatementReader {
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix().parser_rc(period_parser.clone()).required(),
             Section::new(PeriodParser::PERIOD_PREFIX).by_prefix().parser_rc(period_parser).required(),
             Section::new("2. Операции с денежными средствами").parser(Box::new(CashAssetsParser {})).required(),
+            Section::new("3. Движение финансовых активов инвестора").parser(Box::new(AssetsParser {})).required(),
         ])
     }
 }

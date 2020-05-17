@@ -47,11 +47,13 @@ impl TableReader for AssetsRow {
 }
 
 fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
-    let mut has_starting_assets = false;
+    parser.statement.starting_assets.get_or_insert(false);
 
     for assets in &xls::read_table::<AssetsRow>(&mut parser.sheet)? {
         let starting = parse_decimal(&assets.starting, DecimalRestrictions::No)?;
-        has_starting_assets |= !starting.is_zero();
+        if !starting.is_zero() {
+            parser.statement.starting_assets.replace(true);
+        }
 
         let ending = parse_cash(&assets.currency, &assets.ending, DecimalRestrictions::No)?;
         parser.statement.cash_assets.deposit(ending);
@@ -72,9 +74,6 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
             return Err!("Leverage is not supported yet");
         }
     }
-
-    // FIXME(konishchev): Take stocks into account
-    parser.statement.set_starting_assets(has_starting_assets)?;
 
     Ok(())
 }
