@@ -2,6 +2,7 @@ mod assets;
 mod cash_assets;
 mod common;
 mod period;
+mod trades;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,6 +19,7 @@ use super::xls::{XlsStatementParser, Section, SectionParserRc};
 use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
 use period::PeriodParser;
+use trades::TradesParser;
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
@@ -40,10 +42,16 @@ impl BrokerStatementReader for StatementReader {
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
         XlsStatementParser::read(self.broker_info.clone(), path, "broker_rep", vec![
-            Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix().parser_rc(period_parser.clone()).required(),
-            Section::new(PeriodParser::PERIOD_PREFIX).by_prefix().parser_rc(period_parser).required(),
-            Section::new("2. Операции с денежными средствами").parser(Box::new(CashAssetsParser {})).required(),
-            Section::new("3. Движение финансовых активов инвестора").parser(Box::new(AssetsParser {})).required(),
+            Section::new(PeriodParser::CALCULATION_DATE_PREFIX)
+                .by_prefix().parser_rc(period_parser.clone()).required(),
+            Section::new(PeriodParser::PERIOD_PREFIX)
+                .by_prefix().parser_rc(period_parser).required(),
+            Section::new("1.1 Информация о совершенных и исполненных сделках на конец отчетного периода")
+                .parser(Box::new(TradesParser {})).required(),
+            Section::new("2. Операции с денежными средствами")
+                .parser(Box::new(CashAssetsParser {})).required(),
+            Section::new("3. Движение финансовых активов инвестора")
+                .parser(Box::new(AssetsParser {})).required(),
         ])
     }
 }
@@ -64,11 +72,11 @@ mod tests {
         assert!(statement.idle_cash_interest.is_empty());
 
         assert!(statement.forex_trades.is_empty());
-        assert!(statement.stock_buys.is_empty());
+        assert!(!statement.stock_buys.is_empty());
         assert!(statement.stock_sells.is_empty());
         assert!(statement.dividends.is_empty());
 
-        assert!(statement.open_positions.is_empty());
+        assert!(!statement.open_positions.is_empty());
         assert!(statement.instrument_names.is_empty());
     }
 }

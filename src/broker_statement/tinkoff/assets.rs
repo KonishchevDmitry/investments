@@ -24,11 +24,8 @@ impl SectionParser for AssetsParser {
                 parser.statement.starting_assets.replace(true);
             }
 
-            // FIXME(konishchev): Enable
-            if false {
-                if parser.statement.open_positions.insert(symbol.clone(), ending).is_some() {
-                    return Err!("Got duplicated {} assets", symbol);
-                }
+            if parser.statement.open_positions.insert(symbol.clone(), ending).is_some() {
+                return Err!("Got duplicated {} assets", symbol);
             }
         }
 

@@ -82,6 +82,7 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
 struct CashFlowRow {
     #[column(name="Дата")]
     date: Option<String>,
+    // FIXME(konishchev): Sort
     #[column(name="Время совершения")]
     _1: SkipCell,
     #[column(name="Дата исполнения")]

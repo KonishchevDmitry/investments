@@ -8,7 +8,7 @@ use regex::Regex;
 use rust_decimal::RoundingStrategy;
 
 use crate::core::GenericResult;
-use crate::types::{Date, DateTime, Decimal};
+use crate::types::{Date, Time, DateTime, Decimal};
 
 #[derive(Clone, Copy)]
 pub enum DecimalRestrictions {
@@ -79,6 +79,11 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
     Ok(Date::parse_from_str(date, format).map_err(|_| format!(
         "Invalid date: {:?}", date))?)
+}
+
+pub fn parse_time(time: &str, format: &str) -> GenericResult<Time> {
+    Ok(Time::parse_from_str(time, format).map_err(|_| format!(
+        "Invalid time: {:?}", time))?)
 }
 
 pub fn parse_date_time(date_time: &str, format: &str) -> GenericResult<DateTime> {

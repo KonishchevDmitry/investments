@@ -1,4 +1,5 @@
 pub use chrono::NaiveDate as Date;
+pub use chrono::NaiveTime as Time;
 pub use chrono::NaiveDateTime as DateTime;
 pub use rust_decimal::Decimal as Decimal;
 
