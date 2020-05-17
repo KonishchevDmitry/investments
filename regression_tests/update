@@ -11,8 +11,7 @@ wait-api-rate-limits() {
 
 (cd testdata && ./update)
 
-# FIXME(konishchev): Add tinkoff
-for broker in bcs ib open; do
+for broker in bcs ib open tinkoff; do
     ./regression_tests/investments sync "$broker"
     ./regression_tests/investments analyse "$broker" > /dev/null && wait-api-rate-limits
 done

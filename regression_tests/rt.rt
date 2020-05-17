@@ -23,12 +23,18 @@ APP: regression_tests/investments
      show
      ib
 [20]
+NAME: Tinkoff portfolio
+STDOUT: tinkoff-show
+APP: regression_tests/investments
+     show
+     tinkoff
+[30]
 NAME: Open Broker portfolio
 STDOUT: open-show
 APP: regression_tests/investments
      show
      open
-[30]
+[40]
 NAME: BCS portfolio
 STDOUT: bcs-show
 APP: regression_tests/investments
@@ -43,13 +49,20 @@ APP: regression_tests/investments
      ib
      --all
 [21]
+NAME: Tinkoff analyse
+STDOUT: tinkoff-analyse
+APP: regression_tests/investments
+     analyse
+     tinkoff
+     --all
+[31]
 NAME: Open Broker analyse
 STDOUT: open-analyse
 APP: regression_tests/investments
      analyse
      open
      --all
-[31]
+[41]
 NAME: BCS analyse
 STDOUT: bcs-analyse
 APP: regression_tests/investments
@@ -68,6 +81,16 @@ APP: regression_tests/investments
      all
      BND
 [22]
+NAME: Tinkoff simulate sell
+STDOUT: tinkoff-simulate-sell
+APP: regression_tests/investments
+     simulate-sell
+     tinkoff
+     all
+     FXUS
+     all
+     FXRU
+[32]
 NAME: Open Broker simulate sell
 STDOUT: open-simulate-sell
 APP: regression_tests/investments
@@ -77,7 +100,7 @@ APP: regression_tests/investments
      FXUS
      all
      FXRU
-[32]
+[42]
 NAME: BCS simulate sell
 STDOUT: bcs-simulate-sell
 APP: regression_tests/investments
@@ -95,12 +118,18 @@ APP: regression_tests/investments
      rebalance
      ib
 [23]
+NAME: Tinkoff rebalance
+STDOUT: tinkoff-rebalance
+APP: regression_tests/investments
+     rebalance
+     tinkoff
+[33]
 NAME: Open Broker rebalance
 STDOUT: open-rebalance
 APP: regression_tests/investments
      rebalance
      open
-[33]
+[43]
 NAME: BCS rebalance
 STDOUT: bcs-rebalance
 APP: regression_tests/investments
@@ -144,36 +173,49 @@ APP: regression_tests/investments
      2020
 
 [24]
+NAME: Tinkoff tax statement
+STDOUT: tinkoff-tax-statement
+APP: regression_tests/investments
+     tax-statement
+     tinkoff
+[34]
 NAME: Open Broker tax statement
 STDOUT: open-tax-statement
 APP: regression_tests/investments
      tax-statement
      open
-[34]
+[44]
 NAME: BCS tax statement
 STDOUT: bcs-tax-statement
 APP: regression_tests/investments
      tax-statement
      bcs
 
-[40]
+[100]
 NAME: IB cash flow 2018
 STDOUT: ib-cash-flow-2018
 APP: regression_tests/investments
      cash-flow
      ib
      2018
-[41]
+[101]
 NAME: IB cash flow 2019
 STDOUT: ib-cash-flow-2019
 APP: regression_tests/investments
      cash-flow
      ib
      2019
-[42]
+[102]
 NAME: IB cash flow 2020
 STDOUT: ib-cash-flow-2020
 APP: regression_tests/investments
      cash-flow
      ib
      2020
+
+[200]
+NAME: Tinkoff cash flow
+STDOUT: tinkoff-cash-flow
+APP: regression_tests/investments
+     cash-flow
+     tinkoff
