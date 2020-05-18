@@ -8,6 +8,7 @@ use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::xls::SheetParser;
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -36,7 +37,9 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        XlsStatementParser::read(self.broker_info.clone(), path, "TDSheet", vec![
+        let parser = Box::new(StatementSheetParser{});
+
+        XlsStatementParser::read(self.broker_info.clone(), path, parser, vec![
             Section::new("Период:").parser(Box::new(PeriodParser{})).required(),
 
             Section::new("1. Движение денежных средств").required(),
@@ -56,6 +59,15 @@ impl BrokerStatementReader for StatementReader {
             Section::new("3. Активы:").required(),
             Section::new("Вид актива").parser(Box::new(AssetsParser{})).required(),
         ])
+    }
+}
+
+struct StatementSheetParser {
+}
+
+impl SheetParser for StatementSheetParser {
+    fn sheet_name(&self) -> &str {
+        "TDSheet"
     }
 }
 

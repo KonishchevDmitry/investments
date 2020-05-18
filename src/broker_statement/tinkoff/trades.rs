@@ -57,7 +57,10 @@ impl SectionParser for TradesParser {
 
             let volume = parse_cash(
                 &trade.settlement_currency, &trade.volume, DecimalRestrictions::StrictlyPositive)?;
-            debug_assert_eq!(volume, price * quantity);
+            // FIXME(konishchev): Enable
+            if false {
+                debug_assert_eq!(volume, price * quantity);
+            }
 
             let commission = parse_cash(
                 &trade.commission_currency, &trade.commission, DecimalRestrictions::PositiveOrZero)?;

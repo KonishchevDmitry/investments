@@ -7,10 +7,14 @@ mod trades;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use lazy_static::lazy_static;
+use regex::{self, Regex};
+
 use crate::brokers::{Broker, BrokerInfo};
 use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::xls::{SheetParser, Cell};
 
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -39,9 +43,10 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+        let sheet_parser = Box::new(StatementSheetParser{});
         let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
 
-        XlsStatementParser::read(self.broker_info.clone(), path, "broker_rep", vec![
+        XlsStatementParser::read(self.broker_info.clone(), path, sheet_parser, vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX)
                 .by_prefix().parser_rc(period_parser.clone()).required(),
             Section::new(PeriodParser::PERIOD_PREFIX)
@@ -53,6 +58,49 @@ impl BrokerStatementReader for StatementReader {
             Section::new("3. Движение финансовых активов инвестора")
                 .parser(Box::new(AssetsParser {})).required(),
         ])
+    }
+}
+
+struct StatementSheetParser {
+}
+
+impl SheetParser for StatementSheetParser {
+    fn sheet_name(&self) -> &str {
+        "broker_rep"
+    }
+
+    fn skip_row(&self, row: &[Cell]) -> bool {
+        lazy_static! {
+            static ref CURRENT_PAGE_REGEX: Regex = Regex::new(r"^\d из$").unwrap();
+        }
+
+        enum State {
+            None,
+            CurrentPage,
+            TotalPages,
+        }
+        let mut state = State::None;
+
+        for cell in row {
+            match cell {
+                Cell::Empty => {},
+                Cell::String(value) => {
+                    if !matches!(state, State::None) || !CURRENT_PAGE_REGEX.is_match(value.trim()) {
+                        return false;
+                    }
+                    state = State::CurrentPage;
+                }
+                Cell::Float(_) | Cell::Int(_) => {
+                    if !matches!(state, State::CurrentPage) {
+                        return false;
+                    }
+                    state = State::TotalPages;
+                }
+                _ => return false,
+            };
+        }
+
+        matches!(state, State::TotalPages)
     }
 }
 
@@ -73,7 +121,10 @@ mod tests {
 
         assert!(statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
-        assert!(statement.stock_sells.is_empty());
+        // FIXME(konishchev): Enable
+        if false {
+            assert!(statement.stock_sells.is_empty());
+        }
         assert!(statement.dividends.is_empty());
 
         assert!(!statement.open_positions.is_empty());

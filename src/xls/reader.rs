@@ -8,30 +8,41 @@ use super::Cell;
 
 pub struct SheetReader {
     sheet: Range<Cell>,
+    parser: Box<dyn SheetParser>,
+
+    prev_row_id: Option<usize>,
     next_row_id: usize,
 }
 
 impl SheetReader {
-    pub fn new(path: &str, sheet_name: &str) -> GenericResult<SheetReader> {
+    pub fn new(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
         let mut workbook = open_workbook_auto(path)?;
+        let sheet_name = parser.sheet_name();
 
         let sheet = workbook.worksheet_range(sheet_name).ok_or_else(|| format!(
             "There is no {:?} sheet in the workbook", sheet_name))??;
 
         Ok(SheetReader {
-            sheet,
+            sheet, parser,
+            prev_row_id: None,
             next_row_id: 0,
         })
     }
 
     pub fn next_row(&mut self) -> Option<&[Cell]> {
-        if self.next_row_id < self.sheet.height() {
+        while self.next_row_id < self.sheet.height() {
             let row = self.sheet.index(self.next_row_id);
+            if self.parser.skip_row(row) {
+                self.next_row_id += 1;
+                continue;
+            }
+
+            self.prev_row_id.replace(self.next_row_id);
             self.next_row_id += 1;
-            Some(row)
-        } else {
-            None
+            return Some(row);
         }
+
+        None
     }
 
     pub fn next_row_checked(&mut self) -> GenericResult<&[Cell]> {
@@ -39,8 +50,7 @@ impl SheetReader {
     }
 
     pub fn step_back(&mut self) {
-        assert!(self.next_row_id > 0);
-        self.next_row_id -= 1;
+        self.next_row_id = self.prev_row_id.take().unwrap();
     }
 
     pub fn skip_empty_rows(&mut self) {
@@ -50,6 +60,13 @@ impl SheetReader {
                 break;
             }
         }
+    }
+}
+
+pub trait SheetParser {
+    fn sheet_name(&self) -> &str;
+    fn skip_row(&self, _row: &[Cell]) -> bool {
+        false
     }
 }
 
