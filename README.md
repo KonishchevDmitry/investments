@@ -1,19 +1,20 @@
 # Investments
 
 Helps you with managing your investments:
-* **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your asset
-  allocation.
+* **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your
+  asset allocation.
 * **Stock selling simulation:** calculates revenue, profit, taxes and real profit percent which considers taxes into
   account.
-* **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program named
-  Декларация) by adding all required information about income from stock selling, paid dividends and idle cash interest.
+* **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program
+  named Декларация) by adding all required information about income from stock selling, paid dividends and idle cash
+  interest.
 * **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to
   performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
   Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
-Targeted for Russian investors who use [Interactive Brokers](http://interactivebrokers.com),
-[Открытие Брокер](https://open-broker.ru) or [БКС](https://broker.ru/).
+Targeted for Russian investors who use [Interactive Brokers](https://interactivebrokers.com/),
+[Тинькофф](https://www.tinkoff.ru/), [Открытие Брокер](https://open-broker.ru/) or [БКС](https://broker.ru/).
 
 # Installation
 
@@ -49,8 +50,9 @@ manually, but it requires you to have all broker statements starting from accoun
 broker statement or many - it doesn't matter, but what matters is that the first statement must be with zero starting
 assets and statements' periods mustn't overlap or have missing days in between.
 
-For now only the following broker statements are supported:
+For now the following broker statements are supported:
 * Interactive Brokers (*.csv)
+* Тинькофф (*.xlsx)
 * Открытие Брокер (IIA, basic support) (*.xml)
 * БКС (basic support) (*.xls)
 
@@ -149,7 +151,7 @@ of reclassified taxes don't match dividend dates. To workaround such cases there
 using which you can manually map reclassified tax to date of its origin dividend.
 
 
-### БКС and Открытие Брокер
+### БКС, Открытие Брокер and Тинькофф
 
 Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
 example of how they are look like in the broker statements.
@@ -191,6 +193,7 @@ which I assured to be handled properly and wrote regression tests for. For examp
 * Bonds
 * Futures
 * Stock split
+* Margin accounts
 * Currencies other than USD and RUB
 
 

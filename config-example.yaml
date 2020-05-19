@@ -70,20 +70,16 @@ portfolios:
 
     assets:
       - name: Stocks
-        weight: 70%
+        weight: 80%
         assets:
           - {name: FinEx MSCI USA UCITS ETF, symbol: FXUS, weight: 75%}
           - name: Other world
             weight: 25%
             assets:
-              - {name: FinEx Russian RTS Equity UCITS ETF, symbol: FXRL, weight: 20%}
-              - {name: FinEx MSCI China UCITS ETF, symbol: FXCN, weight: 20%}
-              - {name: FinEx MSCI Japan UCITS ETF, symbol: FXJP, weight: 15%}
-              - {name: FinEx MSCI United Kingdom UCITS ETF, symbol: FXUK, weight: 15%}
-              - {name: FinEx MSCI Germany UCITS ETF, symbol: FXDE, weight: 15%}
-              - {name: FinEx MSCI Australia UCITS ETF, symbol: FXAU, weight: 15%}
-
-      - {name: FinEx Tradable Russian Corporate Bonds UCITS ETF, symbol: FXRU, weight: 30%}
+              - {name: FinEx MSCI Germany UCITS ETF, symbol: FXDE, weight: 37%}
+              - {name: FinEx Russian RTS Equity UCITS ETF, symbol: FXRL, weight: 32%}
+              - {name: FinEx MSCI China UCITS ETF, symbol: FXCN, weight: 31%}
+      - {name: FinEx Tradable Russian Corporate Bonds UCITS ETF, symbol: FXRU, weight: 20%}
 
 # Your individual broker + bank account configuration. For now specifies your bank commissions for transferring funds
 # from your bank account to your broker account. Will be taken into account during portfolio performance analysis.
