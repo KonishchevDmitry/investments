@@ -62,7 +62,6 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
         let ending = parse_cash(&assets.currency, &assets.ending, DecimalRestrictions::No)?;
         parser.statement.cash_assets.deposit(ending);
 
-        // FIXME(konishchev): Support or skip?
         let planned = parse_cash(&assets.currency, &assets.planned, DecimalRestrictions::No)?;
         if planned != ending {
             return Err!("Planned ending cash is not supported yet")

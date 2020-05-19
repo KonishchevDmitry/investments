@@ -20,6 +20,13 @@ impl SectionParser for AssetsParser {
             let ending: u32 = asset.ending.parse().map_err(|_| format!(
                 "Invalid {} ending quantity: {}", symbol, asset.ending))?;
 
+            let planned: u32 = asset.planned.parse().map_err(|_| format!(
+                "Invalid {} planned quantity: {}", symbol, asset.planned))?;
+
+            if planned != ending {
+                return Err!("Planned ending assets aren't supported yet")
+            }
+
             if starting != 0 {
                 parser.statement.starting_assets.replace(true);
             }
@@ -49,9 +56,8 @@ struct AssetsRow {
     _5: String,
     #[column(name="Исходящий остаток")]
     ending: String,
-    // FIXME(konishchev): Support?
     #[column(name="Плановый исходящий остаток")]
-    _7: SkipCell,
+    planned: String,
     #[column(name="Рыночная цена")]
     _8: SkipCell,
     #[column(name="Валюта цены")]
