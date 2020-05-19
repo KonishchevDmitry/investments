@@ -92,6 +92,7 @@ pub struct DepositConfig {
 pub struct PortfolioConfig {
     pub name: String,
     pub broker: Broker,
+    pub plan: Option<String>,
 
     pub statements: String,
     #[serde(default)]
