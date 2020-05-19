@@ -1,11 +1,12 @@
-use num_traits::Zero;
+use num_traits::{FromPrimitive, Zero};
 
 use xls_table_derive::XlsTableRow;
 
-use crate::broker_statement::trades::{StockBuy, StockSell};
+use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
-use crate::types::{Date, Time};
+use crate::currency::Cash;
+use crate::types::{Date, Time, Decimal};
 use crate::util::DecimalRestrictions;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 
@@ -57,24 +58,45 @@ impl SectionParser for TradesParser {
 
             let volume = parse_cash(
                 &trade.settlement_currency, &trade.volume, DecimalRestrictions::StrictlyPositive)?;
-            // FIXME(konishchev): Enable
-            if false {
-                debug_assert_eq!(volume, price * quantity);
-            }
+            debug_assert_eq!(volume, (price * quantity).round());
 
             let commission = parse_cash(
                 &trade.commission_currency, &trade.commission, DecimalRestrictions::PositiveOrZero)?;
 
+            let forex = if trade.symbol == "USD000UTSTOM" {
+                Some("USD")
+            } else {
+                None
+            };
+
             match trade.operation.as_str() {
                 "Покупка" => {
-                    parser.statement.stock_buys.push(StockBuy::new(
-                        &trade.symbol, quantity, price, volume, commission,
-                        conclusion_date, execution_date));
+                    if let Some(currency) = forex {
+                        parser.statement.forex_trades.push(ForexTrade {
+                            from: volume,
+                            to: Cash::new(currency, Decimal::from_u32(quantity).unwrap()),
+                            commission,
+                            conclusion_date
+                        })
+                    } else {
+                        parser.statement.stock_buys.push(StockBuy::new(
+                            &trade.symbol, quantity, price, volume, commission,
+                            conclusion_date, execution_date));
+                    }
                 },
                 "Продажа" => {
-                    parser.statement.stock_sells.push(StockSell::new(
-                        &trade.symbol, quantity, price, volume, commission,
-                        conclusion_date, execution_date, false));
+                    if let Some(currency) = forex {
+                        parser.statement.forex_trades.push(ForexTrade {
+                            from: Cash::new(currency, Decimal::from_u32(quantity).unwrap()),
+                            to: volume,
+                            commission,
+                            conclusion_date
+                        })
+                    } else {
+                        parser.statement.stock_sells.push(StockSell::new(
+                            &trade.symbol, quantity, price, volume, commission,
+                            conclusion_date, execution_date, false));
+                    }
                 },
                 _ => return Err!("Unsupported trade operation: {:?}", trade.operation),
             }
