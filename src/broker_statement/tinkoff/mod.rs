@@ -119,15 +119,9 @@ mod tests {
         assert!(statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
 
-        // FIXME(konishchev): Enable
-        if false {
-            assert!(statement.forex_trades.is_empty());
-        }
+        assert!(!statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
-        // FIXME(konishchev): Enable
-        if false {
-            assert!(statement.stock_sells.is_empty());
-        }
+        assert!(!statement.stock_sells.is_empty());
         assert!(statement.dividends.is_empty());
 
         assert!(!statement.open_positions.is_empty());
