@@ -19,13 +19,14 @@ use self::mapper::CashFlow;
 
 pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    if !matches!(portfolio.broker, Broker::InteractiveBrokers | Broker::Tinkoff) {
-        return Err!(
-            "Cash flow report is not supported for {}", portfolio.broker.get_info(config)?.name);
+
+    let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
+    if !matches!(broker.type_, Broker::InteractiveBrokers | Broker::Tinkoff) {
+        return Err!("Cash flow report is not supported for {}", broker.name);
     }
 
     let statement = BrokerStatement::read(
-        config, portfolio.broker, &portfolio.statements, portfolio.get_tax_remapping()?, false)?;
+        broker, &portfolio.statements, portfolio.get_tax_remapping()?, false)?;
 
     let mut summary_title = format!("Движение средств по счету в {}", statement.broker.name);
     let mut details_title = format!("Детализация движения средств по счету в {}", statement.broker.name);

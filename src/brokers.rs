@@ -24,10 +24,22 @@ pub enum Broker {
 }
 
 impl Broker {
-    pub fn get_info(self, config: &Config) -> GenericResult<BrokerInfo> {
+    pub fn get_info(self, config: &Config, _plan: Option<&String>) -> GenericResult<BrokerInfo> {
+        let config = config.brokers.as_ref().and_then(|brokers| {
+            match self {
+                Broker::Bcs => brokers.bcs.as_ref(),
+                Broker::InteractiveBrokers => brokers.interactive_brokers.as_ref(),
+                Broker::OpenBroker => brokers.open_broker.as_ref(),
+                Broker::Tinkoff => brokers.tinkoff.as_ref(),
+            }
+        }).ok_or_else(|| format!(
+            "{} configuration is not set in the configuration file", self.get_name())
+        )?.clone();
+
         Ok(BrokerInfo {
+            type_: self,
             name: self.get_name(),
-            config: self.get_config(config)?,
+            config: config,
             commission_spec: self.get_commission_spec(),
             allow_sparse_broker_statements: matches!(self, Broker::Bcs),
         })
@@ -40,19 +52,6 @@ impl Broker {
             Broker::OpenBroker => "АО «Открытие Брокер»",
             Broker::Tinkoff => "АО «Тинькофф Банк»",
         }
-    }
-
-    fn get_config(self, config: &Config) -> GenericResult<BrokerConfig> {
-        Ok(config.brokers.as_ref().and_then(|brokers| {
-            match self {
-                Broker::Bcs => brokers.bcs.as_ref(),
-                Broker::InteractiveBrokers => brokers.interactive_brokers.as_ref(),
-                Broker::OpenBroker => brokers.open_broker.as_ref(),
-                Broker::Tinkoff => brokers.tinkoff.as_ref(),
-            }
-        }).ok_or_else(|| format!(
-            "{} configuration is not set in the configuration file", self.get_name())
-        )?.clone())
     }
 
     // FIXME(konishchev): Configurable commissions support
@@ -142,6 +141,7 @@ impl<'de> Deserialize<'de> for Broker {
 
 #[derive(Debug, Clone)]
 pub struct BrokerInfo {
+    pub type_: Broker,
     pub name: &'static str,
     config: BrokerConfig,
     pub commission_spec: CommissionSpec,

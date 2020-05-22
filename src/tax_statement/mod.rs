@@ -15,8 +15,10 @@ pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
 ) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
+    let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
+
     let broker_statement = BrokerStatement::read(
-        config, portfolio.broker, &portfolio.statements, portfolio.get_tax_remapping()?, true)?;
+        broker, &portfolio.statements, portfolio.get_tax_remapping()?, true)?;
 
     if let Some(year) = year {
         broker_statement.check_period_against_tax_year(year)?;

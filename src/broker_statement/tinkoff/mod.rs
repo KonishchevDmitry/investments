@@ -10,8 +10,9 @@ use std::rc::Rc;
 use lazy_static::lazy_static;
 use regex::{self, Regex};
 
-use crate::brokers::{Broker, BrokerInfo};
-use crate::config::Config;
+#[cfg(test)] use crate::brokers::Broker;
+use crate::brokers::BrokerInfo;
+#[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::xls::{SheetParser, Cell};
@@ -30,10 +31,8 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(config: &Config) -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader {
-            broker_info: Broker::Tinkoff.get_info(config)?,
-        }))
+    pub fn new(broker_info: BrokerInfo) -> GenericResult<Box<dyn BrokerStatementReader>> {
+        Ok(Box::new(StatementReader{broker_info}))
     }
 }
 
@@ -110,8 +109,10 @@ mod tests {
 
     #[test]
     fn parse_real() {
+        let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
+
         let statement = BrokerStatement::read(
-            &Config::mock(), Broker::Tinkoff, "testdata/tinkoff", TaxRemapping::new(), true).unwrap();
+            broker, "testdata/tinkoff", TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());

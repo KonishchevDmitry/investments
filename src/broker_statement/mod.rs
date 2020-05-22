@@ -21,7 +21,6 @@ use log::{debug, warn};
 
 use crate::brokers::{Broker, BrokerInfo};
 use crate::commissions::CommissionCalc;
-use crate::config::Config;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
@@ -62,16 +61,15 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        config: &Config, broker: Broker, statement_dir_path: &str, tax_remapping: TaxRemapping,
-        strict_mode: bool,
+        broker: BrokerInfo, statement_dir_path: &str, tax_remapping: TaxRemapping, strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
         let mut tax_remapping = Some(tax_remapping);
-        let mut statement_reader = match broker {
-            Broker::Bcs => bcs::StatementReader::new(config),
+        let mut statement_reader = match broker.type_ {
+            Broker::Bcs => bcs::StatementReader::new(broker),
             Broker::InteractiveBrokers => ib::StatementReader::new(
-                config, tax_remapping.take().unwrap(), strict_mode),
-            Broker::OpenBroker => open_broker::StatementReader::new(config),
-            Broker::Tinkoff => tinkoff::StatementReader::new(config),
+                broker, tax_remapping.take().unwrap(), strict_mode),
+            Broker::OpenBroker => open_broker::StatementReader::new(broker),
+            Broker::Tinkoff => tinkoff::StatementReader::new(broker),
         }?;
 
         let mut file_names = get_statement_files(statement_dir_path, statement_reader.as_ref())

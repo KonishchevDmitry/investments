@@ -14,9 +14,9 @@ use std::iter::Iterator;
 use csv::{self, StringRecord};
 use log::{trace, warn};
 
-use crate::brokers::{Broker, BrokerInfo};
-#[cfg(test)] use crate::config;
-use crate::config::Config;
+#[cfg(test)] use crate::brokers::Broker;
+use crate::brokers::BrokerInfo;
+#[cfg(test)] use crate::config::{self, Config};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::formatting::format_date;
@@ -37,9 +37,11 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(config: &Config, tax_remapping: TaxRemapping, strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
+    pub fn new(
+        broker_info: BrokerInfo, tax_remapping: TaxRemapping, strict_mode: bool,
+    ) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
-            broker_info: Broker::InteractiveBrokers.get_info(config)?,
+            broker_info,
             tax_remapping: RefCell::new(tax_remapping),
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
             warn_on_missing_execution_date: strict_mode,
@@ -309,15 +311,16 @@ mod tests {
     }
 
     fn parse_full(name: &str, tax_remapping: Option<TaxRemapping>) -> BrokerStatement {
+        let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/interactive-brokers/{}", name);
-        BrokerStatement::read(
-            &Config::mock(), Broker::InteractiveBrokers, &path,
-            tax_remapping.unwrap_or_else(TaxRemapping::new), true).unwrap()
+        let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
+        BrokerStatement::read(broker, &path, tax_remapping, true).unwrap()
     }
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
+        let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(&Config::mock(), TaxRemapping::new(), true).unwrap().read(&path).unwrap();
+        StatementReader::new(broker, TaxRemapping::new(), true).unwrap().read(&path).unwrap();
     }
 }

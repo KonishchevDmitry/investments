@@ -57,7 +57,7 @@ impl Portfolio {
 
         let mut portfolio = Portfolio {
             name: portfolio_config.name.clone(),
-            broker: portfolio_config.broker.get_info(config)?,
+            broker: portfolio_config.broker.get_info(config, portfolio_config.plan.as_ref())?,
             currency: currency.clone(),
 
             min_trade_volume: min_trade_volume,
