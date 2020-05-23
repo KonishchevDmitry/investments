@@ -3,7 +3,7 @@ mod dividends;
 mod fees;
 mod ib;
 mod interest;
-mod open_broker;
+mod open;
 mod partial;
 mod payments;
 mod taxes;
@@ -68,7 +68,7 @@ impl BrokerStatement {
             Broker::Bcs => bcs::StatementReader::new(broker),
             Broker::InteractiveBrokers => ib::StatementReader::new(
                 broker, tax_remapping.take().unwrap(), strict_mode),
-            Broker::OpenBroker => open_broker::StatementReader::new(broker),
+            Broker::OpenBroker => open::StatementReader::new(broker),
             Broker::Tinkoff => tinkoff::StatementReader::new(broker),
         }?;
 
