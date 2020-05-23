@@ -1,5 +1,7 @@
 mod plans;
 
+use std::collections::BTreeMap;
+
 use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
@@ -19,7 +21,7 @@ pub enum Broker {
 }
 
 impl Broker {
-    pub fn get_info(self, config: &Config, _plan: Option<&String>) -> GenericResult<BrokerInfo> {
+    pub fn get_info(self, config: &Config, plan: Option<&String>) -> GenericResult<BrokerInfo> {
         let config = config.brokers.as_ref()
             .and_then(|brokers| self.get_config(brokers))
             .ok_or_else(|| format!(
@@ -30,7 +32,7 @@ impl Broker {
             type_: self,
             name: self.get_name(),
             config: config,
-            commission_spec: self.get_commission_spec(),
+            commission_spec: self.get_commission_spec(plan)?,
             allow_sparse_broker_statements: matches!(self, Broker::Bcs),
         })
     }
@@ -53,14 +55,35 @@ impl Broker {
         }.as_ref()
     }
 
-    // FIXME(konishchev): Configurable commissions support
-    fn get_commission_spec(self) -> CommissionSpec {
-        match self {
-            Broker::Bcs => plans::bcs::professional(),
-            Broker::InteractiveBrokers => plans::ib::fixed(),
-            Broker::OpenBroker => plans::open::iia(),
-            Broker::Tinkoff => plans::tinkoff::trader(),
-        }
+    fn get_commission_spec(self, plan: Option<&String>) -> GenericResult<CommissionSpec> {
+        type PlanFn = fn() -> CommissionSpec;
+
+        let (default, plans): (PlanFn, BTreeMap<&str, PlanFn>) = match self {
+            Broker::Bcs => (plans::bcs::professional, btreemap!{
+                "Профессиональный" => plans::bcs::professional as PlanFn,
+            }),
+            Broker::InteractiveBrokers => (plans::ib::fixed, btreemap!{
+                "Fixed" => plans::ib::fixed as PlanFn,
+            }),
+            Broker::OpenBroker => (plans::open::iia, btreemap!{
+                "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
+            }),
+            Broker::Tinkoff => (plans::tinkoff::trader, btreemap!{
+                "Трейдер" => plans::tinkoff::trader as PlanFn,
+            }),
+        };
+
+        let plan = match plan {
+            Some(plan) => {
+                *plans.get(plan.as_str()).ok_or_else(|| format!(
+                    "Invalid plan for {}: {}. Available plans: {}",
+                    self.get_name(), plan, plans.keys().copied().collect::<Vec<_>>().join(", "),
+                ))?
+            },
+            None => default,
+        };
+
+        Ok(plan())
     }
 }
 
