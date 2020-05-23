@@ -45,26 +45,25 @@ impl Finnhub {
             day_start_time: Option<i64>,
 
             #[serde(rename = "c")]
-            current_price: Decimal,
+            current_price: Option<Decimal>,
         }
 
-        let quote = match self.query::<Quote>("quote", symbol)? {
-            Some(quote) if !quote.current_price.is_zero() => quote,
+        let (time, price) = match self.query::<Quote>("quote", symbol)? {
+            Some(Quote{
+                day_start_time: Some(time),
+                current_price: Some(price),
+            }) if !price.is_zero() => (time, price),
             _ => return Ok(None),
         };
 
-        if let Some(time) = quote.day_start_time {
-            if is_outdated(time)? {
-                let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(time, 0), Utc);
-                debug!("{}: Got outdated quotes: {}.", symbol, time);
-                return Ok(None);
-            }
-        } else {
+        if is_outdated(time)? {
+            let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(time, 0), Utc);
+            debug!("{}: Got outdated quotes: {}.", symbol, time);
             return Ok(None);
         }
 
-        let price = util::validate_decimal(quote.current_price, DecimalRestrictions::StrictlyPositive)
-            .map_err(|_| format!("Got an invalid {} price: {:?}", symbol, quote.current_price))?;
+        let price = util::validate_decimal(price, DecimalRestrictions::StrictlyPositive)
+            .map_err(|_| format!("Got an invalid {} price: {:?}", symbol, price))?;
 
         // Profile API has too expensive rate limit weight, so try to avoid using it
         let currency = if symbol.contains('.') {
@@ -73,7 +72,7 @@ impl Finnhub {
                 currency: String,
             }
 
-            let profile = match self.query::<Profile>("stock/profile", symbol)? {
+            let profile = match self.query::<Profile>("stock/profile2", symbol)? {
                 Some(profile) => profile,
                 None => return Ok(None),
             };
@@ -171,27 +170,20 @@ mod tests {
 
     #[test]
     fn quotes() {
-        let _bnd_profile_mock = mock_response("/api/v1/stock/profile?symbol=BND&token=mock", indoc!(r#"
+        let _bnd_profile_mock = mock_response("/api/v1/stock/profile2?symbol=BND&token=mock", indoc!(r#"
             {
-                "address": "100 Vanguard Boulevard, V26",
-                "city": "Malvern",
-                "country": "USA",
+                "country": "US",
                 "currency": "USD",
-                "cusip": "921937835",
-                "description": "Vanguard Bond Index Funds - Vanguard Total Bond Market ETF is an exchange traded fund launched and managed by The Vanguard Group, Inc. The fund invests in the fixed income markets of the United States.",
-                "exchange": "NASDAQ-NMS Stock Market",
-                "ggroup": "N/A",
-                "gind": "N/A",
-                "gsector": "N/A",
-                "gsubind": "N/A",
+                "exchange": "NASDAQ NMS - GLOBAL MARKET",
+                "finnhubIndustry": "N/A",
                 "ipo": "",
-                "isin": "",
-                "naics": "N/A",
-                "name": "VANGUARD TOTAL BOND MARKET",
-                "phone": "610-669-1000",
-                "state": "PA",
+                "logo": "https://static.finnhub.io/logo/fad711b8-80e5-11ea-bacd-00000000092a.png",
+                "marketCapitalization": 0,
+                "name": "Vanguard Total Bond Market Index Fund",
+                "phone": "",
+                "shareOutstanding": 0,
                 "ticker": "BND",
-                "weburl": "advisors.vanguard.com"
+                "weburl": "http://www.vanguard.com/"
             }
         "#));
         let _bnd_quote_mock = mock_response("/api/v1/quote?symbol=BND&token=mock", indoc!(r#"
@@ -205,29 +197,22 @@ mod tests {
             }
         "#));
 
-        let _outdated_profile_mock = mock_response("/api/v1/stock/profile?symbol=AMZN&token=mock", indoc!(r#"
-            {
-                "address": "410 Terry Avenue North",
-                "city": "Seattle",
-                "country": "USA",
+        let _outdated_profile_mock = mock_response("/api/v1/stock/profile2?symbol=AMZN&token=mock", indoc!(r#"
+             {
+                "country": "US",
                 "currency": "USD",
-                "cusip": "023135106",
-                "description": "Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally. The company operates through three segments: North America, International, and Amazon Web Services (AWS) segments.",
-                "exchange": "NASDAQ-NMS Stock Market",
-                "ggroup": "Retailing",
-                "gind": "Internet & Direct Marketing Retail",
-                "gsector": "Consumer Discretionary",
-                "gsubind": "Internet & Direct Marketing Retail",
-                "ipo": "1997-05-15",
-                "isin": "",
-                "naics": "",
-                "name": "AMAZON.COM INC",
-                "phone": "206-266-1000",
-                "state": "WA",
+                "exchange": "NASDAQ NMS - GLOBAL MARKET",
+                "finnhubIndustry": "Retail",
+                "ipo": "1997-05-01",
+                "logo": "https://static.finnhub.io/logo/967bf7b0-80df-11ea-abb4-00000000092a.png",
+                "marketCapitalization": 1220375,
+                "name": "Amazon.com Inc",
+                "phone": "12062661000",
+                "shareOutstanding": 498.776032,
                 "ticker": "AMZN",
-                "weburl": "www.amazon.com"
+                "weburl": "http://www.amazon.com/"
             }
-        "#));
+       "#));
         let _outdated_quote_mock = mock_response("/api/v1/quote?symbol=AMZN&token=mock", indoc!(r#"
             {
                 "c": 2095.969970703125,
@@ -239,9 +224,12 @@ mod tests {
             }
         "#));
 
+        let _unknown_profile_mock = mock_response("/api/v1/stock/profile2?symbol=UNKNOWN&token=mock", "{}");
+        let _unknown_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN&token=mock", "{}");
+
         // Old response for unknown symbols
-        let _unknown_old_profile_mock = mock_response("/api/v1/stock/profile?symbol=UNKNOWN_OLD&token=mock", "{}");
-        let _unknown_old_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN_OLD&token=mock", indoc!(r#"
+        let _unknown_old_1_profile_mock = mock_response("/api/v1/stock/profile2?symbol=UNKNOWN_OLD_1&token=mock", "{}");
+        let _unknown_old_1_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN_OLD_1&token=mock", indoc!(r#"
             {
                 "c": 0,
                 "h": 0,
@@ -250,40 +238,32 @@ mod tests {
                 "pc": 0
             }
         "#));
+        let _unknown_old_2_profile_mock = mock_response("/api/v1/stock/profile2?symbol=UNKNOWN_OLD_2&token=mock", "{}");
+        let _unknown_old_2_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN_OLD_2&token=mock", "Symbol not supported");
 
-        let _unknown_profile_mock = mock_response("/api/v1/stock/profile?symbol=UNKNOWN&token=mock", "{}");
-        let _unknown_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN&token=mock", "Symbol not supported");
-
-        let _bndx_profile_mock = mock_response("/api/v1/stock/profile?symbol=BNDX&token=mock", indoc!(r#"
+        let _fxrl_profile_mock = mock_response("/api/v1/stock/profile2?symbol=FXRL.ME&token=mock", indoc!(r#"
             {
-                "address": "100 Vanguard Boulevard, V26",
-                "city": "Malvern",
-                "country": "USA",
-                "currency": "USD",
-                "cusip": "92203J407",
-                "description": "Vanguard Charlotte Funds - Vanguard Total International Bond ETF is an exchange traded fund launched and managed by The Vanguard Group, Inc. The fund invests in the fixed income markets of countries across the globe excluding the United States. It primarily invests in non- U.S.",
-                "exchange": "NASDAQ-NMS Stock Market",
-                "ggroup": "N/A",
-                "gind": "N/A",
-                "gsector": "N/A",
-                "gsubind": "N/A",
+                "country": "IE",
+                "currency": "RUB",
+                "exchange": "MOSCOW EXCHANGE",
+                "finnhubIndustry": "N/A",
                 "ipo": "",
-                "isin": "",
-                "naics": "Open-End Investment Funds",
-                "name": "VANGUARD TOTAL INTERNATIONAL",
-                "phone": "610-669-1000",
-                "state": "PA",
-                "ticker": "BNDX",
-                "weburl": "advisors.vanguard.com"
+                "logo": "",
+                "marketCapitalization": 0,
+                "name": "FinEx Russian RTS Equity UCITS ETF (USD)",
+                "phone": "",
+                "shareOutstanding": 0,
+                "ticker": "FXRL.ME",
+                "weburl": ""
             }
         "#));
-        let _bndx_quote_mock = mock_response("/api/v1/quote?symbol=BNDX&token=mock", indoc!(r#"
+        let _fxrl_quote_mock = mock_response("/api/v1/quote?symbol=FXRL.ME&token=mock", indoc!(r#"
             {
-                "c": 57.86000061035156,
-                "h": 57.900001525878906,
-                "l": 57.849998474121094,
-                "o": 57.86000061035156,
-                "pc": 57.7599983215332,
+                "c": 2758.5,
+                "h": 2796,
+                "l": 2734,
+                "o": 2796,
+                "pc": 2764,
                 "t": 1582295400
             }
         "#));
@@ -292,8 +272,10 @@ mod tests {
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("BND"), Cash::new("USD", dec!(85.80000305175781)));
-        quotes.insert(s!("BNDX"), Cash::new("USD", dec!(57.86000061035156)));
-        assert_eq!(client.get_quotes(&["BND", "AMZN", "UNKNOWN_OLD", "UNKNOWN", "BNDX"]).unwrap(), quotes);
+        quotes.insert(s!("FXRL.ME"), Cash::new("RUB", dec!(2758.5)));
+        assert_eq!(client.get_quotes(&[
+            "BND", "AMZN", "UNKNOWN", "UNKNOWN_OLD_1", "UNKNOWN_OLD_2", "FXRL.ME",
+        ]).unwrap(), quotes);
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {
