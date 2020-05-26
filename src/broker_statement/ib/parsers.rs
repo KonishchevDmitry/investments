@@ -1,7 +1,7 @@
 use std::iter::Iterator;
 
 use chrono::Duration;
-use log::trace;
+use log::{warn, trace};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
@@ -34,8 +34,19 @@ impl RecordParser for AccountInformationParser {
         let value = record.get_value("Field Value")?;
 
         if name == "Account Capabilities" {
-            if value != "Cash" {
-                return Err!("Unsupported account type: {}", value);
+            match value {
+                "Cash" => {},
+                "Margin" => {
+                    if *parser.warn_on_margin_account {
+                        warn!(concat!(
+                            "The program is not expected to work properly with margin accounts ",
+                            "(see https://github.com/KonishchevDmitry/investments/issues/8), ",
+                            "so be critical to its calculation results."
+                        ));
+                        *parser.warn_on_margin_account = false;
+                    }
+                },
+                _ => return Err!("Unsupported account type: {}", value),
             }
         } else if name == "Base Currency" {
             parser.base_currency.replace(value.to_owned());

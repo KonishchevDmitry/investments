@@ -31,8 +31,11 @@ use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
     broker_info: BrokerInfo,
+
     tax_remapping: RefCell<TaxRemapping>,
     trade_execution_dates: RefCell<TradeExecutionDates>,
+
+    warn_on_margin_account: bool,
     warn_on_missing_execution_date: bool,
 }
 
@@ -42,8 +45,11 @@ impl StatementReader {
     ) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             broker_info,
+
             tax_remapping: RefCell::new(tax_remapping),
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
+
+            warn_on_margin_account: true,
             warn_on_missing_execution_date: strict_mode,
         }))
     }
@@ -69,10 +75,14 @@ impl BrokerStatementReader for StatementReader {
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
             statement: PartialBrokerStatement::new(self.broker_info.clone()),
+
             base_currency: None,
             base_currency_summary: None,
+
             tax_remapping: &mut self.tax_remapping.borrow_mut(),
             trade_execution_dates: &self.trade_execution_dates.borrow(),
+
+            warn_on_margin_account: &mut self.warn_on_margin_account,
             warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
         }.parse(path)
     }
@@ -90,10 +100,14 @@ enum State {
 
 pub struct StatementParser<'a> {
     statement: PartialBrokerStatement,
+
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
+
     tax_remapping: &'a mut TaxRemapping,
     trade_execution_dates: &'a TradeExecutionDates,
+
+    warn_on_margin_account: &'a mut bool,
     warn_on_missing_execution_date: &'a mut bool,
 }
 
@@ -305,7 +319,11 @@ mod tests {
         assert!(!statement.instrument_names.is_empty());
     }
 
-    #[rstest(name => ["return-of-capital-with-tax", "return-of-capital-without-tax"])]
+    // FIXME(konishchev): Enable: "margin-rub"
+    #[rstest(name => [
+        "return-of-capital-with-tax",
+        "return-of-capital-without-tax",
+    ])]
     fn parse_real(name: &str) {
         parse_full(name, None);
     }
