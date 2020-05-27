@@ -13,7 +13,7 @@ pub struct OpenPositionsParser {}
 
 impl RecordParser for OpenPositionsParser {
     fn skip_data_types(&self) -> Option<&'static [&'static str]> {
-        Some(&["Total", "Notes"])
+        Some(&["Total"])
     }
 
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {

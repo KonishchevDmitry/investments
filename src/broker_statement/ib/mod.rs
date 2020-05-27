@@ -174,19 +174,24 @@ impl<'a> StatementParser<'a> {
                         if record.get(0).unwrap() != spec.name {
                             state = Some(State::Record(record));
                             continue 'state;
-                        } else if record.get(1).unwrap() == "Header" {
+                        }
+                        let data_type = record.get(1).unwrap();
+
+                        if data_type == "Header" {
                             state = Some(State::Header(record));
                             continue 'state;
+                        } else if data_type == "Notes" {
+                            continue
                         }
 
                         if let Some(skip_data_types) = skip_data_types {
-                            if skip_data_types.contains(&record.get(1).unwrap()) {
+                            if skip_data_types.contains(&data_type) {
                                 continue;
                             }
                         }
 
                         if let Some(data_types) = data_types {
-                            if !data_types.contains(&record.get(1).unwrap()) {
+                            if !data_types.contains(&data_type) {
                                 return Err!("Invalid data record type: {}", format_record(&record));
                             }
                         }
@@ -324,8 +329,8 @@ mod tests {
         assert!(!statement.instrument_names.is_empty());
     }
 
-    // FIXME(konishchev): Enable: "margin-rub"
     #[rstest(name => [
+        "margin-rub",
         "return-of-capital-with-tax",
         "return-of-capital-without-tax",
     ])]
