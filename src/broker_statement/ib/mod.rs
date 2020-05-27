@@ -224,6 +224,11 @@ impl<'a> StatementParser<'a> {
         self.statement.validate()
     }
 
+    fn base_currency(&self) -> GenericResult<&str> {
+        Ok(self.base_currency.as_deref().ok_or_else(||
+            "Unable to determine account base currency")?)
+    }
+
     fn get_execution_date(&mut self, symbol: &str, conclusion_date: Date) -> Date {
         if let Some(&execution_date) = self.trade_execution_dates.get(&OrderId {
             symbol: symbol.to_owned(),

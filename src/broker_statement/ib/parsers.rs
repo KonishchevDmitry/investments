@@ -61,10 +61,8 @@ pub struct ChangeInNavParser {}
 impl RecordParser for ChangeInNavParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Starting Value" {
-            let currency = parser.base_currency.as_ref().ok_or_else(||
-                "Unable to determine account base currency")?;
-
-            let amount = Cash::new_from_string(&currency, record.get_value("Field Value")?)?;
+            let currency = parser.base_currency()?;
+            let amount = Cash::new_from_string(currency, record.get_value("Field Value")?)?;
             parser.statement.set_starting_assets(!amount.is_zero())?;
         }
 
@@ -87,17 +85,14 @@ impl RecordParser for CashReportParser {
         record.check_value("Total", record.get_value("Securities")?)?;
 
         if currency == "Base Currency Summary" {
-            let currency = parser.base_currency.as_ref().ok_or_else(||
-                "Unable to determine account base currency")?;
-
-            if parser.base_currency_summary.replace(Cash::new(&currency, amount)).is_some() {
+            let summary = Cash::new(parser.base_currency()?, amount);
+            if parser.base_currency_summary.replace(summary).is_some() {
                 return Err!("Got duplicated base currency summary");
             }
         } else {
             if parser.statement.cash_assets.has_assets(currency) {
                 return Err!("Got duplicated {} assets", currency);
             }
-
             parser.statement.cash_assets.deposit(Cash::new(currency, amount));
         }
 

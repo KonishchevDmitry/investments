@@ -66,13 +66,11 @@ fn parse_forex_record(
 
     let base = pair.first().unwrap().deref();
     let quote = pair.last().unwrap().deref();
+    let volume = record.parse_cash("Proceeds", quote, DecimalRestrictions::NonZero)?;
 
     // Please note: The value is actually may be rounded which leads to inaccuracy in cash flow
     // report calculation.
     let quantity = record.parse_cash("Quantity", base, DecimalRestrictions::NonZero)?;
-
-    let volume = record.parse_cash("Proceeds", quote, DecimalRestrictions::NonZero)?;
-    let commission = -record.parse_cash("Comm in USD", "USD", DecimalRestrictions::NegativeOrZero)?;
 
     let (from, to) = if quantity.is_positive() {
         (-volume, quantity)
@@ -82,6 +80,11 @@ fn parse_forex_record(
     if from.is_negative() || to.is_negative() {
         return Err!("Unexpected Forex quantity/volume values: {}/{}", quantity, volume);
     }
+
+    let commission_currency = parser.base_currency()?;
+    let commission = -record.parse_cash(
+        &format!("Comm in {}", commission_currency),
+        commission_currency, DecimalRestrictions::NegativeOrZero)?;
 
     parser.statement.forex_trades.push(ForexTrade{from, to, commission, conclusion_date});
 
