@@ -90,7 +90,7 @@ impl StockSell {
 
     pub fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
         Ok(self.calculate_impl(country, converter).map_err(|e| format!(
-            "Failed calculate results of {} selling order from {}: {}",
+            "Failed to calculate results of {} selling order from {}: {}",
             self.symbol, formatting::format_date(self.conclusion_date), e))?)
     }
 

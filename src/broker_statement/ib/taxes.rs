@@ -58,7 +58,7 @@ impl RecordParser for WithholdingTaxParser {
 fn parse_tax_description(description: &str) -> GenericResult<String> {
     lazy_static! {
         static ref DESCRIPTION_REGEX: Regex = Regex::new(
-            r"^(?P<issuer>[A-Z]+) ?\([A-Z0-9]+\) .+ - US Tax$").unwrap();
+            r"^(?P<issuer>[A-Z]+) ?\([A-Z0-9]+\) .+ - [A-Z]{2} Tax$").unwrap();
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
@@ -78,6 +78,7 @@ mod tests {
         test_tax_parsing("BND(US9219378356) Cash Dividend 0.18366600 USD per Share - US Tax", "BND");
         test_tax_parsing("BND(43645828) Cash Dividend 0.19446400 USD per Share - US Tax", "BND");
         test_tax_parsing("UNIT(US91325V1089) Payment in Lieu of Dividend - US Tax", "UNIT");
+        test_tax_parsing("ETN(IE00B8KQN827) Cash Dividend USD 0.73 per Share - IE Tax", "ETN");
     }
 
     fn test_tax_parsing(description: &str, symbol: &str) {
