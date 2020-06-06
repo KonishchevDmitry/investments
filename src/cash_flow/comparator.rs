@@ -28,14 +28,19 @@ impl<'a> CashAssetsComparator<'a> {
     }
 
     pub fn compare(&mut self, date: Date, calculated: &MultiCurrencyCashAccount) {
-        let (&date, actual) = match self.next {
-            Some(data) if *data.0 < date => {
-                self.next();
-                (data.0, data.1)
-            },
-            _ => return,
-        };
+        while let Some((&historical_date, actual)) = self.next {
+            if historical_date >= date {
+                break
+            }
 
+            self.next();
+            self.compare_to(historical_date, actual, calculated);
+        }
+    }
+
+    fn compare_to(&mut self,
+        date: Date, actual: &MultiCurrencyCashAccount, calculated: &MultiCurrencyCashAccount,
+    ) {
         self.currencies.extend(actual.iter().map(|assets| assets.currency));
         self.currencies.extend(calculated.iter().map(|assets| assets.currency));
 
