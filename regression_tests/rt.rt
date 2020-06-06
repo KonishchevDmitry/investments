@@ -294,6 +294,14 @@ APP: regression_tests/investments
      tinkoff
 
 [72]
+NAME: BCS cash flow
+STDOUT: bcs-cash-flow
+APP: regression_tests/investments
+     testdata/config
+     cash-flow
+     bcs
+
+[73]
 NAME: IB margin RUB cash flow
 STDOUT: ib-margin-rub-cash-flow
 APP: regression_tests/investments

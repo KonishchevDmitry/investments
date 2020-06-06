@@ -5,4 +5,5 @@ use crate::types::Date;
 pub struct Fee {
     pub date: Date,
     pub amount: Cash, // The amount is negative for commission and positive for refund
+    pub description: Option<String>,
 }

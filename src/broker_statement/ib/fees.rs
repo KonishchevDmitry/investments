@@ -20,6 +20,7 @@ impl RecordParser for FeesParser {
         parser.statement.fees.push(Fee {
             date: date,
             amount: amount,
+            description: None,
         });
 
         Ok(())

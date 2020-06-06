@@ -84,7 +84,7 @@ mod tests {
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
 
-        assert!(statement.fees.is_empty());
+        assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
 
         assert!(statement.forex_trades.is_empty());

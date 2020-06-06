@@ -21,7 +21,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     let portfolio = config.get_portfolio(portfolio_name)?;
 
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
-    if !matches!(broker.type_, Broker::InteractiveBrokers | Broker::Tinkoff) {
+    if !matches!(broker.type_, Broker::InteractiveBrokers | Broker::Tinkoff | Broker::Bcs) {
         return Err!("Cash flow report is not supported for {}", broker.name);
     }
 

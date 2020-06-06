@@ -1,6 +1,7 @@
+use crate::broker_statement::fees::Fee;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::CashAssets;
+use crate::currency::{Cash, CashAssets};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 use crate::xls::{self, TableReader, Cell, SkipCell};
@@ -50,6 +51,19 @@ impl CashFlowParser {
             "Вознаграждение компании" |
             "Вознаграждение за обслуживание счета депо" => {
                 withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
+
+                let mut description = String::with_capacity(operation.len());
+                {
+                    let mut chars = operation.chars();
+                    description.extend(chars.next().unwrap().to_lowercase());
+                    description.extend(chars);
+                }
+
+                parser.statement.fees.push(Fee {
+                    date,
+                    amount: Cash::new(currency, -cash_flow.withdrawal),
+                    description: Some(description),
+                });
             },
             _ => return Err!("Unsupported cash flow operation: {:?}", cash_flow.operation),
         };
