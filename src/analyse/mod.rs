@@ -21,7 +21,7 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
     statement.check_date();
     statement.batch_quotes(&quotes);
 
-    for (symbol, &quantity) in statement.open_positions.clone().iter() {
+    for (symbol, quantity) in statement.open_positions.clone() {
         statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?, &mut commission_calc)?;
     }
     statement.process_trades()?;
