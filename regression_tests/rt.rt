@@ -248,13 +248,13 @@ APP: regression_tests/investments
      tax-statement
      bcs
 
-# [64]
-# NAME: IB margin RUB tax statement
-# STDOUT: ib-margin-rub-tax-statement
-# APP: regression_tests/investments
-#      testdata/interactive-brokers/margin-rub
-#      tax-statement
-#      ib
+[64]
+NAME: IB margin RUB tax statement
+STDOUT: ib-margin-rub-tax-statement
+APP: regression_tests/investments
+     testdata/third-party-config
+     tax-statement
+     margin-rub
 
 # Cash flow
 
@@ -293,10 +293,10 @@ APP: regression_tests/investments
      cash-flow
      tinkoff
 
-# [72]
-# NAME: IB margin RUB cash flow
-# STDOUT: ib-margin-rub-cash-flow
-# APP: regression_tests/investments
-#      testdata/interactive-brokers/margin-rub
-#      cash-flow
-#      ib
+[72]
+NAME: IB margin RUB cash flow
+STDOUT: ib-margin-rub-cash-flow
+APP: regression_tests/investments
+     testdata/third-party-config
+     cash-flow
+     margin-rub

@@ -20,3 +20,5 @@ done
 ./regression_tests/investments testdata/config cash ib 10000
 ./regression_tests/investments testdata/config cash open 100000
 ./regression_tests/investments testdata/config cash tinkoff 100000
+
+./regression_tests/investments testdata/third-party-config tax-statement margin-rub > /dev/null
