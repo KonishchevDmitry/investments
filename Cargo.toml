@@ -66,6 +66,7 @@ xls_table_derive = { path = "src/xls/xls_table_derive" }
 
 [dev-dependencies]
 mockito = "0.25.2"
+qtrac-retest = "4.0.6"
 rstest = "0.6.3"
 tempfile = "3.1.0"
 url = "2.1.1"
