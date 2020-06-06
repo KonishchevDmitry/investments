@@ -16,7 +16,7 @@ use crate::types::Decimal;
 pub enum Broker {
     Bcs,
     InteractiveBrokers,
-    OpenBroker,
+    Open,
     Tinkoff,
 }
 
@@ -41,7 +41,7 @@ impl Broker {
         match self {
             Broker::Bcs => "ООО «Компания БКС»",
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
-            Broker::OpenBroker => "АО «Открытие Брокер»",
+            Broker::Open => "АО «Открытие Брокер»",
             Broker::Tinkoff => "АО «Тинькофф Банк»",
         }
     }
@@ -50,7 +50,7 @@ impl Broker {
         match self {
             Broker::Bcs => &config.bcs,
             Broker::InteractiveBrokers => &config.interactive_brokers,
-            Broker::OpenBroker => &config.open_broker,
+            Broker::Open => &config.open_broker,
             Broker::Tinkoff => &config.tinkoff,
         }.as_ref()
     }
@@ -65,7 +65,7 @@ impl Broker {
             Broker::InteractiveBrokers => (plans::ib::fixed, btreemap!{
                 "Fixed" => plans::ib::fixed as PlanFn,
             }),
-            Broker::OpenBroker => (plans::open::iia, btreemap!{
+            Broker::Open => (plans::open::iia, btreemap!{
                 "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
             }),
             Broker::Tinkoff => (plans::tinkoff::trader, btreemap!{
@@ -94,7 +94,7 @@ impl<'de> Deserialize<'de> for Broker {
         Ok(match value.as_str() {
             "bcs" => Broker::Bcs,
             "interactive-brokers" => Broker::InteractiveBrokers,
-            "open-broker" => Broker::OpenBroker,
+            "open-broker" => Broker::Open,
             "tinkoff" => Broker::Tinkoff,
 
             _ => return Err(D::Error::unknown_variant(&value, &[

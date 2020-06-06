@@ -68,7 +68,7 @@ impl BrokerStatement {
             Broker::Bcs => bcs::StatementReader::new(broker),
             Broker::InteractiveBrokers => ib::StatementReader::new(
                 broker, tax_remapping.take().unwrap(), strict_mode),
-            Broker::OpenBroker => open::StatementReader::new(broker),
+            Broker::Open => open::StatementReader::new(broker),
             Broker::Tinkoff => tinkoff::StatementReader::new(broker),
         }?;
 

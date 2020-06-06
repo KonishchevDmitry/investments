@@ -5,7 +5,8 @@ use log::{warn, error};
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::broker_statement::PartialBrokerStatement;
+use crate::broker_statement::fees::Fee;
+use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
@@ -335,7 +336,19 @@ impl CashFlows {
                     statement.cash_flows.push(
                         CashAssets::new_from_cash(date, Cash::new(currency, amount)));
                 },
-                CashFlowType::Commission => (),
+                CashFlowType::Commission => {
+                    // It's taken into account during trades processing
+                },
+                CashFlowType::Fee(description) => {
+                    let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyNegative)
+                        .map_err(|_| format!("Invalid fee amount: {}", amount))?;
+
+                    statement.fees.push(Fee {
+                        date,
+                        amount: Cash::new(currency, amount),
+                        description: Some(description),
+                    });
+                },
             };
         }
 

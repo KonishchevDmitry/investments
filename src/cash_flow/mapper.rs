@@ -53,17 +53,14 @@ impl CashFlowMapper {
     }
 
     fn fee(&mut self, fee: &Fee) {
-        let mut description = if fee.amount.is_negative() {
-            "Комиссия брокера"
-        } else {
-            "Возврат излишне удержанной комиссии"
-        }.to_owned();
-
-        if let Some(details) = fee.description.as_ref() {
-            description = format!("{}: {}", description, details)
-        }
-
-        self.add_static(fee.date, fee.amount, &description);
+        self.add_static(fee.date, fee.amount, match fee.description.as_ref() {
+            Some(description) => &description,
+            None => if fee.amount.is_negative() {
+                "Комиссия брокера"
+            } else {
+                "Возврат излишне удержанной комиссии"
+            },
+        });
     }
 
     fn deposit_or_withdrawal(&mut self, assets: &CashAssets) {

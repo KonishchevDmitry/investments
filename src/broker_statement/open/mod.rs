@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        let broker = Broker::OpenBroker.get_info(&Config::mock(), None).unwrap();
+        let broker = Broker::Open.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
             broker, "testdata/open-broker", TaxRemapping::new(), true).unwrap();
@@ -65,7 +65,7 @@ mod tests {
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
 
-        assert!(statement.fees.is_empty());
+        assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
 
         assert!(statement.forex_trades.is_empty());

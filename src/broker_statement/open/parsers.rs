@@ -46,24 +46,33 @@ pub fn parse_quantity(decimal_quantity: Decimal, allow_zero: bool) -> GenericRes
 
 #[derive(Debug)]
 pub enum CashFlowType {
-    // TODO: Withdrawal support
     Deposit,
     Commission,
+    Fee(String),
 }
 
 impl CashFlowType {
     pub fn parse(description: &str) -> GenericResult<CashFlowType> {
-        Ok(if
-            description.starts_with("Комиссия ") ||
-            description.starts_with("Ежегодная комиссия ") ||
-            description.starts_with("Вознаграждение Брокера ")
-        {
-            CashFlowType::Commission
-        } else if description.starts_with("Поставлены на торги средства клиента ") {
-            CashFlowType::Deposit
-        } else {
-            return Err!("Unable to determine cash flow type by its description: {:?}", description);
-        })
+        if description.starts_with(r#"Комиссия Брокера / Доп. комиссия Брокера "Сборы ТС" за заключение сделок "#) {
+            return Ok(CashFlowType::Commission)
+        }
+
+        for &fee_description in &[
+            "Комиссия за ведение учета ЦБ",
+            "Ежегодная комиссия за ведение учета ЦБ",
+            "Комиссия за предоставление информации Брокером по ЦБ",
+            "Вознаграждение Брокера за предоставление информации по движению и учету ценных бумаг",
+        ] {
+            if description.starts_with(fee_description) {
+                return Ok(CashFlowType::Fee(fee_description.to_owned()))
+            }
+        }
+
+        if description.starts_with("Поставлены на торги средства клиента ") {
+            return Ok(CashFlowType::Deposit);
+        }
+
+        return Err!("Unable to determine cash flow type by its description: {:?}", description);
     }
 }
 
@@ -91,16 +100,28 @@ mod tests {
         );
 
         assert_matches!(
-            CashFlowType::parse("Комиссия Брокера / Доп. комиссия Брокера &quot;Сборы ТС&quot; за заключение сделок 12.12.2017 на Фондовый Рынок Московской биржи по счету 123456i").unwrap(),
+            CashFlowType::parse(r#"Комиссия Брокера / Доп. комиссия Брокера "Сборы ТС" за заключение сделок 12.12.2017 на Фондовый Рынок Московской биржи по счету 123456i"#).unwrap(),
             CashFlowType::Commission
         );
+
+        assert_matches!(
+            CashFlowType::parse("Комиссия за ведение учета ЦБ в НКО АО НРД за февраль, 2018 г.").unwrap(),
+            CashFlowType::Fee(d) if d == "Комиссия за ведение учета ЦБ"
+        );
+
         assert_matches!(
             CashFlowType::parse("Ежегодная комиссия за ведение учета ЦБ в НКО АО НРД за 2017 г.").unwrap(),
-            CashFlowType::Commission
+            CashFlowType::Fee(d) if d == "Ежегодная комиссия за ведение учета ЦБ"
         );
+
+        assert_matches!(
+            CashFlowType::parse("Комиссия за предоставление информации Брокером по ЦБ по месту хранения НКО АО НРД за апрель, 2018 г.").unwrap(),
+            CashFlowType::Fee(d) if d == "Комиссия за предоставление информации Брокером по ЦБ"
+        );
+
         assert_matches!(
             CashFlowType::parse("Вознаграждение Брокера за предоставление информации по движению и учету ценных бумаг/ИФИ в портфеле Фондовый Рынок Московской биржи за январь 2020").unwrap(),
-            CashFlowType::Commission
+            CashFlowType::Fee(d) if d == "Вознаграждение Брокера за предоставление информации по движению и учету ценных бумаг"
         );
     }
 }
