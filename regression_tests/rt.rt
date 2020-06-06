@@ -2,108 +2,140 @@
 EXPECTED_PATH: testdata/rt_expected
 ACTUAL_PATH: testdata/rt_actual
 
-[1]
+# Deposits
+
+[10]
 NAME: Deposits
 STDOUT: deposits
 APP: regression_tests/investments
+     testdata/config
      deposits
-[2]
+
+[11]
 NAME: Deposits cron mode
 STDOUT: deposits-cron
 APP: regression_tests/investments
+     testdata/config
      deposits
      --cron
      --date
      01.01.2100
 
-[10]
+# Portfolios
+
+[20]
 NAME: IB portfolio
 STDOUT: ib-show
 APP: regression_tests/investments
+     testdata/config
      show
      ib
-[20]
+
+[21]
 NAME: Tinkoff portfolio
 STDOUT: tinkoff-show
 APP: regression_tests/investments
+     testdata/config
      show
      tinkoff
-[30]
+
+[22]
 NAME: Open Broker portfolio
 STDOUT: open-show
 APP: regression_tests/investments
+     testdata/config
      show
      open
-[40]
+
+[23]
 NAME: BCS portfolio
 STDOUT: bcs-show
 APP: regression_tests/investments
+     testdata/config
      show
      bcs
 
-[11]
+# Analyse
+
+[30]
 NAME: IB analyse
 STDOUT: ib-analyse
 APP: regression_tests/investments
+     testdata/config
      analyse
      ib
      --all
-[21]
+
+[31]
 NAME: Tinkoff analyse
 STDOUT: tinkoff-analyse
 APP: regression_tests/investments
+     testdata/config
      analyse
      tinkoff
      --all
-[31]
+
+[32]
 NAME: Open Broker analyse
 STDOUT: open-analyse
 APP: regression_tests/investments
+     testdata/config
      analyse
      open
      --all
-[41]
+
+[33]
 NAME: BCS analyse
 STDOUT: bcs-analyse
 APP: regression_tests/investments
+     testdata/config
      analyse
      bcs
      --all
 
-[12]
+# Simulate sell
+
+[40]
 NAME: IB simulate sell
 STDOUT: ib-simulate-sell
 APP: regression_tests/investments
+     testdata/config
      simulate-sell
      ib
      all
      VTI
      all
      BND
-[22]
+
+[41]
 NAME: Tinkoff simulate sell
 STDOUT: tinkoff-simulate-sell
 APP: regression_tests/investments
+     testdata/config
      simulate-sell
      tinkoff
      all
      FXUS
      all
      FXRU
-[32]
+
+[42]
 NAME: Open Broker simulate sell
 STDOUT: open-simulate-sell
 APP: regression_tests/investments
+     testdata/config
      simulate-sell
      open
      all
      FXUS
      all
      FXRU
-[42]
+
+[43]
 NAME: BCS simulate sell
 STDOUT: bcs-simulate-sell
 APP: regression_tests/investments
+     testdata/config
      simulate-sell
      bcs
      all
@@ -111,111 +143,160 @@ APP: regression_tests/investments
      all
      FXRU
 
-[13]
+# Rebalance
+
+[50]
 NAME: IB rebalance
 STDOUT: ib-rebalance
 APP: regression_tests/investments
+     testdata/config
      rebalance
      ib
-[23]
+
+[51]
 NAME: Tinkoff rebalance
 STDOUT: tinkoff-rebalance
 APP: regression_tests/investments
+     testdata/config
      rebalance
      tinkoff
-[33]
+
+[52]
 NAME: Open Broker rebalance
 STDOUT: open-rebalance
 APP: regression_tests/investments
+     testdata/config
      rebalance
      open
-[43]
+
+[53]
 NAME: BCS rebalance
 STDOUT: bcs-rebalance
 APP: regression_tests/investments
+     testdata/config
      rebalance
      bcs
 
-[14]
+# Tax statement
+
+[600]
 NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
 APP: regression_tests/investments
+     testdata/config
      tax-statement
      ib
      2018
-[15]
+
+[601]
 NAME: IB tax statement generation 2018
 APP: regression_tests/test-tax-statement
+     testdata/config
      ib
      2018
      $OUT_PATH/ib-tax-statement-2018.dc8
 DIFF: rt-binary
-[16]
+
+[602]
 NAME: IB tax statement 2019
 STDOUT: ib-tax-statement-2019
 APP: regression_tests/investments
+     testdata/config
      tax-statement
      ib
      2019
-[17]
+
+[603]
 NAME: IB tax statement generation 2019
 APP: regression_tests/test-tax-statement
+     testdata/config
      ib
      2019
      $OUT_PATH/ib-tax-statement-2019.dc9
 DIFF: rt-binary
-[18]
+
+[604]
 NAME: IB tax statement 2020
 STDOUT: ib-tax-statement-2020
 APP: regression_tests/investments
+     testdata/config
      tax-statement
      ib
      2020
 
-[24]
+[61]
 NAME: Tinkoff tax statement
 STDOUT: tinkoff-tax-statement
 APP: regression_tests/investments
+     testdata/config
      tax-statement
      tinkoff
-[34]
+
+[62]
 NAME: Open Broker tax statement
 STDOUT: open-tax-statement
 APP: regression_tests/investments
+     testdata/config
      tax-statement
      open
-[44]
+
+[63]
 NAME: BCS tax statement
 STDOUT: bcs-tax-statement
 APP: regression_tests/investments
+     testdata/config
      tax-statement
      bcs
 
-[100]
+# [64]
+# NAME: IB margin RUB tax statement
+# STDOUT: ib-margin-rub-tax-statement
+# APP: regression_tests/investments
+#      testdata/interactive-brokers/margin-rub
+#      tax-statement
+#      ib
+
+# Cash flow
+
+[701]
 NAME: IB cash flow 2018
 STDOUT: ib-cash-flow-2018
 APP: regression_tests/investments
+     testdata/config
      cash-flow
      ib
      2018
-[101]
+
+[702]
 NAME: IB cash flow 2019
 STDOUT: ib-cash-flow-2019
 APP: regression_tests/investments
+     testdata/config
      cash-flow
      ib
      2019
-[102]
+
+[703]
 NAME: IB cash flow 2020
 STDOUT: ib-cash-flow-2020
 APP: regression_tests/investments
+     testdata/config
      cash-flow
      ib
      2020
 
-[200]
+[71]
 NAME: Tinkoff cash flow
 STDOUT: tinkoff-cash-flow
 APP: regression_tests/investments
+     testdata/config
      cash-flow
      tinkoff
+
+# [72]
+# NAME: IB margin RUB cash flow
+# STDOUT: ib-margin-rub-cash-flow
+# APP: regression_tests/investments
+#      testdata/interactive-brokers/margin-rub
+#      cash-flow
+#      ib
