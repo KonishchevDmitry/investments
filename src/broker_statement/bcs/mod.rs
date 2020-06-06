@@ -49,7 +49,7 @@ impl BrokerStatementReader for StatementReader {
             )).required(),
             Section::new("Остаток денежных средств на начало периода (Рубль):").required(),
             Section::new("Остаток денежных средств на конец периода (Рубль):").required(),
-            Section::new("Рубль").parser(Box::new(CashFlowParser{})).required(),
+            Section::new("Рубль").parser(Box::new(CashFlowParser{})),
 
             Section::new("2.1. Сделки:"),
             Section::new("Пай").parser(Box::new(TradesParser{})),
