@@ -183,7 +183,7 @@ fn parse_cash_flow(
             CashAssets::new_from_cash(date, check_amount(deposit)?)),
         "Вывод средств" => statement.cash_flows.push(
             CashAssets::new_from_cash(date, -check_amount(withdrawal)?)),
-        "Покупка/продажа" | "Комиссия за сделки" => {},
+        "Покупка/продажа" | "Комиссия за сделки" | "Комиссия по тарифу" => {},
         _ => {
             if cfg!(debug_assertions) {
                 return Err!("Unsupported cash flow operation: {:?}", operation)
