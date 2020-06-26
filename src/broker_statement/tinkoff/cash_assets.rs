@@ -4,6 +4,7 @@ use num_traits::Zero;
 
 use xls_table_derive::XlsTableRow;
 
+use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
@@ -183,7 +184,12 @@ fn parse_cash_flow(
             CashAssets::new_from_cash(date, check_amount(deposit)?)),
         "Вывод средств" => statement.cash_flows.push(
             CashAssets::new_from_cash(date, -check_amount(withdrawal)?)),
-        "Покупка/продажа" | "Комиссия за сделки" | "Комиссия по тарифу" => {},
+        "Комиссия по тарифу" => statement.fees.push(Fee {
+            date,
+            amount: -check_amount(withdrawal)?,
+            description: Some(operation.clone()),
+        }),
+        "Покупка/продажа" | "Комиссия за сделки" => {},
         _ => {
             if cfg!(debug_assertions) {
                 return Err!("Unsupported cash flow operation: {:?}", operation)
