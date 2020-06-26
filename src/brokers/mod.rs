@@ -33,6 +33,7 @@ impl Broker {
             name: self.get_name(),
             config: config,
             commission_spec: self.get_commission_spec(plan)?,
+            allow_future_fees: matches!(self, Broker::Tinkoff),
             allow_sparse_broker_statements: matches!(self, Broker::Bcs),
         })
     }
@@ -108,8 +109,10 @@ impl<'de> Deserialize<'de> for Broker {
 pub struct BrokerInfo {
     pub type_: Broker,
     pub name: &'static str,
+
     config: BrokerConfig,
     pub commission_spec: CommissionSpec,
+    pub allow_future_fees: bool,
     pub allow_sparse_broker_statements: bool,
 }
 

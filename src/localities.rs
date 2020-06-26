@@ -63,6 +63,11 @@ pub fn russia() -> Country {
     }
 }
 
+pub fn is_valid_execution_date(conclusion: Date, execution: Date) -> bool {
+    let expected_execution = conclusion + Duration::days(2);
+    conclusion <= execution && get_russian_stock_exchange_min_last_working_day(execution) <= expected_execution
+}
+
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     // New Year holidays
     if today.month() == 1 && today.day() < 10 {

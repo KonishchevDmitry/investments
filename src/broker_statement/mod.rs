@@ -24,6 +24,7 @@ use crate::commissions::CommissionCalc;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
+use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
 use crate::types::{Date, Decimal, TradeType};
@@ -144,7 +145,6 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
-        statement.sort()?;
         statement.validate()?;
         statement.process_trades()?;
 
@@ -419,15 +419,85 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn sort(&mut self) -> EmptyResult {
-        self.fees.sort_by_key(|fee| fee.date);
-        self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
-        self.idle_cash_interest.sort_by_key(|interest| interest.date);
-        self.forex_trades.sort_by_key(|trade| trade.conclusion_date);
-        self.sort_stock_buys()?;
-        self.sort_stock_sells()?;
-        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+    fn validate(&mut self) -> EmptyResult {
+        let min_date = self.period.0;
+        let max_date = self.last_date();
+        let validate_date = |name, first_date, last_date| -> EmptyResult {
+            if first_date < min_date {
+                return Err!("Got a {} outside of statement period: {}",
+                    name, formatting::format_date(first_date));
+            }
+
+            if last_date > max_date {
+                return Err!("Got a {} outside of statement period: {}",
+                    name, formatting::format_date(first_date));
+            }
+
+            Ok(())
+        };
+
+        if !self.cash_flows.is_empty() {
+            self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
+            let first_date = self.cash_flows.first().unwrap().date;
+            let last_date = self.cash_flows.last().unwrap().date;
+            validate_date("cash flow", first_date, last_date)?;
+        }
+
+        if !self.fees.is_empty() {
+            self.sort_and_alter_fees(max_date);
+            let first_date = self.fees.first().unwrap().date;
+            let last_date = self.fees.last().unwrap().date;
+            validate_date("fee", first_date, last_date)?;
+        }
+
+        if !self.idle_cash_interest.is_empty() {
+            self.idle_cash_interest.sort_by_key(|interest| interest.date);
+            let first_date = self.idle_cash_interest.first().unwrap().date;
+            let last_date = self.idle_cash_interest.last().unwrap().date;
+            validate_date("idle cash interest", first_date, last_date)?;
+        }
+
+        if !self.forex_trades.is_empty() {
+            self.forex_trades.sort_by_key(|trade| trade.conclusion_date);
+            let first_date = self.forex_trades.first().unwrap().conclusion_date;
+            let last_date = self.forex_trades.last().unwrap().conclusion_date;
+            validate_date("forex trade", first_date, last_date)?;
+        }
+
+        if !self.stock_buys.is_empty() {
+            self.sort_stock_buys()?;
+            let first_date = self.stock_buys.first().unwrap().conclusion_date;
+            let last_date = self.stock_buys.last().unwrap().conclusion_date;
+            validate_date("stock buy", first_date, last_date)?;
+        }
+
+        if !self.stock_sells.is_empty() {
+            self.sort_stock_sells()?;
+            let first_date = self.stock_sells.first().unwrap().conclusion_date;
+            let last_date = self.stock_sells.last().unwrap().conclusion_date;
+            validate_date("stock sell", first_date, last_date)?;
+        }
+
+        if !self.dividends.is_empty() {
+            self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+            let first_date = self.dividends.first().unwrap().date;
+            let last_date = self.dividends.last().unwrap().date;
+            validate_date("dividend", first_date, last_date)?;
+        }
+
         Ok(())
+    }
+
+    fn sort_and_alter_fees(&mut self, max_date: Date) {
+        if self.broker.allow_future_fees {
+            for fee in &mut self.fees {
+                if fee.date > max_date && localities::is_valid_execution_date(max_date, fee.date) {
+                    fee.date = max_date;
+                }
+            }
+        }
+
+        self.fees.sort_by_key(|fee| fee.date);
     }
 
     fn sort_stock_buys(&mut self) -> EmptyResult {
@@ -461,68 +531,6 @@ impl BrokerStatement {
             }
 
             prev_execution_date = Some(stock_sell.execution_date);
-        }
-
-        Ok(())
-    }
-
-    fn validate(&self) -> EmptyResult {
-        let min_date = self.period.0;
-        let max_date = self.last_date();
-        let validate_date = |name, first_date, last_date| -> EmptyResult {
-            if first_date < min_date {
-                return Err!("Got a {} outside of statement period: {}",
-                    name, formatting::format_date(first_date));
-            }
-
-            if last_date > max_date {
-                return Err!("Got a {} outside of statement period: {}",
-                    name, formatting::format_date(first_date));
-            }
-
-            Ok(())
-        };
-
-        if !self.cash_flows.is_empty() {
-            let first_date = self.cash_flows.first().unwrap().date;
-            let last_date = self.cash_flows.last().unwrap().date;
-            validate_date("cash flow", first_date, last_date)?;
-        }
-
-        if !self.fees.is_empty() {
-            let first_date = self.fees.first().unwrap().date;
-            let last_date = self.fees.last().unwrap().date;
-            validate_date("fee", first_date, last_date)?;
-        }
-
-        if !self.idle_cash_interest.is_empty() {
-            let first_date = self.idle_cash_interest.first().unwrap().date;
-            let last_date = self.idle_cash_interest.last().unwrap().date;
-            validate_date("idle cash interest", first_date, last_date)?;
-        }
-
-        if !self.forex_trades.is_empty() {
-            let first_date = self.forex_trades.first().unwrap().conclusion_date;
-            let last_date = self.forex_trades.last().unwrap().conclusion_date;
-            validate_date("forex trade", first_date, last_date)?;
-        }
-
-        if !self.stock_buys.is_empty() {
-            let first_date = self.stock_buys.first().unwrap().conclusion_date;
-            let last_date = self.stock_buys.last().unwrap().conclusion_date;
-            validate_date("stock buy", first_date, last_date)?;
-        }
-
-        if !self.stock_sells.is_empty() {
-            let first_date = self.stock_sells.first().unwrap().conclusion_date;
-            let last_date = self.stock_sells.last().unwrap().conclusion_date;
-            validate_date("stock sell", first_date, last_date)?;
-        }
-
-        if !self.dividends.is_empty() {
-            let first_date = self.dividends.first().unwrap().date;
-            let last_date = self.dividends.last().unwrap().date;
-            validate_date("dividend", first_date, last_date)?;
         }
 
         Ok(())
