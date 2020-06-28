@@ -1,3 +1,7 @@
+mod common;
+mod parser;
+mod security_info;
+
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{Read, BufReader, BufRead, Seek, SeekFrom};
@@ -10,7 +14,7 @@ use crate::core::GenericResult;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-// use self::model::BrokerReport;
+use self::parser::OFX;
 
 pub struct StatementReader {
 }
@@ -29,7 +33,7 @@ impl BrokerStatementReader for StatementReader {
     // FIXME(konishchev): Implement
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut statement = PartialBrokerStatement::new();
-        read_statement(path)?;//.parse(&mut statement)?;
+        println!("{:#?}", read_statement(path)?);//.parse(&mut statement)?;
         // statement.validate()
         statement.set_period((date!(1, 1, 1), date!(1, 1, 1)))?;
         statement.set_starting_assets(false)?;
@@ -37,10 +41,7 @@ impl BrokerStatementReader for StatementReader {
     }
 }
 
-struct BrokerReport {
-}
-
-fn read_statement(path: &str) -> GenericResult<BrokerReport> {
+fn read_statement(path: &str) -> GenericResult<OFX> {
     let file = File::open(path)?;
     let size: i64 = file.metadata()?.len().try_into().unwrap();
     let mut reader = BufReader::new(file);
@@ -71,9 +72,7 @@ fn read_statement(path: &str) -> GenericResult<BrokerReport> {
         return Err!("Got an unexpected OFX file contents");
     }
 
-    // FIXME(konishchev): Implement
-    Ok(BrokerReport{})
-    // Ok(serde_xml_rs::from_str(&data).map_err(|e| e.to_string())?)
+    Ok(quick_xml::de::from_str(&data)?)
 }
 
 #[cfg(test)]
