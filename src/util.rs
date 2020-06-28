@@ -8,6 +8,7 @@ use regex::Regex;
 use rust_decimal::RoundingStrategy;
 
 use crate::core::GenericResult;
+use crate::formatting;
 use crate::types::{Date, Time, DateTime, Decimal};
 
 #[derive(Clone, Copy)]
@@ -74,6 +75,16 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
     }
 
     round_value.normalize()
+}
+
+pub fn parse_period(start: Date, mut end: Date) -> GenericResult<(Date, Date)> {
+    end += Duration::days(1);
+
+    if start >= end {
+        return Err!("Invalid period: {}", formatting::format_period(start, end));
+    }
+
+    Ok((start, end))
 }
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {

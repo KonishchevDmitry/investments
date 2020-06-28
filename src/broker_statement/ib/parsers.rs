@@ -5,7 +5,6 @@ use log::{warn, trace};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
-use crate::formatting;
 use crate::types::Date;
 use crate::util::{self, DecimalRestrictions};
 
@@ -157,15 +156,8 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
         },
         2 => {
             let start = parse_period_date(dates[0])?;
-
-            let mut end = parse_period_date(dates[1])?;
-            end += Duration::days(1);
-
-            if start >= end {
-                return Err!("Invalid period: {}", formatting::format_period(start, end));
-            }
-
-            (start, end)
+            let end = parse_period_date(dates[1])?;
+            util::parse_period(start, end)?
         },
         _ => return Err!("Invalid date: {:?}", period),
     })

@@ -1,11 +1,10 @@
-use chrono::Duration;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
-use crate::formatting;
 use crate::types::Date;
+use crate::util;
 use crate::xls;
 
 use super::common::parse_date;
@@ -32,12 +31,9 @@ fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
 
     let captures = PERIOD_REGEX.captures(value).ok_or_else(|| format!(
         "Invalid period: {:?}", value))?;
-    let start = parse_date(captures.name("start").unwrap().as_str())?;
-    let end = parse_date(captures.name("end").unwrap().as_str())? + Duration::days(1);
 
-    if start >= end {
-        return Err!("Invalid period: {}", formatting::format_period(start, end));
-    }
-
-    Ok((start, end))
+    util::parse_period(
+        parse_date(captures.name("start").unwrap().as_str())?,
+        parse_date(captures.name("end").unwrap().as_str())?,
+    )
 }

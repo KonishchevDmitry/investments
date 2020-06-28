@@ -32,12 +32,7 @@ impl BrokerStatementReader for StatementReader {
 
     // FIXME(konishchev): Implement
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        let mut statement = PartialBrokerStatement::new();
-        println!("{:#?}", read_statement(path)?);//.parse(&mut statement)?;
-        // statement.validate()
-        statement.set_period((date!(1, 1, 1), date!(1, 1, 1)))?;
-        statement.set_starting_assets(false)?;
-        Ok(statement)
+        read_statement(path)?.parse()
     }
 }
 
