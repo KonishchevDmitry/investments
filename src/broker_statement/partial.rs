@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::brokers::BrokerInfo;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
@@ -13,7 +12,6 @@ use super::trades::{ForexTrade, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxAccruals};
 
 pub struct PartialBrokerStatement {
-    pub broker: BrokerInfo,
     pub period: Option<(Date, Date)>,
 
     pub starting_assets: Option<bool>,
@@ -36,9 +34,8 @@ pub struct PartialBrokerStatement {
 }
 
 impl PartialBrokerStatement {
-    pub fn new(broker: BrokerInfo) -> PartialBrokerStatement {
+    pub fn new() -> PartialBrokerStatement {
         PartialBrokerStatement {
-            broker: broker,
             period: None,
 
             starting_assets: None,

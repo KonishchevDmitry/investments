@@ -15,7 +15,6 @@ use csv::{self, StringRecord};
 use log::{trace, warn};
 
 #[cfg(test)] use crate::brokers::Broker;
-use crate::brokers::BrokerInfo;
 #[cfg(test)] use crate::config::{self, Config};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
@@ -30,8 +29,6 @@ use self::common::{RecordSpec, Record, RecordParser, format_record};
 use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
-    broker_info: BrokerInfo,
-
     tax_remapping: RefCell<TaxRemapping>,
     trade_execution_dates: RefCell<TradeExecutionDates>,
 
@@ -40,12 +37,8 @@ pub struct StatementReader {
 }
 
 impl StatementReader {
-    pub fn new(
-        broker_info: BrokerInfo, tax_remapping: TaxRemapping, strict_mode: bool,
-    ) -> GenericResult<Box<dyn BrokerStatementReader>> {
+    pub fn new(tax_remapping: TaxRemapping, strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
-            broker_info,
-
             tax_remapping: RefCell::new(tax_remapping),
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
 
@@ -74,7 +67,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
-            statement: PartialBrokerStatement::new(self.broker_info.clone()),
+            statement: PartialBrokerStatement::new(),
 
             base_currency: None,
             base_currency_summary: None,
@@ -347,8 +340,7 @@ mod tests {
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
-        let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(broker, TaxRemapping::new(), true).unwrap().read(&path).unwrap();
+        StatementReader::new(TaxRemapping::new(), true).unwrap().read(&path).unwrap();
     }
 }

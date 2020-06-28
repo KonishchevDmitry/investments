@@ -68,12 +68,12 @@ impl BrokerStatement {
     ) -> GenericResult<BrokerStatement> {
         let mut tax_remapping = Some(tax_remapping);
         let mut statement_reader = match broker.type_ {
-            Broker::Bcs => bcs::StatementReader::new(broker),
-            Broker::Firstrade => firstrade::StatementReader::new(broker),
+            Broker::Bcs => bcs::StatementReader::new(),
+            Broker::Firstrade => firstrade::StatementReader::new(),
             Broker::InteractiveBrokers => ib::StatementReader::new(
-                broker, tax_remapping.take().unwrap(), strict_mode),
-            Broker::Open => open::StatementReader::new(broker),
-            Broker::Tinkoff => tinkoff::StatementReader::new(broker),
+                tax_remapping.take().unwrap(), strict_mode),
+            Broker::Open => open::StatementReader::new(),
+            Broker::Tinkoff => tinkoff::StatementReader::new(),
         }?;
 
         let mut file_names = get_statement_files(statement_dir_path, statement_reader.as_ref())
@@ -102,15 +102,15 @@ impl BrokerStatement {
         }
         statement_reader.close()?;
 
-        let joint_statement = BrokerStatement::new_from(statements)?;
+        let joint_statement = BrokerStatement::new_from(broker, statements)?;
         debug!("{:#?}", joint_statement);
         Ok(joint_statement)
     }
 
-    fn new_from(mut statements: Vec<PartialBrokerStatement>) -> GenericResult<BrokerStatement> {
+    fn new_from(broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
-        let mut statement = BrokerStatement::new_empty_from(statements.first().unwrap())?;
+        let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
@@ -154,7 +154,7 @@ impl BrokerStatement {
         Ok(statement)
     }
 
-    fn new_empty_from(statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
+    fn new_empty_from(broker: BrokerInfo, statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
         let mut period = statement.get_period()?;
         period.1 = period.0;
 
@@ -163,7 +163,7 @@ impl BrokerStatement {
         }
 
         Ok(BrokerStatement {
-            broker: statement.broker.clone(),
+            broker,
             period: period,
 
             cash_assets: MultiCurrencyCashAccount::new(),
@@ -388,7 +388,7 @@ impl BrokerStatement {
     fn merge(&mut self, mut statement: PartialBrokerStatement) -> EmptyResult {
         let period = statement.get_period()?;
 
-        if statement.broker.allow_sparse_broker_statements {
+        if self.broker.allow_sparse_broker_statements {
             if period.0 < self.period.1 {
                 return Err!("Overlapping periods: {}, {}",
                     formatting::format_period(self.period.0, self.period.1),

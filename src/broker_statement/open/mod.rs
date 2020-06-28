@@ -1,5 +1,4 @@
 #[cfg(test)] use crate::brokers::Broker;
-use crate::brokers::BrokerInfo;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
@@ -13,12 +12,11 @@ mod parsers;
 mod model;
 
 pub struct StatementReader {
-    broker_info: BrokerInfo,
 }
 
 impl StatementReader {
-    pub fn new(broker_info: BrokerInfo) -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{broker_info}))
+    pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
+        Ok(Box::new(StatementReader{}))
     }
 }
 
@@ -28,7 +26,7 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        let mut statement = PartialBrokerStatement::new(self.broker_info.clone());
+        let mut statement = PartialBrokerStatement::new();
         read_statement(path)?.parse(&mut statement)?;
         statement.validate()
     }

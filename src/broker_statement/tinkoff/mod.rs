@@ -11,7 +11,6 @@ use lazy_static::lazy_static;
 use regex::{self, Regex};
 
 #[cfg(test)] use crate::brokers::Broker;
-use crate::brokers::BrokerInfo;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
@@ -27,12 +26,11 @@ use period::PeriodParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
-    broker_info: BrokerInfo,
 }
 
 impl StatementReader {
-    pub fn new(broker_info: BrokerInfo) -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{broker_info}))
+    pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
+        Ok(Box::new(StatementReader{}))
     }
 }
 
@@ -45,7 +43,7 @@ impl BrokerStatementReader for StatementReader {
         let sheet_parser = Box::new(StatementSheetParser{});
         let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
 
-        XlsStatementParser::read(self.broker_info.clone(), path, sheet_parser, vec![
+        XlsStatementParser::read(path, sheet_parser, vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX)
                 .by_prefix().parser_rc(period_parser.clone()).required(),
             Section::new(PeriodParser::PERIOD_PREFIX)

@@ -5,7 +5,6 @@ mod period;
 mod trades;
 
 #[cfg(test)] use crate::brokers::Broker;
-use crate::brokers::BrokerInfo;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
@@ -21,12 +20,11 @@ use period::PeriodParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
-    broker_info: BrokerInfo,
 }
 
 impl StatementReader {
-    pub fn new(broker_info: BrokerInfo) -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{broker_info}))
+    pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
+        Ok(Box::new(StatementReader{}))
     }
 }
 
@@ -38,7 +36,7 @@ impl BrokerStatementReader for StatementReader {
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
 
-        XlsStatementParser::read(self.broker_info.clone(), path, parser, vec![
+        XlsStatementParser::read(path, parser, vec![
             Section::new("Период:").parser(Box::new(PeriodParser{})).required(),
 
             Section::new("1. Движение денежных средств").required(),

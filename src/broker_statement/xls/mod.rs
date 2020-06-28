@@ -2,7 +2,6 @@ mod sections;
 
 use crate::core::GenericResult;
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::brokers::BrokerInfo;
 use crate::xls::{SheetReader, SheetParser};
 
 use self::sections::SectionState;
@@ -15,10 +14,10 @@ pub struct XlsStatementParser {
 
 impl XlsStatementParser {
     pub fn read(
-        broker_info: BrokerInfo, path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>,
+        path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>,
     ) -> GenericResult<PartialBrokerStatement> {
         XlsStatementParser {
-            statement: PartialBrokerStatement::new(broker_info),
+            statement: PartialBrokerStatement::new(),
             sheet: SheetReader::new(path, parser)?,
         }.parse(sections)
     }
