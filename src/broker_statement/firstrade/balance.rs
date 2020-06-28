@@ -4,19 +4,20 @@ use serde::Deserialize;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
+use crate::types::Decimal;
 use crate::util::{DecimalRestrictions, validate_decimal};
 
-use super::common::{DecimalField, Ignore};
+use super::common::{Ignore, deserialize_decimal};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Balance {
-    #[serde(rename = "AVAILCASH")]
-    cash: DecimalField,
-    #[serde(rename = "MARGINBALANCE")]
-    margin: DecimalField,
-    #[serde(rename = "SHORTBALANCE")]
-    short: DecimalField,
+    #[serde(rename = "AVAILCASH", deserialize_with = "deserialize_decimal")]
+    cash: Decimal,
+    #[serde(rename = "MARGINBALANCE", deserialize_with = "deserialize_decimal")]
+    margin: Decimal,
+    #[serde(rename = "SHORTBALANCE", deserialize_with = "deserialize_decimal")]
+    short: Decimal,
     #[serde(rename = "BUYPOWER")]
     buy_power: Ignore,
     #[serde(rename = "BALLIST")]
@@ -25,11 +26,11 @@ pub struct Balance {
 
 impl Balance {
     pub fn parse(self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
-        if !self.margin.value.is_zero() || !self.short.value.is_zero() {
+        if !self.margin.is_zero() || !self.short.is_zero() {
             return Err!("Margin accounts are not supported");
         }
 
-        let cash_assets = validate_decimal(self.cash.value, DecimalRestrictions::PositiveOrZero)?;
+        let cash_assets = validate_decimal(self.cash, DecimalRestrictions::PositiveOrZero)?;
         statement.cash_assets.deposit(Cash::new(currency, cash_assets));
 
         Ok(())
