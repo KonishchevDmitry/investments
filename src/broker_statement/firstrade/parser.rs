@@ -5,6 +5,7 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::types::Date;
 use crate::util;
 
+use super::balance::Balance;
 use super::common::{Ignore, deserialize_date};
 use super::security_info::SecurityInfoSection;
 
@@ -53,7 +54,7 @@ pub struct Statement {
     #[serde(rename = "INVTRANLIST")]
     transactions: Transactions,
     #[serde(rename = "INVBAL")]
-    balance: Ignore,
+    balance: Balance,
     #[serde(rename = "INVPOSLIST")]
     open_positions: Ignore,
 }
@@ -83,6 +84,7 @@ impl OFX {
         println!("{:#?}", self); // FIXME(konishchev): Remove
 
         let report = self.statement.response.statement;
+        let currency = report.currency;
         let transactions = report.transactions;
 
         let (start_date, end_date) = util::parse_period(
@@ -96,10 +98,12 @@ impl OFX {
                 "opening date until the date when the report is generated"))
         }
 
+        // FIXME(konishchev): Implement
         let mut statement = PartialBrokerStatement::new();
         statement.set_period((start_date, end_date))?;
         statement.set_starting_assets(false)?;
-        // statement.validate()
-        Ok(statement)
+        report.balance.parse(&mut statement, &currency)?;
+
+        statement.validate()
     }
 }

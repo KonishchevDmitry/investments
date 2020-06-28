@@ -2,11 +2,17 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::core::GenericResult;
-use crate::types::Date;
+use crate::types::{Date, Decimal};
 use crate::util;
 
 #[derive(Debug, Deserialize)]
 pub struct Ignore {
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DecimalField {
+    #[serde(rename = "$value")]
+    pub value: Decimal,
 }
 
 fn parse_date(date: &str) -> GenericResult<Date> {
