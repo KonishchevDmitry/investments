@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::{Read, BufReader};
-
 #[cfg(test)] use crate::brokers::Broker;
 use crate::brokers::BrokerInfo;
 #[cfg(test)] use crate::config::Config;
@@ -38,10 +35,7 @@ impl BrokerStatementReader for StatementReader {
 }
 
 fn read_statement(path: &str) -> GenericResult<BrokerReport> {
-    let mut data = Vec::new();
-
-    let mut reader = BufReader::new(File::open(path)?);
-    reader.read_to_end(&mut data)?;
+    let data = std::fs::read(path)?;
 
     let (data, _, errors) = encoding_rs::WINDOWS_1251.decode(data.as_slice());
     if errors {

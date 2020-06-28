@@ -15,6 +15,7 @@ use crate::types::Decimal;
 #[derive(Debug, Clone, Copy)]
 pub enum Broker {
     Bcs,
+    Firstrade,
     InteractiveBrokers,
     Open,
     Tinkoff,
@@ -41,6 +42,7 @@ impl Broker {
     fn get_name(self) -> &'static str {
         match self {
             Broker::Bcs => "ООО «Компания БКС»",
+            Broker::Firstrade => "Firstrade Securities Inc.",
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
             Broker::Open => "АО «Открытие Брокер»",
             Broker::Tinkoff => "АО «Тинькофф Банк»",
@@ -50,6 +52,7 @@ impl Broker {
     fn get_config(self, config: &BrokersConfig) -> Option<&BrokerConfig> {
         match self {
             Broker::Bcs => &config.bcs,
+            Broker::Firstrade => &config.firstrade,
             Broker::InteractiveBrokers => &config.interactive_brokers,
             Broker::Open => &config.open_broker,
             Broker::Tinkoff => &config.tinkoff,
@@ -63,6 +66,8 @@ impl Broker {
             Broker::Bcs => (plans::bcs::professional, btreemap!{
                 "Профессиональный" => plans::bcs::professional as PlanFn,
             }),
+            // FIXME(konishchev): Implement
+            Broker::Firstrade => (plans::ib::fixed, btreemap!{}),
             Broker::InteractiveBrokers => (plans::ib::fixed, btreemap!{
                 "Fixed" => plans::ib::fixed as PlanFn,
             }),

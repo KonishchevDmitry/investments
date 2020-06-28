@@ -1,15 +1,17 @@
-mod bcs;
 mod dividends;
 mod fees;
-mod ib;
 mod interest;
-mod open;
 mod partial;
 mod payments;
 mod taxes;
-mod tinkoff;
 mod trades;
 mod xls;
+
+mod bcs;
+mod firstrade;
+mod ib;
+mod open;
+mod tinkoff;
 
 use std::{self, fs};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -67,6 +69,7 @@ impl BrokerStatement {
         let mut tax_remapping = Some(tax_remapping);
         let mut statement_reader = match broker.type_ {
             Broker::Bcs => bcs::StatementReader::new(broker),
+            Broker::Firstrade => firstrade::StatementReader::new(broker),
             Broker::InteractiveBrokers => ib::StatementReader::new(
                 broker, tax_remapping.take().unwrap(), strict_mode),
             Broker::Open => open::StatementReader::new(broker),

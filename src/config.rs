@@ -184,6 +184,7 @@ impl AssetAllocationConfig {
 #[serde(deny_unknown_fields)]
 pub struct BrokersConfig {
     pub bcs: Option<BrokerConfig>,
+    pub firstrade: Option<BrokerConfig>,
     pub interactive_brokers: Option<BrokerConfig>,
     pub open_broker: Option<BrokerConfig>,
     pub tinkoff: Option<BrokerConfig>,
@@ -194,6 +195,7 @@ impl BrokersConfig {
     pub fn mock() -> BrokersConfig {
         BrokersConfig {
             bcs: Some(BrokerConfig::mock()),
+            firstrade: Some(BrokerConfig::mock()),
             interactive_brokers: Some(BrokerConfig::mock()),
             open_broker: Some(BrokerConfig::mock()),
             tinkoff: Some(BrokerConfig::mock()),
