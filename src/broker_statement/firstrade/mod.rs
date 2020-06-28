@@ -2,6 +2,7 @@ mod balance;
 mod common;
 mod parser;
 mod security_info;
+mod transactions;
 
 use std::convert::TryInto;
 use std::fs::File;
@@ -82,7 +83,7 @@ mod tests {
         let statement = BrokerStatement::read(
             broker, "testdata/firstrade", TaxRemapping::new(), true).unwrap();
 
-        assert!(statement.cash_flows.is_empty());
+        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
 
         assert!(statement.fees.is_empty());

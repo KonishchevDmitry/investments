@@ -8,6 +8,7 @@ use crate::util;
 use super::balance::Balance;
 use super::common::{Ignore, deserialize_date};
 use super::security_info::SecurityInfoSection;
+use super::transactions::Transactions;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -25,14 +26,14 @@ pub struct OFX {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct StatementSection {
+struct StatementSection {
     #[serde(rename = "INVSTMTTRNRS")]
     response: StatementResponse,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct StatementResponse {
+struct StatementResponse {
     #[serde(rename = "TRNUID")]
     id: Ignore,
     #[serde(rename = "STATUS")]
@@ -43,39 +44,20 @@ pub struct StatementResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Statement {
-    // FIXME(konishchev): Support all below
+struct Statement {
     #[serde(rename = "DTASOF", deserialize_with = "deserialize_date")]
     date: Date,
     #[serde(rename = "CURDEF")]
     currency: String,
     #[serde(rename = "INVACCTFROM")]
     account: Ignore,
+    // FIXME(konishchev): Support all below
     #[serde(rename = "INVTRANLIST")]
     transactions: Transactions,
-    #[serde(rename = "INVBAL")]
-    balance: Balance,
     #[serde(rename = "INVPOSLIST")]
     open_positions: Ignore,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Transactions {
-    #[serde(rename = "DTSTART", deserialize_with = "deserialize_date")]
-    start_date: Date,
-    #[serde(rename = "DTEND", deserialize_with = "deserialize_date")]
-    end_date: Date,
-
-    // FIXME(konishchev): Support
-    #[serde(rename = "INVBANKTRAN")]
-    deposits: Vec<Ignore>,
-    #[serde(rename = "BUYSTOCK")]
-    stock_buys: Vec<Ignore>,
-    #[serde(rename = "SELLSTOCK")]
-    stock_sells: Vec<Ignore>,
-    #[serde(rename = "INCOME")]
-    income: Vec<Ignore>,
+    #[serde(rename = "INVBAL")]
+    balance: Balance,
 }
 
 impl OFX {
@@ -102,7 +84,9 @@ impl OFX {
         let mut statement = PartialBrokerStatement::new();
         statement.set_period((start_date, end_date))?;
         statement.set_starting_assets(false)?;
+
         report.balance.parse(&mut statement, &currency)?;
+        transactions.parse(&mut statement, &currency)?;
 
         statement.validate()
     }
