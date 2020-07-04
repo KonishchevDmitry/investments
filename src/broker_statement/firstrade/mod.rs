@@ -33,7 +33,6 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".ofx"))
     }
 
-    // FIXME(konishchev): Implement
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         read_statement(path)?.parse()
     }

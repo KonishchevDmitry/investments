@@ -39,12 +39,12 @@ struct StatementResponse {
     #[serde(rename = "STATUS")]
     _status: Ignore,
     #[serde(rename = "INVSTMTRS")]
-    statement: Statement,
+    report: Report,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Statement {
+struct Report {
     #[serde(rename = "DTASOF", deserialize_with = "deserialize_date")]
     date: Date,
     #[serde(rename = "CURDEF")]
@@ -60,9 +60,8 @@ struct Statement {
 }
 
 impl OFX {
-    // FIXME(konishchev): Implement
     pub fn parse(self) -> GenericResult<PartialBrokerStatement> {
-        let report = self.statement.response.statement;
+        let report = self.statement.response.report;
         let currency = report.currency;
         let transactions = report.transactions;
 
@@ -77,13 +76,13 @@ impl OFX {
                 "opening date until the date when the report is generated"))
         }
 
-        // FIXME(konishchev): Implement
         let mut statement = PartialBrokerStatement::new();
         statement.set_period((start_date, end_date))?;
+
         statement.set_starting_assets(false)?;
+        report.balance.parse(&mut statement, &currency)?;
 
         let securities = self.security_info.parse()?;
-        report.balance.parse(&mut statement, &currency)?;
         transactions.parse(&mut statement, &currency, &securities)?;
         report.open_positions.parse(&mut statement, &securities)?;
 
