@@ -73,8 +73,7 @@ impl Broker {
             Broker::Bcs => (plans::bcs::professional, btreemap!{
                 "Профессиональный" => plans::bcs::professional as PlanFn,
             }),
-            // FIXME(konishchev): Implement
-            Broker::Firstrade => (plans::ib::fixed, btreemap!{}),
+            Broker::Firstrade => (plans::firstrade::free, btreemap!{}),
             Broker::InteractiveBrokers => (plans::ib::fixed, btreemap!{
                 "Fixed" => plans::ib::fixed as PlanFn,
             }),
