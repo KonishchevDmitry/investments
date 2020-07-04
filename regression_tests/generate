@@ -3,4 +3,4 @@
 # Generates regression tests output data
 #
 
-retest verbose cpus=1 generate regression_tests/rt.rt
+retest verbose generate regression_tests/rt.rt
