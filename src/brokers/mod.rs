@@ -105,12 +105,13 @@ impl<'de> Deserialize<'de> for Broker {
 
         Ok(match value.as_str() {
             "bcs" => Broker::Bcs,
+            "firstrade" => Broker::Firstrade,
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::Open,
             "tinkoff" => Broker::Tinkoff,
 
             _ => return Err(D::Error::unknown_variant(&value, &[
-                "bcs", "interactive-brokers", "open-broker", "tinkoff",
+                "bcs", "firstrade", "interactive-brokers", "open-broker", "tinkoff",
             ])),
         })
     }
