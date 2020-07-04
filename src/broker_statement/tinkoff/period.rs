@@ -42,9 +42,7 @@ impl SectionParser for PeriodParser {
             let mut period = parse_period(cell[PeriodParser::PERIOD_PREFIX.len()..].trim())?;
             period.1 = std::cmp::min(period.1, calculation_date + Duration::days(1));
             if period.1 <= period.0 {
-                return Err!(
-                    "Got an invalid statement period: {}",
-                    formatting::format_period(period.0, period.1));
+                return Err!("Got an invalid statement period: {}", formatting::format_period(period));
             }
 
             parser.statement.set_period(period)?;

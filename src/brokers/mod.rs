@@ -6,6 +6,7 @@ use matches::matches;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error as _};
 
+use crate::broker_statement::StatementsMergingStrategy;
 use crate::commissions::CommissionSpec;
 use crate::config::{Config, BrokersConfig, BrokerConfig};
 use crate::core::GenericResult;
@@ -29,13 +30,19 @@ impl Broker {
                 "{} configuration is not set in the configuration file", self.get_name()))?
             .clone();
 
+        let statements_merging_strategy = match self {
+            Broker::Bcs => StatementsMergingStrategy::Sparse,
+            Broker::InteractiveBrokers => StatementsMergingStrategy::SparseOnHolidays(1),
+            _ => StatementsMergingStrategy::ContinuousOnly,
+        };
+
         Ok(BrokerInfo {
             type_: self,
             name: self.get_name(),
             config: config,
             commission_spec: self.get_commission_spec(plan)?,
             allow_future_fees: matches!(self, Broker::Tinkoff),
-            allow_sparse_broker_statements: matches!(self, Broker::Bcs),
+            statements_merging_strategy: statements_merging_strategy,
         })
     }
 
@@ -118,7 +125,7 @@ pub struct BrokerInfo {
     config: BrokerConfig,
     pub commission_spec: CommissionSpec,
     pub allow_future_fees: bool,
-    pub allow_sparse_broker_statements: bool,
+    pub statements_merging_strategy: StatementsMergingStrategy,
 }
 
 impl BrokerInfo {

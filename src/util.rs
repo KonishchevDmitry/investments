@@ -77,14 +77,14 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
     round_value.normalize()
 }
 
-pub fn parse_period(start: Date, mut end: Date) -> GenericResult<(Date, Date)> {
-    end += Duration::days(1);
+pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
+    let period = (start, end.succ());
 
-    if start >= end {
-        return Err!("Invalid period: {}", formatting::format_period(start, end));
+    if period.0 >= period.1 {
+        return Err!("Invalid period: {}", formatting::format_period(period));
     }
 
-    Ok((start, end))
+    Ok(period)
 }
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {

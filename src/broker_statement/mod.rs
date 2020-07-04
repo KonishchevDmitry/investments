@@ -1,6 +1,7 @@
 mod dividends;
 mod fees;
 mod interest;
+mod merging;
 mod partial;
 mod payments;
 mod taxes;
@@ -39,6 +40,7 @@ use self::taxes::{TaxId, TaxAccruals};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
+pub use self::merging::StatementsMergingStrategy;
 pub use self::trades::{ForexTrade, StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
 
 #[derive(Debug)]
@@ -205,14 +207,14 @@ impl BrokerStatement {
             return Err!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't overlap with the requested tax year ({})"),
-                formatting::format_period(self.period.0, self.period.1), year);
+                formatting::format_period(self.period), year);
         }
 
         if self.period.1 < tax_period_end {
             warn!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't fully overlap with the requested tax year ({})."
-            ), formatting::format_period(self.period.0, self.period.1), year);
+            ), formatting::format_period(self.period), year);
         }
 
         Ok(())
@@ -387,21 +389,7 @@ impl BrokerStatement {
 
     fn merge(&mut self, mut statement: PartialBrokerStatement) -> EmptyResult {
         let period = statement.get_period()?;
-
-        if self.broker.allow_sparse_broker_statements {
-            if period.0 < self.period.1 {
-                return Err!("Overlapping periods: {}, {}",
-                    formatting::format_period(self.period.0, self.period.1),
-                    formatting::format_period(period.0, period.1));
-            }
-        } else {
-            if period.0 != self.period.1 {
-                return Err!("Non-continuous periods: {}, {}",
-                    formatting::format_period(self.period.0, self.period.1),
-                    formatting::format_period(period.0, period.1));
-            }
-        }
-
+        self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
 
         self.cash_assets = statement.cash_assets.clone();

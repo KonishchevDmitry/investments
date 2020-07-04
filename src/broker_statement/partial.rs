@@ -77,8 +77,7 @@ impl PartialBrokerStatement {
     pub fn validate(self) -> GenericResult<PartialBrokerStatement> {
         let period = self.get_period()?;
         if period.0 >= period.1 {
-            return Err!("Invalid statement period: {}",
-                        formatting::format_period(period.0, period.1));
+            return Err!("Invalid statement period: {}", formatting::format_period(period));
         }
 
         self.get_starting_assets()?;
