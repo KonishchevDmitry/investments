@@ -6,7 +6,7 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::types::{Date, Decimal};
-use crate::util::{self, DecimalRestrictions, validate_decimal};
+use crate::util::{self, DecimalRestrictions};
 
 use super::common::{Ignore, deserialize_date, deserialize_decimal};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
@@ -80,7 +80,8 @@ impl CashFlowInfo {
         }
         validate_sub_account(&self.sub_account)?;
 
-        let amount = validate_decimal(transaction.amount, DecimalRestrictions::StrictlyPositive)?;
+        let amount = util::validate_named_decimal(
+            "transaction amount", transaction.amount, DecimalRestrictions::StrictlyPositive)?;
         statement.cash_flows.push(CashAssets::new(transaction.date, currency, amount));
 
         Ok(())
@@ -103,11 +104,10 @@ struct StockBuyTransaction {
     info: TransactionInfo,
     #[serde(rename = "SECID")]
     security_id: SecurityId,
-    #[serde(rename = "UNITS", deserialize_with = "deserialize_decimal")]
-    units: Decimal,
+    #[serde(rename = "UNITS")]
+    units: String,
     #[serde(rename = "UNITPRICE", deserialize_with = "deserialize_decimal")]
     price: Decimal,
-    // FIXME(konishchev): Support
     #[serde(rename = "COMMISSION", deserialize_with = "deserialize_decimal")]
     commission: Decimal,
     #[serde(rename = "FEES", deserialize_with = "deserialize_decimal")]
@@ -137,19 +137,22 @@ impl StockBuyInfo {
     pub fn parse(
         self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
     ) -> EmptyResult {
+        let transaction = self.transaction;
+
         if self._type != "BUY" {
             return Err!("Got an unsupported type of stock purchase: {:?}", self._type);
         }
 
-        let transaction = self.transaction;
+        validate_sub_account(&transaction.sub_account_from)?;
+        validate_sub_account(&transaction.sub_account_to)?;
 
         let symbol = match securities.get(&transaction.security_id)? {
             SecurityType::Stock(symbol) => symbol,
-            _ => return Err!(
-                "Got {} stock buy with an unexpected security type", transaction.security_id),
+            _ => return Err!("Got {} stock buy with an unexpected security type",
+                             transaction.security_id),
         };
 
-        let quantity = validate_decimal(transaction.units, DecimalRestrictions::StrictlyPositive)
+        let quantity = util::parse_decimal(&transaction.units, DecimalRestrictions::StrictlyPositive)
             .ok().and_then(|quantity| {
                 if quantity.trunc() == quantity {
                     quantity.to_u32()
@@ -157,20 +160,29 @@ impl StockBuyInfo {
                     None
                 }
             })
-            .ok_or_else(|| format!("Got an invalid {} buy quantity: {:?}", symbol, transaction.units))?;
-        let price = validate_decimal(transaction.price, DecimalRestrictions::StrictlyPositive)?;
-        let commission =
-            validate_decimal(transaction.commission, DecimalRestrictions::PositiveOrZero)? +
-            validate_decimal(transaction.fees, DecimalRestrictions::PositiveOrZero)?;
+            .ok_or_else(|| format!("Invalid buy quantity: {:?}", transaction.units))?;
 
-        let volume = -validate_decimal(transaction.total, DecimalRestrictions::StrictlyNegative)?;
-        debug_assert_eq!(volume, util::round(price * Decimal::from(quantity), 2));
+        let price = util::validate_named_decimal(
+            "price", transaction.price, DecimalRestrictions::StrictlyPositive)
+            .map(|price| Cash::new(currency, price.normalize()))?;
+
+        let commission = util::validate_named_decimal(
+            "commission", transaction.commission, DecimalRestrictions::PositiveOrZero
+        ).and_then(|commission| {
+            let fees = util::validate_named_decimal(
+                "fees", transaction.fees, DecimalRestrictions::PositiveOrZero)?;
+            Ok(commission + fees)
+        }).map(|commission| Cash::new(currency, commission))?;
+
+        let volume = -util::validate_named_decimal(
+            "stock buy volume", transaction.total, DecimalRestrictions::StrictlyNegative)
+            .map(|volume| Cash::new(currency, volume))?;
+        debug_assert_eq!(volume, (price * quantity).round());
 
         // FIXME(konishchev): Enable
         if false {
             statement.stock_buys.push(StockBuy::new(
-                &symbol, quantity,
-                Cash::new(currency, price), Cash::new(currency, volume), Cash::new(currency, commission),
+                &symbol, quantity, price, volume, commission,
                 transaction.info.conclusion_date, transaction.info.execution_date));
         }
 
