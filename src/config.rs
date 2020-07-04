@@ -96,6 +96,8 @@ pub struct PortfolioConfig {
 
     pub statements: String,
     #[serde(default)]
+    pub symbol_remapping: HashMap<String, String>,
+    #[serde(default)]
     tax_remapping: Vec<TaxRemappingConfig>,
 
     pub currency: Option<String>,
@@ -278,6 +280,14 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
                     "RUB" | "USD" => (),
                     _ => return Err!("Unsupported portfolio currency: {}", currency),
                 };
+            }
+
+            for (symbol, mapping) in &portfolio.symbol_remapping {
+                if portfolio.symbol_remapping.get(mapping).is_some() {
+                    return Err!(
+                        "Invalid symbol remapping configuration: Recursive {} symbol",
+                        symbol);
+                }
             }
 
             let mut symbols_to_merge: HashSet<&String> = HashSet::new();

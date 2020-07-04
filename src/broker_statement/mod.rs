@@ -66,7 +66,8 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        broker: BrokerInfo, statement_dir_path: &str, tax_remapping: TaxRemapping, strict_mode: bool,
+        broker: BrokerInfo, statement_dir_path: &str, symbol_remapping: &HashMap<String, String>,
+        tax_remapping: TaxRemapping, strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
         let mut tax_remapping = Some(tax_remapping);
         let mut statement_reader = match broker.type_ {
@@ -104,12 +105,15 @@ impl BrokerStatement {
         }
         statement_reader.close()?;
 
-        let joint_statement = BrokerStatement::new_from(broker, statements)?;
+        let joint_statement = BrokerStatement::new_from(broker, statements, symbol_remapping)?;
         debug!("{:#?}", joint_statement);
         Ok(joint_statement)
     }
 
-    fn new_from(broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>) -> GenericResult<BrokerStatement> {
+    fn new_from(
+        broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>,
+        symbol_remapping: &HashMap<String, String>,
+    ) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
         let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
@@ -150,6 +154,7 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
+        statement.remap_symbols(symbol_remapping)?;
         statement.validate()?;
         statement.process_trades()?;
 
@@ -406,6 +411,44 @@ impl BrokerStatement {
 
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.drain());
+
+        Ok(())
+    }
+
+    fn remap_symbols(&mut self, remapping: &HashMap<String, String>) -> EmptyResult {
+        for (symbol, mapping) in remapping {
+            if self.open_positions.contains_key(mapping) || self.instrument_names.contains_key(mapping) {
+                return Err!(
+                    "Invalid symbol remapping configuration: The portfolio already has {} symbol",
+                    mapping);
+            }
+
+            if let Some(quantity) = self.open_positions.remove(symbol) {
+                self.open_positions.insert(mapping.to_owned(), quantity);
+            }
+
+            if let Some(name) = self.instrument_names.remove(symbol) {
+                self.instrument_names.insert(mapping.to_owned(), name);
+            }
+        }
+
+        for stock_buy in &mut self.stock_buys {
+            if let Some(mapping) = remapping.get(&stock_buy.symbol) {
+                stock_buy.symbol = mapping.to_owned();
+            }
+        }
+
+        for stock_sell in &mut self.stock_sells {
+            if let Some(mapping) = remapping.get(&stock_sell.symbol) {
+                stock_sell.symbol = mapping.to_owned();
+            }
+        }
+
+        for dividend in &mut self.dividends {
+            if let Some(mapping) = remapping.get(&dividend.issuer) {
+                dividend.issuer = mapping.to_owned();
+            }
+        }
 
         Ok(())
     }

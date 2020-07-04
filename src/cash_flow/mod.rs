@@ -21,7 +21,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
 
     let statement = BrokerStatement::read(
-        broker, &portfolio.statements, portfolio.get_tax_remapping()?, false)?;
+        broker, &portfolio.statements, &hashmap!{}, portfolio.get_tax_remapping()?, false)?;
 
     let mut summary_title = format!("Движение средств по счету в {}", statement.broker.name);
     let mut details_title = format!("Детализация движения средств по счету в {}", statement.broker.name);

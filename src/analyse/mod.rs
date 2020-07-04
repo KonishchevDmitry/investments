@@ -49,7 +49,8 @@ fn load<'a>(config: &'a Config, portfolio_name: &str, strict_mode: bool) -> Gene
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
 
     let statement = BrokerStatement::read(
-        broker, &portfolio.statements, portfolio.get_tax_remapping()?, strict_mode)?;
+        broker, &portfolio.statements, &portfolio.symbol_remapping, portfolio.get_tax_remapping()?,
+        strict_mode)?;
 
     let database = db::connect(&config.db_path)?;
     let quotes = Rc::new(Quotes::new(&config, database.clone())?);

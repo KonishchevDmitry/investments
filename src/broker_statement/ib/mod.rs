@@ -335,7 +335,7 @@ mod tests {
         let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/interactive-brokers/{}", name);
         let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
-        BrokerStatement::read(broker, &path, tax_remapping, true).unwrap()
+        BrokerStatement::read(broker, &path, &hashmap!{}, tax_remapping, true).unwrap()
     }
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
