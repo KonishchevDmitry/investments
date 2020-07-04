@@ -7,7 +7,6 @@ use std::collections::BTreeMap;
 use chrono::Duration;
 
 use crate::broker_statement::BrokerStatement;
-use crate::brokers::Broker;
 use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash};
@@ -19,13 +18,7 @@ use self::mapper::CashFlow;
 
 pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
-
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
-    if !matches!(
-        broker.type_, Broker::Bcs | Broker::InteractiveBrokers | Broker::Open | Broker::Tinkoff
-    ) {
-        return Err!("Cash flow report is not supported for {}", broker.name);
-    }
 
     let statement = BrokerStatement::read(
         broker, &portfolio.statements, portfolio.get_tax_remapping()?, false)?;
