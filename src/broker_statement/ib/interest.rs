@@ -16,12 +16,7 @@ impl RecordParser for InterestParser {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::StrictlyPositive)?;
-
-        parser.statement.idle_cash_interest.push(IdleCashInterest {
-            date: date,
-            amount: amount,
-        });
-
+        parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
         Ok(())
     }
 }

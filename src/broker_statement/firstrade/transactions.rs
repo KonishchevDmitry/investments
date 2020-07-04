@@ -1,10 +1,11 @@
 use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
 
-use crate::broker_statement::{StockBuy, StockSell};
+use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
+use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -24,9 +25,8 @@ pub struct Transactions {
     stock_buys: Vec<StockBuyInfo>,
     #[serde(rename = "SELLSTOCK")]
     stock_sells: Vec<StockSellInfo>,
-    // FIXME(konishchev): Support
     #[serde(rename = "INCOME")]
-    income: Vec<Ignore>,
+    income: Vec<IncomeInfo>,
 }
 
 impl Transactions {
@@ -49,6 +49,10 @@ impl Transactions {
                 return Err!("Got an unsupported type of stock sell: {:?}", stock_sell._type);
             }
             stock_sell.transaction.parse(statement, currency, securities, false)?;
+        }
+
+        for income in self.income {
+            income.parse(statement, currency, securities)?;
         }
 
         Ok(())
@@ -120,7 +124,7 @@ struct StockSellInfo {
 #[serde(deny_unknown_fields)]
 struct StockTradeTransaction {
     #[serde(rename = "INVTRAN")]
-    info: StockTransactionInfo,
+    info: TransactionInfo,
     #[serde(rename = "SECID")]
     security_id: SecurityId,
     #[serde(rename = "UNITS")]
@@ -137,19 +141,6 @@ struct StockTradeTransaction {
     sub_account_to: String,
     #[serde(rename = "SUBACCTFUND")]
     sub_account_from: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct StockTransactionInfo {
-    #[serde(rename = "FITID")]
-    id: Ignore,
-    #[serde(rename = "DTTRADE", deserialize_with = "deserialize_date")]
-    conclusion_date: Date,
-    #[serde(rename = "DTSETTLE", deserialize_with = "deserialize_date")]
-    execution_date: Date,
-    #[serde(rename = "MEMO")]
-    memo: Ignore,
 }
 
 impl StockTradeTransaction {
@@ -225,6 +216,65 @@ impl StockTradeTransaction {
 
         Ok(())
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IncomeInfo {
+    #[serde(rename = "INVTRAN")]
+    info: TransactionInfo,
+    #[serde(rename = "SECID")]
+    security_id: SecurityId,
+    #[serde(rename = "INCOMETYPE")]
+    _type: String,
+    #[serde(rename = "TOTAL", deserialize_with = "deserialize_decimal")]
+    total: Decimal,
+    #[serde(rename = "SUBACCTSEC")]
+    sub_account_to: String,
+    #[serde(rename = "SUBACCTFUND")]
+    sub_account_from: String,
+}
+
+impl IncomeInfo {
+    pub fn parse(
+        self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
+    ) -> EmptyResult {
+        validate_sub_account(&self.sub_account_from)?;
+        validate_sub_account(&self.sub_account_to)?;
+
+        let date = self.info.conclusion_date;
+        if self.info.execution_date != date {
+            return Err!("Got an unexpected {:?} income settlement date: {} -> {}",
+                self.info.memo, formatting::format_date(date),
+                formatting::format_date(self.info.execution_date));
+        }
+
+        let amount = util::validate_named_decimal(
+            "income amount", self.total, DecimalRestrictions::StrictlyPositive)
+            .map(|amount| Cash::new(currency, amount))?;
+
+        match (self._type.as_str(), securities.get(&self.security_id)?) {
+            ("MISC", SecurityType::Interest) => {
+                statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
+            }
+            _ => return Err!("Got an unsupported income: {:?}", self.info.memo),
+        };
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TransactionInfo {
+    #[serde(rename = "FITID")]
+    id: Ignore,
+    #[serde(rename = "DTTRADE", deserialize_with = "deserialize_date")]
+    conclusion_date: Date,
+    #[serde(rename = "DTSETTLE", deserialize_with = "deserialize_date")]
+    execution_date: Date,
+    #[serde(rename = "MEMO")]
+    memo: Ignore,
 }
 
 fn validate_sub_account(name: &str) -> EmptyResult {

@@ -11,6 +11,11 @@ pub struct IdleCashInterest {
 }
 
 impl IdleCashInterest {
+    pub fn new(date: Date, amount: Cash) -> IdleCashInterest {
+        IdleCashInterest {
+            date, amount
+        }
+    }
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
         Ok(country.tax_to_pay(amount, None))
