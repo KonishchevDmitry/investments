@@ -12,7 +12,7 @@ use crate::util::{self, DecimalRestrictions};
 use super::common::{Ignore, deserialize_date, deserialize_decimal, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Transactions {
     #[serde(rename = "DTSTART", deserialize_with = "deserialize_date")]
@@ -59,7 +59,7 @@ impl Transactions {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CashFlowInfo {
     #[serde(rename = "STMTTRN")]
@@ -68,7 +68,7 @@ struct CashFlowInfo {
     sub_account: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CashFlowTransaction {
     #[serde(rename = "TRNTYPE")]
@@ -78,9 +78,9 @@ struct CashFlowTransaction {
     #[serde(rename = "TRNAMT", deserialize_with = "deserialize_decimal")]
     amount: Decimal,
     #[serde(rename = "FITID")]
-    id: Ignore,
+    id: String,
     #[serde(rename = "NAME")]
-    name: Ignore,
+    _name: Ignore,
 }
 
 impl CashFlowInfo {
@@ -89,7 +89,7 @@ impl CashFlowInfo {
 
         if transaction._type != "CREDIT" {
             return Err!(
-                "Got an unsupported type of {:?} cash flow transaction: {}",
+                "Got {:?} cash flow transaction of an unsupported type: {}",
                 transaction.id, transaction._type);
         }
         validate_sub_account(&self.sub_account)?;
@@ -102,7 +102,7 @@ impl CashFlowInfo {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StockBuyInfo {
     #[serde(rename = "BUYTYPE")]
@@ -111,7 +111,7 @@ struct StockBuyInfo {
     transaction: StockTradeTransaction,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StockSellInfo {
     #[serde(rename = "SELLTYPE")]
@@ -120,7 +120,7 @@ struct StockSellInfo {
     transaction: StockTradeTransaction,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StockTradeTransaction {
     #[serde(rename = "INVTRAN")]
@@ -216,7 +216,7 @@ impl StockTradeTransaction {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct IncomeInfo {
     #[serde(rename = "INVTRAN")]
@@ -262,15 +262,15 @@ impl IncomeInfo {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TransactionInfo {
     #[serde(rename = "FITID")]
-    id: Ignore,
+    _id: Ignore,
     #[serde(rename = "DTTRADE", deserialize_with = "deserialize_date")]
     conclusion_date: Date,
     #[serde(rename = "DTSETTLE", deserialize_with = "deserialize_date")]
     execution_date: Date,
     #[serde(rename = "MEMO")]
-    memo: Ignore,
+    memo: String,
 }

@@ -8,7 +8,7 @@ use crate::util::{self, DecimalRestrictions};
 use super::common::{Ignore, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OpenPositions {
     #[serde(rename = "POSSTOCK")]
@@ -24,14 +24,14 @@ impl OpenPositions {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OpenStockPosition {
     #[serde(rename = "INVPOS")]
     open_position: OpenPosition,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OpenPosition {
     #[serde(rename = "SECID")]
@@ -43,13 +43,13 @@ pub struct OpenPosition {
     #[serde(rename = "UNITS")]
     units: String,
     #[serde(rename = "UNITPRICE")]
-    price: Ignore,
+    _price: Ignore,
     #[serde(rename = "MKTVAL")]
-    volume: Ignore,
+    _volume: Ignore,
     #[serde(rename = "DTPRICEASOF")]
-    price_date: Ignore,
+    _price_date: Ignore,
     #[serde(rename = "MEMO")]
-    memo: Ignore,
+    _memo: Ignore,
 }
 
 impl OpenPosition {

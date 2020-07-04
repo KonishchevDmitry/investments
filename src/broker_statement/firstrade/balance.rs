@@ -9,7 +9,7 @@ use crate::util::{self, DecimalRestrictions};
 
 use super::common::{Ignore, deserialize_decimal};
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Balance {
     #[serde(rename = "AVAILCASH", deserialize_with = "deserialize_decimal")]
@@ -19,9 +19,9 @@ pub struct Balance {
     #[serde(rename = "SHORTBALANCE", deserialize_with = "deserialize_decimal")]
     short: Decimal,
     #[serde(rename = "BUYPOWER")]
-    buy_power: Ignore,
+    _buy_power: Ignore,
     #[serde(rename = "BALLIST")]
-    other: Ignore,
+    _other: Ignore,
 }
 
 impl Balance {

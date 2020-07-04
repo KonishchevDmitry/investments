@@ -5,7 +5,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
 use crate::util;
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct Ignore {
 }
 

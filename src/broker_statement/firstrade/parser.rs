@@ -11,11 +11,11 @@ use super::open_positions::OpenPositions;
 use super::security_info::SecurityInfoSection;
 use super::transactions::Transactions;
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OFX {
     #[serde(rename = "SIGNONMSGSRSV1")]
-    signon: Ignore,
+    _signon: Ignore,
 
     #[serde(rename = "INVSTMTMSGSRSV1")]
     statement: StatementSection,
@@ -24,25 +24,25 @@ pub struct OFX {
     security_info: SecurityInfoSection,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StatementSection {
     #[serde(rename = "INVSTMTTRNRS")]
     response: StatementResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StatementResponse {
     #[serde(rename = "TRNUID")]
-    id: Ignore,
+    _id: Ignore,
     #[serde(rename = "STATUS")]
-    status: Ignore,
+    _status: Ignore,
     #[serde(rename = "INVSTMTRS")]
     statement: Statement,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Statement {
     #[serde(rename = "DTASOF", deserialize_with = "deserialize_date")]
@@ -50,7 +50,7 @@ struct Statement {
     #[serde(rename = "CURDEF")]
     currency: String,
     #[serde(rename = "INVACCTFROM")]
-    account: Ignore,
+    _account: Ignore,
     #[serde(rename = "INVTRANLIST")]
     transactions: Transactions,
     #[serde(rename = "INVPOSLIST")]
@@ -62,8 +62,6 @@ struct Statement {
 impl OFX {
     // FIXME(konishchev): Implement
     pub fn parse(self) -> GenericResult<PartialBrokerStatement> {
-        println!("{:#?}", self); // FIXME(konishchev): Remove
-
         let report = self.statement.response.statement;
         let currency = report.currency;
         let transactions = report.transactions;
