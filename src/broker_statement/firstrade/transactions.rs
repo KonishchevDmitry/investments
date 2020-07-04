@@ -1,7 +1,7 @@
 use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
 
-use crate::broker_statement::StockBuy;
+use crate::broker_statement::{StockBuy, StockSell};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
@@ -20,11 +20,11 @@ pub struct Transactions {
     pub end_date: Date,
     #[serde(rename = "INVBANKTRAN")]
     cash_flows: Vec<CashFlowInfo>,
-    // FIXME(konishchev): Support
     #[serde(rename = "BUYSTOCK")]
     stock_buys: Vec<StockBuyInfo>,
     #[serde(rename = "SELLSTOCK")]
-    stock_sells: Vec<Ignore>,
+    stock_sells: Vec<StockSellInfo>,
+    // FIXME(konishchev): Support
     #[serde(rename = "INCOME")]
     income: Vec<Ignore>,
 }
@@ -38,7 +38,17 @@ impl Transactions {
         }
 
         for stock_buy in self.stock_buys {
-            stock_buy.parse(statement, currency, securities)?;
+            if stock_buy._type != "BUY" {
+                return Err!("Got an unsupported type of stock purchase: {:?}", stock_buy._type);
+            }
+            stock_buy.transaction.parse(statement, currency, securities, true)?;
+        }
+
+        for stock_sell in self.stock_sells {
+            if stock_sell._type != "SELL" {
+                return Err!("Got an unsupported type of stock sell: {:?}", stock_sell._type);
+            }
+            stock_sell.transaction.parse(statement, currency, securities, false)?;
         }
 
         Ok(())
@@ -94,14 +104,23 @@ struct StockBuyInfo {
     #[serde(rename = "BUYTYPE")]
     _type: String,
     #[serde(rename = "INVBUY")]
-    transaction: StockBuyTransaction,
+    transaction: StockTradeTransaction,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct StockBuyTransaction {
+struct StockSellInfo {
+    #[serde(rename = "SELLTYPE")]
+    _type: String,
+    #[serde(rename = "INVSELL")]
+    transaction: StockTradeTransaction,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StockTradeTransaction {
     #[serde(rename = "INVTRAN")]
-    info: TransactionInfo,
+    info: StockTransactionInfo,
     #[serde(rename = "SECID")]
     security_id: SecurityId,
     #[serde(rename = "UNITS")]
@@ -122,7 +141,7 @@ struct StockBuyTransaction {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct TransactionInfo {
+struct StockTransactionInfo {
     #[serde(rename = "FITID")]
     id: Ignore,
     #[serde(rename = "DTTRADE", deserialize_with = "deserialize_date")]
@@ -133,57 +152,75 @@ struct TransactionInfo {
     memo: Ignore,
 }
 
-impl StockBuyInfo {
+impl StockTradeTransaction {
     pub fn parse(
         self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
+        buy: bool,
     ) -> EmptyResult {
-        let transaction = self.transaction;
+        validate_sub_account(&self.sub_account_from)?;
+        validate_sub_account(&self.sub_account_to)?;
 
-        if self._type != "BUY" {
-            return Err!("Got an unsupported type of stock purchase: {:?}", self._type);
-        }
-
-        validate_sub_account(&transaction.sub_account_from)?;
-        validate_sub_account(&transaction.sub_account_to)?;
-
-        let symbol = match securities.get(&transaction.security_id)? {
+        let symbol = match securities.get(&self.security_id)? {
             SecurityType::Stock(symbol) => symbol,
-            _ => return Err!("Got {} stock buy with an unexpected security type",
-                             transaction.security_id),
+            _ => return Err!("Got {} stock trade with an unexpected security type", self.security_id),
         };
 
-        let quantity = util::parse_decimal(&transaction.units, DecimalRestrictions::StrictlyPositive)
+        let quantity = util::parse_decimal(
+            &self.units, if buy {
+                DecimalRestrictions::StrictlyPositive
+            } else {
+                DecimalRestrictions::StrictlyNegative
+            })
             .ok().and_then(|quantity| {
                 if quantity.trunc() == quantity {
-                    quantity.to_u32()
+                    quantity.abs().to_u32()
                 } else {
                     None
                 }
             })
-            .ok_or_else(|| format!("Invalid buy quantity: {:?}", transaction.units))?;
+            .ok_or_else(|| format!("Invalid trade quantity: {:?}", self.units))?;
 
         let price = util::validate_named_decimal(
-            "price", transaction.price, DecimalRestrictions::StrictlyPositive)
+            "price", self.price, DecimalRestrictions::StrictlyPositive)
             .map(|price| Cash::new(currency, price.normalize()))?;
 
         let commission = util::validate_named_decimal(
-            "commission", transaction.commission, DecimalRestrictions::PositiveOrZero
+            "commission", self.commission, DecimalRestrictions::PositiveOrZero
         ).and_then(|commission| {
             let fees = util::validate_named_decimal(
-                "fees", transaction.fees, DecimalRestrictions::PositiveOrZero)?;
+                "fees", self.fees, DecimalRestrictions::PositiveOrZero)?;
             Ok(commission + fees)
         }).map(|commission| Cash::new(currency, commission))?;
 
-        let volume = -util::validate_named_decimal(
-            "stock buy volume", transaction.total, DecimalRestrictions::StrictlyNegative)
-            .map(|volume| Cash::new(currency, volume))?;
+        let volume = util::validate_named_decimal(
+            "trade volume", self.total, if buy {
+                DecimalRestrictions::StrictlyNegative
+            } else {
+                DecimalRestrictions::StrictlyPositive
+            })
+            .map(|mut volume| {
+                volume = volume.abs();
+
+                if buy {
+                    volume -= commission.amount;
+                } else {
+                    volume += commission.amount
+                }
+
+                Cash::new(currency, volume)
+            })?;
         debug_assert_eq!(volume, (price * quantity).round());
 
         // FIXME(konishchev): Enable
-        if false {
+        if true {
+        } else if buy {
             statement.stock_buys.push(StockBuy::new(
                 &symbol, quantity, price, volume, commission,
-                transaction.info.conclusion_date, transaction.info.execution_date));
+                self.info.conclusion_date, self.info.execution_date));
+        } else {
+            statement.stock_sells.push(StockSell::new(
+                &symbol, quantity, price, volume, commission,
+                self.info.conclusion_date, self.info.execution_date, false));
         }
 
         Ok(())
