@@ -7,6 +7,7 @@ use crate::types::{Date, Decimal};
 use crate::util::{DecimalRestrictions, validate_decimal};
 
 use super::common::{Ignore, deserialize_date, deserialize_decimal};
+use super::security_info::SecurityInfo;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -15,9 +16,9 @@ pub struct Transactions {
     pub start_date: Date,
     #[serde(rename = "DTEND", deserialize_with = "deserialize_date")]
     pub end_date: Date,
-    // FIXME(konishchev): Support
     #[serde(rename = "INVBANKTRAN")]
     cash_flows: Vec<CashFlow>,
+    // FIXME(konishchev): Support
     #[serde(rename = "BUYSTOCK")]
     stock_buys: Vec<Ignore>,
     #[serde(rename = "SELLSTOCK")]
@@ -27,7 +28,9 @@ pub struct Transactions {
 }
 
 impl Transactions {
-    pub fn parse(self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
+    pub fn parse(
+        self, statement: &mut PartialBrokerStatement, currency: &str, _securities: &SecurityInfo,
+    ) -> EmptyResult {
         for cash_flow in self.cash_flows {
             cash_flow.parse(statement, currency)?;
         }
@@ -42,7 +45,7 @@ struct CashFlow {
     #[serde(rename = "STMTTRN")]
     transaction: CashFlowTransaction,
     #[serde(rename = "SUBACCTFUND")]
-    sub_account: String,
+    sub_account: Ignore,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,12 +66,6 @@ struct CashFlowTransaction {
 impl CashFlow {
     pub fn parse(self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
         let transaction = self.transaction;
-
-        if self.sub_account != "CASH" {
-            return Err!(
-                "Got an unsupported sub account type for {:?} cash flow transaction: {}",
-                transaction.id, self.sub_account);
-        }
 
         if transaction._type != "CREDIT" {
             return Err!(

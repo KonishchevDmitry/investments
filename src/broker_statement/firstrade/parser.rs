@@ -19,7 +19,6 @@ pub struct OFX {
     #[serde(rename = "INVSTMTMSGSRSV1")]
     statement: StatementSection,
 
-    // FIXME(konishchev): Support all below
     #[serde(rename = "SECLISTMSGSRSV1")]
     security_info: SecurityInfoSection,
 }
@@ -85,8 +84,9 @@ impl OFX {
         statement.set_period((start_date, end_date))?;
         statement.set_starting_assets(false)?;
 
+        let securities = self.security_info.parse()?;
         report.balance.parse(&mut statement, &currency)?;
-        transactions.parse(&mut statement, &currency)?;
+        transactions.parse(&mut statement, &currency, &securities)?;
 
         statement.validate()
     }
