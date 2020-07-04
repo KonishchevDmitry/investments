@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
-use crate::core::GenericResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -31,6 +31,13 @@ pub fn deserialize_decimal<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
 
     let decimal: Value = Deserialize::deserialize(deserializer)?;
     Ok(decimal.value)
+}
+
+pub fn validate_sub_account(name: &str) -> EmptyResult {
+    match name {
+        "CASH" => Ok(()),
+        _ => Err!("Got an unsupported sub-account type: {:?}", name),
+    }
 }
 
 #[cfg(test)]

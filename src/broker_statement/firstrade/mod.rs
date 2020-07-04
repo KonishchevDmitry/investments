@@ -1,5 +1,6 @@
 mod balance;
 mod common;
+mod open_positions;
 mod parser;
 mod security_info;
 mod transactions;
@@ -90,11 +91,11 @@ mod tests {
         assert!(!statement.idle_cash_interest.is_empty());
 
         assert!(statement.forex_trades.is_empty());
-        assert!(statement.stock_buys.is_empty());
-        assert!(statement.stock_sells.is_empty());
+        assert!(!statement.stock_buys.is_empty());
+        assert!(!statement.stock_sells.is_empty());
         assert!(statement.dividends.is_empty());
 
-        assert!(statement.open_positions.is_empty());
+        assert!(!statement.open_positions.is_empty());
         assert!(statement.instrument_names.is_empty());
     }
 }

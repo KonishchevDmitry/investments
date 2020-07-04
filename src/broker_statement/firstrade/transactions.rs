@@ -9,7 +9,7 @@ use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::{Ignore, deserialize_date, deserialize_decimal};
+use super::common::{Ignore, deserialize_date, deserialize_decimal, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 
 #[derive(Debug, Deserialize)]
@@ -84,7 +84,7 @@ struct CashFlowTransaction {
 }
 
 impl CashFlowInfo {
-    pub fn parse(self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
+    fn parse(self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
         let transaction = self.transaction;
 
         if transaction._type != "CREDIT" {
@@ -144,7 +144,7 @@ struct StockTradeTransaction {
 }
 
 impl StockTradeTransaction {
-    pub fn parse(
+    fn parse(
         self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
         buy: bool,
     ) -> EmptyResult {
@@ -202,9 +202,7 @@ impl StockTradeTransaction {
             })?;
         debug_assert_eq!(volume, (price * quantity).round());
 
-        // FIXME(konishchev): Enable
-        if true {
-        } else if buy {
+        if buy {
             statement.stock_buys.push(StockBuy::new(
                 &symbol, quantity, price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date));
@@ -236,7 +234,7 @@ struct IncomeInfo {
 }
 
 impl IncomeInfo {
-    pub fn parse(
+    fn parse(
         self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
     ) -> EmptyResult {
         validate_sub_account(&self.sub_account_from)?;
@@ -275,11 +273,4 @@ struct TransactionInfo {
     execution_date: Date,
     #[serde(rename = "MEMO")]
     memo: Ignore,
-}
-
-fn validate_sub_account(name: &str) -> EmptyResult {
-    match name {
-        "CASH" => Ok(()),
-        _ => Err!("Got an unsupported sub-account type: {:?}", name),
-    }
 }

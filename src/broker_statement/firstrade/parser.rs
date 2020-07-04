@@ -7,6 +7,7 @@ use crate::util;
 
 use super::balance::Balance;
 use super::common::{Ignore, deserialize_date};
+use super::open_positions::OpenPositions;
 use super::security_info::SecurityInfoSection;
 use super::transactions::Transactions;
 
@@ -50,11 +51,10 @@ struct Statement {
     currency: String,
     #[serde(rename = "INVACCTFROM")]
     account: Ignore,
-    // FIXME(konishchev): Support all below
     #[serde(rename = "INVTRANLIST")]
     transactions: Transactions,
     #[serde(rename = "INVPOSLIST")]
-    open_positions: Ignore,
+    open_positions: OpenPositions,
     #[serde(rename = "INVBAL")]
     balance: Balance,
 }
@@ -87,6 +87,7 @@ impl OFX {
         let securities = self.security_info.parse()?;
         report.balance.parse(&mut statement, &currency)?;
         transactions.parse(&mut statement, &currency, &securities)?;
+        report.open_positions.parse(&mut statement, &securities)?;
 
         statement.validate()
     }
