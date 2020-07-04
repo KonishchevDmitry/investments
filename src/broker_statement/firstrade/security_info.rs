@@ -30,8 +30,7 @@ impl SecurityInfo {
         Ok(())
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
-    pub fn get(&mut self, id: &SecurityId) -> GenericResult<&SecurityType> {
+    pub fn get(&self, id: &SecurityId) -> GenericResult<&SecurityType> {
         Ok(self.info.get(id).ok_or_else(|| format!("Got an unknown {} security", id))?)
     }
 }
