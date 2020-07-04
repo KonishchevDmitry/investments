@@ -153,9 +153,8 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
         return Ok(None);
     }
 
-    let price = util::validate_decimal(
-        value.close, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
-        "Invalid price: {:?}", value.close))?;
+    let price = util::validate_named_decimal(
+        "price", value.close, DecimalRestrictions::StrictlyPositive)?;
 
     Ok(Some(Cash::new(currency, price)))
 }

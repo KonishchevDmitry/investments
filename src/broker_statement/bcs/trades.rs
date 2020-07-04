@@ -105,13 +105,11 @@ impl TradesParser {
             })
             .ok_or_else(|| format!("Invalid quantity: {}", quantity))?;
 
-        let price = util::validate_decimal(price, DecimalRestrictions::StrictlyPositive)
-            .map(|price| Cash::new(currency, price))
-            .map_err(|_| format!("Invalid price: {}", price))?;
+        let price = util::validate_named_decimal("price", price, DecimalRestrictions::StrictlyPositive)
+            .map(|price| Cash::new(currency, price))?;
 
-        let volume = util::validate_decimal(volume, DecimalRestrictions::StrictlyPositive)
-            .map(|volume| Cash::new(currency, volume))
-            .map_err(|_| format!("Invalid trade volume: {}", volume))?;
+        let volume = util::validate_named_decimal("trade volume", volume, DecimalRestrictions::StrictlyPositive)
+            .map(|volume| Cash::new(currency, volume))?;
         debug_assert_eq!(volume, price * quantity);
 
         let commission = Cash::new(currency, dec!(0));

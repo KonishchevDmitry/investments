@@ -213,12 +213,12 @@ impl ConcludedTrades {
     ) -> EmptyResult {
         for trade in &self.trades {
             let symbol = get_symbol(securities, &trade.security_name)?;
-            let price = util::validate_decimal(trade.price, DecimalRestrictions::StrictlyPositive)
-                .map_err(|_| format!("Invalid {} price: {}", symbol, trade.price))?.normalize();
-            let volume = util::validate_decimal(trade.volume, DecimalRestrictions::StrictlyPositive)
-                .map_err(|_| format!("Invalid trade volume: {}", trade.volume))?.normalize();
-            let commission = util::validate_decimal(trade.commission, DecimalRestrictions::PositiveOrZero)
-                .map_err(|_| format!("Invalid commission: {}", trade.commission))?;
+            let price = util::validate_named_decimal(
+                "price", trade.price, DecimalRestrictions::StrictlyPositive)?.normalize();
+            let volume = util::validate_named_decimal(
+                "trade volume", trade.volume, DecimalRestrictions::StrictlyPositive)?.normalize();
+            let commission = util::validate_named_decimal(
+                "commission", trade.commission, DecimalRestrictions::PositiveOrZero)?;
 
             // Just don't know which one exactly is
             if trade.currency != trade.accounting_currency {
@@ -330,8 +330,8 @@ impl CashFlows {
 
             match CashFlowType::parse(&cash_flow.description)? {
                 CashFlowType::Deposit => {
-                    let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyPositive)
-                        .map_err(|_| format!("Invalid deposit amount: {}", amount))?;
+                    let amount = util::validate_named_decimal(
+                        "deposit amount", amount, DecimalRestrictions::StrictlyPositive)?;
 
                     statement.cash_flows.push(
                         CashAssets::new_from_cash(date, Cash::new(currency, amount)));
@@ -340,8 +340,8 @@ impl CashFlows {
                     // It's taken into account during trades processing
                 },
                 CashFlowType::Fee(description) => {
-                    let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyNegative)
-                        .map_err(|_| format!("Invalid fee amount: {}", amount))?;
+                    let amount = util::validate_named_decimal(
+                        "fee amount", amount, DecimalRestrictions::StrictlyNegative)?;
 
                     statement.fees.push(Fee {
                         date,

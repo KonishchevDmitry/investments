@@ -43,6 +43,11 @@ pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> Ge
     Ok(value)
 }
 
+pub fn validate_named_decimal(name: &str, value: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
+    Ok(validate_decimal(value, restrictions).map_err(|e| format!(
+        "Invalid {}: {}", name, e))?)
+}
+
 pub fn round(value: Decimal, points: u32) -> Decimal {
     round_with(value, points, RoundingMethod::Round)
 }
