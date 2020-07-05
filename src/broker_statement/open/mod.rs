@@ -52,7 +52,7 @@ mod tests {
         let broker = Broker::Open.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
-            broker, "testdata/open-broker", &hashmap!{}, TaxRemapping::new(), true).unwrap();
+            broker, "testdata/open-broker", &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());

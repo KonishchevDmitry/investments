@@ -98,6 +98,8 @@ pub struct PortfolioConfig {
     #[serde(default)]
     pub symbol_remapping: HashMap<String, String>,
     #[serde(default)]
+    pub instrument_names: HashMap<String, String>,
+    #[serde(default)]
     tax_remapping: Vec<TaxRemappingConfig>,
 
     pub currency: Option<String>,

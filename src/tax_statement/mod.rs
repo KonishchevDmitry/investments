@@ -18,8 +18,8 @@ pub fn generate_tax_statement(
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
 
     let broker_statement = BrokerStatement::read(
-        broker, &portfolio.statements, &portfolio.symbol_remapping, portfolio.get_tax_remapping()?,
-        true)?;
+        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
+        portfolio.get_tax_remapping()?, true)?;
 
     if let Some(year) = year {
         broker_statement.check_period_against_tax_year(year)?;

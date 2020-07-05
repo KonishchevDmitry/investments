@@ -66,7 +66,8 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        broker: BrokerInfo, statement_dir_path: &str, symbol_remapping: &HashMap<String, String>,
+        broker: BrokerInfo, statement_dir_path: &str,
+        symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
         tax_remapping: TaxRemapping, strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
         let mut tax_remapping = Some(tax_remapping);
@@ -105,14 +106,15 @@ impl BrokerStatement {
         }
         statement_reader.close()?;
 
-        let joint_statement = BrokerStatement::new_from(broker, statements, symbol_remapping)?;
+        let joint_statement = BrokerStatement::new_from(
+            broker, statements, symbol_remapping, instrument_names)?;
         debug!("{:#?}", joint_statement);
         Ok(joint_statement)
     }
 
     fn new_from(
         broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>,
-        symbol_remapping: &HashMap<String, String>,
+        symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
     ) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
@@ -155,6 +157,9 @@ impl BrokerStatement {
         }
 
         statement.remap_symbols(symbol_remapping)?;
+        statement.instrument_names.extend(
+            instrument_names.iter().map(|(symbol, name)| (symbol.clone(), name.clone())));
+
         statement.validate()?;
         statement.process_trades()?;
 
