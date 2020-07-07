@@ -65,49 +65,13 @@ APP: regression_tests/investments
 
 # Analyse
 
-[30]
-NAME: IB analyse
-STDOUT: ib-analyse
+[3]
+NAME: Analyse
+STDOUT: analyse
 APP: regression_tests/investments
      testdata/config
      analyse
-     ib
-     --all
-
-[31]
-NAME: Firstrade analyse
-STDOUT: firstrade-analyse
-APP: regression_tests/investments
-     testdata/config
-     analyse
-     firstrade
-     --all
-
-[32]
-NAME: Tinkoff analyse
-STDOUT: tinkoff-analyse
-APP: regression_tests/investments
-     testdata/config
-     analyse
-     tinkoff
-     --all
-
-[33]
-NAME: Open Broker analyse
-STDOUT: open-analyse
-APP: regression_tests/investments
-     testdata/config
-     analyse
-     open
-     --all
-
-[34]
-NAME: BCS analyse
-STDOUT: bcs-analyse
-APP: regression_tests/investments
-     testdata/config
-     analyse
-     bcs
+     all
      --all
 
 # Simulate sell
