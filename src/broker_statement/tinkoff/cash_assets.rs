@@ -34,7 +34,7 @@ struct AssetsRow {
     #[column(name="Входящий остаток на начало периода:")]
     starting: String,
     #[column(name="Исходящий остаток на конец периода:")]
-    ending: String,
+    _2: SkipCell,
     #[column(name="Плановый исходящий остаток на конец периода (с учетом неисполненных на дату отчета сделок):")]
     planned: String,
     #[column(name="Задолженность клиента перед брокером:")]
@@ -60,13 +60,8 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
             parser.statement.starting_assets.replace(true);
         }
 
-        let ending = parse_cash(&assets.currency, &assets.ending, DecimalRestrictions::No)?;
-        parser.statement.cash_assets.deposit(ending);
-
         let planned = parse_cash(&assets.currency, &assets.planned, DecimalRestrictions::No)?;
-        if planned != ending {
-            return Err!("Planned ending cash is not supported yet")
-        }
+        parser.statement.cash_assets.deposit(planned);
 
         let debt = parse_decimal(&assets.debt, DecimalRestrictions::No)?;
         if !debt.is_zero() {

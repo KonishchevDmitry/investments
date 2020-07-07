@@ -50,6 +50,8 @@ impl BrokerStatementReader for StatementReader {
                 .by_prefix().parser_rc(period_parser).required(),
             Section::new("1.1 Информация о совершенных и исполненных сделках на конец отчетного периода")
                 .parser(Box::new(TradesParser {})).required(),
+            Section::new("1.2 Информация о неисполненных сделках на конец отчетного периода")
+                .parser(Box::new(TradesParser {})).required(),
             Section::new("2. Операции с денежными средствами")
                 .parser(Box::new(CashAssetsParser {})).required(),
             Section::new("3. Движение финансовых активов инвестора")

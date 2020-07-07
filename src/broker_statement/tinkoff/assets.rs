@@ -17,21 +17,14 @@ impl SectionParser for AssetsParser {
             let starting: u32 = asset.starting.parse().map_err(|_| format!(
                 "Invalid {} starting quantity: {}", symbol, asset.starting))?;
 
-            let ending: u32 = asset.ending.parse().map_err(|_| format!(
-                "Invalid {} ending quantity: {}", symbol, asset.ending))?;
-
             let planned: u32 = asset.planned.parse().map_err(|_| format!(
                 "Invalid {} planned quantity: {}", symbol, asset.planned))?;
-
-            if planned != ending {
-                return Err!("Planned ending assets aren't supported yet")
-            }
 
             if starting != 0 {
                 parser.statement.starting_assets.replace(true);
             }
 
-            if parser.statement.open_positions.insert(symbol.clone(), ending).is_some() {
+            if parser.statement.open_positions.insert(symbol.clone(), planned).is_some() {
                 return Err!("Got duplicated {} assets", symbol);
             }
         }
@@ -51,11 +44,11 @@ struct AssetsRow {
     #[column(name="Входящий остаток")]
     starting: String,
     #[column(name="Зачисление")]
-    _4: String,
+    _4: SkipCell,
     #[column(name="Списание")]
-    _5: String,
+    _5: SkipCell,
     #[column(name="Исходящий остаток")]
-    ending: String,
+    _6: SkipCell,
     #[column(name="Плановый исходящий остаток")]
     planned: String,
     #[column(name="Рыночная цена")]
