@@ -53,7 +53,7 @@ portfolios:
 
   - name: open
     broker: open-broker
-    statements: ~/Brokerage/Open Broker/Statements
+    statements: ~/Brokerage/Открытие/Отчеты Брокера
 
     # Specifies the day when tax is paid. Used in portfolio performance analysis. Accepted values:
     # * Date in DD.MM format
@@ -81,9 +81,44 @@ portfolios:
               - {name: FinEx MSCI China UCITS ETF, symbol: FXCN, weight: 31%}
       - {name: FinEx Tradable Russian Corporate Bonds UCITS ETF, symbol: FXRU, weight: 20%}
 
+  - name: firstrade
+    broker: firstrade
+    statements: ~/Brokerage/Firstrade/Statements
+
+    # Firstrade may use outdated symbol names in broker statements. You can remap them to the actual ones.
+    symbol_remapping:
+      ISI: ITOT
+
+    # Some brokers don't provide instrument names or provide them in non-human-friendly form. You can specify your own
+    # instrument names.
+    instrument_names:
+      ITOT: iShares Core S&P Total U.S. Stock Market ETF
+      IXUS: iShares Core MSCI Total International Stock ETF
+      AGG:  iShares Core U.S. Aggregate Bond ETF
+      IAGG: iShares Core International Aggregate Bond ETF
+      REET: iShares Global REIT ETF
+
+  - name: bcs
+    broker: bcs
+    statements: ~/Brokerage/БКС/Отчеты Брокера
+
+  - name: tinkoff
+    broker: tinkoff
+    statements: ~/Brokerage/Тинькофф/Отчеты Брокера
+
 # Your individual broker + bank account configuration. For now specifies your bank commissions for transferring funds
 # from your bank account to your broker account. Will be taken into account during portfolio performance analysis.
 brokers:
+  bcs:
+    deposit_commissions:
+      RUB:
+        fixed_amount: 0
+
+  firstrade:
+    deposit_commissions:
+      USD:
+        fixed_amount: 15
+
   interactive_brokers:
     deposit_commissions:
       RUB:
@@ -94,6 +129,13 @@ brokers:
   open_broker:
     deposit_commissions:
       RUB:
+        fixed_amount: 0
+
+  tinkoff:
+    deposit_commissions:
+      RUB:
+        fixed_amount: 0
+      USD:
         fixed_amount: 0
 
 finnhub:

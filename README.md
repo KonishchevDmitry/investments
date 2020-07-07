@@ -14,7 +14,8 @@ Helps you with managing your investments:
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
 Targeted for Russian investors who use [Interactive Brokers](https://interactivebrokers.com/),
-[Тинькофф](https://www.tinkoff.ru/), [Открытие Брокер](https://open-broker.ru/) or [БКС](https://broker.ru/).
+[Тинькофф](https://www.tinkoff.ru/), [Firstrade](https://www.firstrade.com/), [Открытие Брокер](https://open-broker.ru/)
+or [БКС](https://broker.ru/).
 
 # Installation
 
@@ -53,6 +54,7 @@ assets and statements' periods mustn't overlap or have missing days in between.
 For now the following broker statements are supported:
 * Interactive Brokers (*.csv)
 * Тинькофф (*.xlsx)
+* Firstrade (experimental support) (*.ofx)
 * Открытие Брокер (IIA, basic support) (*.xml)
 * БКС (basic support) (*.xls)
 
