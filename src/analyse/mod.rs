@@ -30,8 +30,10 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
         "Invalid performance merging configuration: {}", e))?;
 
     for currency in ["USD", "RUB"].iter() {
-        PortfolioPerformanceAnalyser::analyse(
-            &statement, &portfolio, *currency, &converter, show_closed_positions)?;
+        let mut analyser = PortfolioPerformanceAnalyser::new(
+            portfolio.get_tax_country(), *currency, &converter, show_closed_positions);
+        analyser.add(&statement, &portfolio)?;
+        analyser.analyse()?;
     }
 
     Ok(())
