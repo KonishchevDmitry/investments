@@ -20,8 +20,10 @@ struct CashFlowMapper {
 
 impl CashFlowMapper {
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
-        for cash_flow in &statement.cash_flows {
-            self.deposit_or_withdrawal(cash_flow)
+        for deposit in statement.cash_flows.iter().filter(|cash_flow|
+            !cash_flow.cash.is_negative()
+        ) {
+            self.deposit_or_withdrawal(deposit)
         }
 
         for interest in &statement.idle_cash_interest {
@@ -46,6 +48,12 @@ impl CashFlowMapper {
 
         for fee in &statement.fees {
             self.fee(fee);
+        }
+
+        for withdrawal in statement.cash_flows.iter().filter(|cash_flow|
+            cash_flow.cash.is_negative()
+        ) {
+            self.deposit_or_withdrawal(withdrawal)
         }
 
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
