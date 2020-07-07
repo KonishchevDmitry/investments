@@ -67,7 +67,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
     }
 
-    pub fn add(&mut self, statement: &BrokerStatement, portfolio: &PortfolioConfig) -> EmptyResult {
+    pub fn add(&mut self, portfolio: &PortfolioConfig, statement: &BrokerStatement) -> EmptyResult {
         // Assume that the caller has simulated sellout and just check it here
         if !statement.open_positions.is_empty() {
             return Err!(

@@ -83,7 +83,7 @@ pub fn initialize() -> (Action, Config) {
                 "\nCalculates average rate of return from cash investments by comparing portfolio ",
                 "performance to performance of a bank deposit with exactly the same investments ",
                 "and monthly capitalization."))
-            .arg(portfolio::arg()))
+            .arg(portfolio_all::arg()))
         .subcommand(SubCommand::with_name("show")
             .about("Show portfolio's asset allocation")
             .arg(Arg::with_name("flat")
@@ -331,6 +331,7 @@ macro_rules! arg {
                     .required(true)
             }
 
+            #[allow(dead_code)]
             pub fn get(matches: &ArgMatches) -> String {
                 matches.value_of($name).unwrap().to_owned()
             }
@@ -339,6 +340,7 @@ macro_rules! arg {
 }
 
 arg!(portfolio, "PORTFOLIO", "Portfolio name");
+arg!(portfolio_all, "PORTFOLIO", r"Portfolio name (use 'all' to show an aggregated result for all portfolios)");
 arg!(shares, "SHARES", "Shares");
 arg!(symbol, "SYMBOL", "Symbol");
 arg!(cash_assets, "CASH_ASSETS", "Current cash assets");

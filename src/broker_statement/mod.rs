@@ -204,8 +204,8 @@ impl BrokerStatement {
         let months = Decimal::from(days) / dec!(30);
 
         if months >= dec!(1) {
-            warn!("The broker statement is {} months old and may be outdated.",
-                  util::round(months, 1));
+            warn!("{} broker statement is {} months old and may be outdated.",
+                  self.broker.name, util::round(months, 1));
         }
     }
 
