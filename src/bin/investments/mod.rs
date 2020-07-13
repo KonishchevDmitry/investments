@@ -42,9 +42,9 @@ fn run(action: Action, config: Config) -> EmptyResult {
             &config, &name, &positions)?,
 
         Action::Sync(name) => portfolio::sync(&config, &name)?,
-        Action::Buy(name, shares, symbol, cash_assets) =>
+        Action::Buy {name, shares, symbol, cash_assets} =>
             portfolio::buy(&config, &name, shares, &symbol, cash_assets)?,
-        Action::Sell(name, shares, symbol, cash_assets) =>
+        Action::Sell {name, shares, symbol, cash_assets} =>
             portfolio::sell(&config, &name, shares, &symbol, cash_assets)?,
         Action::SetCashAssets(name, cash_assets) =>
             portfolio::set_cash_assets(&config, &name, cash_assets)?,

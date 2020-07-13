@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use ansi_term::{Style, Color, ANSIString};
-use num_traits::{ToPrimitive, Zero};
+use num_traits::Zero;
 
 use crate::currency::Cash;
 use crate::types::Decimal;
@@ -78,8 +78,7 @@ fn print_asset(asset: AssetAllocation, expected_total_value: Decimal, currency: 
     write!(&mut buffer, " -").unwrap();
 
     if let Holding::Stock(ref holding) = asset.holding {
-        write!(&mut buffer, " {}",
-               format_shares(holding.current_shares.to_i32().unwrap(), false)).unwrap();
+        write!(&mut buffer, " {}", format_shares(holding.current_shares, false)).unwrap();
     }
 
     write!(&mut buffer, " {current_weight} ({current_value})",
@@ -94,8 +93,7 @@ fn print_asset(asset: AssetAllocation, expected_total_value: Decimal, currency: 
                 colorify_sell
             };
 
-            let shares_change =
-                holding.target_shares.to_i32().unwrap() - holding.current_shares.to_i32().unwrap();
+            let shares_change = holding.target_shares - holding.current_shares;
             let value_change = asset.target_value - asset.current_value;
 
             let changes = format!(
@@ -127,7 +125,7 @@ fn format_cash(currency: &str, amount: Decimal) -> String {
     Cash::new(currency, amount).format_rounded()
 }
 
-fn format_shares(shares: i32, with_sign: bool) -> String {
+fn format_shares(shares: Decimal, with_sign: bool) -> String {
     let symbol = 's';
 
     if with_sign {

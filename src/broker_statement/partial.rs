@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
-use crate::types::Date;
+use crate::types::{Date, Decimal};
 
 use super::dividends::{Dividend, DividendId, DividendAccruals};
 use super::fees::Fee;
@@ -29,7 +30,7 @@ pub struct PartialBrokerStatement {
     pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub tax_accruals: HashMap<TaxId, TaxAccruals>,
 
-    pub open_positions: HashMap<String, u32>,
+    pub open_positions: HashMap<String, Decimal>,
     pub instrument_names: HashMap<String, String>,
 }
 
@@ -72,6 +73,14 @@ impl PartialBrokerStatement {
 
     pub fn get_starting_assets(&self) -> GenericResult<bool> {
         get_option("starting assets", self.starting_assets)
+    }
+
+    pub fn add_open_position(&mut self, symbol: &str, quantity: Decimal) -> EmptyResult {
+        match self.open_positions.entry(symbol.to_owned()) {
+            Entry::Vacant(entry) => entry.insert(quantity),
+            Entry::Occupied(_) => return Err!("Got a duplicated open position for {}", symbol),
+        };
+        Ok(())
     }
 
     pub fn validate(self) -> GenericResult<PartialBrokerStatement> {

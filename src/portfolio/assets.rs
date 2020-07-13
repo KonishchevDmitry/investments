@@ -8,15 +8,16 @@ use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::db::{self, schema::{AssetType, assets}, models};
 use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Assets {
     pub cash: MultiCurrencyCashAccount,
-    pub stocks: HashMap<String, u32>,
+    pub stocks: HashMap<String, Decimal>,
 }
 
 impl Assets {
-    pub fn new(cash: MultiCurrencyCashAccount, stocks: HashMap<String, u32>) -> Assets {
+    pub fn new(cash: MultiCurrencyCashAccount, stocks: HashMap<String, Decimal>) -> Assets {
         Assets {
             cash: cash,
             stocks: stocks,
@@ -40,8 +41,11 @@ impl Assets {
                 },
 
                 AssetType::Stock => {
-                    let quantity: u32 = asset.quantity.parse().map_err(|_| format!(
-                        "Got an invalid stock quantity from the database: {}", asset.quantity))?;
+                    let quantity = util::parse_decimal(
+                        &asset.quantity, DecimalRestrictions::StrictlyPositive,
+                    ).map_err(|_| format!(
+                        "Got an invalid stock quantity from the database: {}", asset.quantity
+                    ))?;
 
                     if stocks.insert(asset.symbol.clone(), quantity).is_some() {
                         return Err!("Got a duplicated {} stock from the database", asset.symbol);
@@ -120,9 +124,9 @@ mod tests {
             cash.deposit(Cash::new("USD", dec!(200)));
 
             let mut stocks = HashMap::new();
-            stocks.insert(s!("AAA"), 10);
-            stocks.insert(s!("BBB"), 20);
-            stocks.insert(s!("CCC"), 30);
+            stocks.insert(s!("AAA"), dec!(10));
+            stocks.insert(s!("BBB"), dec!(20));
+            stocks.insert(s!("CCC"), dec!(30));
 
             Assets::new(cash, stocks)
         };
@@ -136,9 +140,9 @@ mod tests {
             cash.deposit(Cash::new("EUR", dec!(20)));
 
             let mut stocks = HashMap::new();
-            stocks.insert(s!("DDD"), 100);
-            stocks.insert(s!("BBB"), 200);
-            stocks.insert(s!("EEE"), 300);
+            stocks.insert(s!("DDD"), dec!(100));
+            stocks.insert(s!("BBB"), dec!(200));
+            stocks.insert(s!("EEE"), dec!(300));
 
             Assets::new(cash, stocks)
         };

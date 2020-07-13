@@ -48,6 +48,10 @@ pub fn validate_named_decimal(name: &str, value: Decimal, restrictions: DecimalR
         "Invalid {}: {}", name, e))?)
 }
 
+pub fn decimal_precision(value: Decimal) -> u32 {
+    value.fract().scale()
+}
+
 pub fn round(value: Decimal, points: u32) -> Decimal {
     round_with(value, points, RoundingMethod::Round)
 }
@@ -213,6 +217,25 @@ fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
 mod tests {
     use rstest::rstest;
     use super::*;
+
+    #[rstest(num, scale, precision,
+        case(321, 0, 0),
+        case(321, 1, 1),
+        case(321, 2, 2),
+        case(321, 3, 3),
+        case(321, 4, 4),
+
+        case(3210, 0, 0),
+        case(3210, 1, 1),
+        case(3210, 2, 2),
+        case(3210, 3, 3),
+        case(3210, 4, 4),
+        case(3210, 5, 5),
+    )]
+    fn decimal_precision(num: i64, scale: u32, precision: u32) {
+        let value = Decimal::new(num, scale);
+        assert_eq!(super::decimal_precision(value), precision)
+    }
 
     #[rstest(value, expected,
         case(dec!(-1.5), dec!(-2)),

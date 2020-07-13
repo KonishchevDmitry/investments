@@ -2,9 +2,8 @@ use std::ops::Deref;
 
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
-use crate::currency;
 use crate::types::Date;
-use crate::util::DecimalRestrictions;
+use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date_time};
@@ -24,13 +23,13 @@ impl RecordParser for OpenPositionsParser {
         ])?;
 
         let symbol = record.get_value("Symbol")?;
-        let quantity = record.parse_value("Quantity")?;
 
-        if parser.statement.open_positions.insert(symbol.to_owned(), quantity).is_some() {
-            return Err!("Got a duplicated {:?} symbol", symbol);
-        }
+        let quantity = record.get_value("Quantity")?;
+        let quantity = util::parse_decimal(
+            quantity, DecimalRestrictions::StrictlyPositive
+        ).map_err(|_| format!("Got an unexpected {} quantity: {}", symbol, quantity))?;
 
-        Ok(())
+        parser.statement.add_open_position(symbol, quantity)
     }
 }
 
@@ -95,26 +94,33 @@ fn parse_stock_record(
     parser: &mut StatementParser, record: &Record, symbol: &str, conclusion_date: Date,
 ) -> EmptyResult {
     let currency = record.get_value("Currency")?;
-    let quantity: i32 = record.parse_value("Quantity")?;
     let price = record.parse_cash("T. Price", currency, DecimalRestrictions::StrictlyPositive)?;
     let commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
     let execution_date = parser.get_execution_date(symbol, conclusion_date);
 
-    let volume = record.parse_cash("Proceeds", currency, if quantity < 0 {
-        DecimalRestrictions::StrictlyPositive
-    } else {
-        DecimalRestrictions::StrictlyNegative
-    })?;
-    debug_assert_eq!(volume.amount, currency::round_to((price * -quantity).amount, 4));
+    let quantity = record.get_value("Quantity")?;
+    let quantity = util::parse_decimal(quantity, DecimalRestrictions::NonZero).map_err(|_| format!(
+        "Got an unexpected {} trade quantity: {}", symbol, quantity))?.normalize();
 
-    if quantity > 0 {
-        parser.statement.stock_buys.push(StockBuy::new(
-            symbol, quantity as u32, price, -volume, commission, conclusion_date, execution_date));
-    } else if quantity < 0 {
-        parser.statement.stock_sells.push(StockSell::new(
-            symbol, -quantity as u32, price, volume, commission, conclusion_date, execution_date, false));
+    let volume = record.parse_cash("Proceeds", currency, if quantity.is_sign_positive() {
+        DecimalRestrictions::StrictlyNegative
     } else {
-        return Err!("Invalid quantity: {}", quantity)
+        DecimalRestrictions::StrictlyPositive
+    })?;
+    if cfg!(debug_assertions) {
+        let precision = match util::decimal_precision(quantity) {
+            0 => 4,
+            _ => 6,
+        };
+        debug_assert_eq!(volume, (price * -quantity).round_to(precision));
+    }
+
+    if quantity.is_sign_positive() {
+        parser.statement.stock_buys.push(StockBuy::new(
+            symbol, quantity, price, -volume, commission, conclusion_date, execution_date));
+    } else {
+        parser.statement.stock_sells.push(StockSell::new(
+            symbol, -quantity, price, volume, commission, conclusion_date, execution_date, false));
     }
 
     Ok(())

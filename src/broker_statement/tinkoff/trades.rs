@@ -80,7 +80,7 @@ impl SectionParser for TradesParser {
                         })
                     } else {
                         parser.statement.stock_buys.push(StockBuy::new(
-                            &trade.symbol, quantity, price, volume, commission,
+                            &trade.symbol, quantity.into(), price, volume, commission,
                             conclusion_date, execution_date));
                     }
                 },
@@ -94,7 +94,7 @@ impl SectionParser for TradesParser {
                         })
                     } else {
                         parser.statement.stock_sells.push(StockSell::new(
-                            &trade.symbol, quantity, price, volume, commission,
+                            &trade.symbol, quantity.into(), price, volume, commission,
                             conclusion_date, execution_date, false));
                     }
                 },

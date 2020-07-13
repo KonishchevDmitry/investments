@@ -323,7 +323,9 @@ mod tests {
     }
 
     #[rstest(name => [
-        "margin-rub",
+        "third-party/margin-rub",
+        "third-party/latest",
+
         "return-of-capital-with-tax",
         "return-of-capital-without-tax",
     ])]

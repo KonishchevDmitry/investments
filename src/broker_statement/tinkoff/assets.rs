@@ -24,9 +24,7 @@ impl SectionParser for AssetsParser {
                 parser.statement.starting_assets.replace(true);
             }
 
-            if parser.statement.open_positions.insert(symbol.clone(), planned).is_some() {
-                return Err!("Got duplicated {} assets", symbol);
-            }
+            parser.statement.add_open_position(symbol, planned.into())?;
         }
 
         Ok(())

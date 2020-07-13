@@ -41,7 +41,7 @@ mod tests {
             (date!(3, 12, 2019), 107, dec!( 782.4)),
         ] {
             assert_eq!(
-                calc.add_trade(date, trade_type, shares, Cash::new(currency, price)).unwrap(),
+                calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
                 Cash::new(currency, dec!(0)),
             );
         }

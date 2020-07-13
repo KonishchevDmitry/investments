@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::rc::Rc;
 
 use crate::broker_statement::BrokerStatement;
@@ -35,32 +36,38 @@ pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
     Ok(())
 }
 
-pub fn buy(config: &Config, portfolio_name: &str, shares: u32, symbol: &str, cash_assets: Decimal) -> EmptyResult {
+pub fn buy(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> EmptyResult {
     modify_assets(config, portfolio_name, |portfolio, assets| {
         if portfolio.get_stock_symbols().get(symbol).is_none() {
             return Err!("Unable to buy {}: it's not specified in asset allocation configuration",
                 symbol);
         }
 
-        let current_shares = assets.stocks.remove(symbol).unwrap_or(0);
-        assets.stocks.insert(symbol.to_owned(), current_shares + shares);
+        assets.stocks.entry(symbol.to_owned())
+            .and_modify(|current_shares| *current_shares = (*current_shares + shares).normalize())
+            .or_insert(shares);
 
         set_cash_assets_impl(portfolio, assets, cash_assets)
     })
 }
 
-pub fn sell(config: &Config, portfolio_name: &str, shares: u32, symbol: &str, cash_assets: Decimal) -> EmptyResult {
+pub fn sell(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> EmptyResult {
     modify_assets(config, portfolio_name, |portfolio, assets| {
-        let current_shares = match assets.stocks.remove(symbol) {
-            Some(current_shares) => current_shares,
-            None => return Err!("The portfolio have no open {} positions", symbol),
+        let mut entry = match assets.stocks.entry(symbol.to_owned()) {
+            Entry::Occupied(entry) => entry,
+            Entry::Vacant(_) => return Err!("The portfolio has no open {} positions", symbol),
         };
 
-        if current_shares < shares {
+        let current_shares = entry.get_mut();
+        if shares > *current_shares {
             return Err!("Unable to sell {} shares of {}: the portfolio contains only {} shares",
                 shares, symbol, current_shares);
-        } else if current_shares > shares {
-            assets.stocks.insert(symbol.to_owned(), current_shares - shares);
+        }
+
+        if shares == *current_shares {
+            entry.remove();
+        } else {
+            *current_shares = (*current_shares - shares).normalize();
         }
 
         set_cash_assets_impl(portfolio, assets, cash_assets)

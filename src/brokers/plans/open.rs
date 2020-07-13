@@ -32,13 +32,13 @@ mod tests {
 
         // Percent commission > minimum commission
         assert_eq!(
-            calc.add_trade(date, trade_type, 73, Cash::new(currency, dec!(2758))).unwrap(),
+            calc.add_trade(date, trade_type, 73.into(), Cash::new(currency, dec!(2758))).unwrap(),
             Cash::new(currency, dec!(114.76)),
         );
 
         // Percent commission < minimum commission
         assert_eq!(
-            calc.add_trade(date, trade_type, 1, Cash::new(currency, dec!(1))).unwrap(),
+            calc.add_trade(date, trade_type, 1.into(), Cash::new(currency, dec!(1))).unwrap(),
             Cash::new(currency, dec!(0.04)),
         );
 

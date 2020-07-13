@@ -7,6 +7,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
+use crate::util;
 
 use super::Assets;
 
@@ -116,8 +117,15 @@ pub struct StockHolding {
     pub symbol: String,
     pub price: Decimal,
     pub currency_price: Cash,
-    pub current_shares: u32,
-    pub target_shares: u32,
+    pub current_shares: Decimal,
+    pub target_shares: Decimal,
+    pub fractional_shares_precision: u32,
+}
+
+impl StockHolding {
+    pub fn trade_granularity(&self) -> Decimal {
+        self.price * Decimal::new(1, self.fractional_shares_precision)
+    }
 }
 
 pub struct AssetAllocation {
@@ -146,9 +154,29 @@ impl AssetAllocation {
         }
     }
 
+    pub fn trade_granularity(&self) -> Decimal {
+        match self.holding {
+            Holding::Stock(ref holding) => holding.trade_granularity(),
+            Holding::Group(ref holdings) => {
+                let mut min_granularity = None;
+
+                for holding in holdings {
+                    let granularity = holding.trade_granularity();
+
+                    min_granularity = Some(match min_granularity {
+                        Some(min_granularity) if min_granularity <= granularity => min_granularity,
+                        _ => granularity,
+                    });
+                }
+
+                min_granularity.unwrap()
+            },
+        }
+    }
+
     fn load(
         config: &AssetAllocationConfig, currency: &str,
-        symbols: &mut HashSet<String>, stocks: &mut HashMap<String, u32>,
+        symbols: &mut HashSet<String>, stocks: &mut HashMap<String, Decimal>,
         converter: &CurrencyConverter, quotes: &Quotes,
     ) -> GenericResult<AssetAllocation> {
         let (holding, current_value) = match (&config.symbol, &config.assets) {
@@ -160,9 +188,8 @@ impl AssetAllocation {
 
                 let currency_price = quotes.get(symbol)?;
                 let price = converter.real_time_convert_to(currency_price, currency)?;
-
-                let shares = stocks.remove(symbol).unwrap_or(0);
-                let current_value = Decimal::from(shares) * price;
+                let shares = stocks.remove(symbol).unwrap_or(dec!(0));
+                let current_value = shares * price;
 
                 let holding = StockHolding {
                     symbol: symbol.clone(),
@@ -170,6 +197,7 @@ impl AssetAllocation {
                     currency_price: currency_price,
                     current_shares: shares,
                     target_shares: shares,
+                    fractional_shares_precision: util::decimal_precision(shares),
                 };
 
                 (Holding::Stock(holding), current_value)

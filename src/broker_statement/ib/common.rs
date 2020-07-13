@@ -55,6 +55,7 @@ impl<'a> Record<'a> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn parse_value<T: FromStr>(&self, field: &str) -> GenericResult<T> {
         let value = self.get_value(field)?;
         Ok(value.parse().map_err(|_| format!(

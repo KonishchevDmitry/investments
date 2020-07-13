@@ -144,11 +144,8 @@ impl Assets {
                 "Акции" | "ПАИ" => {
                     let symbol = get_symbol(securities, &asset.name)?;
                     let amount = parse_quantity(asset.end_amount, true)?;
-
                     if amount != 0 {
-                        if statement.open_positions.insert(symbol.clone(), amount).is_some() {
-                            return Err!("Duplicated open position: {}", symbol);
-                        }
+                        statement.add_open_position(&symbol, amount.into())?
                     }
                 },
                 "Денежные средства" => {
@@ -248,7 +245,7 @@ impl ConcludedTrades {
                     debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_buys.push(StockBuy::new(
-                        symbol, quantity, price, volume, commission,
+                        symbol, quantity.into(), price, volume, commission,
                         trade.conclusion_date, execution_date));
                 },
                 (None, Some(quantity)) => {
@@ -256,7 +253,7 @@ impl ConcludedTrades {
                     debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_sells.push(StockSell::new(
-                        symbol, quantity, price, volume, commission,
+                        symbol, quantity.into(), price, volume, commission,
                         trade.conclusion_date, execution_date, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")

@@ -9,11 +9,12 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
+use crate::types::Decimal;
 use crate::util;
 
 pub fn simulate_sell(
     portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
-    quotes: &Quotes, positions: &[(String, Option<u32>)],
+    quotes: &Quotes, positions: &[(String, Option<Decimal>)],
 ) -> EmptyResult {
     let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
 
@@ -28,10 +29,8 @@ pub fn simulate_sell(
     for (symbol, quantity) in positions {
         let quantity = *match quantity {
             Some(quantity) => quantity,
-            None => match statement.open_positions.get(symbol) {
-                Some(quantity) => quantity,
-                None => return Err!("The portfolio has no open {:?} positions", symbol),
-            }
+            None => statement.open_positions.get(symbol).ok_or_else(|| format!(
+                "The portfolio has no open {:?} positions", symbol))?,
         };
 
         statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?, &mut commission_calc)?;
@@ -54,7 +53,7 @@ struct TradeRow {
     #[column(name="Symbol")]
     symbol: String,
     #[column(name="Quantity")]
-    quantity: u32,
+    quantity: Decimal,
     #[column(name="Buy price")]
     buy_price: Cash,
     #[column(name="Sell price")]
@@ -85,7 +84,7 @@ struct FifoRow {
     #[column(name="Symbol")]
     symbol: Option<String>,
     #[column(name="Quantity")]
-    quantity: u32,
+    quantity: Decimal,
     #[column(name="Price")]
     price: Cash,
 }

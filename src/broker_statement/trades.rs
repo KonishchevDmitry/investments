@@ -16,7 +16,7 @@ pub struct ForexTrade {
 #[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
-    pub quantity: u32,
+    pub quantity: Decimal,
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -24,17 +24,17 @@ pub struct StockBuy {
     pub conclusion_date: Date,
     pub execution_date: Date,
 
-    sold: u32,
+    sold: Decimal,
 }
 
 impl StockBuy {
     pub fn new(
-        symbol: &str, quantity: u32, price: Cash, volume: Cash, commission: Cash,
+        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, sold: 0,
+            conclusion_date, execution_date, sold: dec!(0),
         }
     }
 
@@ -42,11 +42,11 @@ impl StockBuy {
         self.sold == self.quantity
     }
 
-    pub fn get_unsold(&self) -> u32 {
+    pub fn get_unsold(&self) -> Decimal {
         self.quantity - self.sold
     }
 
-    pub fn sell(&mut self, quantity: u32) {
+    pub fn sell(&mut self, quantity: Decimal) {
         assert!(self.get_unsold() >= quantity);
         self.sold += quantity;
     }
@@ -55,7 +55,7 @@ impl StockBuy {
 #[derive(Clone, Debug)]
 pub struct StockSell {
     pub symbol: String,
-    pub quantity: u32,
+    pub quantity: Decimal,
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -69,7 +69,7 @@ pub struct StockSell {
 
 impl StockSell {
     pub fn new(
-        symbol: &str, quantity: u32, price: Cash, volume: Cash, commission: Cash,
+        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, emulation: bool,
     ) -> StockSell {
         StockSell {
@@ -84,7 +84,7 @@ impl StockSell {
 
     pub fn process(&mut self, sources: Vec<StockSellSource>) {
         assert!(!self.is_processed());
-        assert_eq!(sources.iter().map(|source| source.quantity).sum::<u32>(), self.quantity);
+        assert_eq!(sources.iter().map(|source| source.quantity).sum::<Decimal>(), self.quantity);
         self.sources = sources;
     }
 
@@ -170,7 +170,7 @@ impl StockSell {
 
 #[derive(Clone, Debug)]
 pub struct StockSellSource {
-    pub quantity: u32,
+    pub quantity: Decimal,
     pub price: Cash,
     pub commission: Cash,
 
@@ -237,7 +237,7 @@ pub struct SellDetails {
 }
 
 pub struct FifoDetails {
-    pub quantity: u32,
+    pub quantity: Decimal,
     pub price: Cash,
 
     pub commission: Cash,

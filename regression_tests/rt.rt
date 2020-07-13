@@ -259,12 +259,12 @@ APP: regression_tests/investments
      bcs
 
 [65]
-NAME: IB margin RUB tax statement
-STDOUT: ib-margin-rub-tax-statement
+NAME: IB third-party tax statement
+STDOUT: ib-third-party-tax-statement
 APP: regression_tests/investments
      testdata/third-party-config
      tax-statement
-     margin-rub
+     third-party
 
 # Cash flow
 

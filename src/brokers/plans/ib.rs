@@ -1,10 +1,13 @@
 #[cfg(test)] use std::collections::HashMap;
 
+#[cfg(test)] use num_traits::Zero;
+
 #[cfg(test)] use crate::commissions::CommissionCalc;
 use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder};
 #[cfg(test)] use crate::currency::Cash;
+#[cfg(test)] use crate::types::Decimal;
 use crate::types::TradeType;
 
 pub fn fixed() -> CommissionSpec {
@@ -32,43 +35,47 @@ pub fn fixed() -> CommissionSpec {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn fixed() {
+    #[rstest(fraction => [dec!(0), dec!(0.1)])]
+    fn fixed(fraction: Decimal) {
         let mut calc = CommissionCalc::new(super::fixed());
 
         let currency = "USD";
         let date = date!(1, 1, 1);
 
         let trade_type = TradeType::Buy;
+        let shares = |shares| Decimal::from(shares) - fraction;
 
         // Minimum commission > per share commission
-        assert_eq!(calc.add_trade(date, trade_type, 199, Cash::new(currency, dec!(100))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, shares(199), Cash::new(currency, dec!(100))).unwrap(),
                    Cash::new(currency, dec!(1)));
 
         // Minimum commission == per share commission
-        assert_eq!(calc.add_trade(date, trade_type, 200, Cash::new(currency, dec!(100))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, shares(200), Cash::new(currency, dec!(100))).unwrap(),
                    Cash::new(currency, dec!(1)));
 
         // Per share commission > minimum commission
-        assert_eq!(calc.add_trade(date, trade_type, 201, Cash::new(currency, dec!(100))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, shares(201), Cash::new(currency, dec!(100))).unwrap(),
                    Cash::new(currency, dec!(1.01)));
 
         // Per share commission > minimum commission
-        assert_eq!(calc.add_trade(date, trade_type, 300, Cash::new(currency, dec!(100))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, shares(300), Cash::new(currency, dec!(100))).unwrap(),
                    Cash::new(currency, dec!(1.5)));
 
         // Per share commission > maximum commission
-        assert_eq!(calc.add_trade(date, trade_type, 300, Cash::new(currency, dec!(0.4))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, shares(300), Cash::new(currency, dec!(0.4))).unwrap(),
                    Cash::new(currency, dec!(1.2)));
 
         let trade_type = TradeType::Sell;
 
-        assert_eq!(calc.add_trade_precise(date, trade_type, 26, Cash::new(currency, dec!(174.2))).unwrap(),
-                   Cash::new(currency, dec!(1.0619736)));
+        if fraction.is_zero() {
+            assert_eq!(calc.add_trade_precise(date, trade_type, shares(26), Cash::new(currency, dec!(174.2))).unwrap(),
+                       Cash::new(currency, dec!(1.0619736)));
+        }
 
-        assert_eq!(calc.add_trade(date, trade_type, 26, Cash::new(currency, dec!(174.2))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, shares(26), Cash::new(currency, dec!(174.2))).unwrap(),
                    Cash::new(currency, dec!(1.06)));
 
         assert_eq!(calc.calculate(), HashMap::new());

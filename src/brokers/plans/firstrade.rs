@@ -21,7 +21,7 @@ mod tests {
         let currency = "USD";
         let date = date!(1, 1, 1);
 
-        assert_eq!(calc.add_trade(date, trade_type, 100, Cash::new(currency, dec!(100))).unwrap(),
+        assert_eq!(calc.add_trade(date, trade_type, 100.into(), Cash::new(currency, dec!(100))).unwrap(),
                    Cash::new(currency, dec!(0)));
 
         assert_eq!(calc.calculate(), HashMap::new());

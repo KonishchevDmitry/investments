@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use log::{self, log_enabled, debug};
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use num_traits::Zero;
 
 use crate::brokers::BrokerInfo;
 use crate::commissions::CommissionCalc;
@@ -161,7 +161,8 @@ impl<'a> AssetGroupRebalancer<'a> {
             let mut difference = asset.target_value - asset.current_value;
 
             if let Holding::Stock(ref holding) = asset.holding {
-                difference = util::round(difference / holding.price, 0) * holding.price;
+                let trade_granularity = holding.trade_granularity();
+                difference = util::round(difference / trade_granularity, 0) * trade_granularity;
             }
 
             if difference.abs() < self.min_trade_volume {
@@ -558,9 +559,8 @@ fn change_to(
             name, holding, target_shares, &mut commission_calc, currency, converter)
     };
 
-    let target_shares_fractional = target_value / holding.price;
-    let target_shares = target_shares_fractional.to_u32().unwrap();
-    assert_eq!(target_shares_fractional, Decimal::from_u32(target_shares).unwrap());
+    let target_shares = (target_value / holding.price).normalize();
+    assert!(util::decimal_precision(target_shares) <= holding.fractional_shares_precision);
 
     let paid_commission = calculate_commission(holding.target_shares)?;
     let current_commission = calculate_commission(target_shares)?;
@@ -570,7 +570,7 @@ fn change_to(
 }
 
 fn calculate_target_commission(
-    name: &str, holding: &StockHolding, target_shares: u32, commission_calc: &mut CommissionCalc,
+    name: &str, holding: &StockHolding, target_shares: Decimal, commission_calc: &mut CommissionCalc,
     currency: &str, converter: &CurrencyConverter,
 ) -> GenericResult<Decimal> {
     if target_shares == holding.current_shares {
@@ -631,7 +631,7 @@ fn calculate_trade_commissions(
 }
 
 fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
-    let trade_granularity = get_trade_granularity(asset);
+    let trade_granularity = asset.trade_granularity();
 
     let trade_volume = if asset.target_value <= asset.current_value {
         // target <= current
@@ -666,7 +666,7 @@ fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal)
 }
 
 fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
-    let trade_granularity = get_trade_granularity(asset);
+    let trade_granularity = asset.trade_granularity();
 
     let trade_volume = if asset.target_value >= asset.current_value {
         // current <= target
@@ -700,26 +700,6 @@ fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) 
     }
 
     Some(trade_volume)
-}
-
-fn get_trade_granularity(asset: &AssetAllocation) -> Decimal {
-    match asset.holding {
-        Holding::Stock(ref holding) => holding.price,
-        Holding::Group(ref holdings) => {
-            let mut min_granularity = None;
-
-            for holding in holdings {
-                let granularity = get_trade_granularity(holding);
-
-                min_granularity = Some(match min_granularity {
-                    Some(min_granularity) if min_granularity <= granularity => min_granularity,
-                    _ => granularity,
-                });
-            }
-
-            min_granularity.unwrap()
-        },
-    }
 }
 
 fn round_min_trade_volume(volume: Decimal, granularity: Decimal) -> Decimal {

@@ -21,6 +21,7 @@ use std::path::Path;
 
 use chrono::Duration;
 use log::{debug, warn};
+use num_traits::Zero;
 
 use crate::brokers::{Broker, BrokerInfo};
 use crate::commissions::CommissionCalc;
@@ -60,7 +61,7 @@ pub struct BrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
-    pub open_positions: HashMap<String, u32>,
+    pub open_positions: HashMap<String, Decimal>,
     instrument_names: HashMap<String, String>,
 }
 
@@ -245,7 +246,7 @@ impl BrokerStatement {
     }
 
     pub fn emulate_sell(
-        &mut self, symbol: &str, quantity: u32, price: Cash, commission_calc: &mut CommissionCalc
+        &mut self, symbol: &str, quantity: Decimal, price: Cash, commission_calc: &mut CommissionCalc
     ) -> EmptyResult {
         let conclusion_date = util::today_trade_conclusion_date();
 
@@ -264,12 +265,12 @@ impl BrokerStatement {
             conclusion_date, execution_date, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
-            let available = *open_position.get();
+            let available = open_position.get_mut();
 
-            if available == quantity {
+            if *available == quantity {
                 open_position.remove();
-            } else if available > quantity {
-                *open_position.get_mut() -= quantity;
+            } else if *available > quantity {
+                *available = (*available - quantity).normalize();
             } else {
                 return Err!("The portfolio has not enough open positions for {}", symbol);
             }
@@ -324,7 +325,7 @@ impl BrokerStatement {
                 stock_sell.symbol
             ))?;
 
-            while remaining_quantity > 0 {
+            while !remaining_quantity.is_zero() {
                 let index = symbol_buys.last().copied().ok_or_else(|| format!(
                     "Error while processing {} position closing: There are no open positions for it",
                     stock_sell.symbol
@@ -332,10 +333,10 @@ impl BrokerStatement {
                 let stock_buy = &mut self.stock_buys[index];
 
                 let sell_quantity = std::cmp::min(remaining_quantity, stock_buy.get_unsold());
-                assert!(sell_quantity > 0);
+                assert!(sell_quantity > dec!(0));
 
                 sources.push(StockSellSource {
-                    quantity: sell_quantity,
+                    quantity: sell_quantity.normalize(),
                     price: stock_buy.price,
                     commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
 

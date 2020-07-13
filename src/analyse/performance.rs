@@ -1,6 +1,5 @@
 use std::collections::{HashMap, BTreeMap};
 
-use cast::From as CastFrom;
 #[cfg(test)] use chrono::Duration;
 use log::{self, debug, log_enabled, trace, warn};
 use num_traits::Zero;
@@ -206,7 +205,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn calculate_open_position_periods(&mut self) -> EmptyResult {
         struct OpenPosition {
             start_date: Date,
-            quantity: i32,
+            quantity: Decimal,
         }
 
         trace!("Open positions periods:");
@@ -222,14 +221,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 let current = open_position.get_or_insert_with(|| {
                     OpenPosition {
                         start_date: date,
-                        quantity: 0,
+                        quantity: dec!(0),
                     }
                 });
                 current.quantity += quantity;
 
-                if current.quantity > 0 {
+                if current.quantity > dec!(0) {
                     continue;
-                } else if current.quantity < 0 {
+                } else if current.quantity < dec!(0) {
                     return Err!(
                         "Error while processing {} sell operations: Got a negative balance on {}",
                         symbol, formatting::format_date(date));
@@ -308,7 +307,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
 
             let deposit_view = self.get_deposit_view(&stock_buy.symbol);
-            deposit_view.trade(stock_buy.conclusion_date, i32::cast(stock_buy.quantity).unwrap());
+            deposit_view.trade(stock_buy.conclusion_date, stock_buy.quantity);
             deposit_view.transaction(stock_buy.conclusion_date, assets);
         }
 
@@ -322,7 +321,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             {
                 let deposit_view = self.get_deposit_view(&stock_sell.symbol);
 
-                deposit_view.trade(stock_sell.conclusion_date, -i32::cast(stock_sell.quantity).unwrap());
+                deposit_view.trade(stock_sell.conclusion_date, -stock_sell.quantity);
                 deposit_view.transaction(stock_sell.conclusion_date, -assets);
                 deposit_view.transaction(stock_sell.conclusion_date, commission);
 
@@ -449,7 +448,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
 struct StockDepositView {
     name: Option<String>,
-    trades: BTreeMap<Date, i32>,
+    trades: BTreeMap<Date, Decimal>,
     transactions: Vec<Transaction>,
     interest_periods: Vec<InterestPeriod>,
     last_sell_volume: Option<Decimal>,
@@ -468,7 +467,7 @@ impl StockDepositView {
         }
     }
 
-    fn trade(&mut self, date: Date, quantity: i32) {
+    fn trade(&mut self, date: Date, quantity: Decimal) {
         self.trades.entry(date)
             .and_modify(|total| *total += quantity)
             .or_insert(quantity);

@@ -73,10 +73,6 @@ impl OpenPosition {
                 }
             }).ok_or_else(|| format!("Invalid {} open positions quantity: {:?}", symbol, self.units))?;
 
-        if statement.open_positions.insert(symbol.to_owned(), quantity).is_some() {
-            return Err!("Got a duplicated open position for {}", symbol);
-        }
-
-        Ok(())
+        statement.add_open_position(symbol, quantity.into())
     }
 }

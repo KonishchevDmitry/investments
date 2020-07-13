@@ -9,7 +9,7 @@ use log::{self, debug, error};
 use investments::config::{Config, load_config};
 use investments::core::GenericResult;
 use investments::types::{Date, Decimal};
-use investments::util;
+use investments::util::{self, DecimalRestrictions};
 
 pub enum Action {
     Analyse {
@@ -18,12 +18,22 @@ pub enum Action {
     },
     SimulateSell {
         name: String,
-        positions: Vec<(String, Option<u32>)>,
+        positions: Vec<(String, Option<Decimal>)>,
     },
 
     Sync(String),
-    Buy(String, u32, String, Decimal),
-    Sell(String, u32, String, Decimal),
+    Buy {
+        name: String,
+        shares: Decimal,
+        symbol: String,
+        cash_assets: Decimal,
+    },
+    Sell {
+        name: String,
+        shares: Decimal,
+        symbol: String,
+        cash_assets: Decimal,
+    },
     SetCashAssets(String, Decimal),
 
     Show {
@@ -221,39 +231,41 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
         });
     }
 
-    let portfolio_name = portfolio::get(matches);
+    let name = portfolio::get(matches);
 
     Ok(match command {
         "analyse" => Action::Analyse {
-            name: portfolio_name,
+            name,
             show_closed_positions: matches.is_present("all"),
         },
 
-        "sync" => Action::Sync(portfolio_name),
+        "sync" => Action::Sync(name),
         "buy" | "sell" | "cash" => {
             let cash_assets = Decimal::from_str(&cash_assets::get(matches))
                 .map_err(|_| "Invalid cash assets value")?;
 
             if command == "cash" {
-                Action::SetCashAssets(portfolio_name, cash_assets)
+                Action::SetCashAssets(name, cash_assets)
             } else {
-                let shares = shares::get(matches).parse().map_err(|_| "Invalid shares number")?;
+                let shares = util::parse_decimal(
+                    &shares::get(matches), DecimalRestrictions::StrictlyPositive)
+                    .map_err(|_| "Invalid shares number")?.normalize();
                 let symbol = symbol::get(matches);
 
                 match command {
-                    "buy" => Action::Buy(portfolio_name, shares, symbol, cash_assets),
-                    "sell" => Action::Sell(portfolio_name, shares, symbol, cash_assets),
+                    "buy" => Action::Buy {name, shares, symbol, cash_assets},
+                    "sell" => Action::Sell {name, shares, symbol, cash_assets},
                     _ => unreachable!(),
                 }
             }
         },
 
         "show" => Action::Show {
-            name: portfolio_name,
+            name,
             flat: matches.is_present("flat"),
         },
         "rebalance" => Action::Rebalance {
-            name: portfolio_name,
+            name,
             flat: matches.is_present("flat"),
         },
         "simulate-sell" => {
@@ -264,17 +276,11 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
                 let quantity = if quantity == "all" {
                     None
                 } else {
-                    Some(
-                        quantity.parse::<u32>().ok().and_then(|quantity| {
-                            if quantity > 0 {
-                                Some(quantity)
-                            } else {
-                                None
-                            }
-                        }).ok_or_else(|| format!(
-                            "Invalid positions specification: Invalid quantity: {:?}", quantity)
-                        )?
-                    )
+                    Some(util::parse_decimal(
+                        quantity, DecimalRestrictions::StrictlyPositive
+                    ).map_err(|_| format!(
+                        "Invalid positions specification: Invalid quantity: {:?}", quantity)
+                    )?)
                 };
 
                 let symbol = positions_spec_iter.next().ok_or(
@@ -283,24 +289,21 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
                 positions.push((symbol.to_owned(), quantity));
             }
 
-            Action::SimulateSell {
-                name: portfolio_name,
-                positions: positions,
-            }
+            Action::SimulateSell {name, positions}
         }
 
         "tax-statement" => {
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
-                name: portfolio_name,
+                name,
                 year: get_year(matches)?,
                 tax_statement_path: tax_statement_path,
             }
         },
         "cash-flow" => {
             Action::CashFlow {
-                name: portfolio_name,
+                name,
                 year: get_year(matches)?,
             }
         },

@@ -31,27 +31,27 @@ mod tests {
         let date = date!(22, 6, 2020);
 
         assert_eq!(
-            calc.add_trade(date, trade_type, 22, Cash::new(currency, dec!(3890))).unwrap(),
+            calc.add_trade(date, trade_type, 22.into(), Cash::new(currency, dec!(3890))).unwrap(),
             Cash::new(currency, dec!(42.79)),
         );
 
         assert_eq!(
-            calc.add_trade(date, trade_type, 3, Cash::new(currency, dec!(3124))).unwrap(),
+            calc.add_trade(date, trade_type, 3.into(), Cash::new(currency, dec!(3124))).unwrap(),
             Cash::new(currency, dec!(4.69)),
         );
 
         assert_eq!(
-            calc.add_trade(date, trade_type, 3, Cash::new(currency, dec!(2809.5))).unwrap(),
+            calc.add_trade(date, trade_type, 3.into(), Cash::new(currency, dec!(2809.5))).unwrap(),
             Cash::new(currency, dec!(4.21)),
         );
 
         assert_eq!(
-            calc.add_trade(date, trade_type, 3, Cash::new(currency, dec!(2196))).unwrap(),
+            calc.add_trade(date, trade_type, 3.into(), Cash::new(currency, dec!(2196))).unwrap(),
             Cash::new(currency, dec!(3.29)),
         );
 
         assert_eq!(
-            calc.add_trade(date, trade_type, 45, Cash::new(currency, dec!(864.4))).unwrap(),
+            calc.add_trade(date, trade_type, 45.into(), Cash::new(currency, dec!(864.4))).unwrap(),
             Cash::new(currency, dec!(19.45)),
         );
 

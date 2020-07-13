@@ -204,11 +204,11 @@ impl StockTradeTransaction {
 
         if buy {
             statement.stock_buys.push(StockBuy::new(
-                &symbol, quantity, price, volume, commission,
+                &symbol, quantity.into(), price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date));
         } else {
             statement.stock_sells.push(StockSell::new(
-                &symbol, quantity, price, volume, commission,
+                &symbol, quantity.into(), price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date, false));
         }
 

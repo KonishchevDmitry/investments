@@ -88,7 +88,7 @@ struct TradeRow {
     #[column(name="Ценная бумага")]
     security: String,
     #[column(name="Кол.")]
-    quantity: u32,
+    quantity: Decimal,
     #[column(name="Цена")]
     price: Cash,
     #[column(name="Курс руб.\nдата сделки")]
@@ -129,7 +129,7 @@ struct FifoRow {
     #[column(name="Ценная бумага")]
     security: String,
     #[column(name="Кол.")]
-    quantity: u32,
+    quantity: Decimal,
     #[column(name="Цена")]
     price: Cash,
     #[column(name="Курс руб.\nдата сделки")]

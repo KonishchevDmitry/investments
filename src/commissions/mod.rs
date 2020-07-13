@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
 use chrono::Datelike;
-use num_traits::Zero;
+use num_traits::{cast::ToPrimitive, Zero};
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
@@ -98,25 +98,30 @@ impl CommissionCalc {
         }
     }
 
-    pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: Decimal, price: Cash) -> GenericResult<Cash> {
         let mut commission = self.add_trade_precise(date, trade_type, shares, price)?;
         commission.amount = util::round_with(commission.amount, 2, self.spec.rounding_method);
         Ok(commission)
     }
 
-    pub fn add_trade_precise(&mut self, date: Date, trade_type: TradeType, shares: u32, price: Cash) -> GenericResult<Cash> {
+    pub fn add_trade_precise(&mut self, date: Date, trade_type: TradeType, shares: Decimal, price: Cash) -> GenericResult<Cash> {
         // Commission returned by this method must be independent from any side effects like daily
         // volume and others. Method calls with same arguments must return same results. All
         // accumulation commissions must be calculated separately.
 
+        // We don't know how commissions are calculated for fractional shares yet, so use ceiled
+        // value for now.
+        let whole_shares = shares.ceil().to_u32().ok_or_else(|| format!(
+            "Got an invalid number of shares: {}", shares))?;
+
         let volume = get_trade_volume(self.spec.currency, price * shares)?;
         *self.volume.entry(date).or_default() += volume;
 
-        let mut commission = self.spec.trade.commission.calculate(shares, volume);
+        let mut commission = self.spec.trade.commission.calculate(whole_shares, volume);
 
         for (transaction_type, fee_spec) in &self.spec.trade.transaction_fees {
             if *transaction_type == trade_type {
-                commission += fee_spec.calculate(shares, volume);
+                commission += fee_spec.calculate(whole_shares, volume);
             }
         }
 

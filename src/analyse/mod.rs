@@ -8,6 +8,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::localities;
 use crate::quotes::Quotes;
+use crate::types::Decimal;
 
 use self::performance::PortfolioPerformanceAnalyser;
 
@@ -69,7 +70,7 @@ pub fn analyse(config: &Config, portfolio_name: &str, show_closed_positions: boo
     Ok(())
 }
 
-pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<u32>)]) -> EmptyResult {
+pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)]) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let statement = load_portfolio(config, portfolio, true)?;
     let (converter, quotes) = load_tools(config)?;

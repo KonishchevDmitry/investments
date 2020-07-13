@@ -46,9 +46,7 @@ impl AssetsParser {
             let quantity = asset.end_quantity.unwrap_or(0);
             if quantity != 0 {
                 let symbol = parse_symbol(&asset.name)?;
-                if statement.open_positions.insert(symbol.clone(), quantity).is_some() {
-                    return Err!("Got duplicated position for {}", symbol);
-                }
+                statement.add_open_position(&symbol, quantity.into())?;
             }
         }
 

@@ -116,10 +116,10 @@ impl TradesParser {
 
         if buy {
             statement.stock_buys.push(StockBuy::new(
-                symbol, quantity, price, volume, commission, conclusion_date, execution_date));
+                symbol, quantity.into(), price, volume, commission, conclusion_date, execution_date));
         } else {
             statement.stock_sells.push(StockSell::new(
-                symbol, quantity, price, volume, commission, conclusion_date, execution_date, false));
+                symbol, quantity.into(), price, volume, commission, conclusion_date, execution_date, false));
         }
 
         Ok(())
