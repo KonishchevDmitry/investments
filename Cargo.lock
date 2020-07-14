@@ -902,7 +902,7 @@ dependencies = [
 
 [[package]]
 name = "investments"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "ansi_term 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "calamine 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
