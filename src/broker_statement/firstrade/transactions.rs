@@ -1,7 +1,8 @@
+use log::warn;
 use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
 
-use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest};
+use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Dividend};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
@@ -254,9 +255,30 @@ impl IncomeInfo {
         match (self._type.as_str(), securities.get(&self.security_id)?) {
             ("MISC", SecurityType::Interest) => {
                 statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
-            }
+            },
+            ("DIV", SecurityType::Stock(issuer)) => {
+                self.parse_dividend(statement, &issuer, amount)?;
+            },
             _ => return Err!("Got an unsupported income: {:?}", self.info.memo),
         };
+
+        Ok(())
+    }
+
+    fn parse_dividend(self, statement: &mut PartialBrokerStatement, issuer: &str, amount: Cash) -> EmptyResult {
+        let date = self.info.conclusion_date;
+
+        warn!(concat!(
+            "There are no detailed information for some dividends - it will be deduced approximately. ",
+            "First occurred dividend: {} at {}."
+        ), issuer, formatting::format_date(date));
+
+        statement.dividends.push(Dividend {
+            date: date,
+            issuer: issuer.to_owned(),
+            amount: amount,
+            paid_tax: Cash::new(amount.currency, dec!(0)),
+        });
 
         Ok(())
     }
