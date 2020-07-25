@@ -53,6 +53,10 @@ impl Country {
             tax_to_pay
         }
     }
+
+    pub fn deduce_income(&self, result_income: Decimal) -> Decimal {
+        currency::round(result_income / (dec!(1) - self.tax_rate))
+    }
 }
 
 pub fn russia() -> Country {
@@ -60,6 +64,14 @@ pub fn russia() -> Country {
         currency: "RUB",
         tax_rate: Decimal::new(13, 2),
         tax_precision: 0,
+    }
+}
+
+pub fn us() -> Country {
+    Country {
+        currency: "USD",
+        tax_rate: Decimal::new(10, 2),
+        tax_precision: 2,
     }
 }
 

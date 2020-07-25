@@ -6,6 +6,7 @@ use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Dividend};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
+use crate::localities;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -264,8 +265,10 @@ impl IncomeInfo {
         Ok(())
     }
 
-    fn parse_dividend(self, parser: &mut StatementParser, issuer: &str, amount: Cash) -> EmptyResult {
+    fn parse_dividend(self, parser: &mut StatementParser, issuer: &str, income: Cash) -> EmptyResult {
         let date = self.info.conclusion_date;
+        let currency = income.currency;
+        let income = income.amount;
 
         if parser.reader.warn_on_missing_dividend_details {
             warn!(concat!(
@@ -276,11 +279,20 @@ impl IncomeInfo {
             parser.reader.warn_on_missing_dividend_details = false;
         }
 
+        if self.info.memo.ends_with(" NON-QUALIFIED DIVIDEND NON-RES TAX WITHHELD") {
+            return Err!("Got an unexpected dividend description: {:?}", self.info.memo);
+        }
+
+        let foreign_country = localities::us();
+        let amount = foreign_country.deduce_income(income);
+        let paid_tax = amount - income;
+        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(amount, None));
+
         parser.statement.dividends.push(Dividend {
             date: date,
             issuer: issuer.to_owned(),
-            amount: amount,
-            paid_tax: Cash::new(amount.currency, dec!(0)),
+            amount: Cash::new(currency, amount),
+            paid_tax: Cash::new(currency, paid_tax),
         });
 
         Ok(())
