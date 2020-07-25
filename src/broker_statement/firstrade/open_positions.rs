@@ -1,10 +1,10 @@
 use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
 
-use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::util::{self, DecimalRestrictions};
 
+use super::StatementParser;
 use super::common::{Ignore, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 
@@ -16,9 +16,9 @@ pub struct OpenPositions {
 }
 
 impl OpenPositions {
-    pub fn parse(self, statement: &mut PartialBrokerStatement, securities: &SecurityInfo) -> EmptyResult {
+    pub fn parse(self, parser: &mut StatementParser, securities: &SecurityInfo) -> EmptyResult {
         for stock in self.stocks {
-            stock.open_position.parse(statement, securities)?;
+            stock.open_position.parse(parser, securities)?;
         }
         Ok(())
     }
@@ -53,7 +53,7 @@ pub struct OpenPosition {
 }
 
 impl OpenPosition {
-    fn parse(self, statement: &mut PartialBrokerStatement, securities: &SecurityInfo) -> EmptyResult {
+    fn parse(self, parser: &mut StatementParser, securities: &SecurityInfo) -> EmptyResult {
         if self._type != "LONG" {
             return Err!("Unsupported {} open position type: {:?}", self.security_id, self._type);
         }
@@ -73,6 +73,6 @@ impl OpenPosition {
                 }
             }).ok_or_else(|| format!("Invalid {} open positions quantity: {:?}", symbol, self.units))?;
 
-        statement.add_open_position(symbol, quantity.into())
+        parser.statement.add_open_position(symbol, quantity.into())
     }
 }

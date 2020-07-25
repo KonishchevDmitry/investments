@@ -3,13 +3,13 @@ use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
 
 use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Dividend};
-use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
+use super::StatementParser;
 use super::common::{Ignore, deserialize_date, deserialize_decimal, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 
@@ -32,28 +32,28 @@ pub struct Transactions {
 
 impl Transactions {
     pub fn parse(
-        self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
+        self, parser: &mut StatementParser, currency: &str, securities: &SecurityInfo,
     ) -> EmptyResult {
         for cash_flow in self.cash_flows {
-            cash_flow.parse(statement, currency)?;
+            cash_flow.parse(parser, currency)?;
         }
 
         for stock_buy in self.stock_buys {
             if stock_buy._type != "BUY" {
                 return Err!("Got an unsupported type of stock purchase: {:?}", stock_buy._type);
             }
-            stock_buy.transaction.parse(statement, currency, securities, true)?;
+            stock_buy.transaction.parse(parser, currency, securities, true)?;
         }
 
         for stock_sell in self.stock_sells {
             if stock_sell._type != "SELL" {
                 return Err!("Got an unsupported type of stock sell: {:?}", stock_sell._type);
             }
-            stock_sell.transaction.parse(statement, currency, securities, false)?;
+            stock_sell.transaction.parse(parser, currency, securities, false)?;
         }
 
         for income in self.income {
-            income.parse(statement, currency, securities)?;
+            income.parse(parser, currency, securities)?;
         }
 
         Ok(())
@@ -85,7 +85,7 @@ struct CashFlowTransaction {
 }
 
 impl CashFlowInfo {
-    fn parse(self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
+    fn parse(self, parser: &mut StatementParser, currency: &str) -> EmptyResult {
         let transaction = self.transaction;
 
         if transaction._type != "CREDIT" {
@@ -97,7 +97,7 @@ impl CashFlowInfo {
 
         let amount = util::validate_named_decimal(
             "transaction amount", transaction.amount, DecimalRestrictions::StrictlyPositive)?;
-        statement.cash_flows.push(CashAssets::new(transaction.date, currency, amount));
+        parser.statement.cash_flows.push(CashAssets::new(transaction.date, currency, amount));
 
         Ok(())
     }
@@ -146,8 +146,7 @@ struct StockTradeTransaction {
 
 impl StockTradeTransaction {
     fn parse(
-        self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
-        buy: bool,
+        self, parser: &mut StatementParser, currency: &str, securities: &SecurityInfo, buy: bool,
     ) -> EmptyResult {
         validate_sub_account(&self.sub_account_from)?;
         validate_sub_account(&self.sub_account_to)?;
@@ -204,11 +203,11 @@ impl StockTradeTransaction {
         debug_assert_eq!(volume, (price * quantity).round());
 
         if buy {
-            statement.stock_buys.push(StockBuy::new(
+            parser.statement.stock_buys.push(StockBuy::new(
                 &symbol, quantity.into(), price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date));
         } else {
-            statement.stock_sells.push(StockSell::new(
+            parser.statement.stock_sells.push(StockSell::new(
                 &symbol, quantity.into(), price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date, false));
         }
@@ -236,7 +235,7 @@ struct IncomeInfo {
 
 impl IncomeInfo {
     fn parse(
-        self, statement: &mut PartialBrokerStatement, currency: &str, securities: &SecurityInfo,
+        self, parser: &mut StatementParser, currency: &str, securities: &SecurityInfo,
     ) -> EmptyResult {
         validate_sub_account(&self.sub_account_from)?;
         validate_sub_account(&self.sub_account_to)?;
@@ -254,10 +253,10 @@ impl IncomeInfo {
 
         match (self._type.as_str(), securities.get(&self.security_id)?) {
             ("MISC", SecurityType::Interest) => {
-                statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
+                parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
             },
             ("DIV", SecurityType::Stock(issuer)) => {
-                self.parse_dividend(statement, &issuer, amount)?;
+                self.parse_dividend(parser, &issuer, amount)?;
             },
             _ => return Err!("Got an unsupported income: {:?}", self.info.memo),
         };
@@ -265,15 +264,19 @@ impl IncomeInfo {
         Ok(())
     }
 
-    fn parse_dividend(self, statement: &mut PartialBrokerStatement, issuer: &str, amount: Cash) -> EmptyResult {
+    fn parse_dividend(self, parser: &mut StatementParser, issuer: &str, amount: Cash) -> EmptyResult {
         let date = self.info.conclusion_date;
 
-        warn!(concat!(
-            "There are no detailed information for some dividends - it will be deduced approximately. ",
-            "First occurred dividend: {} at {}."
-        ), issuer, formatting::format_date(date));
+        if parser.reader.warn_on_missing_dividend_details {
+            warn!(concat!(
+                "There are no detailed information for some dividends - it will be deduced ",
+                "approximately. First occurred dividend: {} at {}."
+            ), issuer, formatting::format_date(date));
 
-        statement.dividends.push(Dividend {
+            parser.reader.warn_on_missing_dividend_details = false;
+        }
+
+        parser.statement.dividends.push(Dividend {
             date: date,
             issuer: issuer.to_owned(),
             amount: amount,

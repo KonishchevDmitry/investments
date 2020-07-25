@@ -1,15 +1,32 @@
 use serde::Deserialize;
 
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::types::Date;
 use crate::util;
 
+use super::StatementReader;
 use super::balance::Balance;
 use super::common::{Ignore, deserialize_date};
 use super::open_positions::OpenPositions;
 use super::security_info::SecurityInfoSection;
 use super::transactions::Transactions;
+
+pub struct StatementParser<'a> {
+    pub reader: &'a mut StatementReader,
+    pub statement: PartialBrokerStatement,
+}
+
+impl<'a> StatementParser<'a> {
+    pub fn parse(reader: &mut StatementReader, statement: OFX) -> GenericResult<PartialBrokerStatement> {
+        let mut parser = StatementParser {
+            reader,
+            statement: PartialBrokerStatement::new(),
+        };
+        statement.parse(&mut parser)?;
+        parser.statement.validate()
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -60,7 +77,7 @@ struct Report {
 }
 
 impl OFX {
-    pub fn parse(self) -> GenericResult<PartialBrokerStatement> {
+    pub fn parse(self, parser: &mut StatementParser) -> EmptyResult {
         let report = self.statement.response.report;
         let currency = report.currency;
         let transactions = report.transactions;
@@ -76,16 +93,15 @@ impl OFX {
                 "opening date until the date when the report is generated"))
         }
 
-        let mut statement = PartialBrokerStatement::new();
-        statement.set_period((start_date, end_date))?;
+        parser.statement.set_period((start_date, end_date))?;
 
-        statement.set_starting_assets(false)?;
-        report.balance.parse(&mut statement, &currency)?;
+        parser.statement.set_starting_assets(false)?;
+        report.balance.parse(parser, &currency)?;
 
         let securities = self.security_info.parse()?;
-        transactions.parse(&mut statement, &currency, &securities)?;
-        report.open_positions.parse(&mut statement, &securities)?;
+        transactions.parse(parser, &currency, &securities)?;
+        report.open_positions.parse(parser, &securities)?;
 
-        statement.validate()
+        Ok(())
     }
 }

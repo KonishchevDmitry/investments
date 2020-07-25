@@ -17,14 +17,17 @@ use crate::core::GenericResult;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-use self::parser::OFX;
+use self::parser::{StatementParser, OFX};
 
 pub struct StatementReader {
+    warn_on_missing_dividend_details: bool,
 }
 
 impl StatementReader {
     pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{}))
+        Ok(Box::new(StatementReader{
+            warn_on_missing_dividend_details: true,
+        }))
     }
 }
 
@@ -34,7 +37,7 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        read_statement(path)?.parse()
+        StatementParser::parse(self, read_statement(path)?)
     }
 }
 
