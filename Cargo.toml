@@ -58,8 +58,8 @@ serde_yaml = "0.8.13"
 serde-xml-rs = "0.4.0"
 shellexpand = "2.0.0"
 
-static_table_derive = "0.1.6"
-xls_table_derive = "0.1.6"
+static_table_derive = "0.1.7"
+xls_table_derive = "0.2.0"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
