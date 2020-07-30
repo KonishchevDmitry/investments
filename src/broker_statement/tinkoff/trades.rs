@@ -140,19 +140,22 @@ struct TradeRow {
     volume: String,
     #[column(name="Валюта расчетов")]
     settlement_currency: String,
+
     #[column(name="Комиссия брокера")]
     commission: String,
     #[column(name="Валюта комиссии")]
     commission_currency: String,
-    // FIXME(konishchev): Support
-    // #[column(name="Комиссия биржи", optional=true)]
-    // _18: Option<String>,
-    // #[column(name="Валюта комиссии биржи", optional=true)]
-    // _19: Option<String>,
-    // #[column(name="Комиссия клир. центра", optional=true)]
-    // _20: Option<String>,
-    // #[column(name="Валюта комиссии клир. центра", optional=true)]
-    // _21: Option<String>,
+
+    // The following fees are actually included into brokerage commission:
+    #[column(name="Комиссия биржи", optional=true)]
+    _18: Option<String>,
+    #[column(name="Валюта комиссии биржи", optional=true)]
+    _19: Option<String>,
+    #[column(name="Комиссия клир. центра", optional=true)]
+    _20: Option<String>,
+    #[column(name="Валюта комиссии клир. центра", optional=true)]
+    _21: Option<String>,
+
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
     #[column(name="Контрагент")]
