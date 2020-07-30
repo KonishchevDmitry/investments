@@ -4,11 +4,6 @@ use crate::core::GenericResult;
 
 use super::{SheetReader, Cell, is_empty_row};
 
-pub struct TableColumn {
-    pub name: &'static str,
-    pub optional: bool,
-}
-
 pub trait TableRow: Sized {
     fn columns() -> Vec<TableColumn>;
     fn parse(row: &[Option<&Cell>]) -> GenericResult<Self>;
@@ -46,6 +41,56 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
     }
 
     Ok(table)
+}
+
+pub struct TableColumn {
+    name: &'static str,
+    regex: bool,
+    optional: bool,
+}
+
+impl TableColumn {
+    pub fn new(name: &'static str, regex: bool, optional: bool) -> TableColumn {
+        TableColumn {name, regex, optional}
+    }
+
+    fn find(&self, row: &[Cell]) -> GenericResult<Option<usize>> {
+        for (cell_id, cell) in row.iter().enumerate() {
+            match cell {
+                Cell::String(value) => {
+                    return if self.matches(value)? {
+                        Ok(Some(cell_id))
+                    } else if self.optional {
+                        Ok(None)
+                    } else {
+                        Err!("Unable to find {:?} column - got {:?} instead", self.name, value)
+                    };
+                },
+                Cell::Empty => {}
+                _ => return Err!(
+                    "Unable to find {:?} column - got an unexpected {:?} cell", self.name, cell),
+            };
+        }
+
+        if self.optional {
+            Ok(None)
+        } else {
+            Err!("The table has no {:?} column", self.name)
+        }
+    }
+
+    fn matches(&self, value: &str) -> GenericResult<bool> {
+        let value = value.trim();
+
+        Ok(if self.regex {
+            let name_regex = Regex::new(self.name).map_err(|_| format!(
+                "Invalid column name regex: {:?}", self.name))?;
+            name_regex.is_match(value)
+        } else {
+            let value_regex = format!("^{}$", regex::escape(value).replace("\n", " ?"));
+            Regex::new(&value_regex).unwrap().is_match(self.name)
+        })
+    }
 }
 
 pub struct ColumnsMapping {
@@ -98,7 +143,7 @@ pub fn map_columns(mut row: &[Cell], columns: &[TableColumn]) -> GenericResult<C
     let mut offset = 0;
 
     for column in columns {
-        let cell_id = match find_column(row, column.name, column.optional)? {
+        let cell_id = match column.find(row)? {
             Some(index) => {
                 row = &row[index + 1..];
                 let cell_id = offset + index;
@@ -115,31 +160,4 @@ pub fn map_columns(mut row: &[Cell], columns: &[TableColumn]) -> GenericResult<C
     }
 
     Ok(ColumnsMapping { mapping })
-}
-
-fn find_column(row: &[Cell], name: &str, optional: bool) -> GenericResult<Option<usize>> {
-    for (cell_id, cell) in row.iter().enumerate() {
-        match cell {
-            Cell::String(value) => {
-                let value_regex = format!("^{}$", regex::escape(value.trim()).replace("\n", " ?"));
-
-                if Regex::new(&value_regex).unwrap().is_match(name) {
-                    return Ok(Some(cell_id));
-                } else if optional {
-                    return Ok(None);
-                } else {
-                    return Err!("Unable to find {:?} column - got {:?} instead", name, value);
-                }
-            },
-            Cell::Empty => {}
-            _ => return Err!(
-                "Unable to find {:?} column - got an unexpected {:?} cell", name, cell),
-        };
-    }
-
-    if optional {
-        Ok(None)
-    } else {
-        Err!("The table has no {:?} column", name)
-    }
 }

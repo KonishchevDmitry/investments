@@ -12,6 +12,7 @@ type GenericResult<T> = Result<T, GenericError>;
 struct Column {
     field: String,
     name: String,
+    regex: bool,
     optional: bool,
 }
 
@@ -37,12 +38,9 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 
     let columns_code = columns.iter().map(|column| {
         let name = &column.name;
+        let regex = column.regex;
         let optional = column.optional;
-
-        quote!(#mod_ident::TableColumn {
-            name: #name,
-            optional: #optional,
-        })
+        quote!(#mod_ident::TableColumn::new(#name, #regex, #optional))
     });
 
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
@@ -95,6 +93,8 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     struct ColumnParams {
         name: String,
         #[darling(default)]
+        regex: bool,
+        #[darling(default)]
         optional: bool,
     }
     let column_attr_name = "column";
@@ -135,6 +135,7 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         columns.push(Column {
             field: field_name,
             name: column_params.name,
+            regex: column_params.regex,
             optional: column_params.optional,
         })
     }
