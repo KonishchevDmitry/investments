@@ -10,6 +10,7 @@ use super::XlsStatementParser;
 pub struct Section {
     title: &'static str,
     pub parser: Option<SectionParserRc>,
+    matches: Vec<&'static str>,
     by_prefix: bool,
     required: bool,
 }
@@ -18,14 +19,20 @@ impl Section {
     pub fn new(title: &'static str) -> Section {
         Section {
             title,
-            by_prefix: false,
             parser: None,
+            by_prefix: false,
+            matches: vec![title],
             required: false,
         }
     }
 
     pub fn by_prefix(mut self) -> Section {
         self.by_prefix = true;
+        self
+    }
+
+    pub fn alias(mut self, title: &'static str) -> Section {
+        self.matches.push(title);
         self
     }
 
@@ -77,11 +84,13 @@ impl SectionState {
 
         let start_from = self.start_from();
         let current_id = match self.sections[start_from..].iter().position(|section| {
-            if section.by_prefix {
-                cell_value.starts_with(section.title)
-            } else {
-                section.title == cell_value
-            }
+            section.matches.iter().any(|title| {
+                if section.by_prefix {
+                    cell_value.starts_with(title)
+                } else {
+                    title == cell_value
+                }
+            })
         }) {
             Some(index) => start_from + index,
             None => return Ok(None),

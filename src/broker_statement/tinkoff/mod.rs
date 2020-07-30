@@ -54,13 +54,9 @@ impl BrokerStatementReader for StatementReader {
                 .parser(Box::new(TradesParser {})).required(),
             Section::new("2. Операции с денежными средствами")
                 .parser(Box::new(CashAssetsParser {})).required(),
-            Section::new("3. Движение финансовых активов инвестора")
+            Section::new("3.1 Движение по ценным бумагам инвестора")
+                .alias("3. Движение финансовых активов инвестора")
                 .parser(Box::new(AssetsParser {})).required(),
-            // FIXME(konishchev): Support
-            // Section::new("3. Движение финансовых активов инвестора")
-            //     .parser(Box::new(AssetsParser {})),
-            // Section::new("3.1 Движение по ценным бумагам инвестора")
-            //     .parser(Box::new(AssetsParser {})),
         ])
     }
 }
