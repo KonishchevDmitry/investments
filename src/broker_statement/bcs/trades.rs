@@ -32,7 +32,7 @@ impl SectionParser for TradesParser {
             }
 
             let row = columns_mapping.map(row)?;
-            let first_cell = xls::get_string_cell(row.first().unwrap())?;
+            let first_cell = xls::get_string_cell(row.first().unwrap().unwrap())?;
 
             let symbol = match current_instrument {
                 None => {

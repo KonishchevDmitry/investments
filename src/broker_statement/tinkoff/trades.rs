@@ -144,22 +144,31 @@ struct TradeRow {
     commission: String,
     #[column(name="Валюта комиссии")]
     commission_currency: String,
+    // FIXME(konishchev): Support
+    // #[column(name="Комиссия биржи", optional=true)]
+    // _18: Option<String>,
+    // #[column(name="Валюта комиссии биржи", optional=true)]
+    // _19: Option<String>,
+    // #[column(name="Комиссия клир. центра", optional=true)]
+    // _20: Option<String>,
+    // #[column(name="Валюта комиссии клир. центра", optional=true)]
+    // _21: Option<String>,
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
     #[column(name="Контрагент")]
-    _19: SkipCell,
+    _23: SkipCell,
     #[column(name="Дата расчетов")]
     execution_date: String,
     #[column(name="Дата поставки")]
-    _21: SkipCell,
-    #[column(name="Статус брокера")]
-    _22: SkipCell,
-    #[column(name="Тип дог.")]
-    _23: SkipCell,
-    #[column(name="Номер дог.")]
-    _24: SkipCell,
-    #[column(name="Дата дог.")]
     _25: SkipCell,
+    #[column(name="Статус брокера")]
+    _26: SkipCell,
+    #[column(name="Тип дог.")]
+    _27: SkipCell,
+    #[column(name="Номер дог.")]
+    _28: SkipCell,
+    #[column(name="Дата дог.")]
+    _29: SkipCell,
 }
 
 impl TableReader for TradeRow {

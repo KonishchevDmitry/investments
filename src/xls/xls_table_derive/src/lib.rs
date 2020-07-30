@@ -12,6 +12,7 @@ type GenericResult<T> = Result<T, GenericError>;
 struct Column {
     field: String,
     name: String,
+    optional: bool,
 }
 
 macro_rules! Err {
@@ -34,27 +35,53 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let mod_ident = quote!(crate::xls);
     let row_ident = &ast.ident;
 
-    let column_names_code = columns.iter().map(|column| {
+    let columns_code = columns.iter().map(|column| {
         let name = &column.name;
-        quote!(#name)
+        let optional = column.optional;
+
+        quote!(#mod_ident::TableColumn {
+            name: #name,
+            optional: #optional,
+        })
     });
 
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
         let field = Ident::new(&column.field, span);
         let name = &column.name;
-        quote! {
-            #field: #mod_ident::CellType::parse(row[#id]).map_err(|e| format!(
+
+        let parse_code = quote! {
+            #mod_ident::CellType::parse(cell).map_err(|e| format!(
                 "Column {:?}: {}", #name, e))?
+        };
+
+        let parser_code = if column.optional {
+            quote! {
+                match row[#id] {
+                    Some(cell) => #parse_code,
+                    None => None,
+                }
+            }
+        } else {
+            quote! {
+                {
+                    let cell = row[#id].unwrap();
+                    #parse_code
+                }
+            }
+        };
+
+        quote! {
+            #field: #parser_code
         }
     });
 
     Ok(quote! {
         impl #mod_ident::TableRow for #row_ident {
-            fn columns() -> Vec<&'static str> {
-                vec![#(#column_names_code,)*]
+            fn columns() -> Vec<#mod_ident::TableColumn> {
+                vec![#(#columns_code,)*]
             }
 
-            fn parse(row: &[&#mod_ident::Cell]) -> crate::core::GenericResult<#row_ident> {
+            fn parse(row: &[Option<&#mod_ident::Cell>]) -> crate::core::GenericResult<#row_ident> {
                 Ok(#row_ident {
                     #(#columns_parse_code,)*
                 })
@@ -67,6 +94,8 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     #[derive(FromMeta)]
     struct ColumnParams {
         name: String,
+        #[darling(default)]
+        optional: bool,
     }
     let column_attr_name = "column";
 
@@ -106,6 +135,7 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         columns.push(Column {
             field: field_name,
             name: column_params.name,
+            optional: column_params.optional,
         })
     }
 

@@ -105,10 +105,10 @@ struct CashFlowRow {
 }
 
 impl TableReader for CashFlowRow {
-    fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
+    fn skip_row(row: &[Option<&Cell>]) -> GenericResult<bool> {
         Ok(
-            xls::get_string_cell(row[0])?.starts_with("Итого по валюте ") ||
-                xls::get_string_cell(row[1])? == "Итого:"
+            xls::get_string_cell(row[0].unwrap())?.starts_with("Итого по валюте ") ||
+                xls::get_string_cell(row[1].unwrap())? == "Итого:"
         )
     }
 }

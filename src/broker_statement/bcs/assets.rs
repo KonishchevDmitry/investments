@@ -87,7 +87,7 @@ struct AssetRow {
 }
 
 impl TableReader for AssetRow {
-    fn skip_row(row: &[&Cell]) -> GenericResult<bool> {
-        Ok(xls::get_string_cell(row[0])? == "Итого:")
+    fn skip_row(row: &[Option<&Cell>]) -> GenericResult<bool> {
+        Ok(xls::get_string_cell(row[0].unwrap())? == "Итого:")
     }
 }
