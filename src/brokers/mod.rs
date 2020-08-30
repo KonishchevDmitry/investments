@@ -70,7 +70,9 @@ impl Broker {
         type PlanFn = fn() -> CommissionSpec;
 
         let (default, plans): (PlanFn, BTreeMap<&str, PlanFn>) = match self {
-            Broker::Bcs => (plans::bcs::professional, btreemap!{
+            Broker::Bcs => (plans::bcs::investor, btreemap!{
+                "Инвестор" => plans::bcs::investor as PlanFn,
+                "Инвестор Про" => plans::bcs::investor_pro as PlanFn,
                 "Профессиональный" => plans::bcs::professional as PlanFn,
             }),
             Broker::Firstrade => (plans::firstrade::free, btreemap!{}),

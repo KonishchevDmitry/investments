@@ -1,8 +1,35 @@
 #[cfg(test)] use crate::commissions::CommissionCalc;
-use crate::commissions::{CommissionSpec, CommissionSpecBuilder, CumulativeCommissionSpecBuilder};
+use crate::commissions::{
+    CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
+    TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
 #[cfg(test)] use crate::currency::Cash;
 #[cfg(test)] use crate::types::TradeType;
 use crate::util::RoundingMethod;
+
+// FIXME(konishchev): Test with real test data
+pub fn investor() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .trade(TradeCommissionSpecBuilder::new()
+            .commission(TransactionCommissionSpecBuilder::new()
+                .percent(dec!(0.1))
+                .build().unwrap())
+            .build())
+        .build()
+}
+
+// FIXME(konishchev): Test with real test data
+// FIXME(konishchev): Support portfolio size tiers
+pub fn investor_pro() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .trade(TradeCommissionSpecBuilder::new()
+            .commission(TransactionCommissionSpecBuilder::new()
+                .percent(dec!(0.035))
+                .build().unwrap())
+            .build())
+        .cumulative(CumulativeCommissionSpecBuilder::new()
+            .monthly_depositary(dec!(299)).build())
+        .build()
+}
 
 pub fn professional() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
