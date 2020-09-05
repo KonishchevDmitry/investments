@@ -20,11 +20,7 @@ or [БКС](https://broker.ru/).
 # Installation
 
 1. Install Rust - https://www.rust-lang.org/tools/install
-2. Install build dependencies:
-   * macOS: no action required
-   * Ubuntu: `sudo apt install libsqlite3-dev`
-
-3. Install or upgrade the package:
+2. Install or upgrade the package:
 ```
 cargo install investments --bin investments
 ```
