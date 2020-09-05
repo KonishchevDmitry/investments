@@ -15,7 +15,7 @@ mod open;
 mod tinkoff;
 
 use std::{self, fs};
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::collections::hash_map::Entry;
 use std::path::Path;
 
@@ -577,24 +577,34 @@ impl BrokerStatement {
     }
 
     fn validate_open_positions(&self) -> EmptyResult {
-        let mut open_positions = HashMap::new();
+        let mut open_positions: HashMap<&str, Decimal> = HashMap::new();
 
         for stock_buy in &self.stock_buys {
-            if stock_buy.is_sold() {
-                continue;
-            }
-
-            let quantity = stock_buy.get_unsold();
-
-            if let Some(position) = open_positions.get_mut(&stock_buy.symbol) {
-                *position += quantity;
-            } else {
-                open_positions.insert(stock_buy.symbol.clone(), quantity);
+            if !stock_buy.is_sold() {
+                let quantity = stock_buy.get_unsold();
+                open_positions.entry(&stock_buy.symbol)
+                    .and_modify(|position| *position += quantity)
+                    .or_insert(quantity);
             }
         }
 
-        if open_positions != self.open_positions {
-            return Err!("The calculated open positions don't match declared ones in the statement");
+        let symbols: BTreeSet<&str> = self.open_positions.keys().map(String::as_str)
+            .chain(open_positions.keys().copied())
+            .collect();
+
+        let mut mismatch = Vec::new();
+
+        for &symbol in &symbols {
+            if open_positions.get(symbol) != self.open_positions.get(symbol) {
+                mismatch.push(symbol);
+            }
+        }
+
+        if !mismatch.is_empty() {
+            return Err!(concat!(
+                "Calculated open positions don't match declared ones in the statement for the ",
+                "following symbols: {}"
+            ), mismatch.join(", "));
         }
 
         Ok(())
