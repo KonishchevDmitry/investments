@@ -53,7 +53,6 @@ impl PartialBrokerStatement {
             stock_sells: Vec::new(),
             dividends: Vec::new(),
 
-            // FIXME(konishchev): Support
             corporate_actions: Vec::new(),
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),

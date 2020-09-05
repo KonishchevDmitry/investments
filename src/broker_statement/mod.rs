@@ -63,6 +63,7 @@ pub struct BrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
+    pub corporate_actions: Vec<CorporateAction>,
     pub open_positions: HashMap<String, Decimal>,
     instrument_names: HashMap<String, String>,
 }
@@ -193,6 +194,7 @@ impl BrokerStatement {
             stock_sells: Vec::new(),
             dividends: Vec::new(),
 
+            corporate_actions: Vec::new(),
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
         })
@@ -417,6 +419,7 @@ impl BrokerStatement {
         self.stock_sells.extend(statement.stock_sells.drain(..));
         self.dividends.extend(statement.dividends.drain(..));
 
+        self.corporate_actions.extend(statement.corporate_actions.drain(..));
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.drain());
 
@@ -462,70 +465,44 @@ impl BrokerStatement {
     }
 
     fn validate(&mut self) -> EmptyResult {
-        let min_date = self.period.0;
-        let max_date = self.last_date();
-        let validate_date = |name, first_date, last_date| -> EmptyResult {
-            if first_date < min_date {
-                return Err!("Got a {} outside of statement period: {}",
-                    name, formatting::format_date(first_date));
-            }
-
-            if last_date > max_date {
-                return Err!("Got a {} outside of statement period: {}",
-                    name, formatting::format_date(first_date));
-            }
-
-            Ok(())
+        let date_validator = DateValidator {
+            min_date: self.period.0,
+            max_date: self.last_date(),
         };
 
-        if !self.cash_flows.is_empty() {
-            self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
-            let first_date = self.cash_flows.first().unwrap().date;
-            let last_date = self.cash_flows.last().unwrap().date;
-            validate_date("cash flow", first_date, last_date)?;
-        }
+        date_validator.sort_and_validate(
+            "cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
         if !self.fees.is_empty() {
-            self.sort_and_alter_fees(max_date);
-            let first_date = self.fees.first().unwrap().date;
-            let last_date = self.fees.last().unwrap().date;
-            validate_date("fee", first_date, last_date)?;
+            self.sort_and_alter_fees(date_validator.max_date);
+            date_validator.validate("fee", &self.fees, |fee| fee.date)?;
         }
 
-        if !self.idle_cash_interest.is_empty() {
-            self.idle_cash_interest.sort_by_key(|interest| interest.date);
-            let first_date = self.idle_cash_interest.first().unwrap().date;
-            let last_date = self.idle_cash_interest.last().unwrap().date;
-            validate_date("idle cash interest", first_date, last_date)?;
-        }
+        date_validator.sort_and_validate(
+            "idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
 
-        if !self.forex_trades.is_empty() {
-            self.forex_trades.sort_by_key(|trade| trade.conclusion_date);
-            let first_date = self.forex_trades.first().unwrap().conclusion_date;
-            let last_date = self.forex_trades.last().unwrap().conclusion_date;
-            validate_date("forex trade", first_date, last_date)?;
-        }
+        date_validator.sort_and_validate(
+            "forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
         if !self.stock_buys.is_empty() {
             self.sort_stock_buys()?;
-            let first_date = self.stock_buys.first().unwrap().conclusion_date;
-            let last_date = self.stock_buys.last().unwrap().conclusion_date;
-            validate_date("stock buy", first_date, last_date)?;
+            date_validator.validate(
+                "stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
         }
 
         if !self.stock_sells.is_empty() {
             self.sort_stock_sells()?;
-            let first_date = self.stock_sells.first().unwrap().conclusion_date;
-            let last_date = self.stock_sells.last().unwrap().conclusion_date;
-            validate_date("stock sell", first_date, last_date)?;
+            date_validator.validate(
+                "stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
         }
 
         if !self.dividends.is_empty() {
             self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
-            let first_date = self.dividends.first().unwrap().date;
-            let last_date = self.dividends.last().unwrap().date;
-            validate_date("dividend", first_date, last_date)?;
+            date_validator.validate("dividend", &self.dividends, |dividend| dividend.date)?;
         }
+
+        date_validator.sort_and_validate(
+            "corporate action", &mut self.corporate_actions, |action| action.date)?;
 
         Ok(())
     }
@@ -607,6 +584,39 @@ impl BrokerStatement {
                 "Calculated open positions don't match declared ones in the statement for the ",
                 "following symbols: {}"
             ), mismatch.join(", "));
+        }
+
+        Ok(())
+    }
+}
+
+struct DateValidator {
+    min_date: Date,
+    max_date: Date,
+}
+
+impl DateValidator {
+    fn sort_and_validate<T>(&self, name: &str, objects: &mut [T], get_date: fn(&T) -> Date) -> EmptyResult {
+        if !objects.is_empty() {
+            objects.sort_by_key(get_date);
+            self.validate(name, objects, get_date)?;
+        }
+
+        Ok(())
+    }
+
+    fn validate<T>(&self, name: &str, objects: &[T], get_date: fn(&T) -> Date) -> EmptyResult {
+        let first_date = get_date(objects.first().unwrap());
+        let last_date = get_date(objects.first().unwrap());
+
+        if first_date < self.min_date {
+            return Err!("Got a {} outside of statement period: {}",
+                        name, formatting::format_date(first_date));
+        }
+
+        if last_date > self.max_date {
+            return Err!("Got a {} outside of statement period: {}",
+                        name, formatting::format_date(last_date));
         }
 
         Ok(())

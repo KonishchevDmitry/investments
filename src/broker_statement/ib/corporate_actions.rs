@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::broker_statement::corporate_actions::CorporateAction;
+use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType};
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::Date;
 
@@ -43,10 +43,10 @@ fn parse(date: Date, asset_category: &str, description: &str) -> GenericResult<C
                 return Err!("Unsupported stock split: {:?}", description);
             }
 
-            CorporateAction::StockSplit {
+            CorporateAction {
                 date,
                 symbol: symbol.to_owned(),
-                divisor,
+                action: CorporateActionType::StockSplit(divisor),
             }
         },
         _ => return Err!("Unsupported corporate action: {:?}", description),
@@ -66,10 +66,10 @@ mod tests {
                 date, "Stocks", "AAPL(US0378331005) Split 4 for 1 (AAPL, APPLE INC, US0378331005)",
             ).unwrap(),
 
-            CorporateAction::StockSplit {
+            CorporateAction {
                 date,
                 symbol: s!("AAPL"),
-                divisor: 4,
+                action: CorporateActionType::StockSplit(4),
             }
         );
     }
