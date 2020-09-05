@@ -1,9 +1,11 @@
+mod cash;
 mod common;
 mod confirmation;
 mod dividends;
 mod fees;
 mod interest;
-mod parsers;
+mod instruments;
+mod summary;
 mod taxes;
 mod trades;
 
@@ -139,19 +141,19 @@ impl<'a> StatementParser<'a> {
                 State::Header(record) => {
                     let spec = parse_header(&record);
                     let parser: Box<dyn RecordParser> = match spec.name {
-                        "Statement" => Box::new(parsers::StatementInfoParser {}),
-                        "Account Information" => Box::new(parsers::AccountInformationParser {}),
-                        "Change in NAV" => Box::new(parsers::ChangeInNavParser {}),
-                        "Cash Report" => Box::new(parsers::CashReportParser {}),
-                        "Open Positions" => Box::new(trades::OpenPositionsParser {}),
+                        "Statement" => Box::new(summary::StatementInfoParser {}),
+                        "Account Information" => Box::new(summary::AccountInformationParser {}),
+                        "Change in NAV" => Box::new(summary::ChangeInNavParser {}),
+                        "Cash Report" => Box::new(cash::CashReportParser {}),
+                        "Open Positions" => Box::new(instruments::OpenPositionsParser {}),
                         "Trades" => Box::new(trades::TradesParser {}),
-                        "Deposits & Withdrawals" => Box::new(parsers::DepositsAndWithdrawalsParser {}),
+                        "Deposits & Withdrawals" => Box::new(cash::DepositsAndWithdrawalsParser {}),
                         "Fees" => Box::new(fees::FeesParser {}),
                         "Dividends" => Box::new(dividends::DividendsParser {}),
                         "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
                         "Interest" => Box::new(interest::InterestParser {}),
-                        "Financial Instrument Information" => Box::new(parsers::FinancialInstrumentInformationParser {}),
-                        _ => Box::new(parsers::UnknownRecordParser {}),
+                        "Financial Instrument Information" => Box::new(instruments::FinancialInstrumentInformationParser {}),
+                        _ => Box::new(common::UnknownRecordParser {}),
                     };
 
                     let data_types = parser.data_types();

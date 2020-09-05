@@ -1,15 +1,15 @@
 use std::iter::Iterator;
 
 use chrono::Duration;
-use log::{warn, trace};
+use log::warn;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{Cash, CashAssets};
+use crate::currency::Cash;
 use crate::types::Date;
-use crate::util::{self, DecimalRestrictions};
+use crate::util;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, format_record};
+use super::common::{Record, RecordParser};
 
 pub struct StatementInfoParser {}
 
@@ -65,83 +65,6 @@ impl RecordParser for ChangeInNavParser {
             parser.statement.set_starting_assets(!amount.is_zero())?;
         }
 
-        Ok(())
-    }
-}
-
-pub struct CashReportParser {}
-
-impl RecordParser for CashReportParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        if record.get_value("Currency Summary")? != "Ending Cash" {
-            return Ok(());
-        }
-
-        let currency = record.get_value("Currency")?;
-        let amount = record.parse_amount("Total", DecimalRestrictions::PositiveOrZero)?;
-
-        record.check_value("Futures", "0")?;
-        record.check_value("Total", record.get_value("Securities")?)?;
-
-        if currency == "Base Currency Summary" {
-            let summary = Cash::new(parser.base_currency()?, amount);
-            if parser.base_currency_summary.replace(summary).is_some() {
-                return Err!("Got duplicated base currency summary");
-            }
-        } else {
-            if parser.statement.cash_assets.has_assets(currency) {
-                return Err!("Got duplicated {} assets", currency);
-            }
-            parser.statement.cash_assets.deposit(Cash::new(currency, amount));
-        }
-
-        Ok(())
-    }
-}
-
-pub struct DepositsAndWithdrawalsParser {}
-
-impl RecordParser for DepositsAndWithdrawalsParser {
-    fn skip_totals(&self) -> bool {
-        true
-    }
-
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        let currency = record.get_value("Currency")?;
-        let date = record.parse_date("Settle Date")?;
-        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
-        parser.statement.cash_flows.push(CashAssets::new_from_cash(date, amount));
-        Ok(())
-    }
-}
-
-pub struct FinancialInstrumentInformationParser {
-}
-
-impl RecordParser for FinancialInstrumentInformationParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        let symbol = record.get_value("Symbol")?;
-
-        if parser.statement.instrument_names.insert(
-            symbol.to_owned(), record.get_value("Description")?.to_owned()).is_some() {
-            return Err!("Duplicated symbol: {}", symbol);
-        }
-
-        Ok(())
-    }
-}
-
-pub struct UnknownRecordParser {}
-
-impl RecordParser for UnknownRecordParser {
-    fn data_types(&self) -> Option<&'static [&'static str]> {
-        None
-    }
-
-    fn parse(&self, _parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        if false {
-            trace!("Data: {}.", format_record(record.values.iter().skip(1)));
-        }
         Ok(())
     }
 }

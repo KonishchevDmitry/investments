@@ -84,6 +84,18 @@ pub trait RecordParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult;
 }
 
+pub struct UnknownRecordParser {}
+
+impl RecordParser for UnknownRecordParser {
+    fn data_types(&self) -> Option<&'static [&'static str]> {
+        None
+    }
+
+    fn parse(&self, _parser: &mut StatementParser, _record: &Record) -> EmptyResult {
+        Ok(())
+    }
+}
+
 pub fn format_record<'a, I>(iter: I) -> String
     where I: IntoIterator<Item = &'a str> {
 

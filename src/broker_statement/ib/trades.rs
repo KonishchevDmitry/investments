@@ -8,31 +8,6 @@ use crate::util::{self, DecimalRestrictions};
 use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date_time};
 
-pub struct OpenPositionsParser {}
-
-impl RecordParser for OpenPositionsParser {
-    fn skip_data_types(&self) -> Option<&'static [&'static str]> {
-        Some(&["Total"])
-    }
-
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        record.check_values(&[
-            ("DataDiscriminator", "Summary"),
-            ("Asset Category", "Stocks"),
-            ("Mult", "1"),
-        ])?;
-
-        let symbol = record.get_value("Symbol")?;
-
-        let quantity = record.get_value("Quantity")?;
-        let quantity = util::parse_decimal(
-            quantity, DecimalRestrictions::StrictlyPositive
-        ).map_err(|_| format!("Got an unexpected {} quantity: {}", symbol, quantity))?;
-
-        parser.statement.add_open_position(symbol, quantity)
-    }
-}
-
 pub struct TradesParser {}
 
 impl RecordParser for TradesParser {
