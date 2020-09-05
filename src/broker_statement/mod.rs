@@ -1,3 +1,4 @@
+mod corporate_actions;
 mod dividends;
 mod fees;
 mod interest;
@@ -38,6 +39,7 @@ use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
 
+pub use self::corporate_actions::CorporateAction;
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;

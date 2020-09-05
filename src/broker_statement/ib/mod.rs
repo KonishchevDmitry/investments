@@ -1,6 +1,7 @@
 mod cash;
 mod common;
 mod confirmation;
+mod corporate_actions;
 mod dividends;
 mod fees;
 mod interest;
@@ -146,6 +147,7 @@ impl<'a> StatementParser<'a> {
                         "Change in NAV" => Box::new(summary::ChangeInNavParser {}),
                         "Cash Report" => Box::new(cash::CashReportParser {}),
                         "Open Positions" => Box::new(instruments::OpenPositionsParser {}),
+                        "Corporate Actions" => Box::new(corporate_actions::CorporateActionsParser {}),
                         "Trades" => Box::new(trades::TradesParser {}),
                         "Deposits & Withdrawals" => Box::new(cash::DepositsAndWithdrawalsParser {}),
                         "Fees" => Box::new(fees::FeesParser {}),
