@@ -579,12 +579,18 @@ impl BrokerStatement {
         let mut open_positions: HashMap<&str, Decimal> = HashMap::new();
 
         for stock_buy in &self.stock_buys {
-            if !stock_buy.is_sold() {
-                let quantity = stock_buy.get_orig_unsold();
-                open_positions.entry(&stock_buy.symbol)
-                    .and_modify(|position| *position += quantity)
-                    .or_insert(quantity);
+            if stock_buy.is_sold() {
+                continue;
             }
+
+            let multiplier = self.stock_splits.get_multiplier(
+                &stock_buy.symbol, stock_buy.conclusion_date, self.last_date());
+
+            let quantity = multiplier * stock_buy.get_unsold();
+
+            open_positions.entry(&stock_buy.symbol)
+                .and_modify(|position| *position += quantity)
+                .or_insert(quantity);
         }
 
         let symbols: BTreeSet<&str> = self.open_positions.keys().map(String::as_str)

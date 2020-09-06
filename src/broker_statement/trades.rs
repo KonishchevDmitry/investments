@@ -16,7 +16,6 @@ pub struct ForexTrade {
 #[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
-    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub quantity: Decimal,
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
@@ -25,39 +24,31 @@ pub struct StockBuy {
     pub conclusion_date: Date,
     pub execution_date: Date,
 
-    orig_sold: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     sold: Decimal,
 }
 
 impl StockBuy {
-    // FIXME(konishchev): Check all usage for stock split support
     pub fn new(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(),
-            orig_quantity: quantity, quantity, price, volume, commission,
-            conclusion_date, execution_date, orig_sold: dec!(0), sold: dec!(0),
+            symbol: symbol.to_owned(), quantity, price, volume, commission,
+            conclusion_date, execution_date, sold: dec!(0),
         }
     }
 
     pub fn is_sold(&self) -> bool {
-        self.orig_sold == self.orig_quantity
-    }
-
-    // FIXME(konishchev): Temporary solution for refactoring
-    pub fn get_orig_unsold(&self) -> Decimal {
-        self.orig_quantity - self.orig_sold
+        self.sold == self.quantity
     }
 
     pub fn get_unsold(&self) -> Decimal {
-        self.orig_quantity - self.orig_sold
+        self.quantity - self.sold
     }
 
     pub fn sell(&mut self, quantity: Decimal) {
         assert!(self.get_unsold() >= quantity);
-        self.orig_sold += quantity;
+        self.sold += quantity;
     }
 }
 
