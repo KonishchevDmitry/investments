@@ -350,7 +350,6 @@ impl BrokerStatement {
                 assert_eq!(source_quantity * multiplier, sell_quantity);
 
                 sources.push(StockSellSource {
-                    orig_quantity: source_quantity,
                     quantity: source_quantity,
                     multiplier: multiplier,
                     price: stock_buy.price,

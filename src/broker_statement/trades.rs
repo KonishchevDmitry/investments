@@ -175,7 +175,6 @@ impl StockSell {
 
 #[derive(Clone, Debug)]
 pub struct StockSellSource {
-    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub quantity: Decimal,
     pub multiplier: Decimal,
     pub price: Cash,
@@ -187,7 +186,7 @@ pub struct StockSellSource {
 
 impl StockSellSource {
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        let cost = (self.price * self.orig_quantity).round();
+        let cost = (self.price * self.quantity).round();
         let local_cost = converter.convert_to_rounding(
             self.execution_date, cost, country.currency)?;
 
@@ -203,8 +202,7 @@ impl StockSellSource {
         total_local_cost += local_commission;
 
         Ok(FifoDetails {
-            orig_quantity: self.orig_quantity,
-            quantity: self.orig_quantity,
+            quantity: self.quantity,
             multiplier: self.multiplier,
             price: self.price,
 
@@ -246,7 +244,6 @@ pub struct SellDetails {
 }
 
 pub struct FifoDetails {
-    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub quantity: Decimal,
     pub multiplier: Decimal,
     pub price: Cash,

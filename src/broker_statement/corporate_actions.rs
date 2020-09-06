@@ -24,7 +24,6 @@ pub struct StockSplitController {
 }
 
 impl StockSplitController {
-    // FIXME(konishchev): Check 1 / divisor * divisor == 1
     pub fn add(&mut self, date: Date, symbol: &str, divisor: u32) -> EmptyResult {
         let splits = self.symbols.entry(symbol.to_owned()).or_default();
 
@@ -35,6 +34,17 @@ impl StockSplitController {
                  symbol, format_date(date),
             ),
         };
+
+        let mut full_divisor = dec!(1);
+
+        for cur_divisor in splits.values().rev().copied() {
+            full_divisor *= Decimal::from(cur_divisor);
+
+            if dec!(1) / full_divisor * full_divisor != dec!(1) {
+                splits.remove(&date).unwrap();
+                return Err!("Got an unsupported stock split result divisor: {}", full_divisor);
+            }
+        }
 
         Ok(())
     }
