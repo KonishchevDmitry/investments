@@ -30,6 +30,7 @@ pub struct StockBuy {
 }
 
 impl StockBuy {
+    // FIXME(konishchev): Check all usage for stock split support
     pub fn new(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date,
@@ -63,7 +64,6 @@ impl StockBuy {
 #[derive(Clone, Debug)]
 pub struct StockSell {
     pub symbol: String,
-    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub quantity: Decimal,
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
@@ -82,8 +82,7 @@ impl StockSell {
         conclusion_date: Date, execution_date: Date, emulation: bool,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(),
-            orig_quantity: quantity, quantity, price, volume, commission,
+            symbol: symbol.to_owned(), quantity, price, volume, commission,
             conclusion_date, execution_date, emulation, sources: Vec::new(),
         }
     }
@@ -94,7 +93,12 @@ impl StockSell {
 
     pub fn process(&mut self, sources: Vec<StockSellSource>) {
         assert!(!self.is_processed());
-        assert_eq!(sources.iter().map(|source| source.orig_quantity).sum::<Decimal>(), self.orig_quantity);
+        assert_eq!(
+            sources.iter()
+                .map(|source| source.multiplier * source.quantity)
+                .sum::<Decimal>(),
+            self.quantity,
+        );
         self.sources = sources;
     }
 

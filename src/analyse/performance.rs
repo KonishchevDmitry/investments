@@ -37,6 +37,7 @@ struct Row {
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub struct PortfolioPerformanceAnalyser<'a> {
+    today: Date,
     country: Country,
     currency: &'a str,
     converter: &'a CurrencyConverter,
@@ -54,6 +55,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         show_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
+            today: util::today(),
             country,
             currency,
             converter,
@@ -148,7 +150,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         self.transactions.sort_by_key(|transaction| transaction.date);
         let activity_periods = vec![InterestPeriod::new(
-            self.transactions.first().unwrap().date, util::today())];
+            self.transactions.first().unwrap().date, self.today)];
 
         let mut investments = dec!(0);
         for transaction in &self.transactions {
@@ -300,6 +302,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let mut stock_taxes = HashMap::new();
 
         for stock_buy in &statement.stock_buys {
+            let multiplier = statement.stock_splits.get_multiplier(
+                &stock_buy.symbol, stock_buy.conclusion_date, self.today);
+
             let mut assets = self.converter.convert_to(
                 stock_buy.execution_date, stock_buy.volume, self.currency)?;
 
@@ -307,11 +312,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
 
             let deposit_view = self.get_deposit_view(&stock_buy.symbol);
-            deposit_view.trade(stock_buy.conclusion_date, stock_buy.orig_quantity);
+            deposit_view.trade(stock_buy.conclusion_date, multiplier * stock_buy.quantity);
             deposit_view.transaction(stock_buy.conclusion_date, assets);
         }
 
         for stock_sell in &statement.stock_sells {
+            let multiplier = statement.stock_splits.get_multiplier(
+                &stock_sell.symbol, stock_sell.conclusion_date, self.today);
+
             let assets = self.converter.convert_to(
                 stock_sell.execution_date, stock_sell.volume, self.currency)?;
 
@@ -321,7 +329,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             {
                 let deposit_view = self.get_deposit_view(&stock_sell.symbol);
 
-                deposit_view.trade(stock_sell.conclusion_date, -stock_sell.orig_quantity);
+                deposit_view.trade(stock_sell.conclusion_date, multiplier * -stock_sell.quantity);
                 deposit_view.transaction(stock_sell.conclusion_date, -assets);
                 deposit_view.transaction(stock_sell.conclusion_date, commission);
 
@@ -435,9 +443,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
 
-        let today = util::today();
-        let conversion_date = if tax_payment_date > today {
-            today
+        let conversion_date = if tax_payment_date > self.today {
+            self.today
         } else {
             tax_payment_date
         };

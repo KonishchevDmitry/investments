@@ -155,8 +155,8 @@ fn print_results(
 
         trades_table.add_row(TradeRow {
             symbol: trade.symbol,
-            quantity: trade.orig_quantity,
-            buy_price: (purchase_cost / trade.orig_quantity).round(),
+            quantity: trade.quantity,
+            buy_price: (purchase_cost / trade.quantity).round(),
             sell_price: trade.price,
             commission: commission,
             revenue: details.revenue,

@@ -188,7 +188,7 @@ impl<'a> TradesProcessor<'a> {
             conclusion_date: trade.conclusion_date,
             execution_date: trade.execution_date,
             security: security.to_owned(),
-            quantity: trade.orig_quantity,
+            quantity: trade.quantity,
             price: trade.price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,

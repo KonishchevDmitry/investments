@@ -64,7 +64,7 @@ pub struct BrokerStatement {
     pub dividends: Vec<Dividend>,
 
     corporate_actions: Vec<CorporateAction>,
-    stock_splits: StockSplitController,
+    pub stock_splits: StockSplitController,
 
     pub open_positions: HashMap<String, Decimal>,
     instrument_names: HashMap<String, String>,
