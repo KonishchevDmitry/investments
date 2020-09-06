@@ -266,6 +266,14 @@ APP: regression_tests/investments
      tax-statement
      third-party
 
+[66]
+NAME: IB third-party tax statement with stock split
+STDOUT: ib-stock-split-tax-statement
+APP: regression_tests/investments
+     testdata/third-party-config
+     tax-statement
+     stock-split
+
 # Cash flow
 
 [701]
@@ -335,3 +343,11 @@ APP: regression_tests/investments
      testdata/third-party-config
      cash-flow
      margin-rub
+
+[76]
+NAME: IB third-party cash flow with stock split
+STDOUT: ib-stock-split-cash-flow
+APP: regression_tests/investments
+     testdata/third-party-config
+     cash-flow
+     stock-split
