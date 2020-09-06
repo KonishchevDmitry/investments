@@ -17,6 +17,7 @@ pub struct ForexTrade {
 pub struct StockBuy {
     pub symbol: String,
     pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
+    pub quantity: Decimal,
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -25,6 +26,7 @@ pub struct StockBuy {
     pub execution_date: Date,
 
     orig_sold: Decimal, // FIXME(konishchev): Temporary solution for refactoring
+    sold: Decimal,
 }
 
 impl StockBuy {
@@ -34,8 +36,8 @@ impl StockBuy {
     ) -> StockBuy {
         StockBuy {
             symbol: symbol.to_owned(),
-            orig_quantity: quantity, price, volume, commission,
-            conclusion_date, execution_date, orig_sold: dec!(0),
+            orig_quantity: quantity, quantity, price, volume, commission,
+            conclusion_date, execution_date, orig_sold: dec!(0), sold: dec!(0),
         }
     }
 
@@ -57,6 +59,7 @@ impl StockBuy {
 pub struct StockSell {
     pub symbol: String,
     pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
+    pub quantity: Decimal,
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -75,7 +78,7 @@ impl StockSell {
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(),
-            orig_quantity: quantity, price, volume, commission,
+            orig_quantity: quantity, quantity, price, volume, commission,
             conclusion_date, execution_date, emulation, sources: Vec::new(),
         }
     }
@@ -173,6 +176,7 @@ impl StockSell {
 #[derive(Clone, Debug)]
 pub struct StockSellSource {
     pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
+    pub quantity: Decimal,
     pub price: Cash,
     pub commission: Cash,
 
@@ -199,6 +203,7 @@ impl StockSellSource {
 
         Ok(FifoDetails {
             orig_quantity: self.orig_quantity,
+            quantity: self.orig_quantity,
             price: self.price,
 
             commission: commission,
@@ -240,6 +245,7 @@ pub struct SellDetails {
 
 pub struct FifoDetails {
     pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
+    pub quantity: Decimal,
     pub price: Cash,
 
     pub commission: Cash,

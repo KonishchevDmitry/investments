@@ -345,6 +345,7 @@ impl BrokerStatement {
 
                 sources.push(StockSellSource {
                     orig_quantity: sell_quantity.normalize(),
+                    quantity: sell_quantity.normalize(), // FIXME(konishchev): Implement
                     price: stock_buy.price,
                     commission: stock_buy.commission / stock_buy.orig_quantity * sell_quantity,
 
