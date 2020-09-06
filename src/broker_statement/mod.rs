@@ -39,7 +39,7 @@ use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::partial::PartialBrokerStatement;
 use self::taxes::{TaxId, TaxAccruals};
 
-pub use self::corporate_actions::CorporateAction;
+pub use self::corporate_actions::{CorporateAction, CorporateActionType, StockSplitController};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
@@ -63,7 +63,9 @@ pub struct BrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
-    pub corporate_actions: Vec<CorporateAction>,
+    corporate_actions: Vec<CorporateAction>,
+    stock_splits: StockSplitController,
+
     pub open_positions: HashMap<String, Decimal>,
     instrument_names: HashMap<String, String>,
 }
@@ -195,6 +197,8 @@ impl BrokerStatement {
             dividends: Vec::new(),
 
             corporate_actions: Vec::new(),
+            stock_splits: StockSplitController::default(),
+
             open_positions: HashMap::new(),
             instrument_names: HashMap::new(),
         })
@@ -419,7 +423,15 @@ impl BrokerStatement {
         self.stock_sells.extend(statement.stock_sells.drain(..));
         self.dividends.extend(statement.dividends.drain(..));
 
-        self.corporate_actions.extend(statement.corporate_actions.drain(..));
+        for action in statement.corporate_actions.drain(..) {
+            match action.action {
+                CorporateActionType::StockSplit(divisor) => {
+                    self.stock_splits.add(action.date, &action.symbol, divisor)?;
+                }
+            };
+            self.corporate_actions.push(action);
+        }
+
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.drain());
 

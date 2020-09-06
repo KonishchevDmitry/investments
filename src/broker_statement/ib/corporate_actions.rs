@@ -39,7 +39,7 @@ fn parse(date: Date, asset_category: &str, description: &str) -> GenericResult<C
             let symbol = captures.name("symbol").unwrap().as_str();
             let divisor: u32 = captures.name("divisor").unwrap().as_str().parse()?;
 
-            if captures.name("dividend").unwrap().as_str() != "1" {
+            if divisor == 0 || captures.name("dividend").unwrap().as_str() != "1" {
                 return Err!("Unsupported stock split: {:?}", description);
             }
 
