@@ -205,6 +205,7 @@ impl StockSellSource {
         Ok(FifoDetails {
             orig_quantity: self.orig_quantity,
             quantity: self.orig_quantity,
+            multiplier: self.multiplier,
             price: self.price,
 
             commission: commission,
@@ -247,6 +248,7 @@ pub struct SellDetails {
 pub struct FifoDetails {
     pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub quantity: Decimal,
+    pub multiplier: Decimal,
     pub price: Cash,
 
     pub commission: Cash,

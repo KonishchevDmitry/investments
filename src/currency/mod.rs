@@ -88,6 +88,11 @@ impl Cash {
         self
     }
 
+    pub fn normalize(mut self) -> Cash {
+        self.amount = self.amount.normalize();
+        self
+    }
+
     pub fn format_rounded(&self) -> String {
         let amount = round_to(self.amount, 0).to_i64().unwrap().separated_string();
         format_currency(self.currency, &amount)

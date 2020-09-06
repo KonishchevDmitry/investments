@@ -31,6 +31,7 @@ pub fn process_income(
 
         same_dates: true,
         same_currency: true,
+        stock_splits: false,
         total_local_profit: Cash::new(country.currency, dec!(0)),
     };
 
@@ -73,6 +74,7 @@ struct TradesProcessor<'a> {
 
     same_dates: bool,
     same_currency: bool,
+    stock_splits: bool,
     total_local_profit: Cash,
 }
 
@@ -130,6 +132,8 @@ struct FifoRow {
     security: String,
     #[column(name="Кол.")]
     quantity: Decimal,
+    #[column(name="Мул.")]
+    multiplier: Decimal,
     #[column(name="Цена")]
     price: Cash,
     #[column(name="Курс руб.\nдата сделки")]
@@ -172,9 +176,8 @@ impl<'a> TradesProcessor<'a> {
         let security = self.broker_statement.get_instrument_name(&trade.symbol);
 
         self.same_dates &= trade.execution_date == trade.conclusion_date;
-        self.same_currency &=
-            trade.price.currency == self.country.currency &&
-                trade.commission.currency == self.country.currency;
+        self.same_currency &= trade.price.currency == self.country.currency &&
+            trade.commission.currency == self.country.currency;
         self.total_local_profit.add_assign(details.local_profit).unwrap();
 
         let conclusion_currency_rate = self.converter.precise_currency_rate(
@@ -213,9 +216,9 @@ impl<'a> TradesProcessor<'a> {
 
     fn process_fifo(&mut self, security: &str, trade_id: usize, buy_trade: &FifoDetails, first: bool) -> EmptyResult {
         self.same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
-        self.same_currency &=
-            buy_trade.price.currency == self.country.currency &&
-                buy_trade.commission.currency == self.country.currency;
+        self.same_currency &= buy_trade.price.currency == self.country.currency &&
+            buy_trade.commission.currency == self.country.currency;
+        self.stock_splits |= buy_trade.multiplier != dec!(1);
 
         let conclusion_currency_rate = self.converter.precise_currency_rate(
             buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?;
@@ -232,7 +235,8 @@ impl<'a> TradesProcessor<'a> {
             conclusion_date: buy_trade.conclusion_date,
             execution_date: buy_trade.execution_date,
             security: security.to_owned(),
-            quantity: buy_trade.orig_quantity,
+            quantity: buy_trade.quantity,
+            multiplier: buy_trade.multiplier,
             price: buy_trade.price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
@@ -268,6 +272,10 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.hide_execution_currency_rate();
             self.fifo_table.hide_local_cost();
             self.fifo_table.hide_local_commission();
+        }
+
+        if !self.stock_splits {
+            self.fifo_table.hide_multiplier()
         }
 
         let mut totals = self.trades_table.add_empty_row();
