@@ -325,7 +325,7 @@ impl BrokerStatement {
                 continue;
             }
 
-            let mut remaining_quantity = stock_sell.orig_quantity;
+            let mut remaining_quantity = stock_sell.quantity;
             let mut sources = Vec::new();
 
             let symbol_buys = unsold_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
@@ -338,23 +338,31 @@ impl BrokerStatement {
                     "Error while processing {} position closing: There are no open positions for it",
                     stock_sell.symbol
                 ))?;
-                let stock_buy = &mut self.stock_buys[index];
 
-                let sell_quantity = std::cmp::min(remaining_quantity, stock_buy.get_unsold());
+                let stock_buy = &mut self.stock_buys[index];
+                let multiplier = self.stock_splits.get_multiplier(
+                    &stock_sell.symbol, stock_buy.conclusion_date, stock_sell.conclusion_date);
+
+                let unsold_quantity = multiplier * stock_buy.get_unsold();
+                let sell_quantity = std::cmp::min(remaining_quantity, unsold_quantity);
                 assert!(sell_quantity > dec!(0));
 
+                let source_quantity = (sell_quantity / multiplier).normalize();
+                assert_eq!(source_quantity * multiplier, sell_quantity);
+
                 sources.push(StockSellSource {
-                    orig_quantity: sell_quantity.normalize(),
-                    quantity: sell_quantity.normalize(), // FIXME(konishchev): Implement
+                    orig_quantity: source_quantity,
+                    quantity: source_quantity,
+                    multiplier: multiplier,
                     price: stock_buy.price,
-                    commission: stock_buy.commission / stock_buy.orig_quantity * sell_quantity,
+                    commission: stock_buy.commission / stock_buy.quantity * source_quantity,
 
                     conclusion_date: stock_buy.conclusion_date,
                     execution_date: stock_buy.execution_date,
                 });
 
                 remaining_quantity -= sell_quantity;
-                stock_buy.sell(sell_quantity);
+                stock_buy.sell(source_quantity);
 
                 if stock_buy.is_sold() {
                     symbol_buys.pop();
@@ -573,7 +581,7 @@ impl BrokerStatement {
 
         for stock_buy in &self.stock_buys {
             if !stock_buy.is_sold() {
-                let quantity = stock_buy.get_unsold();
+                let quantity = stock_buy.get_orig_unsold();
                 open_positions.entry(&stock_buy.symbol)
                     .and_modify(|position| *position += quantity)
                     .or_insert(quantity);

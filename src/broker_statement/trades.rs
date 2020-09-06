@@ -45,12 +45,17 @@ impl StockBuy {
         self.orig_sold == self.orig_quantity
     }
 
+    // FIXME(konishchev): Temporary solution for refactoring
+    pub fn get_orig_unsold(&self) -> Decimal {
+        self.orig_quantity - self.orig_sold
+    }
+
     pub fn get_unsold(&self) -> Decimal {
         self.orig_quantity - self.orig_sold
     }
 
     pub fn sell(&mut self, quantity: Decimal) {
-        assert!(self.get_unsold() >= quantity);
+        assert!(self.get_orig_unsold() >= quantity);
         self.orig_sold += quantity;
     }
 }
@@ -177,6 +182,7 @@ impl StockSell {
 pub struct StockSellSource {
     pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub quantity: Decimal,
+    pub multiplier: Decimal,
     pub price: Cash,
     pub commission: Cash,
 

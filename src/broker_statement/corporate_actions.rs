@@ -24,6 +24,7 @@ pub struct StockSplitController {
 }
 
 impl StockSplitController {
+    // FIXME(konishchev): Check 1 / divisor * divisor == 1
     pub fn add(&mut self, date: Date, symbol: &str, divisor: u32) -> EmptyResult {
         let splits = self.symbols.entry(symbol.to_owned()).or_default();
 
@@ -39,7 +40,7 @@ impl StockSplitController {
     }
 
     // FIXME(konishchev): Implement
-    pub fn get_quantity(&self, _date: Date, _symbol: &str, quantity: Decimal) -> Decimal {
-        quantity
+    pub fn get_multiplier(&self, _symbol: &str, _start_date: Date, _end_date: Date) -> Decimal {
+        dec!(1)
     }
 }
