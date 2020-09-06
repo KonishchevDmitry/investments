@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use chrono::Duration;
 use log::{warn, error};
 use num_traits::Zero;
 use serde::Deserialize;
@@ -44,7 +43,7 @@ pub struct BrokerReport {
 
 impl BrokerReport {
     pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
-        statement.period = Some((self.date_from, self.date_to + Duration::days(1)));
+        statement.period = Some((self.date_from, self.date_to.succ()));
         self.account_summary.parse(statement)?;
 
         let securities = self.securities.parse(statement)?;

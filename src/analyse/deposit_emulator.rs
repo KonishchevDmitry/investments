@@ -1,6 +1,6 @@
 use std::iter::FromIterator;
 
-use chrono::{Duration, Datelike};
+use chrono::Datelike;
 
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency;
@@ -236,8 +236,7 @@ fn get_next_year_month(mut year: i32, mut month: u32) -> (i32, u32) {
 
 fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> GenericResult<Date> {
     if current.day() != capitalization_day && !(
-        current.day() < capitalization_day &&
-        (current + Duration::days(1)).month() != current.month()
+        current.day() < capitalization_day && current.succ().month() != current.month()
     ) {
         return Err!(
             "Got an unexpected current capitalization date for the specified capitalization day");
@@ -249,7 +248,7 @@ fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Gener
         Some(date) => date,
         None => {
             let (year, month) = get_next_year_month(year, month);
-            let date = Date::from_ymd(year, month, 1) - Duration::days(1);
+            let date = Date::from_ymd(year, month, 1).pred();
             let days = (date - current).num_days();
             assert!(days >= 28 && days <= 31);
             date

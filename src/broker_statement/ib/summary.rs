@@ -1,6 +1,5 @@
 use std::iter::Iterator;
 
-use chrono::Duration;
 use log::warn;
 
 use crate::core::{EmptyResult, GenericResult};
@@ -75,7 +74,7 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
     Ok(match dates.len() {
         1 => {
             let date = parse_period_date(dates[0])?;
-            (date, date + Duration::days(1))
+            (date, date.succ())
         },
         2 => {
             let start = parse_period_date(dates[0])?;

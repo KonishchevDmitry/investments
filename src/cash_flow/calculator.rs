@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use chrono::Duration;
 use log::warn;
 
 use crate::broker_statement::BrokerStatement;
@@ -21,8 +20,8 @@ pub struct CashFlowSummary {
 pub fn calculate(statement: &BrokerStatement, start_date: Date, end_date: Date) -> (
     BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>
 ) {
-    let starting_assets_date = start_date - Duration::days(1);
-    let ending_assets_date = end_date - Duration::days(1);
+    let starting_assets_date = start_date.pred();
+    let ending_assets_date = end_date.pred();
 
     let comparator = CashAssetsComparator::new(
         &statement.historical_cash_assets, vec![starting_assets_date, ending_assets_date]);

@@ -1,4 +1,3 @@
-use chrono::Duration;
 use lazy_static::lazy_static;
 use regex::{self, Regex};
 
@@ -40,7 +39,7 @@ impl SectionParser for PeriodParser {
                 "Got statement period without calculation date")?;
 
             let mut period = parse_period(cell[PeriodParser::PERIOD_PREFIX.len()..].trim())?;
-            period.1 = std::cmp::min(period.1, calculation_date + Duration::days(1));
+            period.1 = std::cmp::min(period.1, calculation_date.succ());
             if period.1 <= period.0 {
                 return Err!("Got an invalid statement period: {}", formatting::format_period(period));
             }

@@ -4,8 +4,6 @@ mod mapper;
 
 use std::collections::BTreeMap;
 
-use chrono::Duration;
-
 use crate::broker_statement::BrokerStatement;
 use crate::config::Config;
 use crate::core::EmptyResult;
@@ -58,7 +56,7 @@ fn generate_summary_report(
     let mut starting_assets_row = vec![start_date.into()];
     let mut deposits_row = vec!["Зачисления".into()];
     let mut withdrawals_row = vec!["Списания".into()];
-    let mut ending_assets_row = vec![(end_date - Duration::days(1)).into()];
+    let mut ending_assets_row = vec![end_date.pred().into()];
 
     for (&currency, summary) in summaries {
         columns.push(Column::new(currency));

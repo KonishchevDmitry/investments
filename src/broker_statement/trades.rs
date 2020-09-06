@@ -56,7 +56,7 @@ impl StockBuy {
     }
 
     pub fn sell(&mut self, quantity: Decimal) {
-        assert!(self.get_orig_unsold() >= quantity);
+        assert!(self.get_unsold() >= quantity);
         self.orig_sold += quantity;
     }
 }

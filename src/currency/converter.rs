@@ -174,7 +174,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
                 });
             }
 
-            cur_date -= Duration::days(1);
+            cur_date = cur_date.pred();
         }
 
         Err!("Unable to find {} currency rate for {} with {} days precision",
@@ -247,7 +247,7 @@ mod tests {
 
             for _ in 0..4 {
                 assert_eq!(converter.convert(from, to, date, *value).unwrap(), *result);
-                date += Duration::days(1);
+                date = date.succ();
             }
 
             assert_matches!(

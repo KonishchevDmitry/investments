@@ -20,7 +20,6 @@ use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::collections::hash_map::Entry;
 use std::path::Path;
 
-use chrono::Duration;
 use log::{debug, warn};
 use num_traits::Zero;
 
@@ -205,7 +204,7 @@ impl BrokerStatement {
     }
 
     pub fn last_date(&self) -> Date {
-        self.period.1 - Duration::days(1)
+        self.period.1.pred()
     }
 
     pub fn check_date(&self) {
