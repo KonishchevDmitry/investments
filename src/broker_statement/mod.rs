@@ -325,7 +325,7 @@ impl BrokerStatement {
                 continue;
             }
 
-            let mut remaining_quantity = stock_sell.quantity;
+            let mut remaining_quantity = stock_sell.orig_quantity;
             let mut sources = Vec::new();
 
             let symbol_buys = unsold_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
@@ -344,9 +344,9 @@ impl BrokerStatement {
                 assert!(sell_quantity > dec!(0));
 
                 sources.push(StockSellSource {
-                    quantity: sell_quantity.normalize(),
+                    orig_quantity: sell_quantity.normalize(),
                     price: stock_buy.price,
-                    commission: stock_buy.commission / stock_buy.quantity * sell_quantity,
+                    commission: stock_buy.commission / stock_buy.orig_quantity * sell_quantity,
 
                     conclusion_date: stock_buy.conclusion_date,
                     execution_date: stock_buy.execution_date,

@@ -139,7 +139,7 @@ fn print_results(
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
             purchase_cost.amount += converter.convert_to_rounding(
-                buy_trade.execution_date, buy_trade.price * buy_trade.quantity,
+                buy_trade.execution_date, buy_trade.price * buy_trade.orig_quantity,
                 purchase_cost.currency)?;
 
             fifo_table.add_row(FifoRow {
@@ -148,15 +148,15 @@ fn print_results(
                 } else {
                    None
                 },
-                quantity: buy_trade.quantity,
+                quantity: buy_trade.orig_quantity,
                 price: buy_trade.price,
             });
         }
 
         trades_table.add_row(TradeRow {
             symbol: trade.symbol,
-            quantity: trade.quantity,
-            buy_price: (purchase_cost / trade.quantity).round(),
+            quantity: trade.orig_quantity,
+            buy_price: (purchase_cost / trade.orig_quantity).round(),
             sell_price: trade.price,
             commission: commission,
             revenue: details.revenue,

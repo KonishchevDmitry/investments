@@ -95,21 +95,21 @@ impl CashFlowMapper {
     }
 
     fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
-        let description = format!("Покупка {} {}", trade.quantity, name);
+        let description = format!("Покупка {} {}", trade.orig_quantity, name);
         self.add(trade.conclusion_date, -trade.volume, description);
 
         if !trade.commission.is_zero() {
-            let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
+            let description = format!("Комиссия за покупку {} {}", trade.orig_quantity, name);
             self.add(trade.conclusion_date, -trade.commission, description);
         };
     }
 
     fn stock_sell(&mut self, name: &str, trade: &StockSell) {
-        let description = format!("Продажа {} {}", trade.quantity, name);
+        let description = format!("Продажа {} {}", trade.orig_quantity, name);
         self.add(trade.conclusion_date, trade.volume, description);
 
         if !trade.commission.is_zero() {
-            let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
+            let description = format!("Комиссия за продажу {} {}", trade.orig_quantity, name);
             self.add(trade.conclusion_date, -trade.commission, description);
         };
     }

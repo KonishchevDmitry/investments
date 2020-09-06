@@ -307,7 +307,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
 
             let deposit_view = self.get_deposit_view(&stock_buy.symbol);
-            deposit_view.trade(stock_buy.conclusion_date, stock_buy.quantity);
+            deposit_view.trade(stock_buy.conclusion_date, stock_buy.orig_quantity);
             deposit_view.transaction(stock_buy.conclusion_date, assets);
         }
 
@@ -321,7 +321,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             {
                 let deposit_view = self.get_deposit_view(&stock_sell.symbol);
 
-                deposit_view.trade(stock_sell.conclusion_date, -stock_sell.quantity);
+                deposit_view.trade(stock_sell.conclusion_date, -stock_sell.orig_quantity);
                 deposit_view.transaction(stock_sell.conclusion_date, -assets);
                 deposit_view.transaction(stock_sell.conclusion_date, commission);
 

@@ -16,7 +16,7 @@ pub struct ForexTrade {
 #[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
-    pub quantity: Decimal,
+    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -24,7 +24,7 @@ pub struct StockBuy {
     pub conclusion_date: Date,
     pub execution_date: Date,
 
-    sold: Decimal,
+    orig_sold: Decimal, // FIXME(konishchev): Temporary solution for refactoring
 }
 
 impl StockBuy {
@@ -33,29 +33,30 @@ impl StockBuy {
         conclusion_date: Date, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, sold: dec!(0),
+            symbol: symbol.to_owned(),
+            orig_quantity: quantity, price, volume, commission,
+            conclusion_date, execution_date, orig_sold: dec!(0),
         }
     }
 
     pub fn is_sold(&self) -> bool {
-        self.sold == self.quantity
+        self.orig_sold == self.orig_quantity
     }
 
     pub fn get_unsold(&self) -> Decimal {
-        self.quantity - self.sold
+        self.orig_quantity - self.orig_sold
     }
 
     pub fn sell(&mut self, quantity: Decimal) {
         assert!(self.get_unsold() >= quantity);
-        self.sold += quantity;
+        self.orig_sold += quantity;
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct StockSell {
     pub symbol: String,
-    pub quantity: Decimal,
+    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -73,7 +74,8 @@ impl StockSell {
         conclusion_date: Date, execution_date: Date, emulation: bool,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
+            symbol: symbol.to_owned(),
+            orig_quantity: quantity, price, volume, commission,
             conclusion_date, execution_date, emulation, sources: Vec::new(),
         }
     }
@@ -84,7 +86,7 @@ impl StockSell {
 
     pub fn process(&mut self, sources: Vec<StockSellSource>) {
         assert!(!self.is_processed());
-        assert_eq!(sources.iter().map(|source| source.quantity).sum::<Decimal>(), self.quantity);
+        assert_eq!(sources.iter().map(|source| source.orig_quantity).sum::<Decimal>(), self.orig_quantity);
         self.sources = sources;
     }
 
@@ -170,7 +172,7 @@ impl StockSell {
 
 #[derive(Clone, Debug)]
 pub struct StockSellSource {
-    pub quantity: Decimal,
+    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub price: Cash,
     pub commission: Cash,
 
@@ -180,7 +182,7 @@ pub struct StockSellSource {
 
 impl StockSellSource {
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        let cost = (self.price * self.quantity).round();
+        let cost = (self.price * self.orig_quantity).round();
         let local_cost = converter.convert_to_rounding(
             self.execution_date, cost, country.currency)?;
 
@@ -196,7 +198,7 @@ impl StockSellSource {
         total_local_cost += local_commission;
 
         Ok(FifoDetails {
-            quantity: self.quantity,
+            orig_quantity: self.orig_quantity,
             price: self.price,
 
             commission: commission,
@@ -237,7 +239,7 @@ pub struct SellDetails {
 }
 
 pub struct FifoDetails {
-    pub quantity: Decimal,
+    pub orig_quantity: Decimal, // FIXME(konishchev): Temporary solution for refactoring
     pub price: Cash,
 
     pub commission: Cash,
