@@ -6,6 +6,7 @@ use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
+use crate::formatting::format_date;
 use crate::types::{Date, Time, Decimal};
 use crate::util::DecimalRestrictions;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
@@ -60,8 +61,19 @@ impl SectionParser for TradesParser {
                 &trade.settlement_currency, &trade.volume, DecimalRestrictions::StrictlyPositive)?;
             debug_assert_eq!(volume, (price * quantity).round());
 
-            let commission = parse_cash(
-                &trade.commission_currency, &trade.commission, DecimalRestrictions::PositiveOrZero)?;
+            let commission = parse_decimal(&trade.commission, DecimalRestrictions::PositiveOrZero)?;
+            let commission = match trade.commission_currency {
+                Some(currency) => {
+                    Cash::new(&currency, commission)
+                }
+                None if commission.is_zero() => {
+                    Cash::new(&trade.settlement_currency, commission)
+                },
+                None => return Err!(
+                    "Got {} trade at {} without commission currency",
+                    trade.symbol, format_date(conclusion_date),
+                ),
+            };
 
             let forex = if trade.symbol == "USD000UTSTOM" {
                 Some("USD")
@@ -144,7 +156,7 @@ struct TradeRow {
     #[column(name="Комиссия брокера")]
     commission: String,
     #[column(name="Валюта комиссии")]
-    commission_currency: String,
+    commission_currency: Option<String>,
 
     // The following fees are actually included into brokerage commission:
     #[column(name="Комиссия биржи", optional=true)]
