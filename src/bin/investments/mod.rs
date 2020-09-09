@@ -17,13 +17,11 @@ use self::init::{Action, initialize};
 mod init;
 
 // TODO: Features to implement:
-// * Stock split support
 // * Declare losses in tax statement: commissions and loss from previous years
 // * Tax agent support
 // * XLS for tax inspector
 // * Free commissions (considering monthly minimum fee)
 // * Tiered commissions support for BCS broker
-// * T+2 mode support for IB tax statement? (Trade Confirmations broker statement shows the info)
 
 fn main() {
     let (action, config) = initialize();

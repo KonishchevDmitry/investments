@@ -49,8 +49,31 @@ impl StockSplitController {
         Ok(())
     }
 
-    // FIXME(konishchev): Implement
-    pub fn get_multiplier(&self, _symbol: &str, _start_date: Date, _end_date: Date) -> Decimal {
-        dec!(1)
+    pub fn get_multiplier(&self, symbol: &str, from_date: Date, to_date: Date) -> Decimal {
+        let mut multiplier = dec!(1);
+
+        let (start, end, divide) = if from_date < to_date {
+            (from_date.succ(), to_date, false)
+        } else if to_date < from_date {
+            (to_date.succ(), from_date, true)
+        } else {
+            return multiplier;
+        };
+
+        let splits = match self.symbols.get(symbol) {
+            Some(splits) => splits,
+            None => return multiplier,
+        };
+
+        for (_, &divisor) in splits.range(start..=end) {
+            multiplier *= Decimal::from(divisor);
+        }
+
+        if divide {
+            multiplier = dec!(1) / multiplier;
+            assert_eq!(dec!(1) * multiplier / multiplier, dec!(1));
+        }
+
+        multiplier
     }
 }

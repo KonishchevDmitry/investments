@@ -186,11 +186,10 @@ The following deposits are closed:
 
 # Unsupported features
 
-The program supports only those cases which I saw in my broker statements (or statements sent to me by my friends),
+The program supports only those cases which I saw in my broker statements or statements sent to me by other people,
 which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
 * Bonds
 * Futures
-* Stock split
 * Margin accounts
 * Currencies other than USD and RUB
 
