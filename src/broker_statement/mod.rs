@@ -596,19 +596,19 @@ impl BrokerStatement {
             .chain(open_positions.keys().copied())
             .collect();
 
-        let mut mismatch = Vec::new();
-
         for &symbol in &symbols {
-            if open_positions.get(symbol) != self.open_positions.get(symbol) {
-                mismatch.push(symbol);
-            }
-        }
+            let calculated = open_positions.get(symbol);
+            let actual = self.open_positions.get(symbol);
 
-        if !mismatch.is_empty() {
-            return Err!(concat!(
-                "Calculated open positions don't match declared ones in the statement for the ",
-                "following symbols: {}"
-            ), mismatch.join(", "));
+            if calculated != actual {
+                let calculated = calculated.copied().unwrap_or_default();
+                let actual = actual.copied().unwrap_or_default();
+
+                return Err!(concat!(
+                    "Calculated open positions don't match declared ones in the statement: ",
+                    "{}: {} vs {}"
+                ), symbol, calculated, actual);
+            }
         }
 
         Ok(())

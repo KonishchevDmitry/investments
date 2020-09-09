@@ -5,6 +5,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::types::{Date, Decimal};
+use crate::util::{DecimalRestrictions, validate_named_decimal};
 
 use super::corporate_actions::CorporateAction;
 use super::dividends::{Dividend, DividendId, DividendAccruals};
@@ -79,10 +80,14 @@ impl PartialBrokerStatement {
     }
 
     pub fn add_open_position(&mut self, symbol: &str, quantity: Decimal) -> EmptyResult {
+        validate_named_decimal(
+            &format!("{} open position", symbol), quantity, DecimalRestrictions::StrictlyPositive)?;
+
         match self.open_positions.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(quantity),
             Entry::Occupied(_) => return Err!("Got a duplicated open position for {}", symbol),
         };
+
         Ok(())
     }
 
