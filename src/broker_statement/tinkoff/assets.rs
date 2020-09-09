@@ -24,7 +24,9 @@ impl SectionParser for AssetsParser {
                 parser.statement.starting_assets.replace(true);
             }
 
-            parser.statement.add_open_position(symbol, planned.into())?;
+            if planned != 0 {
+                parser.statement.add_open_position(symbol, planned.into())?;
+            }
         }
 
         Ok(())
