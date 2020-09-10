@@ -19,14 +19,23 @@ use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 pub struct Transactions {
     #[serde(rename = "DTSTART", deserialize_with = "deserialize_date")]
     pub start_date: Date,
+
     #[serde(rename = "DTEND", deserialize_with = "deserialize_date")]
     pub end_date: Date,
+
     #[serde(rename = "INVBANKTRAN")]
     cash_flows: Vec<CashFlowInfo>,
+
     #[serde(rename = "BUYSTOCK")]
     stock_buys: Vec<StockBuyInfo>,
+
+    // Dividend reinvestment transactions appear here
+    #[serde(rename = "BUYOTHER")]
+    other_buys: Vec<OtherBuyInfo>,
+
     #[serde(rename = "SELLSTOCK")]
     stock_sells: Vec<StockSellInfo>,
+
     #[serde(rename = "INCOME")]
     income: Vec<IncomeInfo>,
 }
@@ -44,6 +53,10 @@ impl Transactions {
                 return Err!("Got an unsupported type of stock purchase: {:?}", stock_buy._type);
             }
             stock_buy.transaction.parse(parser, currency, securities, true)?;
+        }
+
+        for other_buy in self.other_buys {
+            other_buy.transaction.parse(parser, currency, securities, true)?;
         }
 
         for stock_sell in self.stock_sells {
@@ -109,6 +122,13 @@ impl CashFlowInfo {
 struct StockBuyInfo {
     #[serde(rename = "BUYTYPE")]
     _type: String,
+    #[serde(rename = "INVBUY")]
+    transaction: StockTradeTransaction,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OtherBuyInfo {
     #[serde(rename = "INVBUY")]
     transaction: StockTradeTransaction,
 }
