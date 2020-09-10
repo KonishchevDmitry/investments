@@ -1,11 +1,11 @@
-use num_traits::cast::ToPrimitive;
 use serde::Deserialize;
 
 use crate::core::EmptyResult;
+use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{Ignore, validate_sub_account};
+use super::common::{Ignore, deserialize_decimal, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 
 #[derive(Deserialize)]
@@ -40,8 +40,8 @@ pub struct OpenPosition {
     sub_account: String,
     #[serde(rename = "POSTYPE")]
     _type: String,
-    #[serde(rename = "UNITS")]
-    units: String,
+    #[serde(rename = "UNITS", deserialize_with = "deserialize_decimal")]
+    units: Decimal,
     #[serde(rename = "UNITPRICE")]
     _price: Ignore,
     #[serde(rename = "MKTVAL")]
@@ -64,15 +64,11 @@ impl OpenPosition {
             _ => return Err!("Got {} open position with an unexpected security type", self.security_id),
         };
 
-        let quantity = util::parse_decimal(&self.units, DecimalRestrictions::StrictlyPositive)
-            .ok().and_then(|quantity| {
-                if quantity.trunc() == quantity {
-                    quantity.abs().to_u32()
-                } else {
-                    None
-                }
-            }).ok_or_else(|| format!("Invalid {} open positions quantity: {:?}", symbol, self.units))?;
+        let quantity = util::validate_named_decimal(
+            &format!("{} open positions quantity", symbol), self.units,
+            DecimalRestrictions::StrictlyPositive,
+        )?.normalize();
 
-        parser.statement.add_open_position(symbol, quantity.into())
+        parser.statement.add_open_position(symbol, quantity)
     }
 }

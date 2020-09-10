@@ -1,5 +1,5 @@
 use log::warn;
-use num_traits::{cast::ToPrimitive, Zero};
+use num_traits::Zero;
 use serde::Deserialize;
 
 use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Dividend};
@@ -165,8 +165,8 @@ struct StockTradeTransaction {
     info: TransactionInfo,
     #[serde(rename = "SECID")]
     security_id: SecurityId,
-    #[serde(rename = "UNITS")]
-    units: String,
+    #[serde(rename = "UNITS", deserialize_with = "deserialize_decimal")]
+    units: Decimal,
     #[serde(rename = "UNITPRICE", deserialize_with = "deserialize_decimal")]
     price: Decimal,
     #[serde(rename = "COMMISSION", deserialize_with = "deserialize_decimal")]
@@ -193,20 +193,11 @@ impl StockTradeTransaction {
             _ => return Err!("Got {} stock trade with an unexpected security type", self.security_id),
         };
 
-        let quantity = util::parse_decimal(
-            &self.units, if buy {
-                DecimalRestrictions::StrictlyPositive
-            } else {
-                DecimalRestrictions::StrictlyNegative
-            })
-            .ok().and_then(|quantity| {
-                if quantity.trunc() == quantity {
-                    quantity.abs().to_u32()
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| format!("Invalid trade quantity: {:?}", self.units))?;
+        let quantity = util::validate_named_decimal("trade quantity", self.units, if buy {
+            DecimalRestrictions::StrictlyPositive
+        } else {
+            DecimalRestrictions::StrictlyNegative
+        })?.abs().normalize();
 
         let price = util::validate_named_decimal(
             "price", self.price, DecimalRestrictions::StrictlyPositive)
@@ -241,11 +232,11 @@ impl StockTradeTransaction {
 
         if buy {
             parser.statement.stock_buys.push(StockBuy::new(
-                &symbol, quantity.into(), price, volume, commission,
+                &symbol, quantity, price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date));
         } else {
             parser.statement.stock_sells.push(StockSell::new(
-                &symbol, quantity.into(), price, volume, commission,
+                &symbol, quantity, price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date, false));
         }
 

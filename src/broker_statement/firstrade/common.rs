@@ -35,7 +35,7 @@ pub fn deserialize_decimal<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
 
 pub fn validate_sub_account(name: &str) -> EmptyResult {
     match name {
-        "CASH" => Ok(()),
+        "CASH" | "OTHER" => Ok(()),
         _ => Err!("Got an unsupported sub-account type: {:?}", name),
     }
 }
