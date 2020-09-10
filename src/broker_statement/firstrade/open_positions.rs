@@ -11,7 +11,7 @@ use super::security_info::{SecurityInfo, SecurityId, SecurityType};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OpenPositions {
-    #[serde(rename = "POSSTOCK")]
+    #[serde(rename = "POSSTOCK", default)]
     stocks: Vec<OpenStockPosition>,
 }
 

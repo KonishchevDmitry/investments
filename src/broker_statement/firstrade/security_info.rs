@@ -45,9 +45,9 @@ pub struct SecurityInfoSection {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SecurityList {
-    #[serde(rename = "STOCKINFO")]
+    #[serde(rename = "STOCKINFO", default)]
     stock_info: Vec<StockInfo>,
-    #[serde(rename = "OTHERINFO")]
+    #[serde(rename = "OTHERINFO", default)]
     other_info: Vec<OtherInfo>,
 }
 

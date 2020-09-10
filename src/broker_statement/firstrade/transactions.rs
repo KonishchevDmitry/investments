@@ -23,20 +23,20 @@ pub struct Transactions {
     #[serde(rename = "DTEND", deserialize_with = "deserialize_date")]
     pub end_date: Date,
 
-    #[serde(rename = "INVBANKTRAN")]
+    #[serde(rename = "INVBANKTRAN", default)]
     cash_flows: Vec<CashFlowInfo>,
 
-    #[serde(rename = "BUYSTOCK")]
+    #[serde(rename = "BUYSTOCK", default)]
     stock_buys: Vec<StockBuyInfo>,
 
     // Dividend reinvestment transactions appear here
-    #[serde(rename = "BUYOTHER")]
+    #[serde(rename = "BUYOTHER", default)]
     other_buys: Vec<OtherBuyInfo>,
 
-    #[serde(rename = "SELLSTOCK")]
+    #[serde(rename = "SELLSTOCK", default)]
     stock_sells: Vec<StockSellInfo>,
 
-    #[serde(rename = "INCOME")]
+    #[serde(rename = "INCOME", default)]
     income: Vec<IncomeInfo>,
 }
 
