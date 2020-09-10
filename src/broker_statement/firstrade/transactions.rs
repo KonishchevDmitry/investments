@@ -1,5 +1,5 @@
 use log::warn;
-use num_traits::cast::ToPrimitive;
+use num_traits::{cast::ToPrimitive, Zero};
 use serde::Deserialize;
 
 use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Dividend};
@@ -44,8 +44,14 @@ impl Transactions {
     pub fn parse(
         self, parser: &mut StatementParser, currency: &str, securities: &SecurityInfo,
     ) -> EmptyResult {
+        let mut ffs_balance = dec!(0);
+
         for cash_flow in self.cash_flows {
-            cash_flow.parse(parser, currency)?;
+            cash_flow.parse(parser, &mut ffs_balance, currency)?;
+        }
+
+        if !ffs_balance.is_zero() {
+            return Err!("Got a non-zero FFS balance: {}", ffs_balance);
         }
 
         for stock_buy in self.stock_buys {
@@ -95,12 +101,22 @@ struct CashFlowTransaction {
     #[serde(rename = "FITID")]
     id: String,
     #[serde(rename = "NAME")]
-    _name: Ignore,
+    name: String,
 }
 
 impl CashFlowInfo {
-    fn parse(self, parser: &mut StatementParser, currency: &str) -> EmptyResult {
+    fn parse(self, parser: &mut StatementParser, ffs_balance: &mut Decimal, currency: &str) -> EmptyResult {
         let transaction = self.transaction;
+
+        // These are some service transactions related to Securities Lending Income Program.
+        // They shouldn't affect account balance and always compensate each other.
+        match transaction.name.as_str() {
+            "XFER CASH FROM FFS" | "XFER FFS TO CASH" => {
+                *ffs_balance += transaction.amount;
+                return Ok(());
+            }
+            _ => ()
+        };
 
         if transaction._type != "CREDIT" {
             return Err!(
