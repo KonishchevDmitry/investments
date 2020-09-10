@@ -7,7 +7,7 @@ use crate::types::{Date, Decimal};
 #[derive(Debug)]
 pub struct IdleCashInterest {
     pub date: Date,
-    pub amount: Cash,
+    pub amount: Cash, // May be negative
 }
 
 impl IdleCashInterest {
@@ -16,6 +16,7 @@ impl IdleCashInterest {
             date, amount
         }
     }
+
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
         Ok(country.tax_to_pay(amount, None))

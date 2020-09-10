@@ -248,16 +248,18 @@ impl IncomeInfo {
                 formatting::format_date(self.info.execution_date));
         }
 
-        let amount = util::validate_named_decimal(
-            "income amount", self.total, DecimalRestrictions::StrictlyPositive)
-            .map(|amount| Cash::new(currency, amount))?;
-
         match (self._type.as_str(), securities.get(&self.security_id)?) {
             ("MISC", SecurityType::Interest) => {
-                parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
+                let amount = util::validate_named_decimal(
+                    "idle cash interest amount", self.total, DecimalRestrictions::NonZero)?;
+
+                let interest = IdleCashInterest::new(date, Cash::new(currency, amount));
+                parser.statement.idle_cash_interest.push(interest);
             },
             ("DIV", SecurityType::Stock(issuer)) => {
-                self.parse_dividend(parser, &issuer, amount)?;
+                let amount = util::validate_named_decimal(
+                    "dividend amount", self.total, DecimalRestrictions::StrictlyPositive)?;
+                self.parse_dividend(parser, &issuer, Cash::new(currency, amount))?;
             },
             _ => return Err!("Got an unsupported income: {:?}", self.info.memo),
         };

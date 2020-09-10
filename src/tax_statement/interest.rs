@@ -48,6 +48,10 @@ pub fn process_income(
             }
         }
 
+        if interest.amount.is_negative() {
+            continue;
+        }
+
         let foreign_amount = interest.amount.round();
         total_foreign_amount.deposit(foreign_amount);
 

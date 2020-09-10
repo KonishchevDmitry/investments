@@ -15,7 +15,7 @@ impl RecordParser for InterestParser {
     fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;
-        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::StrictlyPositive)?;
+        let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
         parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
         Ok(())
     }
