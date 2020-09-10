@@ -4,7 +4,6 @@ use serde::Deserialize;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::types::Decimal;
-use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
 use super::common::{Ignore, deserialize_decimal};
@@ -30,9 +29,7 @@ impl Balance {
             return Err!("Margin accounts are not supported");
         }
 
-        let cash_assets = util::validate_named_decimal(
-            "cash amount", self.cash, DecimalRestrictions::PositiveOrZero)?;
-        parser.statement.cash_assets.deposit(Cash::new(currency, cash_assets));
+        parser.statement.cash_assets.deposit(Cash::new(currency, self.cash));
 
         Ok(())
     }

@@ -14,7 +14,7 @@ impl RecordParser for CashReportParser {
         }
 
         let currency = record.get_value("Currency")?;
-        let amount = record.parse_amount("Total", DecimalRestrictions::PositiveOrZero)?;
+        let amount = record.parse_amount("Total", DecimalRestrictions::No)?;
 
         record.check_value("Futures", "0")?;
         record.check_value("Total", record.get_value("Securities")?)?;
