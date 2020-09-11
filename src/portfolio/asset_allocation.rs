@@ -1,5 +1,7 @@
 use std::collections::{HashSet, HashMap};
 
+use num_traits::Zero;
+
 use crate::brokers::BrokerInfo;
 use crate::config::{Config, PortfolioConfig, AssetAllocationConfig};
 use crate::core::{EmptyResult, GenericResult};
@@ -125,16 +127,39 @@ pub struct StockHolding {
 
 impl StockHolding {
     pub fn trade_granularity(&self) -> Decimal {
-        let precision = if self.fractional_shares_trading {
+        self.trade_precision_volume(self.trade_precision())
+    }
+
+    pub fn iterative_trading_granularity(&self, trade_type: TradeType) -> Decimal {
+        let mut precision = self.trade_precision();
+        let mut volume = self.trade_precision_volume(precision);
+
+        while precision > 0 && volume < dec!(1) {
+            precision -= 1;
+            volume = self.trade_precision_volume(precision);
+        }
+
+        if matches!(trade_type,
+            TradeType::Sell
+            if self.fractional_shares_trading &&
+                volume > self.target_shares && !self.target_shares.is_zero()
+        ) {
+            volume = self.price * self.target_shares;
+        }
+
+        volume
+    }
+
+    fn trade_precision(&self) -> u32 {
+        if self.fractional_shares_trading {
             util::decimal_precision(self.current_shares)
         } else {
             0
-        };
-        self.price * Decimal::new(1, precision)
+        }
     }
 
-    pub fn iterative_trading_granularity(&self, _trade_type: TradeType) -> Decimal {
-        self.trade_granularity()
+    fn trade_precision_volume(&self, precision: u32) -> Decimal {
+        self.price * Decimal::new(1, precision)
     }
 }
 
