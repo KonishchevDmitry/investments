@@ -6,7 +6,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::quotes::Quotes;
-use crate::types::Decimal;
+use crate::types::{Decimal, TradeType};
 use crate::util;
 
 use super::Assets;
@@ -76,7 +76,8 @@ impl Portfolio {
 
         for assets_config in &portfolio_config.assets {
             let mut asset_allocation = AssetAllocation::load(
-                assets_config, &currency, &mut symbols, &mut stocks, converter, quotes)?;
+                &portfolio.broker, assets_config, &currency, &mut symbols, &mut stocks,
+                converter, quotes)?;
 
             asset_allocation.apply_restrictions(
                 portfolio_config.restrict_buying, portfolio_config.restrict_selling);
@@ -119,12 +120,21 @@ pub struct StockHolding {
     pub currency_price: Cash,
     pub current_shares: Decimal,
     pub target_shares: Decimal,
-    pub fractional_shares_precision: u32,
+    pub fractional_shares_trading: bool,
 }
 
 impl StockHolding {
     pub fn trade_granularity(&self) -> Decimal {
-        self.price * Decimal::new(1, self.fractional_shares_precision)
+        let precision = if self.fractional_shares_trading {
+            util::decimal_precision(self.current_shares)
+        } else {
+            0
+        };
+        self.price * Decimal::new(1, precision)
+    }
+
+    pub fn iterative_trading_granularity(&self, _trade_type: TradeType) -> Decimal {
+        self.trade_granularity()
     }
 }
 
@@ -147,35 +157,8 @@ pub struct AssetAllocation {
 }
 
 impl AssetAllocation {
-    pub fn full_name(&self) -> String {
-        match self.holding {
-            Holding::Group(_) => self.name.clone(),
-            Holding::Stock(ref holding) => format!("{} ({})", self.name, holding.symbol),
-        }
-    }
-
-    pub fn trade_granularity(&self) -> Decimal {
-        match self.holding {
-            Holding::Stock(ref holding) => holding.trade_granularity(),
-            Holding::Group(ref holdings) => {
-                let mut min_granularity = None;
-
-                for holding in holdings {
-                    let granularity = holding.trade_granularity();
-
-                    min_granularity = Some(match min_granularity {
-                        Some(min_granularity) if min_granularity <= granularity => min_granularity,
-                        _ => granularity,
-                    });
-                }
-
-                min_granularity.unwrap()
-            },
-        }
-    }
-
     fn load(
-        config: &AssetAllocationConfig, currency: &str,
+        broker: &BrokerInfo, config: &AssetAllocationConfig, currency: &str,
         symbols: &mut HashSet<String>, stocks: &mut HashMap<String, Decimal>,
         converter: &CurrencyConverter, quotes: &Quotes,
     ) -> GenericResult<AssetAllocation> {
@@ -197,7 +180,7 @@ impl AssetAllocation {
                     currency_price: currency_price,
                     current_shares: shares,
                     target_shares: shares,
-                    fractional_shares_precision: util::decimal_precision(shares),
+                    fractional_shares_trading: broker.fractional_shares_trading,
                 };
 
                 (Holding::Stock(holding), current_value)
@@ -208,7 +191,7 @@ impl AssetAllocation {
 
                 for asset in assets {
                     let holding = AssetAllocation::load(
-                        asset, currency, symbols, stocks, converter, quotes)?;
+                        broker, asset, currency, symbols, stocks, converter, quotes)?;
 
                     current_value += holding.current_value;
                     holdings.push(holding);
@@ -246,6 +229,13 @@ impl AssetAllocation {
         Ok(asset_allocation)
     }
 
+    pub fn full_name(&self) -> String {
+        match self.holding {
+            Holding::Group(_) => self.name.clone(),
+            Holding::Stock(ref holding) => format!("{} ({})", self.name, holding.symbol),
+        }
+    }
+
     fn apply_restrictions(&mut self, restrict_buying: Option<bool>, restrict_selling: Option<bool>) {
         if let Some(restrict) = restrict_buying {
             self.apply_buying_restriction(restrict);
@@ -281,6 +271,26 @@ impl AssetAllocation {
             for asset in assets {
                 asset.apply_selling_restriction(restrict);
             }
+        }
+    }
+
+    pub fn iterative_trading_granularity(&self, trade_type: TradeType) -> Decimal {
+        match self.holding {
+            Holding::Stock(ref holding) => holding.iterative_trading_granularity(trade_type),
+            Holding::Group(ref holdings) => {
+                let mut min_granularity = None;
+
+                for holding in holdings {
+                    let granularity = holding.iterative_trading_granularity(trade_type);
+
+                    min_granularity = Some(match min_granularity {
+                        Some(min_granularity) if min_granularity <= granularity => min_granularity,
+                        _ => granularity,
+                    });
+                }
+
+                min_granularity.unwrap()
+            },
         }
     }
 }

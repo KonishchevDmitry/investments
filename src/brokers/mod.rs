@@ -42,6 +42,7 @@ impl Broker {
             config: config,
             commission_spec: self.get_commission_spec(plan)?,
             allow_future_fees: matches!(self, Broker::Tinkoff),
+            fractional_shares_trading: matches!(self, Broker::InteractiveBrokers),
             statements_merging_strategy: statements_merging_strategy,
         })
     }
@@ -127,6 +128,7 @@ pub struct BrokerInfo {
     config: BrokerConfig,
     pub commission_spec: CommissionSpec,
     pub allow_future_fees: bool,
+    pub fractional_shares_trading: bool,
     pub statements_merging_strategy: StatementsMergingStrategy,
 }
 

@@ -162,7 +162,11 @@ impl<'a> AssetGroupRebalancer<'a> {
 
             if let Holding::Stock(ref holding) = asset.holding {
                 let trade_granularity = holding.trade_granularity();
+
                 difference = util::round(difference / trade_granularity, 0) * trade_granularity;
+                if difference.is_sign_negative() && -difference > asset.current_value {
+                    difference += trade_granularity
+                }
             }
 
             if difference.abs() < self.min_trade_volume {
@@ -218,29 +222,6 @@ impl<'a> AssetGroupRebalancer<'a> {
         self.log_state_changes("Restrictions applying", state);
     }
 
-    fn propagate_changes(&mut self) {
-        let state = self.get_current_state();
-        let mut propagated = false;
-
-        for asset in self.assets.iter_mut() {
-            let asset_name = asset.full_name();
-
-            if let Holding::Group(ref mut holdings) = asset.holding {
-                let balance = AssetGroupRebalancer::rebalance(
-                    &asset_name, holdings, asset.target_value, self.min_trade_volume);
-
-                asset.target_value -= balance;
-                self.balance += balance;
-                propagated = true;
-            }
-        }
-
-        if propagated {
-            debug!("{name}:", name=self.name);
-            self.log_state_changes("Target value change propagation", state);
-        }
-    }
-
     fn correct_balance(&mut self) {
         let state = self.get_current_state();
 
@@ -284,6 +265,29 @@ impl<'a> AssetGroupRebalancer<'a> {
         }
 
         self.log_state_changes("Balance correction", state);
+    }
+
+    fn propagate_changes(&mut self) {
+        let state = self.get_current_state();
+        let mut propagated = false;
+
+        for asset in self.assets.iter_mut() {
+            let asset_name = asset.full_name();
+
+            if let Holding::Group(ref mut holdings) = asset.holding {
+                let balance = AssetGroupRebalancer::rebalance(
+                    &asset_name, holdings, asset.target_value, self.min_trade_volume);
+
+                asset.target_value -= balance;
+                self.balance += balance;
+                propagated = true;
+            }
+        }
+
+        if propagated {
+            debug!("{name}:", name=self.name);
+            self.log_state_changes("Target value change propagation", state);
+        }
     }
 
     fn get_current_state(&self) -> Option<AssetGroupRebalancingState> {
@@ -560,7 +564,7 @@ fn change_to(
     };
 
     let target_shares = (target_value / holding.price).normalize();
-    assert!(util::decimal_precision(target_shares) <= holding.fractional_shares_precision);
+    assert!(util::decimal_precision(target_shares) <= util::decimal_precision(holding.current_shares));
 
     let paid_commission = calculate_commission(holding.target_shares)?;
     let current_commission = calculate_commission(target_shares)?;
@@ -631,7 +635,7 @@ fn calculate_trade_commissions(
 }
 
 fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
-    let trade_granularity = asset.trade_granularity();
+    let trade_granularity = asset.iterative_trading_granularity(TradeType::Sell);
 
     let trade_volume = if asset.target_value <= asset.current_value {
         // target <= current
@@ -666,7 +670,7 @@ fn calculate_min_sell_volume(asset: &AssetAllocation, min_trade_volume: Decimal)
 }
 
 fn calculate_min_buy_volume(asset: &AssetAllocation, min_trade_volume: Decimal) -> Option<Decimal> {
-    let trade_granularity = asset.trade_granularity();
+    let trade_granularity = asset.iterative_trading_granularity(TradeType::Buy);
 
     let trade_volume = if asset.target_value >= asset.current_value {
         // current <= target
