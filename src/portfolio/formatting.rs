@@ -126,6 +126,7 @@ fn format_cash(currency: &str, amount: Decimal) -> String {
 }
 
 fn format_shares(shares: Decimal, with_sign: bool) -> String {
+    let shares = shares.normalize();
     let symbol = 's';
 
     if with_sign {
