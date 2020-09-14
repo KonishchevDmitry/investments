@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::broker_statement::BrokerStatement;
@@ -18,32 +18,41 @@ mod performance;
 mod sell_simulation;
 
 pub struct PortfolioStatistics {
-    pub currencies: BTreeMap<String, CurrencyStatistics>,
+    pub currencies: Vec<CurrencyStatistics>,
 }
 
 impl PortfolioStatistics {
     fn new(currencies: &[&str]) -> PortfolioStatistics {
         PortfolioStatistics {
             currencies: currencies.iter().map(|&currency| (
-                currency.to_owned(), CurrencyStatistics::default()
+                CurrencyStatistics {
+                    currency: currency.to_owned(),
+                    performance: BTreeMap::new(),
+                    assets_after_sellout: BTreeMap::new(),
+
+                    total_value: dec!(0),
+                    expected_taxes: dec!(0),
+                    expected_commissions: dec!(0),
+                }
             )).collect(),
         }
     }
 
     fn process<F>(&mut self, mut handler: F) -> EmptyResult
-        where F: FnMut(&str, &mut CurrencyStatistics) -> EmptyResult
+        where F: FnMut(&mut CurrencyStatistics) -> EmptyResult
     {
-        for (currency, statistics) in &mut self.currencies {
-            handler(currency, statistics)?;
+        for statistics in &mut self.currencies {
+            handler(statistics)?;
         }
 
         Ok(())
     }
 }
 
-#[derive(Default)]
 pub struct CurrencyStatistics {
-    pub assets_after_sellout: HashMap<String, Decimal>,
+    pub currency: String,
+    pub performance: BTreeMap<String, Decimal>,
+    pub assets_after_sellout: BTreeMap<String, Decimal>,
 
     pub total_value: Decimal,
     pub expected_taxes: Decimal,
@@ -52,6 +61,7 @@ pub struct CurrencyStatistics {
 
 impl CurrencyStatistics {
     const CASH: &'static str = "cash";
+    const PORTFOLIO: &'static str = "portfolio";
 
     fn add_asset_after_sellout(&mut self, symbol: &str, amount: Decimal) {
         *self.assets_after_sellout.entry(symbol.to_owned()).or_default() += amount;
@@ -77,8 +87,8 @@ pub fn analyse(
             statement.check_date();
         }
 
-        statistics.process(|currency, statistics| {
-            let cash_assets = statement.cash_assets.total_assets_real_time(currency, &converter)?;
+        statistics.process(|statistics| {
+            let cash_assets = statement.cash_assets.total_assets_real_time(&statistics.currency, &converter)?;
             statistics.add_asset_after_sellout(CurrencyStatistics::CASH, cash_assets);
             statistics.total_value += cash_assets;
             Ok(())
@@ -101,10 +111,11 @@ pub fn analyse(
 
             let details = trade.calculate(&country, &converter)?;
 
-            statistics.process(|currency, statistics| {
-                let volume = converter.real_time_convert_to(trade.volume, &currency)?;
-                let commission = converter.real_time_convert_to(trade.commission, &currency)?;
-                let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, &currency)?;
+            statistics.process(|statistics| {
+                let currency = &statistics.currency;
+                let volume = converter.real_time_convert_to(trade.volume, currency)?;
+                let commission = converter.real_time_convert_to(trade.commission, currency)?;
+                let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
 
                 statistics.add_asset_after_sellout(&trade.symbol, volume - commission - tax_to_pay);
                 statistics.expected_commissions += commission;
@@ -114,8 +125,8 @@ pub fn analyse(
             })?;
         }
 
-        statistics.process(|currency, statistics| {
-            let commissions = additional_commissions.total_assets_real_time(currency, &converter)?;
+        statistics.process(|statistics| {
+            let commissions = additional_commissions.total_assets_real_time(&statistics.currency, &converter)?;
             statistics.add_asset_after_sellout(CurrencyStatistics::CASH, -commissions);
             statistics.expected_commissions += commissions;
             Ok(())
@@ -125,16 +136,25 @@ pub fn analyse(
             "Invalid performance merging configuration: {}", e))?;
     }
 
-    for &currency in &currencies {
+    statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            country, &currency, &converter, show_closed_positions);
+            country, &statistics.currency, &converter, interactive, show_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
             analyser.add(&portfolio, &statement)?;
         }
 
-        analyser.analyse()?;
-    }
+        let (portfolio_performance, mut instrument_performance) = analyser.analyse()?;
+
+        let portfolio_symbol = CurrencyStatistics::PORTFOLIO;
+        if instrument_performance.insert(portfolio_symbol.to_owned(), portfolio_performance).is_some() {
+            return Err!("Got an unexpected symbol: {:?}", portfolio_symbol)
+        }
+
+        statistics.performance = instrument_performance;
+
+        Ok(())
+    })?;
 
     Ok(())
 }

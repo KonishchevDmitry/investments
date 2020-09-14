@@ -44,14 +44,14 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     show_closed_positions: bool,
 
     transactions: Vec<Transaction>,
-    instruments: Option<HashMap<String, StockDepositView>>,
+    instruments: Option<BTreeMap<String, StockDepositView>>,
     current_assets: Decimal,
-    table: Table,
+    table: Option<Table>,
 }
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
-        country: Country, currency: &'a str, converter: &'a CurrencyConverter,
+        country: Country, currency: &'a str, converter: &'a CurrencyConverter, interactive: bool,
         show_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
@@ -62,9 +62,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             show_closed_positions,
 
             transactions: Vec::new(),
-            instruments: Some(HashMap::new()),
+            instruments: Some(BTreeMap::new()),
             current_assets: dec!(0),
-            table: Table::new(),
+            table: if interactive {
+                Some(Table::new())
+            } else {
+                None
+            },
         }
     }
 
@@ -94,30 +98,33 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    pub fn analyse(mut self) -> EmptyResult {
+    pub fn analyse(mut self) -> GenericResult<(Decimal, BTreeMap<String, Decimal>)> {
         self.calculate_open_position_periods()?;
 
-        let mut instruments = self.instruments.take().unwrap();
-        let mut instruments = instruments.drain().collect::<Vec<_>>();
-        instruments.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut instrument_performance = BTreeMap::new();
 
-        for (symbol, deposit_view) in instruments {
-            self.analyse_instrument_performance(&symbol, deposit_view)?;
+        for (symbol, deposit_view) in self.instruments.take().unwrap() {
+            if let Some(interest) = self.analyse_instrument_performance(&symbol, deposit_view)? {
+                assert!(instrument_performance.insert(symbol, interest).is_none());
+            }
         }
 
-        self.analyse_portfolio_performance()?;
-        self.table.print(&format!(
-            "Average rate of return from cash investments in {}", self.currency));
+        let portfolio_performance = self.analyse_portfolio_performance()?;
 
-        Ok(())
+        if let Some(table) = self.table.as_mut() {
+            table.print(&format!("Average rate of return from cash investments in {}", self.currency));
+        }
+
+        Ok((portfolio_performance, instrument_performance))
     }
 
-    fn analyse_instrument_performance(&mut self, symbol: &str, mut deposit_view: StockDepositView) -> EmptyResult {
+    fn analyse_instrument_performance(
+        &mut self, symbol: &str, mut deposit_view: StockDepositView
+    ) -> GenericResult<Option<Decimal>> {
         if deposit_view.closed && !self.show_closed_positions {
-            return Ok(());
+            return Ok(None);
         }
 
-        let days = get_total_activity_duration(&deposit_view.interest_periods);
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
         let (interest, difference) = compare_to_bank_deposit(
@@ -126,82 +133,53 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         check_emulation_precision(
             symbol, self.currency, deposit_view.last_sell_volume.unwrap(), difference)?;
 
-        let mut investments = dec!(0);
-        let mut result = dec!(0);
+        if let Some(table) = self.table.as_mut() {
+            let name = deposit_view.name.as_deref().unwrap();
+            let days = get_total_activity_duration(&deposit_view.interest_periods);
 
-        for transaction in &deposit_view.transactions {
-            if transaction.amount.is_sign_positive() {
-                investments += transaction.amount;
-            } else {
-                result += -transaction.amount;
+            let mut investments = dec!(0);
+            let mut result = dec!(0);
+
+            for transaction in &deposit_view.transactions {
+                if transaction.amount.is_sign_positive() {
+                    investments += transaction.amount;
+                } else {
+                    result += -transaction.amount;
+                }
             }
+
+            add_results(table, name, investments, result, interest, days, deposit_view.closed);
         }
 
-        self.add_results(
-            &deposit_view.name.unwrap(), investments, result, interest, days, deposit_view.closed);
-
-        Ok(())
+        Ok(Some(interest))
     }
 
-    fn analyse_portfolio_performance(&mut self) -> EmptyResult {
+    fn analyse_portfolio_performance(&mut self) -> GenericResult<Decimal> {
         if self.transactions.is_empty() {
             return Err!("The portfolio has no activity yet");
         }
 
         self.transactions.sort_by_key(|transaction| transaction.date);
+
         let activity_periods = vec![InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
-
-        let mut investments = dec!(0);
-        for transaction in &self.transactions {
-            investments += transaction.amount;
-        }
 
         let (interest, difference) = compare_to_bank_deposit(
             &self.transactions, &activity_periods, self.current_assets)?;
 
         check_emulation_precision("portfolio", self.currency, self.current_assets, difference)?;
 
-        let days = get_total_activity_duration(&activity_periods);
-        self.add_results("", investments, self.current_assets, interest, days, false);
+        if let Some(table) = self.table.as_mut() {
+            let days = get_total_activity_duration(&activity_periods);
 
-        Ok(())
-    }
+            let investments = self.transactions.iter()
+                .map(|transaction| transaction.amount)
+                .sum();
 
-    fn add_results(
-        &mut self, name: &str, investments: Decimal, result: Decimal, interest: Decimal,
-        days: i64, inactive: bool
-    ) {
-        let investments = util::round(investments, 0);
-        let result = util::round(result, 0);
-        let profit = result - investments;
-
-        let (duration_name, duration_days) = if days >= 365 {
-            ("y", 365)
-        } else if days >= 30 {
-            ("m", 30)
-        } else {
-            ("d", 1)
-        };
-        let duration = format!(
-            "{}{}", util::round(Decimal::from(days) / Decimal::from(duration_days), 1),
-            duration_name);
-
-        let mut row = self.table.add_row(Row {
-            instrument: name.to_owned(),
-            investments: Cell::new_round_decimal(investments),
-            profit: Cell::new_round_decimal(profit),
-            result: Cell::new_round_decimal(result),
-            duration: duration,
-            interest: format!("{}%", interest),
-        });
-
-        if inactive {
-            let style = Style::new().dimmed();
-            for cell in &mut row {
-                cell.style(style);
-            }
+            add_results(table, "", investments, self.current_assets, interest, days, false);
         }
+
+        Ok(interest)
     }
 
     fn calculate_open_position_periods(&mut self) -> EmptyResult {
@@ -570,6 +548,42 @@ fn check_emulation_precision(name: &str, currency: &str, assets: Decimal, differ
 
 fn get_total_activity_duration(periods: &[InterestPeriod]) -> i64 {
     periods.iter().map(|period| (period.end - period.start).num_days()).sum()
+}
+
+fn add_results(
+    table: &mut Table, name: &str, investments: Decimal, result: Decimal, interest: Decimal,
+    days: i64, inactive: bool
+) {
+    let investments = util::round(investments, 0);
+    let result = util::round(result, 0);
+    let profit = result - investments;
+
+    let (duration_name, duration_days) = if days >= 365 {
+        ("y", 365)
+    } else if days >= 30 {
+        ("m", 30)
+    } else {
+        ("d", 1)
+    };
+    let duration = format!(
+        "{}{}", util::round(Decimal::from(days) / Decimal::from(duration_days), 1),
+        duration_name);
+
+    let mut row = table.add_row(Row {
+        instrument: name.to_owned(),
+        investments: Cell::new_round_decimal(investments),
+        profit: Cell::new_round_decimal(profit),
+        result: Cell::new_round_decimal(result),
+        duration: duration,
+        interest: format!("{}%", interest),
+    });
+
+    if inactive {
+        let style = Style::new().dimmed();
+        for cell in &mut row {
+            cell.style(style);
+        }
+    }
 }
 
 #[cfg(test)]
