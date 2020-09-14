@@ -59,6 +59,8 @@ pub enum Action {
         date: Date,
         cron_mode: bool,
     },
+
+    Metrics(String),
 }
 
 pub fn initialize() -> (Action, Config) {
@@ -163,6 +165,11 @@ pub fn initialize() -> (Action, Config) {
             .arg(Arg::with_name("cron")
                 .long("cron")
                 .help("cron mode (use for notifications about expiring and closed deposits)")))
+        .subcommand(SubCommand::with_name("metrics")
+            .about("Generate Prometheus metrics for Node Exporter Textfile Collector")
+            .arg(Arg::with_name("PATH")
+                .help("Path to write the metrics to")
+                .required(true)))
         .global_setting(AppSettings::DisableVersion)
         .global_setting(AppSettings::DisableHelpSubcommand)
         .global_setting(AppSettings::DeriveDisplayOrder)
@@ -219,16 +226,23 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
     let (command, matches) = matches.subcommand();
     let matches = matches.unwrap();
 
-    if command == "deposits" {
-        let date = match matches.value_of("date") {
-            Some(date) => util::parse_date(date, "%d.%m.%Y")?,
-            None => util::today(),
-        };
+    match command {
+        "deposits" => {
+            let date = match matches.value_of("date") {
+                Some(date) => util::parse_date(date, "%d.%m.%Y")?,
+                None => util::today(),
+            };
 
-        return Ok(Action::Deposits {
-            date: date,
-            cron_mode: matches.is_present("cron"),
-        });
+            return Ok(Action::Deposits {
+                date: date,
+                cron_mode: matches.is_present("cron"),
+            });
+        },
+        "metrics" => {
+            let path = matches.value_of("PATH").unwrap().to_owned();
+            return Ok(Action::Metrics(path))
+        },
+        _ => {},
     }
 
     let name = portfolio::get(matches);

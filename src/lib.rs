@@ -16,6 +16,7 @@ pub mod db;
 pub mod deposits;
 pub mod formatting;
 pub mod localities;
+pub mod metrics;
 pub mod portfolio;
 pub mod quotes;
 pub mod rate_limiter;

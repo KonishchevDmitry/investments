@@ -9,6 +9,7 @@ use investments::cash_flow;
 use investments::config::Config;
 use investments::core::EmptyResult;
 use investments::deposits;
+use investments::metrics;
 use investments::portfolio;
 use investments::tax_statement;
 
@@ -58,6 +59,8 @@ fn run(action: Action, config: Config) -> EmptyResult {
 
         Action::Deposits { date, cron_mode } => deposits::list(
             config.deposits, date, cron_mode, config.notify_deposit_closing_days),
+
+        Action::Metrics(path) => metrics::collect(&path)?,
     };
 
     Ok(())
