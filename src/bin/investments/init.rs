@@ -13,7 +13,7 @@ use investments::util::{self, DecimalRestrictions};
 
 pub enum Action {
     Analyse {
-        name: String,
+        name: Option<String>,
         show_closed_positions: bool,
     },
     SimulateSell {
@@ -235,7 +235,10 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
 
     Ok(match command {
         "analyse" => Action::Analyse {
-            name,
+            name: match name.as_str() {
+                "all" => None,
+                _ => Some(name),
+            },
             show_closed_positions: matches.is_present("all"),
         },
 

@@ -35,7 +35,7 @@ fn main() {
 fn run(action: Action, config: Config) -> EmptyResult {
     match action {
         Action::Analyse {name, show_closed_positions} => analyse::analyse(
-            &config, &name, show_closed_positions)?,
+            &config, name.as_deref(), true, show_closed_positions)?,
         Action::SimulateSell {name, positions} => analyse::simulate_sell(
             &config, &name, &positions)?,
 
