@@ -24,6 +24,7 @@ lazy_static! {
         "expected_commissions", "Expected commissions to pay.");
 }
 
+// FIXME(konishchev): Regression tests
 pub fn collect(config: &Config, path: &str) -> EmptyResult {
     let statistics = analyse(config, None, false, Some(&config.metrics.merge_performance), false)?;
 
