@@ -27,6 +27,8 @@ impl PortfolioStatistics {
             currencies: currencies.iter().map(|&currency| (
                 CurrencyStatistics {
                     currency: currency.to_owned(),
+
+                    assets: BTreeMap::new(),
                     performance: BTreeMap::new(),
                     assets_after_sellout: BTreeMap::new(),
 
@@ -51,10 +53,12 @@ impl PortfolioStatistics {
 
 pub struct CurrencyStatistics {
     pub currency: String,
-    pub performance: BTreeMap<String, Decimal>,
-    pub assets_after_sellout: BTreeMap<String, Decimal>,
 
-    pub total_value: Decimal,
+    pub assets: BTreeMap<String, Decimal>,
+    pub performance: BTreeMap<String, Decimal>,
+    pub assets_after_sellout: BTreeMap<String, Decimal>, // FIXME(konishchev): Deprecate?
+
+    pub total_value: Decimal, // FIXME(konishchev): Deprecate?
     pub expected_taxes: Decimal,
     pub expected_commissions: Decimal,
 }
@@ -63,14 +67,18 @@ impl CurrencyStatistics {
     const CASH: &'static str = "cash";
     const PORTFOLIO: &'static str = "portfolio";
 
-    fn add_asset_after_sellout(&mut self, symbol: &str, amount: Decimal) {
+    fn add_assets(&mut self, symbol: &str, amount: Decimal) {
+        *self.assets.entry(symbol.to_owned()).or_default() += amount;
+    }
+
+    fn add_assets_after_sellout(&mut self, symbol: &str, amount: Decimal) {
         *self.assets_after_sellout.entry(symbol.to_owned()).or_default() += amount;
     }
 }
 
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, interactive: bool, show_closed_positions: bool,
-) -> EmptyResult {
+) -> GenericResult<PortfolioStatistics> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
     let currencies = ["USD", "RUB"];
@@ -89,7 +97,8 @@ pub fn analyse(
 
         statistics.process(|statistics| {
             let cash_assets = statement.cash_assets.total_assets_real_time(&statistics.currency, &converter)?;
-            statistics.add_asset_after_sellout(CurrencyStatistics::CASH, cash_assets);
+            statistics.add_assets(CurrencyStatistics::CASH, cash_assets);
+            statistics.add_assets_after_sellout(CurrencyStatistics::CASH, cash_assets);
             statistics.total_value += cash_assets;
             Ok(())
         })?;
@@ -117,7 +126,8 @@ pub fn analyse(
                 let commission = converter.real_time_convert_to(trade.commission, currency)?;
                 let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
 
-                statistics.add_asset_after_sellout(&trade.symbol, volume - commission - tax_to_pay);
+                statistics.add_assets_after_sellout(&trade.symbol, volume - commission - tax_to_pay);
+                statistics.add_assets(&trade.symbol, volume);
                 statistics.expected_commissions += commission;
                 statistics.expected_taxes += tax_to_pay;
 
@@ -127,7 +137,7 @@ pub fn analyse(
 
         statistics.process(|statistics| {
             let commissions = additional_commissions.total_assets_real_time(&statistics.currency, &converter)?;
-            statistics.add_asset_after_sellout(CurrencyStatistics::CASH, -commissions);
+            statistics.add_assets_after_sellout(CurrencyStatistics::CASH, -commissions);
             statistics.expected_commissions += commissions;
             Ok(())
         })?;
@@ -156,7 +166,7 @@ pub fn analyse(
         Ok(())
     })?;
 
-    Ok(())
+    Ok(statistics)
 }
 
 pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)]) -> EmptyResult {
