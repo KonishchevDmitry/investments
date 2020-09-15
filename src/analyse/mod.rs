@@ -67,17 +67,17 @@ impl CurrencyStatistics {
     const CASH: &'static str = "cash";
     const PORTFOLIO: &'static str = "portfolio";
 
-    fn add_assets(&mut self, symbol: &str, amount: Decimal) {
-        *self.assets.entry(symbol.to_owned()).or_default() += amount;
+    fn add_assets(&mut self, instrument: &str, amount: Decimal) {
+        *self.assets.entry(instrument.to_owned()).or_default() += amount;
     }
 
-    fn add_assets_after_sellout(&mut self, symbol: &str, amount: Decimal) {
-        *self.assets_after_sellout.entry(symbol.to_owned()).or_default() += amount;
+    fn add_assets_after_sellout(&mut self, instrument: &str, amount: Decimal) {
+        *self.assets_after_sellout.entry(instrument.to_owned()).or_default() += amount;
     }
 }
 
 pub fn analyse(
-    config: &Config, portfolio_name: Option<&str>, interactive: bool, show_closed_positions: bool,
+    config: &Config, portfolio_name: Option<&str>, interactive: bool, include_closed_positions: bool,
 ) -> GenericResult<PortfolioStatistics> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
@@ -148,7 +148,7 @@ pub fn analyse(
 
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            country, &statistics.currency, &converter, interactive, show_closed_positions);
+            country, &statistics.currency, &converter, interactive, include_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
             analyser.add(&portfolio, &statement)?;

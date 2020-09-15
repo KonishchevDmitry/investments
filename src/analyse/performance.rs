@@ -41,7 +41,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     country: Country,
     currency: &'a str,
     converter: &'a CurrencyConverter,
-    show_closed_positions: bool,
+    include_closed_positions: bool,
 
     transactions: Vec<Transaction>,
     instruments: Option<BTreeMap<String, StockDepositView>>,
@@ -52,14 +52,14 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
         country: Country, currency: &'a str, converter: &'a CurrencyConverter, interactive: bool,
-        show_closed_positions: bool,
+        include_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
             today: util::today(),
             country,
             currency,
             converter,
-            show_closed_positions,
+            include_closed_positions,
 
             transactions: Vec::new(),
             instruments: Some(BTreeMap::new()),
@@ -121,7 +121,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn analyse_instrument_performance(
         &mut self, symbol: &str, mut deposit_view: StockDepositView
     ) -> GenericResult<Option<Decimal>> {
-        if deposit_view.closed && !self.show_closed_positions {
+        if deposit_view.closed && !self.include_closed_positions {
             return Ok(None);
         }
 

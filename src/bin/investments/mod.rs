@@ -36,7 +36,7 @@ fn main() {
 fn run(action: Action, config: Config) -> EmptyResult {
     match action {
         Action::Analyse {name, show_closed_positions} => analyse::analyse(
-            &config, name.as_deref(), true, show_closed_positions)?,
+            &config, name.as_deref(), true, show_closed_positions).map(|_| ())?,
         Action::SimulateSell {name, positions} => analyse::simulate_sell(
             &config, &name, &positions)?,
 
@@ -60,7 +60,7 @@ fn run(action: Action, config: Config) -> EmptyResult {
         Action::Deposits { date, cron_mode } => deposits::list(
             config.deposits, date, cron_mode, config.notify_deposit_closing_days),
 
-        Action::Metrics(path) => metrics::collect(&path)?,
+        Action::Metrics(path) => metrics::collect(&config, &path)?,
     };
 
     Ok(())
