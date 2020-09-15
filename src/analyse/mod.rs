@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::broker_statement::BrokerStatement;
 use crate::commissions::CommissionCalc;
-use crate::config::{Config, PortfolioConfig};
+use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
@@ -77,7 +77,8 @@ impl CurrencyStatistics {
 }
 
 pub fn analyse(
-    config: &Config, portfolio_name: Option<&str>, interactive: bool, include_closed_positions: bool,
+    config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,
+    merge_performance: Option<&PerformanceMergingConfig>, interactive: bool,
 ) -> GenericResult<PortfolioStatistics> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
@@ -142,13 +143,17 @@ pub fn analyse(
             Ok(())
         })?;
 
-        statement.merge_symbols(&portfolio.merge_performance).map_err(|e| format!(
+        statement.merge_symbols(&portfolio.merge_performance, true).map_err(|e| format!(
             "Invalid performance merging configuration: {}", e))?;
+
+        if let Some(merge_performance) = merge_performance {
+            statement.merge_symbols(merge_performance, false)?;
+        }
     }
 
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            country, &statistics.currency, &converter, interactive, include_closed_positions);
+            country, &statistics.currency, &converter, include_closed_positions, interactive);
 
         for (portfolio, statement) in &mut portfolios {
             analyser.add(&portfolio, &statement)?;

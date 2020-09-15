@@ -25,7 +25,7 @@ lazy_static! {
 }
 
 pub fn collect(config: &Config, path: &str) -> EmptyResult {
-    let statistics = analyse(config, None, false, false)?;
+    let statistics = analyse(config, None, false, Some(&config.metrics.merge_performance), false)?;
 
     for statistics in statistics.currencies {
         collect_currency_metrics(&statistics);

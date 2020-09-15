@@ -373,7 +373,9 @@ impl BrokerStatement {
         self.validate_open_positions()
     }
 
-    pub fn merge_symbols(&mut self, symbols_to_merge: &HashMap<String, HashSet<String>>) -> EmptyResult {
+    pub fn merge_symbols(
+        &mut self, symbols_to_merge: &HashMap<String, HashSet<String>>, strict: bool,
+    ) -> EmptyResult {
         assert!(self.open_positions.is_empty());
         assert!(!self.stock_buys.iter().any(|stock_buy| !stock_buy.is_sold()));
         assert!(!self.stock_sells.iter().any(|stock_sell| !stock_sell.is_processed()));
@@ -387,7 +389,7 @@ impl BrokerStatement {
         }
 
         for &symbol in symbol_mapping.keys() {
-            if self.instrument_names.remove(symbol).is_none() {
+            if strict && self.instrument_names.remove(symbol).is_none() {
                 return Err!("The broker statement has no any activity for {:?} symbol", symbol);
             }
         }

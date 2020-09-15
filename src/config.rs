@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::brokers::Broker;
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country};
 use crate::taxes::{TaxPaymentDay, TaxRemapping};
@@ -31,6 +31,8 @@ pub struct Config {
     #[serde(default)]
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
+    #[serde(default)]
+    pub metrics: MetricsConfig,
 
     pub alphavantage: Option<AlphaVantageConfig>,
     pub finnhub: Option<FinnhubConfig>,
@@ -49,6 +51,7 @@ impl Config {
 
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
+            metrics: Default::default(),
 
             alphavantage: None,
             finnhub: None,
@@ -109,7 +112,7 @@ pub struct PortfolioConfig {
     pub restrict_selling: Option<bool>,
 
     #[serde(default)]
-    pub merge_performance: HashMap<String, HashSet<String>>,
+    pub merge_performance: PerformanceMergingConfig,
 
     #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,
@@ -222,6 +225,13 @@ impl BrokerConfig {
     }
 }
 
+#[derive(Deserialize, Default, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct MetricsConfig {
+    #[serde(default)]
+    pub merge_performance: PerformanceMergingConfig,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TransactionCommissionSpec {
@@ -292,28 +302,15 @@ pub fn load_config(path: &str) -> GenericResult<Config> {
                 }
             }
 
-            let mut symbols_to_merge: HashSet<&String> = HashSet::new();
-            for (master_symbol, slave_symbols) in &portfolio.merge_performance {
-                if !symbols_to_merge.insert(master_symbol) {
-                    return Err!(
-                        "Invalid performance merging configuration: Duplicated {} symbol",
-                        master_symbol);
-                }
-
-                for slave_symbol in slave_symbols {
-                    if !symbols_to_merge.insert(slave_symbol) {
-                        return Err!(
-                            "Invalid performance merging configuration: Duplicated {} symbol",
-                            slave_symbol);
-                    }
-                }
-            }
+            validate_performance_merging_configuration(&portfolio.merge_performance)?;
         }
     }
 
     for portfolio in &mut config.portfolios {
         portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
     }
+
+    validate_performance_merging_configuration(&config.metrics.merge_performance)?;
 
     Ok(config)
 }
@@ -386,4 +383,28 @@ fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
     };
 
     Ok(Decimal::from_u8(weight).unwrap() / dec!(100))
+}
+
+pub type PerformanceMergingConfig = HashMap<String, HashSet<String>>;
+
+fn validate_performance_merging_configuration(config: &PerformanceMergingConfig) -> EmptyResult {
+    let mut symbols_to_merge: HashSet<&str> = HashSet::new();
+
+    for (master_symbol, slave_symbols) in config {
+        if !symbols_to_merge.insert(master_symbol) {
+            return Err!(
+                "Invalid performance merging configuration: Duplicated {} symbol",
+                master_symbol);
+        }
+
+        for slave_symbol in slave_symbols {
+            if !symbols_to_merge.insert(slave_symbol) {
+                return Err!(
+                    "Invalid performance merging configuration: Duplicated {} symbol",
+                    slave_symbol);
+            }
+        }
+    }
+
+    Ok(())
 }

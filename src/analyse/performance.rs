@@ -51,8 +51,8 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
-        country: Country, currency: &'a str, converter: &'a CurrencyConverter, interactive: bool,
-        include_closed_positions: bool,
+        country: Country, currency: &'a str, converter: &'a CurrencyConverter,
+        include_closed_positions: bool, interactive: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
             today: util::today(),
