@@ -49,6 +49,10 @@ impl CurrencyConverter {
         self.convert(from, to, date, dec!(1))
     }
 
+    pub fn real_time_currency_rate(&self, from: &str, to: &str) -> GenericResult<Decimal> {
+        self.currency_rate(self.real_time_date(), from, to)
+    }
+
     /// Returns non-rounded currency rate. CBR provides currency rates with high precision like
     /// 56.3438 and tax statement uses currency rate value for 100 units like 5634.38.
     pub fn precise_currency_rate(&self, date: Date, from: &str, to: &str) -> GenericResult<Decimal> {

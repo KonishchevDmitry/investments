@@ -79,7 +79,7 @@ impl CurrencyStatistics {
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,
     merge_performance: Option<&PerformanceMergingConfig>, interactive: bool,
-) -> GenericResult<PortfolioStatistics> {
+) -> GenericResult<(PortfolioStatistics, CurrencyConverter)> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
     let currencies = ["USD", "RUB"];
@@ -143,6 +143,7 @@ pub fn analyse(
             Ok(())
         })?;
 
+        // FIXME(konishchev): Optimize
         statement.merge_symbols(&portfolio.merge_performance, true).map_err(|e| format!(
             "Invalid performance merging configuration: {}", e))?;
 
@@ -171,7 +172,7 @@ pub fn analyse(
         Ok(())
     })?;
 
-    Ok(statistics)
+    Ok((statistics, converter))
 }
 
 pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)]) -> EmptyResult {

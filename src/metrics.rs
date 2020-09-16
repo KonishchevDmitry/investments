@@ -8,6 +8,7 @@ use prometheus::{self, TextEncoder, Encoder, GaugeVec, register_gauge_vec};
 use crate::analyse::{CurrencyStatistics, analyse};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError};
+use crate::currency::converter::CurrencyConverter;
 use crate::types::Decimal;
 
 lazy_static! {
@@ -22,16 +23,21 @@ lazy_static! {
 
     static ref EXPECTED_COMMISSIONS: GaugeVec = register_currency_metric(
         "expected_commissions", "Expected commissions to pay.");
+
+    static ref FOREX_PAIRS: GaugeVec = register_metric(
+        "forex", "Forex quotes.", &["base", "quote"]);
 }
 
 // FIXME(konishchev): Regression tests
 pub fn collect(config: &Config, path: &str) -> EmptyResult {
-    let statistics = analyse(config, None, false, Some(&config.metrics.merge_performance), false)?;
+    let (statistics, converter) = analyse(
+        config, None, false, Some(&config.metrics.merge_performance), false)?;
 
     for statistics in statistics.currencies {
         collect_currency_metrics(&statistics);
     }
 
+    collect_forex_quotes(&converter, "USD", "RUB");
     save(path)
 }
 
@@ -48,6 +54,10 @@ fn collect_currency_metrics(statistics: &CurrencyStatistics) {
 
     set_currency_metric(&EXPECTED_TAXES, currency, statistics.expected_taxes);
     set_currency_metric(&EXPECTED_COMMISSIONS, currency, statistics.expected_commissions);
+}
+
+fn collect_forex_quotes(converter: &CurrencyConverter, base: &str, quote: &str) -> EmptyResult {
+    Ok(set_metric(&FOREX_PAIRS, &[base, quote], converter.real_time_currency_rate(base, quote)?))
 }
 
 fn save(path: &str) -> EmptyResult {
@@ -83,9 +93,13 @@ fn register_metric(name: &str, help: &str, labels: &[&str]) -> GaugeVec {
 }
 
 fn set_currency_metric(collector: &GaugeVec, currency: &str, value: Decimal) {
-    collector.with_label_values(&[currency]).set(value.to_f64().unwrap())
+    set_metric(collector, &[currency], value)
 }
 
 fn set_instrument_metric(collector: &GaugeVec, currency: &str, instrument: &str, value: Decimal) {
-    collector.with_label_values(&[currency, instrument]).set(value.to_f64().unwrap())
+    set_metric(collector, &[currency, instrument], value)
+}
+
+fn set_metric(collector: &GaugeVec, labels: &[&str], value: Decimal) {
+    collector.with_label_values(labels).set(value.to_f64().unwrap())
 }
