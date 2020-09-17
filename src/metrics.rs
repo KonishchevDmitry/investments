@@ -37,7 +37,8 @@ pub fn collect(config: &Config, path: &str) -> EmptyResult {
         collect_currency_metrics(&statistics);
     }
 
-    collect_forex_quotes(&converter, "USD", "RUB");
+    collect_forex_quotes(&converter, "USD", "RUB")?;
+
     save(path)
 }
 
