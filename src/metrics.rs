@@ -31,8 +31,8 @@ lazy_static! {
     static ref PROFIT: GaugeVec = register_currency_metric(
         "profit", "Profit.");
 
-    static ref PURE_PROFIT: GaugeVec = register_currency_metric(
-        "pure_profit", "Pure profit.");
+    static ref NET_PROFIT: GaugeVec = register_currency_metric(
+        "net_profit", "Pure profit.");
 
     static ref EXPECTED_TAXES: GaugeVec = register_currency_metric(
         "expected_taxes", "Expected taxes to pay.");
@@ -69,9 +69,9 @@ fn collect_currency_metrics(statistics: &CurrencyStatistics) {
         set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
     }
 
-    let profit = statistics.income_structure.pure_profit + statistics.income_structure.commissions + statistics.income_structure.taxes;
+    let profit = statistics.income_structure.net_profit + statistics.income_structure.commissions + statistics.income_structure.taxes;
     set_currency_metric(&PROFIT, currency, profit);
-    set_currency_metric(&PURE_PROFIT, currency, statistics.income_structure.pure_profit);
+    set_currency_metric(&NET_PROFIT, currency, statistics.income_structure.net_profit);
 
     set_metric(&INCOME_STRUCTURE, &[currency, "trading-profit"], statistics.income_structure.trading_profit);
     set_metric(&INCOME_STRUCTURE, &[currency, "dividends"], statistics.income_structure.dividends);

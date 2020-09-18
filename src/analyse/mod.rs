@@ -14,6 +14,7 @@ use crate::types::Decimal;
 use self::performance::{PortfolioPerformanceAnalyser, IncomeStructure};
 
 pub mod deposit_emulator;
+mod deposit_performance;
 mod performance;
 mod sell_simulation;
 
