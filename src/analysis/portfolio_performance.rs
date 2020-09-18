@@ -1,6 +1,6 @@
 use std::collections::{HashMap, BTreeMap};
 
-use log::{self, debug, log_enabled, trace, warn};
+use log::{self, log_enabled, trace};
 use num_traits::Zero;
 use static_table_derive::StaticTable;
 
@@ -17,22 +17,6 @@ use crate::util;
 
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
-
-#[derive(StaticTable)]
-struct Row {
-    #[column(name="Instrument")]
-    instrument: String,
-    #[column(name="Investments")]
-    investments: Cell,
-    #[column(name="Profit")]
-    profit: Cell,
-    #[column(name="Result")]
-    result: Cell,
-    #[column(name="Duration", align="right")]
-    duration: String,
-    #[column(name="Interest", align="right")]
-    interest: String,
-}
 
 // FIXME(konishchev): Split into submodules
 // FIXME(konishchev): Check all usage
@@ -150,7 +134,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let (interest, difference) = deposit_performance::compare_to_bank_deposit(
             &deposit_view.transactions, &deposit_view.interest_periods, dec!(0))?;
 
-        check_emulation_precision(
+        deposit_performance::check_emulation_precision(
             symbol, self.currency, deposit_view.last_sell_volume.unwrap(), difference)?;
 
         if let Some(table) = self.table.as_mut() {
@@ -187,7 +171,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let (interest, difference) = deposit_performance::compare_to_bank_deposit(
             &self.transactions, &activity_periods, self.current_assets)?;
 
-        check_emulation_precision("portfolio", self.currency, self.current_assets, difference)?;
+        deposit_performance::check_emulation_precision(
+            "portfolio", self.currency, self.current_assets, difference)?;
 
         let investments = self.transactions.iter()
             .map(|transaction| transaction.amount)
@@ -518,32 +503,24 @@ impl StockDepositView {
     }
 }
 
-fn check_emulation_precision(name: &str, currency: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
-    let precision = (difference / assets).abs() * dec!(100);
-    let difference = Cash::new(currency, difference).round();
-
-    if precision >= dec!(1) {
-        let message = format!(concat!(
-            "Failed to compare {} {} performance to bank deposit: ",
-            "got a result with too low precision ({}%, {})"),
-            name, currency, util::round(precision, 3), difference);
-
-        if cfg!(debug_assertions) {
-            return Err(message.into());
-        }
-
-        warn!("{}.", message);
-        return Ok(());
-    }
-
-    debug!("Got a result of comparing {} {} performance to bank deposit: {}% precision ({}).",
-           name, currency, util::round(precision, 4), difference);
-
-    Ok(())
-}
-
 fn get_total_activity_duration(periods: &[InterestPeriod]) -> i64 {
     periods.iter().map(|period| (period.end - period.start).num_days()).sum()
+}
+
+#[derive(StaticTable)]
+struct Row {
+    #[column(name="Instrument")]
+    instrument: String,
+    #[column(name="Investments")]
+    investments: Cell,
+    #[column(name="Profit")]
+    profit: Cell,
+    #[column(name="Result")]
+    result: Cell,
+    #[column(name="Duration", align="right")]
+    duration: String,
+    #[column(name="Interest", align="right")]
+    interest: String,
 }
 
 fn add_results(

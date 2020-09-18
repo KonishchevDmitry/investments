@@ -5,7 +5,7 @@
 
 #[macro_use] pub mod core;
 #[macro_use] pub mod types;
-pub mod analyse;
+pub mod analysis;
 pub mod broker_statement;
 pub mod brokers;
 pub mod cash_flow;

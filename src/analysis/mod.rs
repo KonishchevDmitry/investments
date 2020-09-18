@@ -11,11 +11,11 @@ use crate::localities;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
 
-use self::performance::{PortfolioPerformanceAnalyser, IncomeStructure};
+use self::portfolio_performance::{PortfolioPerformanceAnalyser, IncomeStructure};
 
 pub mod deposit_emulator;
 mod deposit_performance;
-mod performance;
+mod portfolio_performance;
 mod sell_simulation;
 
 pub struct PortfolioStatistics {

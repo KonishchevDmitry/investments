@@ -4,7 +4,7 @@ use std::process;
 
 use log::error;
 
-use investments::analyse;
+use investments::analysis;
 use investments::cash_flow;
 use investments::config::Config;
 use investments::core::EmptyResult;
@@ -35,9 +35,9 @@ fn main() {
 
 fn run(action: Action, config: Config) -> EmptyResult {
     match action {
-        Action::Analyse {name, show_closed_positions} => analyse::analyse(
+        Action::Analyse {name, show_closed_positions} => analysis::analyse(
             &config, name.as_deref(), show_closed_positions, None, true).map(|_| ())?,
-        Action::SimulateSell {name, positions} => analyse::simulate_sell(
+        Action::SimulateSell {name, positions} => analysis::simulate_sell(
             &config, &name, &positions)?,
 
         Action::Sync(name) => portfolio::sync(&config, &name)?,

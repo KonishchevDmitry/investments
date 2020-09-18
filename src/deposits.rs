@@ -2,7 +2,7 @@ use chrono::Duration;
 
 use static_table_derive::StaticTable;
 
-use crate::analyse::deposit_emulator::{DepositEmulator, Transaction};
+use crate::analysis::deposit_emulator::{DepositEmulator, Transaction};
 use crate::config::DepositConfig;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::formatting::{self, table::Style};

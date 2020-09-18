@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, GaugeVec, register_gauge_vec};
 
-use crate::analyse::{CurrencyStatistics, analyse};
+use crate::analysis::{self, CurrencyStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError};
 use crate::currency::converter::CurrencyConverter;
@@ -46,7 +46,7 @@ lazy_static! {
 
 // FIXME(konishchev): Regression tests
 pub fn collect(config: &Config, path: &str) -> EmptyResult {
-    let (statistics, converter) = analyse(
+    let (statistics, converter) = analysis::analyse(
         config, None, false, Some(&config.metrics.merge_performance), false)?;
 
     for statistics in statistics.currencies {
