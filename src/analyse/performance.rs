@@ -34,6 +34,23 @@ struct Row {
     interest: String,
 }
 
+// FIXME(konishchev): Split into submodules
+// FIXME(konishchev): Check all usage
+#[derive(Default)]
+pub struct IncomeStructure {
+    balance: Decimal, // FIXME(konishchev): Get rid of it?
+
+    pub pure_profit: Decimal,
+
+    pub trading_profit: Decimal,
+    pub dividends: Decimal,
+    pub interest: Decimal,
+
+    pub commissions: Decimal,
+    pub tax_deductions: Decimal,
+    pub taxes: Decimal,
+}
+
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub struct PortfolioPerformanceAnalyser<'a> {
@@ -44,6 +61,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     include_closed_positions: bool,
 
     transactions: Vec<Transaction>,
+    income_structure: IncomeStructure,
     instruments: Option<BTreeMap<String, StockDepositView>>,
     current_assets: Decimal,
     table: Option<Table>,
@@ -62,6 +80,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             include_closed_positions,
 
             transactions: Vec::new(),
+            income_structure: Default::default(),
             instruments: Some(BTreeMap::new()),
             current_assets: dec!(0),
             table: if interactive {
@@ -86,8 +105,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.process_interest(statement, portfolio)?;
         self.process_tax_deductions(portfolio)?;
 
-        self.current_assets += statement.cash_assets.total_assets_real_time(
-            self.currency, self.converter)?;
+        // FIXME(konishchev): Get rid of it?
+        self.process_cash_assets(statement)?;
 
         for (symbol, deposit_view) in self.instruments.as_mut().unwrap().iter_mut() {
             if deposit_view.name.is_none() {
@@ -98,7 +117,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    pub fn analyse(mut self) -> GenericResult<(Decimal, BTreeMap<String, Decimal>)> {
+    // FIXME(konishchev): Wrap return value
+    pub fn analyse(mut self) -> GenericResult<(Decimal, BTreeMap<String, Decimal>, IncomeStructure)> {
         self.calculate_open_position_periods()?;
 
         let mut instrument_performance = BTreeMap::new();
@@ -115,7 +135,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             table.print(&format!("Average rate of return from cash investments in {}", self.currency));
         }
 
-        Ok((portfolio_performance, instrument_performance))
+        Ok((portfolio_performance, instrument_performance, self.income_structure))
     }
 
     fn analyse_instrument_performance(
@@ -169,15 +189,22 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         check_emulation_precision("portfolio", self.currency, self.current_assets, difference)?;
 
+        let investments = self.transactions.iter()
+            .map(|transaction| transaction.amount)
+            .sum();
+
         if let Some(table) = self.table.as_mut() {
             let days = get_total_activity_duration(&activity_periods);
-
-            let investments = self.transactions.iter()
-                .map(|transaction| transaction.amount)
-                .sum();
-
             add_results(table, "", investments, self.current_assets, interest, days, false);
         }
+
+        self.income_structure.pure_profit = self.current_assets - investments;
+        self.income_structure.trading_profit = self.income_structure.pure_profit
+            + self.income_structure.taxes
+            + self.income_structure.commissions
+            - self.income_structure.tax_deductions
+            - self.income_structure.dividends
+            - self.income_structure.interest;
 
         Ok(interest)
     }
@@ -270,6 +297,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }, formatting::format_date(cash_flow.date), amount.normalize());
 
             self.transaction(cash_flow.date, amount);
+            self.income_structure.balance += amount;
         }
 
         Ok(())
@@ -283,15 +311,18 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let multiplier = statement.stock_splits.get_multiplier(
                 &stock_buy.symbol, stock_buy.conclusion_date, self.today);
 
+            let commission = self.converter.convert_to(
+                stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
+
             let mut assets = self.converter.convert_to(
                 stock_buy.execution_date, stock_buy.volume, self.currency)?;
-
-            assets += self.converter.convert_to(
-                stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
+            assets += commission;
 
             let deposit_view = self.get_deposit_view(&stock_buy.symbol);
             deposit_view.trade(stock_buy.conclusion_date, multiplier * stock_buy.quantity);
             deposit_view.transaction(stock_buy.conclusion_date, assets);
+
+            self.income_structure.commissions += commission;
         }
 
         for stock_sell in &statement.stock_sells {
@@ -324,6 +355,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 .add_profit(stock_sell.execution_date, local_profit);
 
             taxes.add_profit(stock_sell.execution_date, local_profit);
+
+            self.income_structure.commissions += commission;
         }
 
         for (&symbol, symbol_taxes) in stock_taxes.iter() {
@@ -333,6 +366,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                            symbol, formatting::format_date(tax_payment_date), deposit_amount);
 
                     self.get_deposit_view(symbol).transaction(tax_payment_date, deposit_amount);
+                    self.income_structure.taxes += deposit_amount;
                 }
             }
         }
@@ -342,6 +376,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 trace!("* Stock selling {} tax: {}",
                        formatting::format_date(tax_payment_date), deposit_amount);
                 self.transaction(tax_payment_date, deposit_amount);
+                self.income_structure.balance += deposit_amount;
+                self.income_structure.taxes += deposit_amount;
             }
         }
 
@@ -356,6 +392,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
             let profit = self.converter.convert_to(dividend.date, profit, self.currency)?;
             self.get_deposit_view(&dividend.issuer).transaction(dividend.date, -profit);
+            self.income_structure.dividends += profit; // FIXME(konishchev): Use full amount?
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
             let tax_payment_date = portfolio.tax_payment_day.get(dividend.date);
@@ -367,6 +404,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
                 self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date, deposit_amount);
                 self.transaction(tax_payment_date, deposit_amount);
+                self.income_structure.balance += deposit_amount;
+                self.income_structure.taxes += deposit_amount;
             }
         }
 
@@ -375,6 +414,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
     fn process_interest(&mut self, statement: &BrokerStatement, portfolio: &PortfolioConfig) -> EmptyResult {
         for interest in &statement.idle_cash_interest {
+            self.income_structure.interest += self.converter.convert_to(
+                interest.date, interest.amount, self.currency)?;
+
             let tax_to_pay = interest.tax_to_pay(&self.country, self.converter)?;
             let tax_payment_date = portfolio.tax_payment_day.get(interest.date);
 
@@ -384,6 +426,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                        formatting::format_date(tax_payment_date), deposit_amount);
 
                 self.transaction(tax_payment_date, deposit_amount);
+                self.income_structure.balance += deposit_amount;
+                self.income_structure.taxes += deposit_amount;
             }
         }
 
@@ -395,7 +439,18 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let amount = self.converter.convert(self.country.currency, self.currency, date, amount)?;
             trace!("* Tax deduction {}: {}", formatting::format_date(date), -amount);
             self.transaction(date, -amount);
+            self.income_structure.balance -= amount;
+            self.income_structure.tax_deductions += amount;
         }
+
+        Ok(())
+    }
+
+    fn process_cash_assets(&mut self, statement: &BrokerStatement) -> EmptyResult {
+        let cash_assets = statement.cash_assets.total_assets_real_time(
+            self.currency, self.converter)?;
+
+        self.current_assets += cash_assets;
 
         Ok(())
     }

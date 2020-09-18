@@ -11,7 +11,7 @@ use crate::localities;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
 
-use self::performance::PortfolioPerformanceAnalyser;
+use self::performance::{PortfolioPerformanceAnalyser, IncomeStructure};
 
 pub mod deposit_emulator;
 mod performance;
@@ -30,6 +30,7 @@ impl PortfolioStatistics {
 
                     assets: BTreeMap::new(),
                     performance: BTreeMap::new(),
+                    income_structure: Default::default(), // FIXME(konishchev): Change it?
                     assets_after_sellout: BTreeMap::new(),
 
                     total_value: dec!(0),
@@ -56,6 +57,7 @@ pub struct CurrencyStatistics {
 
     pub assets: BTreeMap<String, Decimal>,
     pub performance: BTreeMap<String, Decimal>,
+    pub income_structure: IncomeStructure,
     pub assets_after_sellout: BTreeMap<String, Decimal>, // FIXME(konishchev): Deprecate?
 
     pub total_value: Decimal, // FIXME(konishchev): Deprecate?
@@ -160,7 +162,7 @@ pub fn analyse(
             analyser.add(&portfolio, &statement)?;
         }
 
-        let (portfolio_performance, mut instrument_performance) = analyser.analyse()?;
+        let (portfolio_performance, mut instrument_performance, income_structure) = analyser.analyse()?;
 
         let portfolio_symbol = CurrencyStatistics::PORTFOLIO;
         if instrument_performance.insert(portfolio_symbol.to_owned(), portfolio_performance).is_some() {
@@ -168,6 +170,7 @@ pub fn analyse(
         }
 
         statistics.performance = instrument_performance;
+        statistics.income_structure = income_structure;
 
         Ok(())
     })?;

@@ -12,11 +12,27 @@ use crate::currency::converter::CurrencyConverter;
 use crate::types::Decimal;
 
 lazy_static! {
+    // FIXME(konishchev): Check all
+    // FIXME(konishchev): Update timestamp
+    // FIXME(konishchev): Portfolio label
+
     static ref ASSETS: GaugeVec = register_instrument_metric(
         "assets", "Open positions value.");
 
     static ref PERFORMANCE: GaugeVec = register_instrument_metric(
         "performance", "Instrument performance.");
+
+    static ref INCOME_STRUCTURE: GaugeVec = register_metric(
+        "income_structure", "Income structure.", &["currency", "type"]);
+
+    static ref EXPENCES_STRUCTURE: GaugeVec = register_metric(
+        "expenses_structure", "Expenses structure.", &["currency", "type"]);
+
+    static ref PROFIT: GaugeVec = register_currency_metric(
+        "profit", "Profit.");
+
+    static ref PURE_PROFIT: GaugeVec = register_currency_metric(
+        "pure_profit", "Pure profit.");
 
     static ref EXPECTED_TAXES: GaugeVec = register_currency_metric(
         "expected_taxes", "Expected taxes to pay.");
@@ -52,6 +68,18 @@ fn collect_currency_metrics(statistics: &CurrencyStatistics) {
     for (instrument, &interest) in &statistics.performance {
         set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
     }
+
+    let profit = statistics.income_structure.pure_profit + statistics.income_structure.commissions + statistics.income_structure.taxes;
+    set_currency_metric(&PROFIT, currency, profit);
+    set_currency_metric(&PURE_PROFIT, currency, statistics.income_structure.pure_profit);
+
+    set_metric(&INCOME_STRUCTURE, &[currency, "trading-profit"], statistics.income_structure.trading_profit);
+    set_metric(&INCOME_STRUCTURE, &[currency, "dividends"], statistics.income_structure.dividends);
+    set_metric(&INCOME_STRUCTURE, &[currency, "interest"], statistics.income_structure.interest);
+    set_metric(&INCOME_STRUCTURE, &[currency, "tax-deductions"], statistics.income_structure.tax_deductions);
+
+    set_metric(&EXPENCES_STRUCTURE, &[currency, "commissions"], statistics.income_structure.commissions);
+    set_metric(&EXPENCES_STRUCTURE, &[currency, "taxes"], statistics.income_structure.taxes);
 
     set_currency_metric(&EXPECTED_TAXES, currency, statistics.expected_taxes);
     set_currency_metric(&EXPECTED_COMMISSIONS, currency, statistics.expected_commissions);
