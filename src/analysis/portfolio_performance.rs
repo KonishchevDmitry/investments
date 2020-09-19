@@ -316,7 +316,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                            symbol, formatting::format_date(tax_payment_date), amount);
 
                     self.get_deposit_view(symbol).transaction(tax_payment_date, amount);
-                    self.income_structure.taxes += amount;
                 }
             }
         }
