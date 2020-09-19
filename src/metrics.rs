@@ -48,7 +48,7 @@ pub fn collect(config: &Config, path: &str) -> EmptyResult {
     let (statistics, converter) = analysis::analyse(
         config, None, false, Some(&config.metrics.merge_performance), false)?;
 
-    UPDATE_TIME.set(cast::f64(util::now().timestamp()));
+    UPDATE_TIME.set(cast::f64(util::utc_now().timestamp()));
 
     for statistics in statistics.currencies {
         collect_portfolio_metrics(&statistics);
