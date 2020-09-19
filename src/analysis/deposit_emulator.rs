@@ -195,6 +195,11 @@ impl InterestPeriod {
         assert!(start < end);
         InterestPeriod { start, end }
     }
+
+    pub fn days(&self) -> u32 {
+        let days = (self.end - self.start).num_days();
+        cast::u32(days).unwrap()
+    }
 }
 
 #[derive(Clone, Copy)]

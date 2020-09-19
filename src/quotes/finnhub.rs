@@ -79,7 +79,7 @@ impl Finnhub {
 
             profile.currency
         } else {
-            "USD".to_owned()
+            s!("USD")
         };
 
         Ok(Some(Cash::new(&currency, price)))

@@ -15,6 +15,7 @@ use self::portfolio_performance::{PortfolioPerformanceAnalyser, IncomeStructure}
 
 pub mod deposit_emulator;
 mod deposit_performance;
+mod portfolio_analysis;
 mod portfolio_performance;
 mod sell_simulation;
 
@@ -156,21 +157,31 @@ pub fn analyse(
     }
 
     statistics.process(|statistics| {
+        // FIXME(konishchev): Rewrite
+
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            country, &statistics.currency, &converter, include_closed_positions, interactive);
+            country, &statistics.currency, &converter, include_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
             analyser.add(&portfolio, &statement)?;
         }
 
-        let (portfolio_performance, mut instrument_performance, income_structure) = analyser.analyse()?;
+        let (analysis, income_structure) = analyser.analyse()?;
+        if interactive {
+            analysis.print(&format!(
+                "Average rate of return from cash investments in {}", &statistics.currency));
+        }
+
+        let mut instrument_performance = analysis.instruments;
 
         let portfolio_symbol = CurrencyStatistics::PORTFOLIO;
-        if instrument_performance.insert(portfolio_symbol.to_owned(), portfolio_performance).is_some() {
+        if instrument_performance.insert(portfolio_symbol.to_owned(), analysis.portfolio).is_some() {
             return Err!("Got an unexpected symbol: {:?}", portfolio_symbol)
         }
 
-        statistics.performance = instrument_performance;
+        statistics.performance = instrument_performance.iter().map(|(symbol, analysis)| {
+            (symbol.to_owned(), analysis.interest)
+        }).collect();
         statistics.income_structure = income_structure;
 
         Ok(())

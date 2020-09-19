@@ -84,7 +84,7 @@ fn print_table(title: &str, table: &RawTable) {
         .build());
 
     table.set_titles(RawRow::new(vec![
-        RawCell::new_align(&("\n".to_owned() + title), Alignment::CENTER)
+        RawCell::new_align(&(s!("\n") + title), Alignment::CENTER)
             .with_style(Attr::Bold),
     ]));
 

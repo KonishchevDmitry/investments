@@ -43,7 +43,7 @@ impl Config {
     #[cfg(test)]
     pub fn mock() -> Config {
         Config {
-            db_path: "/mock".to_owned(),
+            db_path: s!("/mock"),
             cache_expire_time: default_expire_time(),
 
             deposits: Vec::new(),

@@ -2,14 +2,13 @@ use std::collections::{HashMap, BTreeMap};
 
 use log::{self, log_enabled, trace};
 use num_traits::Zero;
-use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::formatting::{self, table::{Cell, Style}};
+use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
 use crate::types::{Date, Decimal};
@@ -17,6 +16,7 @@ use crate::util;
 
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
+use super::portfolio_analysis::{PortfolioPerformanceAnalysis, InstrumentPerformanceAnalysis};
 
 // FIXME(konishchev): Split into submodules
 // FIXME(konishchev): Check all usage
@@ -48,13 +48,12 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     income_structure: IncomeStructure,
     instruments: Option<BTreeMap<String, StockDepositView>>,
     current_assets: Decimal,
-    table: Option<Table>,
 }
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
         country: Country, currency: &'a str, converter: &'a CurrencyConverter,
-        include_closed_positions: bool, interactive: bool,
+        include_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
             today: util::today(),
@@ -67,11 +66,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             income_structure: Default::default(),
             instruments: Some(BTreeMap::new()),
             current_assets: dec!(0),
-            table: if interactive {
-                Some(Table::new())
-            } else {
-                None
-            },
         }
     }
 
@@ -101,34 +95,29 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    // FIXME(konishchev): Wrap return value
-    pub fn analyse(mut self) -> GenericResult<(Decimal, BTreeMap<String, Decimal>, IncomeStructure)> {
+    pub fn analyse(mut self) -> GenericResult<(PortfolioPerformanceAnalysis, IncomeStructure)> {
+        let mut instruments = BTreeMap::new();
+
         self.calculate_open_position_periods()?;
 
-        let mut instrument_performance = BTreeMap::new();
-
         for (symbol, deposit_view) in self.instruments.take().unwrap() {
-            if let Some(interest) = self.analyse_instrument_performance(&symbol, deposit_view)? {
-                assert!(instrument_performance.insert(symbol, interest).is_none());
+            if deposit_view.closed && !self.include_closed_positions {
+                continue;
             }
+
+            let analysis = self.analyse_instrument_performance(&symbol, deposit_view)?;
+            assert!(instruments.insert(symbol, analysis).is_none());
         }
 
-        let portfolio_performance = self.analyse_portfolio_performance()?;
-
-        if let Some(table) = self.table.as_mut() {
-            table.print(&format!("Average rate of return from cash investments in {}", self.currency));
-        }
-
-        Ok((portfolio_performance, instrument_performance, self.income_structure))
+        Ok((PortfolioPerformanceAnalysis {
+            instruments,
+            portfolio: self.analyse_portfolio_performance()?,
+        }, self.income_structure))
     }
 
     fn analyse_instrument_performance(
         &mut self, symbol: &str, mut deposit_view: StockDepositView
-    ) -> GenericResult<Option<Decimal>> {
-        if deposit_view.closed && !self.include_closed_positions {
-            return Ok(None);
-        }
-
+    ) -> GenericResult<InstrumentPerformanceAnalysis> {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
         let (interest, difference) = deposit_performance::compare_to_bank_deposit(
@@ -137,28 +126,27 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         deposit_performance::check_emulation_precision(
             symbol, self.currency, deposit_view.last_sell_volume.unwrap(), difference)?;
 
-        if let Some(table) = self.table.as_mut() {
-            let name = deposit_view.name.as_deref().unwrap();
-            let days = get_total_activity_duration(&deposit_view.interest_periods);
+        let name = deposit_view.name.unwrap();
+        let days = get_total_activity_duration(&deposit_view.interest_periods);
 
-            let mut investments = dec!(0);
-            let mut result = dec!(0);
+        let mut investments = dec!(0);
+        let mut result = dec!(0);
 
-            for transaction in &deposit_view.transactions {
-                if transaction.amount.is_sign_positive() {
-                    investments += transaction.amount;
-                } else {
-                    result += -transaction.amount;
-                }
+        for transaction in &deposit_view.transactions {
+            if transaction.amount.is_sign_positive() {
+                investments += transaction.amount;
+            } else {
+                result += -transaction.amount;
             }
-
-            add_results(table, name, investments, result, interest, days, deposit_view.closed);
         }
 
-        Ok(Some(interest))
+        Ok(InstrumentPerformanceAnalysis {
+            name, days, investments, result, interest,
+            inactive: deposit_view.closed,
+        })
     }
 
-    fn analyse_portfolio_performance(&mut self) -> GenericResult<Decimal> {
+    fn analyse_portfolio_performance(&mut self) -> GenericResult<InstrumentPerformanceAnalysis> {
         if self.transactions.is_empty() {
             return Err!("The portfolio has no activity yet");
         }
@@ -174,14 +162,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         deposit_performance::check_emulation_precision(
             "portfolio", self.currency, self.current_assets, difference)?;
 
+        let days = get_total_activity_duration(&activity_periods);
         let investments = self.transactions.iter()
             .map(|transaction| transaction.amount)
             .sum();
-
-        if let Some(table) = self.table.as_mut() {
-            let days = get_total_activity_duration(&activity_periods);
-            add_results(table, "", investments, self.current_assets, interest, days, false);
-        }
 
         self.income_structure.net_profit = self.current_assets - investments;
         self.income_structure.trading_profit = self.income_structure.net_profit
@@ -191,7 +175,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             - self.income_structure.dividends
             - self.income_structure.interest;
 
-        Ok(interest)
+        Ok(InstrumentPerformanceAnalysis {
+            name: s!("Portfolio"),
+            days, investments,
+            result: self.current_assets,
+            interest,
+            inactive: false
+        })
     }
 
     fn calculate_open_position_periods(&mut self) -> EmptyResult {
@@ -503,58 +493,6 @@ impl StockDepositView {
     }
 }
 
-fn get_total_activity_duration(periods: &[InterestPeriod]) -> i64 {
-    periods.iter().map(|period| (period.end - period.start).num_days()).sum()
-}
-
-#[derive(StaticTable)]
-struct Row {
-    #[column(name="Instrument")]
-    instrument: String,
-    #[column(name="Investments")]
-    investments: Cell,
-    #[column(name="Profit")]
-    profit: Cell,
-    #[column(name="Result")]
-    result: Cell,
-    #[column(name="Duration", align="right")]
-    duration: String,
-    #[column(name="Interest", align="right")]
-    interest: String,
-}
-
-fn add_results(
-    table: &mut Table, name: &str, investments: Decimal, result: Decimal, interest: Decimal,
-    days: i64, inactive: bool
-) {
-    let investments = util::round(investments, 0);
-    let result = util::round(result, 0);
-    let profit = result - investments;
-
-    let (duration_name, duration_days) = if days >= 365 {
-        ("y", 365)
-    } else if days >= 30 {
-        ("m", 30)
-    } else {
-        ("d", 1)
-    };
-    let duration = format!(
-        "{}{}", util::round(Decimal::from(days) / Decimal::from(duration_days), 1),
-        duration_name);
-
-    let mut row = table.add_row(Row {
-        instrument: name.to_owned(),
-        investments: Cell::new_round_decimal(investments),
-        profit: Cell::new_round_decimal(profit),
-        result: Cell::new_round_decimal(result),
-        duration: duration,
-        interest: format!("{}%", interest),
-    });
-
-    if inactive {
-        let style = Style::new().dimmed();
-        for cell in &mut row {
-            cell.style(style);
-        }
-    }
+fn get_total_activity_duration(periods: &[InterestPeriod]) -> u32 {
+    periods.iter().map(InterestPeriod::days).sum()
 }

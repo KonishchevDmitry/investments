@@ -146,7 +146,7 @@ fn get_weight(asset_value: Decimal, expected_total_value: Decimal) -> Decimal {
 
 fn format_weight(weight: Decimal) -> String {
     if weight == Decimal::max_value() {
-        "∞".to_owned()
+        s!("∞")
     } else {
         format!("{}%", util::round(weight * dec!(100), 1))
     }
