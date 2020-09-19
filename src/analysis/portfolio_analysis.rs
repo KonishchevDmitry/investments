@@ -38,11 +38,12 @@ pub struct IncomeStructure {
 }
 
 impl IncomeStructure {
-    pub fn trading_profit(&self) -> Decimal {
+    pub fn profit(&self) -> Decimal {
         self.net_profit + self.taxes + self.commissions
-            - self.dividends
-            - self.interest
-            - self.tax_deductions
+    }
+
+    pub fn trading(&self) -> Decimal {
+        self.profit() - self.dividends - self.interest - self.tax_deductions
     }
 }
 

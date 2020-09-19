@@ -98,7 +98,7 @@ pub fn analyse(
             let cash_assets = statement.cash_assets.total_assets_real_time(
                 &statistics.currency, &converter)?;
 
-            Ok(statistics.add_assets("cash", cash_assets))
+            Ok(statistics.add_assets("Cash", cash_assets))
         })?;
 
         let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
