@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, GaugeVec, register_gauge_vec};
 
-use crate::analysis::{self, CurrencyStatistics};
+use crate::analysis::{self, PortfolioCurrencyStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError};
 use crate::currency::converter::CurrencyConverter;
@@ -58,16 +58,17 @@ pub fn collect(config: &Config, path: &str) -> EmptyResult {
     save(path)
 }
 
-fn collect_currency_metrics(statistics: &CurrencyStatistics) {
+fn collect_currency_metrics(statistics: &PortfolioCurrencyStatistics) {
     let currency = &statistics.currency;
 
     for (instrument, &value) in &statistics.assets {
         set_instrument_metric(&ASSETS, currency, &instrument, value);
     }
 
-    for (instrument, &interest) in &statistics.performance {
-        set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
-    }
+    // FIXME(konishchev): Revive
+    // for (instrument, &interest) in &statistics.performance_old {
+    //     set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
+    // }
 
     let profit = statistics.income_structure.net_profit + statistics.income_structure.commissions + statistics.income_structure.taxes;
     set_currency_metric(&PROFIT, currency, profit);
@@ -81,8 +82,8 @@ fn collect_currency_metrics(statistics: &CurrencyStatistics) {
     set_metric(&EXPENCES_STRUCTURE, &[currency, "commissions"], statistics.income_structure.commissions);
     set_metric(&EXPENCES_STRUCTURE, &[currency, "taxes"], statistics.income_structure.taxes);
 
-    set_currency_metric(&EXPECTED_TAXES, currency, statistics.expected_taxes);
-    set_currency_metric(&EXPECTED_COMMISSIONS, currency, statistics.expected_commissions);
+    set_currency_metric(&EXPECTED_TAXES, currency, statistics.projected_taxes);
+    set_currency_metric(&EXPECTED_COMMISSIONS, currency, statistics.projected_commissions);
 }
 
 fn collect_forex_quotes(converter: &CurrencyConverter, base: &str, quote: &str) -> EmptyResult {

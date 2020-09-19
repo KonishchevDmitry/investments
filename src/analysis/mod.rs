@@ -11,6 +11,7 @@ use crate::localities;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
 
+use self::portfolio_analysis::PortfolioPerformanceAnalysis;
 use self::portfolio_performance::{PortfolioPerformanceAnalyser, IncomeStructure};
 
 pub mod deposit_emulator;
@@ -20,31 +21,36 @@ mod portfolio_performance;
 mod sell_simulation;
 
 pub struct PortfolioStatistics {
-    pub currencies: Vec<CurrencyStatistics>,
+    pub currencies: Vec<PortfolioCurrencyStatistics>,
 }
 
 impl PortfolioStatistics {
-    fn new(currencies: &[&str]) -> PortfolioStatistics {
+    fn new() -> PortfolioStatistics {
         PortfolioStatistics {
-            currencies: currencies.iter().map(|&currency| (
-                CurrencyStatistics {
+            currencies: ["USD", "RUB"].iter().map(|&currency| (
+                PortfolioCurrencyStatistics {
                     currency: currency.to_owned(),
 
                     assets: BTreeMap::new(),
-                    performance: BTreeMap::new(),
                     income_structure: Default::default(), // FIXME(konishchev): Change it?
-                    assets_after_sellout: BTreeMap::new(),
+                    performance: None,
 
-                    total_value: dec!(0),
-                    expected_taxes: dec!(0),
-                    expected_commissions: dec!(0),
+                    projected_taxes: dec!(0),
+                    projected_commissions: dec!(0),
                 }
             )).collect(),
         }
     }
 
+    pub fn print(&self) {
+        for statistics in &self.currencies {
+            statistics.performance.as_ref().unwrap().print(&format!(
+                "Average rate of return from cash investments in {}", &statistics.currency));
+        }
+    }
+
     fn process<F>(&mut self, mut handler: F) -> EmptyResult
-        where F: FnMut(&mut CurrencyStatistics) -> EmptyResult
+        where F: FnMut(&mut PortfolioCurrencyStatistics) -> EmptyResult
     {
         for statistics in &mut self.currencies {
             handler(statistics)?;
@@ -54,29 +60,20 @@ impl PortfolioStatistics {
     }
 }
 
-pub struct CurrencyStatistics {
+pub struct PortfolioCurrencyStatistics {
     pub currency: String,
 
     pub assets: BTreeMap<String, Decimal>,
-    pub performance: BTreeMap<String, Decimal>,
     pub income_structure: IncomeStructure,
-    pub assets_after_sellout: BTreeMap<String, Decimal>, // FIXME(konishchev): Deprecate?
+    pub performance: Option<PortfolioPerformanceAnalysis>,
 
-    pub total_value: Decimal, // FIXME(konishchev): Deprecate?
-    pub expected_taxes: Decimal,
-    pub expected_commissions: Decimal,
+    pub projected_taxes: Decimal,
+    pub projected_commissions: Decimal,
 }
 
-impl CurrencyStatistics {
-    const CASH: &'static str = "cash";
-    const PORTFOLIO: &'static str = "portfolio";
-
+impl PortfolioCurrencyStatistics {
     fn add_assets(&mut self, instrument: &str, amount: Decimal) {
         *self.assets.entry(instrument.to_owned()).or_default() += amount;
-    }
-
-    fn add_assets_after_sellout(&mut self, instrument: &str, amount: Decimal) {
-        *self.assets_after_sellout.entry(instrument.to_owned()).or_default() += amount;
     }
 }
 
@@ -86,10 +83,9 @@ pub fn analyse(
 ) -> GenericResult<(PortfolioStatistics, CurrencyConverter)> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
-    let currencies = ["USD", "RUB"];
     let country = localities::russia();
     let (converter, quotes) = load_tools(config)?;
-    let mut statistics = PortfolioStatistics::new(&currencies);
+    let mut statistics = PortfolioStatistics::new();
 
     for (_, statement) in &mut portfolios {
         statement.batch_quotes(&quotes);
@@ -101,11 +97,10 @@ pub fn analyse(
         }
 
         statistics.process(|statistics| {
-            let cash_assets = statement.cash_assets.total_assets_real_time(&statistics.currency, &converter)?;
-            statistics.add_assets(CurrencyStatistics::CASH, cash_assets);
-            statistics.add_assets_after_sellout(CurrencyStatistics::CASH, cash_assets);
-            statistics.total_value += cash_assets;
-            Ok(())
+            let cash_assets = statement.cash_assets.total_assets_real_time(
+                &statistics.currency, &converter)?;
+
+            Ok(statistics.add_assets("cash", cash_assets))
         })?;
 
         let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
@@ -116,6 +111,14 @@ pub fn analyse(
         }
 
         let additional_commissions = statement.emulate_commissions(commission_calc);
+        statistics.process(|statistics| {
+            let additional_commissions = additional_commissions.total_assets_real_time(
+                &statistics.currency, &converter)?;
+
+            statistics.projected_commissions += additional_commissions;
+            Ok(())
+        })?;
+
         statement.process_trades()?;
 
         for trade in statement.stock_sells.iter().rev() {
@@ -131,34 +134,28 @@ pub fn analyse(
                 let commission = converter.real_time_convert_to(trade.commission, currency)?;
                 let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
 
-                statistics.add_assets_after_sellout(&trade.symbol, volume - commission - tax_to_pay);
                 statistics.add_assets(&trade.symbol, volume);
-                statistics.expected_commissions += commission;
-                statistics.expected_taxes += tax_to_pay;
+                statistics.projected_commissions += commission;
+                statistics.projected_taxes += tax_to_pay;
 
                 Ok(())
             })?;
         }
 
-        statistics.process(|statistics| {
-            let commissions = additional_commissions.total_assets_real_time(&statistics.currency, &converter)?;
-            statistics.add_assets_after_sellout(CurrencyStatistics::CASH, -commissions);
-            statistics.expected_commissions += commissions;
-            Ok(())
-        })?;
-
-        // FIXME(konishchev): Optimize
-        statement.merge_symbols(&portfolio.merge_performance, true).map_err(|e| format!(
-            "Invalid performance merging configuration: {}", e))?;
+        if !portfolio.merge_performance.is_empty() {
+            statement.merge_symbols(&portfolio.merge_performance, true).map_err(|e| format!(
+                "Invalid performance merging configuration: {}", e))?;
+        }
 
         if let Some(merge_performance) = merge_performance {
-            statement.merge_symbols(merge_performance, false)?;
+            if !merge_performance.is_empty() {
+                statement.merge_symbols(merge_performance, false)?;
+            }
         }
     }
 
+    // FIXME(konishchev): HERE
     statistics.process(|statistics| {
-        // FIXME(konishchev): Rewrite
-
         let mut analyser = PortfolioPerformanceAnalyser::new(
             country, &statistics.currency, &converter, include_closed_positions);
 
@@ -167,21 +164,7 @@ pub fn analyse(
         }
 
         let (analysis, income_structure) = analyser.analyse()?;
-        if interactive {
-            analysis.print(&format!(
-                "Average rate of return from cash investments in {}", &statistics.currency));
-        }
-
-        let mut instrument_performance = analysis.instruments;
-
-        let portfolio_symbol = CurrencyStatistics::PORTFOLIO;
-        if instrument_performance.insert(portfolio_symbol.to_owned(), analysis.portfolio).is_some() {
-            return Err!("Got an unexpected symbol: {:?}", portfolio_symbol)
-        }
-
-        statistics.performance = instrument_performance.iter().map(|(symbol, analysis)| {
-            (symbol.to_owned(), analysis.interest)
-        }).collect();
+        statistics.performance.replace(analysis);
         statistics.income_structure = income_structure;
 
         Ok(())
