@@ -70,17 +70,19 @@ fn collect_currency_metrics(statistics: &PortfolioCurrencyStatistics) {
     //     set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
     // }
 
-    let profit = statistics.income_structure.net_profit + statistics.income_structure.commissions + statistics.income_structure.taxes;
+    let income_structure = &statistics.performance.as_ref().unwrap().income_structure;
+
+    let profit = income_structure.net_profit + income_structure.commissions + income_structure.taxes;
     set_currency_metric(&PROFIT, currency, profit);
-    set_currency_metric(&NET_PROFIT, currency, statistics.income_structure.net_profit);
+    set_currency_metric(&NET_PROFIT, currency, income_structure.net_profit);
 
-    set_metric(&INCOME_STRUCTURE, &[currency, "trading-profit"], statistics.income_structure.trading_profit);
-    set_metric(&INCOME_STRUCTURE, &[currency, "dividends"], statistics.income_structure.dividends);
-    set_metric(&INCOME_STRUCTURE, &[currency, "interest"], statistics.income_structure.interest);
-    set_metric(&INCOME_STRUCTURE, &[currency, "tax-deductions"], statistics.income_structure.tax_deductions);
+    set_metric(&INCOME_STRUCTURE, &[currency, "trading-profit"], income_structure.trading_profit());
+    set_metric(&INCOME_STRUCTURE, &[currency, "dividends"], income_structure.dividends);
+    set_metric(&INCOME_STRUCTURE, &[currency, "interest"], income_structure.interest);
+    set_metric(&INCOME_STRUCTURE, &[currency, "tax-deductions"], income_structure.tax_deductions);
 
-    set_metric(&EXPENCES_STRUCTURE, &[currency, "commissions"], statistics.income_structure.commissions);
-    set_metric(&EXPENCES_STRUCTURE, &[currency, "taxes"], statistics.income_structure.taxes);
+    set_metric(&EXPENCES_STRUCTURE, &[currency, "commissions"], income_structure.commissions);
+    set_metric(&EXPENCES_STRUCTURE, &[currency, "taxes"], income_structure.taxes);
 
     set_currency_metric(&EXPECTED_TAXES, currency, statistics.projected_taxes);
     set_currency_metric(&EXPECTED_COMMISSIONS, currency, statistics.projected_commissions);

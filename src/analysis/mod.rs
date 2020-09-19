@@ -12,7 +12,7 @@ use crate::quotes::Quotes;
 use crate::types::Decimal;
 
 use self::portfolio_analysis::PortfolioPerformanceAnalysis;
-use self::portfolio_performance::{PortfolioPerformanceAnalyser, IncomeStructure};
+use self::portfolio_performance::PortfolioPerformanceAnalyser;
 
 pub mod deposit_emulator;
 mod deposit_performance;
@@ -32,7 +32,6 @@ impl PortfolioStatistics {
                     currency: currency.to_owned(),
 
                     assets: BTreeMap::new(),
-                    income_structure: Default::default(), // FIXME(konishchev): Change it?
                     performance: None,
 
                     projected_taxes: dec!(0),
@@ -64,7 +63,6 @@ pub struct PortfolioCurrencyStatistics {
     pub currency: String,
 
     pub assets: BTreeMap<String, Decimal>,
-    pub income_structure: IncomeStructure,
     pub performance: Option<PortfolioPerformanceAnalysis>,
 
     pub projected_taxes: Decimal,
@@ -154,7 +152,6 @@ pub fn analyse(
         }
     }
 
-    // FIXME(konishchev): HERE
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
             country, &statistics.currency, &converter, include_closed_positions);
@@ -163,10 +160,7 @@ pub fn analyse(
             analyser.add(&portfolio, &statement)?;
         }
 
-        let (analysis, income_structure) = analyser.analyse()?;
-        statistics.performance.replace(analysis);
-        statistics.income_structure = income_structure;
-
+        statistics.performance.replace(analyser.analyse()?);
         Ok(())
     })?;
 

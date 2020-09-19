@@ -7,6 +7,7 @@ use crate::types::Decimal;
 use crate::util;
 
 pub struct PortfolioPerformanceAnalysis {
+    pub income_structure: IncomeStructure,
     pub instruments: BTreeMap<String, InstrumentPerformanceAnalysis>,
     pub portfolio: InstrumentPerformanceAnalysis,
 }
@@ -21,6 +22,27 @@ impl PortfolioPerformanceAnalysis {
         self.portfolio.format(&mut table, "");
 
         table.print(name);
+    }
+}
+
+#[derive(Default)]
+pub struct IncomeStructure {
+    pub net_profit: Decimal,
+
+    pub dividends: Decimal,
+    pub interest: Decimal,
+    pub tax_deductions: Decimal,
+
+    pub taxes: Decimal,
+    pub commissions: Decimal,
+}
+
+impl IncomeStructure {
+    pub fn trading_profit(&self) -> Decimal {
+        self.net_profit + self.taxes + self.commissions
+            - self.dividends
+            - self.interest
+            - self.tax_deductions
     }
 }
 
@@ -50,6 +72,10 @@ struct Row {
 }
 
 impl InstrumentPerformanceAnalysis {
+    pub fn net_profit(&self) -> Decimal {
+        self.result - self.investments
+    }
+
     fn format(&self, table: &mut Table, name: &str) {
         let investments = util::round(self.investments, 0);
         let result = util::round(self.result, 0);
