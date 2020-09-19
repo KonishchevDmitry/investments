@@ -1,6 +1,5 @@
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
-use std::time::SystemTime;
 
 use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
@@ -11,6 +10,7 @@ use crate::config::Config;
 use crate::core::{EmptyResult, GenericError};
 use crate::currency::converter::CurrencyConverter;
 use crate::types::Decimal;
+use crate::util;
 
 lazy_static! {
     static ref UPDATE_TIME: Gauge = register_simple_metric(
@@ -44,13 +44,11 @@ lazy_static! {
         "forex_pairs", "Forex quotes.", &["base", "quote"]);
 }
 
-// FIXME(konishchev): Regression tests
 pub fn collect(config: &Config, path: &str) -> EmptyResult {
     let (statistics, converter) = analysis::analyse(
         config, None, false, Some(&config.metrics.merge_performance), false)?;
 
-    let update_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-    UPDATE_TIME.set(cast::f64(update_time));
+    UPDATE_TIME.set(cast::f64(util::now().timestamp()));
 
     for statistics in statistics.currencies {
         collect_portfolio_metrics(&statistics);

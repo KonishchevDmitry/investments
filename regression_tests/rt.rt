@@ -351,3 +351,12 @@ APP: regression_tests/investments
      testdata/third-party-config
      cash-flow
      stock-split
+
+# Metrics
+
+[8]
+NAME: Metrics
+APP: regression_tests/investments
+     testdata/config
+     metrics
+     $OUT_PATH/metrics
