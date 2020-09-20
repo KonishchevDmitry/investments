@@ -196,7 +196,7 @@ impl AssetAllocation {
 
                 let currency_price = quotes.get(symbol)?;
                 let price = converter.real_time_convert_to(currency_price, currency)?;
-                let shares = stocks.remove(symbol).unwrap_or(dec!(0));
+                let shares = stocks.remove(symbol).unwrap_or_else(|| dec!(0));
                 let current_value = shares * price;
 
                 let holding = StockHolding {
