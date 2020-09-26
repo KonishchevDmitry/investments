@@ -115,7 +115,7 @@ collected by [Node exporter's Textfile Collector](https://github.com/prometheus/
 Here is an example of [Grafana](https://grafana.com/) dashboard which displays aggregated statistics and investment
 results for multiple portfolios opened in different brokers:
 
-[![Watch the video](https://content.screencast.com/users/DmitryKonishchev/folders/Default/media/926ba58c-8151-4843-8984-7edd9bc50ed1/Investments%20Grafana%20dashboard.gif)](https://youtu.be/YHzNLFPGqXM)
+[![Watch the video](https://img.youtube.com/vi/YHzNLFPGqXM/0.jpg)](https://youtu.be/YHzNLFPGqXM)
 
 ## Broker specific
 
