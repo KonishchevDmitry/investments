@@ -107,6 +107,16 @@ once, but it leaves a chance to spend more than you supposed to in case of highl
 simplest strategy here in case of relatively small price of all stocks - submit all orders except the last (one / two /
 few), commit the current result, execute `investments rebalance` and submit the rest.
 
+## Prometheus metrics
+
+`investments metrics` allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
+collected by [Node exporter's Textfile Collector](https://github.com/prometheus/node_exporter#textfile-collector).
+
+Here is an example of [Grafana](https://grafana.com/) dashboard which displays aggregated statistics and investment
+results for multiple portfolios opened in different brokers:
+
+[![Watch the video](https://content.screencast.com/users/DmitryKonishchev/folders/Default/media/926ba58c-8151-4843-8984-7edd9bc50ed1/Investments%20Grafana%20dashboard.gif)](https://youtu.be/YHzNLFPGqXM)
+
 ## Broker specific
 
 ### Interactive Brokers
