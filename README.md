@@ -109,7 +109,7 @@ few), commit the current result, execute `investments rebalance` and submit the 
 
 ## Prometheus metrics
 
-`investments metrics` allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
+`investments metrics` command allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
 collected by [Node exporter's Textfile Collector](https://github.com/prometheus/node_exporter#textfile-collector).
 
 Here is an example of [Grafana](https://grafana.com/) dashboard which displays aggregated statistics and investment
