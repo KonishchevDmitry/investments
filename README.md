@@ -109,13 +109,13 @@ few), commit the current result, execute `investments rebalance` and submit the 
 
 ## Prometheus metrics
 
-`investments metrics` allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
+`investments metrics` command allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
 collected by [Node exporter's Textfile Collector](https://github.com/prometheus/node_exporter#textfile-collector).
 
 Here is an example of [Grafana](https://grafana.com/) dashboard which displays aggregated statistics and investment
 results for multiple portfolios opened in different brokers:
 
-[![Watch the video](https://content.screencast.com/users/DmitryKonishchev/folders/Default/media/926ba58c-8151-4843-8984-7edd9bc50ed1/Investments%20Grafana%20dashboard.gif)](https://youtu.be/YHzNLFPGqXM)
+[![Investments Grafana dashboard](https://content.screencast.com/users/DmitryKonishchev/folders/Default/media/2ce7cee9-4678-4ef0-8dda-4d6d79fd9dd8/Investments%20Grafana%20dashboard.gif)](https://youtu.be/YHzNLFPGqXM)
 
 ## Broker specific
 
