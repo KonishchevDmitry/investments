@@ -92,7 +92,7 @@ impl BrokerStatement {
             return Err!("{:?} doesn't contain any broker statement", statement_dir_path);
         }
 
-        file_names.sort();
+        file_names.sort_unstable();
 
         let mut statements = Vec::new();
 

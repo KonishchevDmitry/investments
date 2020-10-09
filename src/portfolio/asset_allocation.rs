@@ -91,7 +91,7 @@ impl Portfolio {
 
         if !stocks.is_empty() {
             let mut missing_symbols: Vec<String> = stocks.keys().cloned().collect();
-            missing_symbols.sort();
+            missing_symbols.sort_unstable();
 
             return Err!(
                     "The portfolio contains stocks that are missing in asset allocation configuration: {}",

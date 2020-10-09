@@ -65,7 +65,7 @@ impl Assets {
 
         let mut missing_symbols: Vec<String> = assets_symbols.difference(&portfolio_symbols)
             .cloned().collect();
-        missing_symbols.sort();
+        missing_symbols.sort_unstable();
 
         if !missing_symbols.is_empty() {
             return Err!(

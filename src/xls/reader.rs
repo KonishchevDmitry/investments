@@ -71,13 +71,7 @@ pub trait SheetParser {
 }
 
 pub fn is_empty_row(row: &[Cell]) -> bool {
-    row.iter().all(|cell| {
-        if let Cell::Empty = cell {
-            true
-        } else {
-            false
-        }
-    })
+    row.iter().all(|cell| matches!(cell, Cell::Empty))
 }
 
 pub fn strip_row_expecting_columns(row: &[Cell], columns: usize) -> GenericResult<Vec<&Cell>> {

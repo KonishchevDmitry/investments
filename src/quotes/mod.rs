@@ -184,7 +184,7 @@ mod tests {
 
             fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
                 let mut symbols = symbols.to_vec();
-                symbols.sort();
+                symbols.sort_unstable();
 
                 assert_eq!(*self.request_id.borrow(), 0);
                 assert_eq!(&symbols, &["BND", "BNDX", "VTI"]);
