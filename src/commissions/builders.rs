@@ -110,6 +110,10 @@ impl CumulativeCommissionSpecBuilder {
         CumulativeCommissionSpecBuilder::default()
     }
 
+    pub fn percent(self, percent: Decimal) -> CumulativeCommissionSpecBuilder {
+        self.tiers(btreemap!{dec!(0) => percent}).unwrap()
+    }
+
     pub fn tiers(mut self, tiers: BTreeMap<Decimal, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
         if tiers.is_empty() || tiers.get(&dec!(0)).is_none() {
             return Err!(concat!(
