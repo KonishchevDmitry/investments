@@ -136,6 +136,19 @@ APP: regression_tests/investments
      all
      FXRU
 
+# FIXME(konishchev): Enable
+# [45]
+# NAME: IIA-B simulate sell
+# STDOUT: iia-b-simulate-sell
+# APP: regression_tests/investments
+#      testdata/config
+#      simulate-sell
+#      kate-iia
+#      all
+#      FXMM
+#      all
+#      TMOS
+
 # Rebalance
 
 [50]
@@ -177,6 +190,15 @@ APP: regression_tests/investments
      testdata/config
      rebalance
      bcs
+
+
+[55]
+NAME: IIA-B rebalance
+STDOUT: iia-b-rebalance
+APP: regression_tests/investments
+     testdata/config
+     rebalance
+     kate-iia
 
 # Tax statement
 
@@ -259,6 +281,22 @@ APP: regression_tests/investments
      bcs
 
 [65]
+NAME: Kate tax statement
+STDOUT: kate-tax-statement
+APP: regression_tests/investments
+     testdata/config
+     tax-statement
+     kate
+
+[66]
+NAME: Kate IIA tax statement
+STDOUT: kate-iia-tax-statement
+APP: regression_tests/investments
+     testdata/config
+     tax-statement
+     kate-iia
+
+[67]
 NAME: IB third-party tax statement
 STDOUT: ib-third-party-tax-statement
 APP: regression_tests/investments
@@ -266,7 +304,7 @@ APP: regression_tests/investments
      tax-statement
      third-party
 
-[66]
+[68]
 NAME: IB third-party tax statement with stock split
 STDOUT: ib-stock-split-tax-statement
 APP: regression_tests/investments
@@ -337,6 +375,22 @@ APP: regression_tests/investments
      bcs
 
 [75]
+NAME: Kate cash flow
+STDOUT: kate-cash-flow
+APP: regression_tests/investments
+     testdata/config
+     cash-flow
+     kate
+
+[76]
+NAME: Kate IIA cash flow
+STDOUT: kate-iia-cash-flow
+APP: regression_tests/investments
+     testdata/config
+     cash-flow
+     kate-iia
+
+[77]
 NAME: IB margin RUB cash flow
 STDOUT: ib-margin-rub-cash-flow
 APP: regression_tests/investments
@@ -344,7 +398,7 @@ APP: regression_tests/investments
      cash-flow
      margin-rub
 
-[76]
+[78]
 NAME: IB third-party cash flow with stock split
 STDOUT: ib-stock-split-cash-flow
 APP: regression_tests/investments

@@ -11,7 +11,7 @@ wait-api-rate-limits() {
 
 (cd testdata && ./update)
 
-for broker in bcs firstrade ib open tinkoff; do
+for broker in bcs firstrade ib kate kate-iia open tinkoff; do
     ./regression_tests/investments testdata/config sync "$broker"
     ./regression_tests/investments testdata/config analyse "$broker" > /dev/null && wait-api-rate-limits
 done
@@ -19,6 +19,7 @@ done
 ./regression_tests/investments testdata/config cash bcs 100000
 ./regression_tests/investments testdata/config cash firstrade 10000
 ./regression_tests/investments testdata/config cash ib 10000
+./regression_tests/investments testdata/config cash kate-iia 10000
 ./regression_tests/investments testdata/config cash open 100000
 ./regression_tests/investments testdata/config cash tinkoff 100000
 
