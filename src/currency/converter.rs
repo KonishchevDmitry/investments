@@ -41,6 +41,11 @@ impl CurrencyConverter {
         CurrencyConverter::new_with_backend(backend)
     }
 
+    #[cfg(test)]
+    pub fn mock() -> CurrencyConverter {
+        CurrencyConverter::new_with_backend(CurrencyRateCacheBackendMock::new())
+    }
+
     pub fn new_with_backend(source: Box<dyn CurrencyConverterBackend>) -> CurrencyConverter {
         CurrencyConverter { backend: source }
     }
@@ -186,6 +191,26 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
     }
 }
 
+#[cfg(test)]
+struct CurrencyRateCacheBackendMock {
+}
+
+#[cfg(test)]
+impl CurrencyRateCacheBackendMock {
+    fn new() -> Box<dyn CurrencyConverterBackend> {
+        Box::new(CurrencyRateCacheBackendMock {})
+    }
+}
+
+#[cfg(test)]
+impl CurrencyConverterBackend for CurrencyRateCacheBackendMock {
+    fn convert(&self, from: &str, to: &str, _date: Date, amount: Decimal) -> GenericResult<Decimal> {
+        if from != to {
+            return Err!("Unsupported currency rate conversion: {} -> {}", from, to)
+        }
+        Ok(amount)
+    }
+}
 
 #[cfg(not(test))]
 fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {

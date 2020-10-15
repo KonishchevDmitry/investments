@@ -191,7 +191,6 @@ APP: regression_tests/investments
      rebalance
      bcs
 
-
 [55]
 NAME: IIA-B rebalance
 STDOUT: iia-b-rebalance
