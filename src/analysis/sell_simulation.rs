@@ -16,15 +16,15 @@ pub fn simulate_sell(
     portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
     quotes: &Quotes, positions: &[(String, Option<Decimal>)],
 ) -> EmptyResult {
-    let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
-
     for (symbol, _) in positions {
         if statement.open_positions.get(symbol).is_none() {
             return Err!("The portfolio has no open {:?} positions", symbol);
         }
-
-        quotes.batch(&symbol);
     }
+
+    let net_value = statement.net_value(converter, quotes, portfolio.currency()?)?;
+    let mut commission_calc = CommissionCalc::new(
+        converter, statement.broker.commission_spec.clone(), net_value)?;
 
     for (symbol, quantity) in positions {
         let quantity = *match quantity {

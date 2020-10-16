@@ -125,6 +125,11 @@ pub struct PortfolioConfig {
 }
 
 impl PortfolioConfig {
+    pub fn currency(&self) -> GenericResult<&str> {
+        Ok(self.currency.as_ref().ok_or_else(||
+            "The portfolio's currency is not specified in the config")?)
+    }
+
     pub fn get_stock_symbols(&self) -> HashSet<String> {
         let mut symbols = HashSet::new();
 

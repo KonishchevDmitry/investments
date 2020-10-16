@@ -7,6 +7,7 @@ use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder};
 #[cfg(test)] use crate::currency::Cash;
+#[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::Decimal;
 use crate::types::TradeType;
 
@@ -40,10 +41,11 @@ mod tests {
 
     #[rstest(fraction => [dec!(0), dec!(0.1)])]
     fn fixed(fraction: Decimal) {
-        let mut calc = CommissionCalc::new(super::fixed());
-
         let currency = "USD";
         let date = date!(1, 1, 1);
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            &converter, super::fixed(), Cash::new(currency, dec!(0))).unwrap();
 
         let trade_type = TradeType::Buy;
         let shares = |shares| Decimal::from(shares) - fraction;

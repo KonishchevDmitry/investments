@@ -27,6 +27,7 @@ use crate::brokers::{Broker, BrokerInfo};
 use crate::commissions::CommissionCalc;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
+use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities;
 use crate::quotes::Quotes;
@@ -250,6 +251,11 @@ impl BrokerStatement {
         for symbol in self.open_positions.keys() {
             quotes.batch(&symbol);
         }
+    }
+
+    // FIXME(konishchev): Implement
+    pub fn net_value(&self, _converter: &CurrencyConverter, _quotes: &Quotes, currency: &str) -> GenericResult<Cash> {
+        Ok(Cash::new(currency, dec!(0)))
     }
 
     pub fn emulate_sell(

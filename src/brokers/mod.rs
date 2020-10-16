@@ -120,7 +120,7 @@ impl<'de> Deserialize<'de> for Broker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BrokerInfo {
     pub type_: Broker,
     pub name: &'static str,

@@ -3,6 +3,7 @@ use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
 #[cfg(test)] use crate::currency::Cash;
+#[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::TradeType;
 
 // FIXME(konishchev): Support Tinkoff tiers
@@ -25,9 +26,11 @@ mod tests {
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn trader(trade_type: TradeType) {
-        let mut calc = CommissionCalc::new(super::trader());
-
         let currency = "RUB";
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            &converter, super::trader(), Cash::new(currency, dec!(0))).unwrap();
+
         let date = date!(22, 6, 2020);
 
         assert_eq!(

@@ -3,6 +3,7 @@ use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
 #[cfg(test)] use crate::currency::Cash;
+#[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::TradeType;
 
 pub fn iia() -> CommissionSpec {
@@ -25,9 +26,11 @@ mod tests {
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn iia(trade_type: TradeType) {
-        let mut calc = CommissionCalc::new(super::iia());
-
         let currency = "RUB";
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            &converter, super::iia(), Cash::new(currency, dec!(0))).unwrap();
+
         let date = date!(14, 12, 2017);
 
         // Percent commission > minimum commission

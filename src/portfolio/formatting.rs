@@ -15,10 +15,10 @@ pub fn print_portfolio(portfolio: Portfolio, flat: bool) {
         assets = flatify(assets, dec!(1));
     }
 
-    print_assets(assets, portfolio.total_value - portfolio.min_cash_assets, &portfolio.currency, 0);
+    print_assets(assets, portfolio.target_net_value - portfolio.min_cash_assets, &portfolio.currency, 0);
 
     println!("\n{} {}", colorify_title("Total value:"),
-             format_cash(&portfolio.currency, portfolio.total_value));
+             format_cash(&portfolio.currency, portfolio.target_net_value));
 
     print!("{} {}", colorify_title("Cash assets:"),
            format_cash(&portfolio.currency, portfolio.current_cash_assets));

@@ -1,6 +1,7 @@
 #[cfg(test)] use crate::commissions::CommissionCalc;
 use crate::commissions::{CommissionSpec, CommissionSpecBuilder, CumulativeCommissionSpecBuilder};
 #[cfg(test)] use crate::currency::Cash;
+#[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::TradeType;
 use crate::util::RoundingMethod;
 
@@ -51,7 +52,9 @@ mod tests {
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn investor(trade_type: TradeType) {
         let currency = "RUB";
-        let mut calc = CommissionCalc::new(super::investor());
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            &converter, super::investor(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(13, 10, 2020),  28, dec!(1639.9)),
@@ -80,7 +83,9 @@ mod tests {
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn investor_pro(trade_type: TradeType) {
         let currency = "RUB";
-        let mut calc = CommissionCalc::new(super::investor_pro());
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            &converter, super::investor_pro(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(13, 10, 2020),  78, dec!(1640.0)),
@@ -112,7 +117,9 @@ mod tests {
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn professional(trade_type: TradeType) {
         let currency = "RUB";
-        let mut calc = CommissionCalc::new(super::professional());
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            &converter, super::professional(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2, 12, 2019),  35, dec!(2959.5)),

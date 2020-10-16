@@ -94,12 +94,8 @@ fn modify_assets<F>(config: &Config, portfolio_name: &str, modify: F) -> EmptyRe
 }
 
 fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_assets: Decimal) -> EmptyResult {
-    let currency = portfolio.currency.as_ref().ok_or_else(||
-        "The portfolio's currency is not specified in the config")?;
-
     assets.cash.clear();
-    assets.cash.deposit(Cash::new(&currency, cash_assets));
-
+    assets.cash.deposit(Cash::new(portfolio.currency()?, cash_assets));
     Ok(())
 }
 

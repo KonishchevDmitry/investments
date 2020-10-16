@@ -101,7 +101,9 @@ pub fn analyse(
             Ok(statistics.add_assets("Cash", cash_assets))
         })?;
 
-        let mut commission_calc = CommissionCalc::new(statement.broker.commission_spec.clone());
+        let net_value = statement.net_value(&converter, &quotes, portfolio.currency()?)?;
+        let mut commission_calc = CommissionCalc::new(
+            &converter, statement.broker.commission_spec.clone(), net_value)?;
 
         for (symbol, quantity) in statement.open_positions.clone() {
             let price = quotes.get(&symbol)?;

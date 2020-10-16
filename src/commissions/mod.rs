@@ -7,7 +7,7 @@ use chrono::Datelike;
 use num_traits::{cast::ToPrimitive, Zero};
 
 use crate::core::GenericResult;
-use crate::currency::Cash;
+use crate::currency::{Cash, converter::CurrencyConverter};
 use crate::types::{Date, Decimal, TradeType};
 use crate::util::{self, RoundingMethod};
 
@@ -91,11 +91,12 @@ pub struct CommissionCalc {
 }
 
 impl CommissionCalc {
-    pub fn new(spec: CommissionSpec) -> CommissionCalc {
-        CommissionCalc {
+    // FIXME(konishchev): Support
+    pub fn new(_converter: &CurrencyConverter, spec: CommissionSpec, _portfolio_net_value: Cash) -> GenericResult<CommissionCalc> {
+        Ok(CommissionCalc {
             spec,
             volume: HashMap::new(),
-        }
+        })
     }
 
     pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: Decimal, price: Cash) -> GenericResult<Cash> {

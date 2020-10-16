@@ -23,9 +23,11 @@ pub struct Portfolio {
 
     pub assets: Vec<AssetAllocation>,
     pub current_cash_assets: Decimal,
+    pub current_net_value: Decimal,
+
     pub target_cash_assets: Decimal,
+    pub target_net_value: Decimal,
     pub commissions: Decimal,
-    pub total_value: Decimal,
 }
 
 impl Portfolio {
@@ -33,10 +35,8 @@ impl Portfolio {
         config: &Config, portfolio_config: &PortfolioConfig, assets: Assets,
         converter: &CurrencyConverter, quotes: &Quotes
     ) -> GenericResult<Portfolio> {
-        let currency = match portfolio_config.currency.as_ref() {
-            Some(currency) => currency,
-            None => return Err!("The portfolio's currency is not specified in the config"),
-        };
+        let currency = portfolio_config.currency()?;
+        let broker = portfolio_config.broker.get_info(config, portfolio_config.plan.as_ref())?;
 
         let min_trade_volume = portfolio_config.min_trade_volume.unwrap_or_else(|| dec!(0));
         if min_trade_volume.is_sign_negative() {
@@ -57,36 +57,40 @@ impl Portfolio {
         }
 
         let cash_assets = assets.cash.total_assets_real_time(&currency, converter)?;
-
-        let mut portfolio = Portfolio {
-            name: portfolio_config.name.clone(),
-            broker: portfolio_config.broker.get_info(config, portfolio_config.plan.as_ref())?,
-            currency: currency.clone(),
-
-            min_trade_volume: min_trade_volume,
-            min_cash_assets: min_cash_assets,
-
-            assets: Vec::new(),
-            current_cash_assets: cash_assets,
-            target_cash_assets: cash_assets,
-            commissions: dec!(0),
-            total_value: cash_assets,
-        };
+        let mut net_value = cash_assets;
 
         let mut stocks = assets.stocks;
         let mut symbols = HashSet::new();
+        let mut assets_allocation = Vec::new();
 
         for assets_config in &portfolio_config.assets {
             let mut asset_allocation = AssetAllocation::load(
-                &portfolio.broker, assets_config, &currency, &mut symbols, &mut stocks,
+                &broker, assets_config, &currency, &mut symbols, &mut stocks,
                 converter, quotes)?;
 
             asset_allocation.apply_restrictions(
                 portfolio_config.restrict_buying, portfolio_config.restrict_selling);
 
-            portfolio.total_value += asset_allocation.current_value;
-            portfolio.assets.push(asset_allocation);
+            net_value += asset_allocation.current_value;
+            assets_allocation.push(asset_allocation);
         }
+
+        let portfolio = Portfolio {
+            name: portfolio_config.name.clone(),
+            broker: broker,
+            currency: currency.to_owned(),
+
+            min_trade_volume: min_trade_volume,
+            min_cash_assets: min_cash_assets,
+
+            assets: assets_allocation,
+            current_cash_assets: cash_assets,
+            current_net_value: net_value,
+
+            target_cash_assets: cash_assets,
+            target_net_value: net_value,
+            commissions: dec!(0),
+        };
         check_weights(&portfolio.name, &portfolio.assets)?;
 
         if !stocks.is_empty() {
@@ -106,7 +110,7 @@ impl Portfolio {
         // previously withdrawn commission.
 
         self.commissions += commission;
-        self.total_value -= commission;
+        self.target_net_value -= commission;
         self.target_cash_assets -= commission;
     }
 }
