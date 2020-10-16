@@ -7,7 +7,7 @@ use log::debug;
 use regex::Regex;
 
 use crate::config::Config;
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::db;
 #[cfg(not(test))] use crate::util;
@@ -52,8 +52,11 @@ impl Quotes {
         }
     }
 
-    pub fn batch(&self, symbol: &str) {
-        self.batched_symbols.borrow_mut().insert(symbol.to_owned());
+    pub fn batch(&self, symbol: &str) -> EmptyResult {
+        if self.cache.get(symbol)?.is_none() {
+            self.batched_symbols.borrow_mut().insert(symbol.to_owned());
+        }
+        Ok(())
     }
 
     pub fn get(&self, symbol: &str) -> GenericResult<Cash> {
@@ -61,8 +64,8 @@ impl Quotes {
             return Ok(price);
         }
 
-        self.batch(symbol);
         let mut batched_symbols = self.batched_symbols.borrow_mut();
+        batched_symbols.insert(symbol.to_owned());
 
         let mut price = None;
 
@@ -223,11 +226,11 @@ mod tests {
             Box::new(SecondProvider {request_id: RefCell::new(0)}),
         ]);
 
-        quotes.batch("VTI");
-        quotes.batch("BNDX");
+        quotes.batch("VTI").unwrap();
+        quotes.batch("BNDX").unwrap();
         assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", dec!(12.34)));
 
-        quotes.batch("VXUS");
+        quotes.batch("VXUS").unwrap();
         assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", dec!(12.34)));
         assert_eq!(quotes.get("VTI").unwrap(), Cash::new("USD", dec!(56.78)));
         assert_eq!(quotes.get("BNDX").unwrap(), Cash::new("USD", dec!(90.12)));

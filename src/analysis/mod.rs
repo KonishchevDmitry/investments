@@ -86,7 +86,7 @@ pub fn analyse(
     let mut statistics = PortfolioStatistics::new();
 
     for (_, statement) in &mut portfolios {
-        statement.batch_quotes(&quotes);
+        statement.batch_quotes(&quotes)?;
     }
 
     for (portfolio, statement) in &mut portfolios {

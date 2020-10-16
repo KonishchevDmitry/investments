@@ -53,7 +53,7 @@ impl Portfolio {
         }
 
         for symbol in portfolio_config.get_stock_symbols() {
-            quotes.batch(&symbol);
+            quotes.batch(&symbol)?;
         }
 
         let cash_assets = assets.cash.total_assets_real_time(&currency, converter)?;

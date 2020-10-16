@@ -247,15 +247,24 @@ impl BrokerStatement {
         }
     }
 
-    pub fn batch_quotes(&self, quotes: &Quotes) {
+    pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
         for symbol in self.open_positions.keys() {
-            quotes.batch(&symbol);
+            quotes.batch(&symbol)?;
         }
+        Ok(())
     }
 
-    // FIXME(konishchev): Implement
-    pub fn net_value(&self, _converter: &CurrencyConverter, _quotes: &Quotes, currency: &str) -> GenericResult<Cash> {
-        Ok(Cash::new(currency, dec!(0)))
+    pub fn net_value(&self, converter: &CurrencyConverter, quotes: &Quotes, currency: &str) -> GenericResult<Cash> {
+        self.batch_quotes(quotes)?;
+
+        let mut net_value = self.cash_assets.total_assets_real_time(currency, converter)?;
+
+        for (symbol, quantity) in &self.open_positions {
+            let price = converter.real_time_convert_to(quotes.get(symbol)?, currency)?;
+            net_value += quantity * price;
+        }
+
+        Ok(Cash::new(currency, net_value))
     }
 
     pub fn emulate_sell(
