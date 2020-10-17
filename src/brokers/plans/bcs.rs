@@ -19,7 +19,8 @@ pub fn investor_pro() -> CommissionSpec {
         .cumulative(CumulativeCommissionSpecBuilder::new()
             .percent(dec!(0.035))
             .percent_fee(dec!(0.01))
-            .monthly_depositary(dec!(299)).build())
+            .monthly_depositary(dec!(299))
+            .build())
         .build()
 }
 
@@ -27,12 +28,12 @@ pub fn professional() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .cumulative(CumulativeCommissionSpecBuilder::new()
             .tiers(btreemap!{
-                dec!(         0) => dec!(0.0531),
-                dec!(   100_000) => dec!(0.0413),
-                dec!(   300_000) => dec!(0.0354),
-                dec!( 1_000_000) => dec!(0.0295),
-                dec!( 5_000_000) => dec!(0.0236),
-                dec!(15_000_000) => dec!(0.0177),
+                         0 => dec!(0.0531),
+                   100_000 => dec!(0.0413),
+                   300_000 => dec!(0.0354),
+                 1_000_000 => dec!(0.0295),
+                 5_000_000 => dec!(0.0236),
+                15_000_000 => dec!(0.0177),
             }).unwrap()
             .minimum_daily(dec!(35.4))
             .minimum_monthly(dec!(177))

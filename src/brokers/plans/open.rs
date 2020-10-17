@@ -15,7 +15,8 @@ pub fn iia() -> CommissionSpec {
                 .build().unwrap())
             .build())
         .cumulative(CumulativeCommissionSpecBuilder::new()
-            .monthly_depositary(dec!(175)).build())
+            .monthly_depositary(dec!(175))
+            .build())
         .build()
 }
 

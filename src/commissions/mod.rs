@@ -76,8 +76,8 @@ pub struct CumulativeCommissionSpec {
     // Additional fees (exchange, regulatory and clearing)
     fees: Vec<CumulativeFeeSpec>,
 
-    // Depositary
-    monthly_depositary: Option<Decimal>,
+    // Depositary (tiered by portfolio size)
+    monthly_depositary: BTreeMap<Decimal, Decimal>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -88,14 +88,16 @@ pub struct CumulativeFeeSpec {
 pub struct CommissionCalc {
     spec: CommissionSpec,
     volume: HashMap<Date, Decimal>,
+    portfolio_net_value: Decimal,
 }
 
 impl CommissionCalc {
-    // FIXME(konishchev): Support
-    pub fn new(_converter: &CurrencyConverter, spec: CommissionSpec, _portfolio_net_value: Cash) -> GenericResult<CommissionCalc> {
+    pub fn new(converter: &CurrencyConverter, spec: CommissionSpec, portfolio_net_value: Cash) -> GenericResult<CommissionCalc> {
+        let portfolio_net_value = converter.real_time_convert_to(portfolio_net_value, &spec.currency)?;
         Ok(CommissionCalc {
             spec,
             volume: HashMap::new(),
+            portfolio_net_value,
         })
     }
 
@@ -157,11 +159,17 @@ impl CommissionCalc {
             }
         }
 
-        if let Some(monthly_depositary) = self.spec.cumulative.monthly_depositary {
-            for &(year, month) in monthly.keys() {
-                total_by_date.entry(get_monthly_commission_date(year, month))
-                    .and_modify(|total| *total += monthly_depositary)
-                    .or_insert(monthly_depositary);
+        if !self.spec.cumulative.monthly_depositary.is_empty() {
+            let monthly_depositary = *self.spec.cumulative.monthly_depositary
+                .range((Bound::Unbounded, Bound::Included(std::cmp::max(dec!(0), self.portfolio_net_value))))
+                .last().unwrap().1;
+
+            if !monthly_depositary.is_zero() {
+                for &(year, month) in monthly.keys() {
+                    total_by_date.entry(get_monthly_commission_date(year, month))
+                        .and_modify(|total| *total += monthly_depositary)
+                        .or_insert(monthly_depositary);
+                }
             }
         }
 

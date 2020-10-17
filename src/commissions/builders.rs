@@ -111,18 +111,18 @@ impl CumulativeCommissionSpecBuilder {
     }
 
     pub fn percent(self, percent: Decimal) -> CumulativeCommissionSpecBuilder {
-        self.tiers(btreemap!{dec!(0) => percent}).unwrap()
+        self.tiers(btreemap!{0 => percent}).unwrap()
     }
 
-    pub fn tiers(mut self, tiers: BTreeMap<Decimal, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
-        if tiers.is_empty() || tiers.get(&dec!(0)).is_none() {
+    pub fn tiers(mut self, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
+        if tiers.is_empty() || tiers.get(&0).is_none() {
             return Err!(concat!(
                 "Invalid tiered commission specification: ",
                 "There is no tier with zero starting volume",
             ));
         }
 
-        self.0.tiers.replace(tiers);
+        self.0.tiers.replace(tiers.iter().map(|(&k, &v)| (k.into(), v)).collect());
         Ok(self)
     }
 
@@ -143,9 +143,20 @@ impl CumulativeCommissionSpecBuilder {
         self
     }
 
-    pub fn monthly_depositary(mut self, amount: Decimal) -> CumulativeCommissionSpecBuilder {
-        self.0.monthly_depositary.replace(amount);
-        self
+    pub fn monthly_depositary(self, amount: Decimal) -> CumulativeCommissionSpecBuilder {
+        self.monthly_depositary_tiered(btreemap!{0 => amount}).unwrap()
+    }
+
+    pub fn monthly_depositary_tiered(mut self, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
+        if tiers.is_empty() || tiers.get(&0).is_none() {
+            return Err!(concat!(
+                "Invalid tiered depositary commission specification: ",
+                "There is no tier for zero portfolio size",
+            ));
+        }
+
+        self.0.monthly_depositary = tiers.iter().map(|(&k, &v)| (k.into(), v)).collect();
+        Ok(self)
     }
 
     pub fn build(self) -> CumulativeCommissionSpec {
