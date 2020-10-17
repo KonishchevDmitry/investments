@@ -44,7 +44,9 @@ impl AssetsParser {
             }
         } else {
             let quantity = asset.end_quantity.unwrap_or(0);
-            if quantity != 0 {
+            if quantity < 0 {
+                return Err!("Got a negative open position for {:?}", asset.name);
+            } else if quantity != 0 {
                 let symbol = parse_symbol(&asset.name)?;
                 statement.add_open_position(&symbol, quantity.into())?;
             }
@@ -71,7 +73,7 @@ struct AssetRow {
     #[column(name="Сумма, в т.ч. НКД")]
     start_value: Option<Decimal>,
     #[column(name="Кол-во ценных бумаг")]
-    end_quantity: Option<u32>,
+    end_quantity: Option<i32>,
     #[column(name="Цена закрытия/ котировка вторич.(5*)")]
     _8: SkipCell,
     #[column(name="Сумма НКД")]
