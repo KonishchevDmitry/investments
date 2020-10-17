@@ -72,6 +72,7 @@ impl SheetParser for StatementSheetParser {
 mod tests {
     use super::*;
 
+    // FIXME(konishchev): Parametrize with all portfolios
     #[test]
     fn parse_real() {
         let broker = Broker::Bcs.get_info(&Config::mock(), None).unwrap();

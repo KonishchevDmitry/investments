@@ -110,7 +110,7 @@ impl TradesParser {
 
         let volume = util::validate_named_decimal("trade volume", volume, DecimalRestrictions::StrictlyPositive)
             .map(|volume| Cash::new(currency, volume))?;
-        debug_assert_eq!(volume, price * quantity);
+        debug_assert_eq!(volume, (price * quantity).round());
 
         let commission = Cash::new(currency, dec!(0));
 
