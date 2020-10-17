@@ -44,16 +44,19 @@ impl CashFlowParser {
                 deposit_restrictions = DecimalRestrictions::StrictlyPositive;
                 parser.statement.cash_flows.push(CashAssets::new(date, currency, cash_flow.deposit));
             },
-            "Покупка/Продажа" => {
+            "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
                 deposit_restrictions = DecimalRestrictions::PositiveOrZero;
                 withdrawal_restrictions = DecimalRestrictions::PositiveOrZero;
             },
             "Урегулирование сделок" |
             "Вознаграждение компании" |
+            "Комиссия за перенос позиции" |
             "Вознаграждение за обслуживание счета депо" => {
                 withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
 
-                let description = format!("Комиссия брокера: {}", formatting::untitle(operation));
+                let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
+                let description = format!("Комиссия брокера: {}", formatting::untitle(description));
+
                 parser.statement.fees.push(Fee {
                     date,
                     amount: Cash::new(currency, -cash_flow.withdrawal),
