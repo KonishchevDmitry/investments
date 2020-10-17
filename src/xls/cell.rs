@@ -32,22 +32,32 @@ impl CellType for String {
     }
 }
 
+impl CellType for i32 {
+    fn parse(cell: &Cell) -> GenericResult<i32> {
+        parse_integer(cell, "i32")
+    }
+}
+
 impl CellType for u32 {
     fn parse(cell: &Cell) -> GenericResult<u32> {
-        Ok(match cell {
-            Cell::Int(value) => u32::from_i64(*value),
-            Cell::Float(value) => {
-                if value.fract() == 0.0 {
-                    u32::from_f64(*value)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }.ok_or_else(|| format!(
-            "Got an unexpected cell value where u32 is expected: {:?}", cell
-        ))?)
+        parse_integer(cell, "u32")
     }
+}
+
+fn parse_integer<I>(cell: &Cell, type_name: &str) -> GenericResult<I> where I: FromPrimitive {
+    Ok(match cell {
+        Cell::Int(value) => I::from_i64(*value),
+        Cell::Float(value) => {
+            if value.fract() == 0.0 {
+                I::from_f64(*value)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }.ok_or_else(|| format!(
+        "Got an unexpected cell value where {} is expected: {:?}", type_name, cell
+    ))?)
 }
 
 impl CellType for Decimal {
