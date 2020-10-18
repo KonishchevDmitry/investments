@@ -303,6 +303,7 @@ impl AssetAllocation {
         }
     }
 
+    // FIXME(konishchev): Iteratively decrease trade granularity to fix performance issues
     pub fn iterative_trading_granularity(&self, trade_type: TradeType) -> Decimal {
         match self.holding {
             Holding::Stock(ref holding) => holding.iterative_trading_granularity(trade_type),
