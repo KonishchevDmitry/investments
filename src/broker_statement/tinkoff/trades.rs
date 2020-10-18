@@ -93,7 +93,7 @@ impl SectionParser for TradesParser {
                     } else {
                         parser.statement.stock_buys.push(StockBuy::new(
                             &trade.symbol, quantity.into(), price, volume, commission,
-                            conclusion_date, execution_date));
+                            conclusion_date, execution_date, false));
                     }
                 },
                 "Продажа" => {
@@ -107,7 +107,7 @@ impl SectionParser for TradesParser {
                     } else {
                         parser.statement.stock_sells.push(StockSell::new(
                             &trade.symbol, quantity.into(), price, volume, commission,
-                            conclusion_date, execution_date, false));
+                            conclusion_date, execution_date, false, false));
                     }
                 },
                 _ => return Err!("Unsupported trade operation: {:?}", trade.operation),

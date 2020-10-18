@@ -23,6 +23,7 @@ pub struct StockBuy {
 
     pub conclusion_date: Date,
     pub execution_date: Date,
+    pub margin: bool,
 
     sold: Decimal,
 }
@@ -30,11 +31,11 @@ pub struct StockBuy {
 impl StockBuy {
     pub fn new(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date,
+        conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, sold: dec!(0),
+            conclusion_date, execution_date, margin, sold: dec!(0),
         }
     }
 
@@ -62,6 +63,7 @@ pub struct StockSell {
 
     pub conclusion_date: Date,
     pub execution_date: Date,
+    pub margin: bool,
 
     pub emulation: bool,
     sources: Vec<StockSellSource>,
@@ -70,11 +72,12 @@ pub struct StockSell {
 impl StockSell {
     pub fn new(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date, emulation: bool,
+        conclusion_date: Date, execution_date: Date, margin: bool, emulation: bool,
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, emulation, sources: Vec::new(),
+            conclusion_date, execution_date, margin,
+            emulation, sources: Vec::new(),
         }
     }
 

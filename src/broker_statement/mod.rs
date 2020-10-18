@@ -284,7 +284,7 @@ impl BrokerStatement {
 
         let stock_cell = StockSell::new(
             symbol, quantity, price, price * quantity, commission,
-            conclusion_date, execution_date, true);
+            conclusion_date, execution_date, false, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = open_position.get_mut();
@@ -560,14 +560,13 @@ impl BrokerStatement {
 
         let mut prev_execution_date = None;
 
-        for stock_buy in &self.stock_buys {
+        for trade in &self.stock_buys {
             if let Some(prev_execution_date) = prev_execution_date {
-                if stock_buy.execution_date < prev_execution_date {
+                if trade.execution_date < prev_execution_date && !trade.margin {
                     return Err!("Got an unexpected execution order for buy trades");
                 }
             }
-
-            prev_execution_date = Some(stock_buy.execution_date);
+            prev_execution_date.replace(trade.execution_date);
         }
 
         Ok(())
@@ -578,14 +577,13 @@ impl BrokerStatement {
 
         let mut prev_execution_date = None;
 
-        for stock_sell in &self.stock_sells {
+        for trade in &self.stock_sells {
             if let Some(prev_execution_date) = prev_execution_date {
-                if stock_sell.execution_date < prev_execution_date {
+                if trade.execution_date < prev_execution_date && !trade.margin {
                     return Err!("Got an unexpected execution order for sell trades");
                 }
             }
-
-            prev_execution_date = Some(stock_sell.execution_date);
+            prev_execution_date.replace(trade.execution_date);
         }
 
         Ok(())

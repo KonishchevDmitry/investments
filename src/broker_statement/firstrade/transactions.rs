@@ -233,11 +233,11 @@ impl StockTradeTransaction {
         if buy {
             parser.statement.stock_buys.push(StockBuy::new(
                 &symbol, quantity, price, volume, commission,
-                self.info.conclusion_date, self.info.execution_date));
+                self.info.conclusion_date, self.info.execution_date, false));
         } else {
             parser.statement.stock_sells.push(StockSell::new(
                 &symbol, quantity, price, volume, commission,
-                self.info.conclusion_date, self.info.execution_date, false));
+                self.info.conclusion_date, self.info.execution_date, false, false));
         }
 
         Ok(())

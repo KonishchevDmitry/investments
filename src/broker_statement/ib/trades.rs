@@ -92,10 +92,12 @@ fn parse_stock_record(
 
     if quantity.is_sign_positive() {
         parser.statement.stock_buys.push(StockBuy::new(
-            symbol, quantity, price, -volume, commission, conclusion_date, execution_date));
+            symbol, quantity, price, -volume, commission,
+            conclusion_date, execution_date, false));
     } else {
         parser.statement.stock_sells.push(StockSell::new(
-            symbol, -quantity, price, volume, commission, conclusion_date, execution_date, false));
+            symbol, -quantity, price, volume, commission,
+            conclusion_date, execution_date, false, false));
     }
 
     Ok(())

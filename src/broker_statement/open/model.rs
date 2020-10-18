@@ -245,7 +245,7 @@ impl ConcludedTrades {
 
                     statement.stock_buys.push(StockBuy::new(
                         symbol, quantity.into(), price, volume, commission,
-                        trade.conclusion_date, execution_date));
+                        trade.conclusion_date, execution_date, false));
                 },
                 (None, Some(quantity)) => {
                     let quantity = parse_quantity(quantity, false)?;
@@ -253,7 +253,7 @@ impl ConcludedTrades {
 
                     statement.stock_sells.push(StockSell::new(
                         symbol, quantity.into(), price, volume, commission,
-                        trade.conclusion_date, execution_date, false));
+                        trade.conclusion_date, execution_date, false, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };
