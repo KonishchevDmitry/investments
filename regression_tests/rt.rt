@@ -136,18 +136,17 @@ APP: regression_tests/investments
      all
      FXRU
 
-# FIXME(konishchev): Enable
-# [45]
-# NAME: IIA-B simulate sell
-# STDOUT: iia-b-simulate-sell
-# APP: regression_tests/investments
-#      testdata/config
-#      simulate-sell
-#      kate-iia
-#      all
-#      FXMM
-#      all
-#      TMOS
+[45]
+NAME: IIA-B simulate sell
+STDOUT: iia-b-simulate-sell
+APP: regression_tests/investments
+     testdata/config
+     simulate-sell
+     kate-iia
+     all
+     FXMM
+     all
+     TMOS
 
 # Rebalance
 
@@ -191,13 +190,14 @@ APP: regression_tests/investments
      rebalance
      bcs
 
-[55]
-NAME: IIA-B rebalance
-STDOUT: iia-b-rebalance
-APP: regression_tests/investments
-     testdata/config
-     rebalance
-     kate-iia
+# FIXME(konishchev): Enable after performance issues fixes
+# [55]
+# NAME: IIA-B rebalance
+# STDOUT: iia-b-rebalance
+# APP: regression_tests/investments
+#      testdata/config
+#      rebalance
+#      kate-iia
 
 # Tax statement
 
