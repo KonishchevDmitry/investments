@@ -70,15 +70,16 @@ impl SheetParser for StatementSheetParser {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    // FIXME(konishchev): Parametrize with all portfolios
-    #[test]
-    fn parse_real() {
+    #[rstest(name => ["bcs", "kate", "kate-iia"])]
+    fn parse_real(name: &str) {
         let broker = Broker::Bcs.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
-            broker, "testdata/bcs", &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
+            broker, &format!("testdata/{}", name),
+            &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
@@ -88,7 +89,7 @@ mod tests {
 
         assert!(statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
-        assert!(statement.stock_sells.is_empty());
+        assert_eq!(statement.stock_sells.is_empty(), name == "bcs");
         assert!(statement.dividends.is_empty());
 
         assert!(!statement.open_positions.is_empty());
