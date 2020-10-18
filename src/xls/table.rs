@@ -98,22 +98,26 @@ pub struct ColumnsMapping {
 }
 
 impl ColumnsMapping {
+    pub fn get<'a>(&self, row: &'a[Cell], column_id: usize) -> GenericResult<Option<&'a Cell>> {
+        if column_id >= self.mapping.len() {
+            return Err!("Invalid column ID: {}", column_id);
+        }
+
+        Ok(self.map_id(row, column_id)?.map(|cell_id| &row[cell_id]))
+    }
+
     pub fn map<'a>(&self, row: &'a[Cell]) -> GenericResult<Vec<Option<&'a Cell>>> {
         let mut mapped_row = Vec::with_capacity(self.mapping.len());
         let mut current_cell_id = 0;
 
-        for (column_id, &mapped_cell_id) in self.mapping.iter().enumerate() {
-            let mapped_cell_id = match mapped_cell_id {
+        for column_id in 0..self.mapping.len() {
+            let mapped_cell_id = match self.map_id(row, column_id)? {
                 Some(cell_id) => cell_id,
                 None => {
                     mapped_row.push(None);
                     continue;
                 },
             };
-
-            if mapped_cell_id >= row.len() {
-                return Err!("The row have no {}:{} column", column_id, mapped_cell_id);
-            }
 
             if current_cell_id < mapped_cell_id {
                 let spare_cells = &row[current_cell_id..mapped_cell_id];
@@ -135,6 +139,19 @@ impl ColumnsMapping {
         }
 
         Ok(mapped_row)
+    }
+
+    fn map_id(&self, row: &[Cell], column_id: usize) -> GenericResult<Option<usize>> {
+        let cell_id = match self.mapping[column_id] {
+            Some(cell_id) => cell_id,
+            None => return Ok(None),
+        };
+
+        if cell_id >= row.len() {
+            return Err!("The row have no {}:{} column", column_id, cell_id);
+        }
+
+        Ok(Some(cell_id))
     }
 }
 
