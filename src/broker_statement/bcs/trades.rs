@@ -7,7 +7,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, TableRow, SkipCell};
+use crate::xls::{self, SheetReader, TableRow, SkipCell, ColumnsMapping};
 
 use xls_table_derive::XlsTableRow;
 
@@ -41,16 +41,17 @@ impl SectionParser for TradesParser {
                 },
                 Some(ref instrument) => {
                     if first_cell == instrument.end_marker {
+                        consume_totals_rows(&mut parser.sheet, &columns_mapping)?;
                         current_instrument = None;
                         continue;
                     }
-
                     &instrument.symbol
                 },
             };
             let trade = TradeRow::parse(&row)?;
 
-            self.process_trade(&mut parser.statement, symbol, trade)?;
+            self.process_trade(&mut parser.statement, symbol, &trade).map_err(|e| format!(
+                "Failed to parse {:?} trade: {}", trade.id, e))?;
         }
 
         if current_instrument.is_some() {
@@ -62,9 +63,18 @@ impl SectionParser for TradesParser {
 }
 
 impl TradesParser {
-    fn process_trade(&self, statement: &mut PartialBrokerStatement, symbol: &str, trade: TradeRow) -> EmptyResult {
-        let conclusion_date = parse_short_date(&trade.conclusion_date)?;
+    fn process_trade(&self, statement: &mut PartialBrokerStatement, symbol: &str, trade: &TradeRow) -> EmptyResult {
+        let margin = matches!(
+            trade.trade_type.as_ref(),
+            Some(trade_type) if trade_type == "Репо ч.1" || trade_type == "Репо ч.2");
+
         let execution_date = parse_short_date(&trade.execution_date)?;
+        let conclusion_date = match trade.conclusion_date.as_ref() {
+            Some(date) => parse_short_date(date)?,
+            None if margin => execution_date,
+            _ => return Err!("The trade has no conclusion date"),
+        };
+
         if trade.date != trade.execution_date {
             return Err!(
                 "Trade completion date is different from execution date: {} vs {}",
@@ -116,10 +126,12 @@ impl TradesParser {
 
         if buy {
             statement.stock_buys.push(StockBuy::new(
-                symbol, quantity.into(), price, volume, commission, conclusion_date, execution_date));
+                symbol, quantity.into(), price, volume, commission,
+                conclusion_date, execution_date, margin));
         } else {
             statement.stock_sells.push(StockSell::new(
-                symbol, quantity.into(), price, volume, commission, conclusion_date, execution_date, false));
+                symbol, quantity.into(), price, volume, commission,
+                conclusion_date, execution_date, margin, false));
         }
 
         Ok(())
@@ -131,7 +143,7 @@ struct TradeRow {
     #[column(name="Дата")]
     date: String,
     #[column(name="Номер")]
-    _1: SkipCell,
+    id: String,
     #[column(name="Время")]
     _2: SkipCell,
     #[column(name="Куплено, шт")]
@@ -151,11 +163,11 @@ struct TradeRow {
     #[column(name="Валюта платежа")]
     payment_currency: String,
     #[column(name="Дата соверш.")]
-    conclusion_date: String,
+    conclusion_date: Option<String>,
     #[column(name="Время соверш.")]
     _12: SkipCell,
     #[column(name="Тип сделки")]
-    _13: SkipCell,
+    trade_type: Option<String>,
     #[column(name="Оплата (факт)")]
     payment_date: String,
     #[column(name="Поставка (факт)")]
@@ -176,4 +188,24 @@ impl CurrentInstrument {
             end_marker: format!("Итого по {}:", name),
         })
     }
+}
+
+fn consume_totals_rows(sheet: &mut SheetReader, columns_mapping: &ColumnsMapping) -> EmptyResult {
+    let row = match sheet.next_row() {
+        Some(row) => row,
+        None => return Ok(()),
+    };
+
+    if xls::is_empty_row(row) {
+        sheet.step_back();
+        return Ok(());
+    }
+
+    let first_cell = xls::get_string_cell(columns_mapping.get(row, 0)?.unwrap())?;
+    if first_cell != "в т.ч. по репо:" {
+        sheet.step_back();
+        return Ok(());
+    }
+
+    Ok(())
 }
