@@ -165,9 +165,12 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             }
         }
 
-        let (currency, inverse) = match (from, to) {
-            ("USD", "RUB") => ("USD", false),
-            ("RUB", "USD") => ("USD", true),
+        let (currency, inverse, cross) = match (from, to) {
+            ("USD", "RUB") => ("USD", false, false),
+            ("RUB", "USD") => ("USD", true, false),
+            ("EUR", "RUB") => ("EUR", false, false),
+            ("RUB", "EUR") => ("EUR", true, false),
+            ("EUR", "USD") => ("USD", false, true),
             _ => return Err!("Unsupported currency conversion: {} -> {}", from, to),
         };
 
@@ -175,13 +178,21 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         let min_date = localities::get_russian_stock_exchange_min_last_working_day(cur_date);
 
         while cur_date >= min_date {
+            if !cross {
             if let Some(price) = self.get_price(currency, cur_date, false)? {
                 return Ok(if inverse {
                     amount / price
                 } else {
                     price * amount
                 });
-            }
+            } 
+            } else {
+                if let Some(price1) = self.get_price(from, cur_date, false)? {
+                    if let Some(price2) = self.get_price(from, cur_date, false)? {
+                        return Ok((price1 / price2) * amount);
+                    }
+                }
+            }	      
 
             cur_date = cur_date.pred();
         }

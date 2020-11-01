@@ -16,6 +16,7 @@ use crate::util;
 pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
     let currency_code = match currency {
         "USD" => "R01235",
+        "EUR" => "R01239",
         _ => return Err!("{} currency is not supported yet.", currency),
     };
 
