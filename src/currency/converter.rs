@@ -115,6 +115,10 @@ impl CurrencyRateCacheBackend {
     }
 
     fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
+        if currency == "RUB" {
+            return Ok(Some(dec!(1)));
+        }
+
         let cache_result = self.rate_cache.get(currency, date).map_err(|e| format!(
             "Failed to get currency rate from the currency rate cache: {}", e))?;
 
@@ -165,40 +169,20 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             }
         }
 
-        let (currency, inverse, cross) = match (from, to) {
-            ("USD", "RUB") => ("USD", false, false),
-            ("RUB", "USD") => ("USD", true, false),
-            ("EUR", "RUB") => ("EUR", false, false),
-            ("RUB", "EUR") => ("EUR", true, false),
-            ("EUR", "USD") => ("USD", false, true),
-            _ => return Err!("Unsupported currency conversion: {} -> {}", from, to),
-        };
-
         let mut cur_date = date;
         let min_date = localities::get_russian_stock_exchange_min_last_working_day(cur_date);
 
         while cur_date >= min_date {
-            if !cross {
-            if let Some(price) = self.get_price(currency, cur_date, false)? {
-                return Ok(if inverse {
-                    amount / price
-                } else {
-                    price * amount
-                });
-            } 
-            } else {
-                if let Some(price1) = self.get_price(from, cur_date, false)? {
-                    if let Some(price2) = self.get_price(from, cur_date, false)? {
-                        return Ok((price1 / price2) * amount);
-                    }
+            if let Some(from_price) = self.get_price(from, cur_date, false)? {
+                if let Some(to_price) = self.get_price(to, cur_date, false)? {
+                    return Ok(amount * from_price / to_price);
                 }
-            }	      
-
+            }
             cur_date = cur_date.pred();
         }
 
-        Err!("Unable to find {} currency rate for {} with {} days precision",
-             currency, formatting::format_date(date), (date - min_date).num_days())
+        Err!("Unable to find {}/{} currency rate for {} with {} days precision",
+             from, to, formatting::format_date(date), (date - min_date).num_days())
     }
 }
 
@@ -231,18 +215,29 @@ fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> Gener
 
 #[cfg(test)]
 fn get_currency_rates(currency: &str, _start_date: Date, _end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    assert_eq!(currency, "USD");
-
-    Ok(vec![
-        CurrencyRate {
-            date: date!(1, 9, 2018),
-            price: dec!(68.0447),
-        },
-        CurrencyRate {
-            date: date!(4, 9, 2018),
-            price: dec!(67.7443),
-        },
-    ])
+    Ok(match currency {
+        "USD" => vec![
+            CurrencyRate {
+                date: date!(1, 9, 2018),
+                price: dec!(68.0447),
+            },
+            CurrencyRate {
+                date: date!(4, 9, 2018),
+                price: dec!(67.7443),
+            },
+        ],
+        "EUR" => vec![
+            CurrencyRate {
+                date: date!(1, 9, 2018),
+                price: dec!(79.4966),
+            },
+            CurrencyRate {
+                date: date!(4, 9, 2018),
+                price: dec!(78.6376),
+            },
+        ],
+        _ => unreachable!(),
+    })
 }
 
 #[cfg(test)]
@@ -258,41 +253,54 @@ mod tests {
         let converter = CurrencyConverter::new_with_backend(
             CurrencyRateCacheBackend::new(cache, None, true));
 
-        for currency in ["RUB", "USD"].iter() {
+        for &currency in &["RUB", "USD", "EUR"] {
             assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);
         }
 
-        for (from, to, value, result) in [
-            ("USD", "RUB", amount, dec!(68.0447) * amount),
-            ("RUB", "USD", dec!(68.0447) * amount, amount),
-        ].iter() {
+        let check = |from, to, date, amount, expected| {
+            let precision = crate::types::DECIMAL_PRECISION - 2;
+            let result = converter.convert(from, to, date, amount).unwrap();
+            assert_eq!(util::round(result, precision), util::round(expected, precision));
+        };
+
+        for &(from, to, value, result) in &[
+            ("USD", "RUB", amount, amount * dec!(68.0447)),
+            ("RUB", "USD", amount * dec!(68.0447), amount),
+            ("EUR", "RUB", amount, amount * dec!(79.4966)),
+            ("RUB", "EUR", amount * dec!(79.4966), amount),
+            ("EUR", "USD", amount, amount * dec!(79.4966) / dec!(68.0447)),
+            ("USD", "EUR", amount * dec!(79.4966) / dec!(68.0447), amount),
+        ] {
             assert_matches!(
-                converter.convert(from, to, date!(31, 8, 2018), *value),
-                Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
+                converter.convert(from, to, date!(31, 8, 2018), value),
+                Err(ref e) if e.to_string().starts_with(&format!(
+                    "Unable to find {}/{} currency rate", from, to))
             );
 
             for day in 1..4 {
-                assert_eq!(
-                    converter.convert(from, to, date!(day, 9, 2018), *value).unwrap(),
-                    *result
-                );
+                check(from, to, date!(day, 9, 2018), value, result);
             }
         }
 
-        for (from, to, value, result) in [
-            ("USD", "RUB", amount, dec!(67.7443) * amount),
-            ("RUB", "USD", dec!(67.7443) * amount, amount),
-        ].iter() {
+        for &(from, to, value, result) in &[
+            ("USD", "RUB", amount, amount * dec!(67.7443)),
+            ("RUB", "USD", amount * dec!(67.7443), amount),
+            ("EUR", "RUB", amount, amount * dec!(78.6376)),
+            ("RUB", "EUR", amount * dec!(78.6376), amount),
+            ("EUR", "USD", amount, amount * dec!(78.6376) / dec!(67.7443)),
+            ("USD", "EUR", amount * dec!(78.6376) / dec!(67.7443), amount),
+        ] {
             let mut date = date!(4, 9, 2018);
 
             for _ in 0..4 {
-                assert_eq!(converter.convert(from, to, date, *value).unwrap(), *result);
+                check(from, to, date, value, result);
                 date = date.succ();
             }
 
             assert_matches!(
-                converter.convert(from, to, date, *value),
-                Err(ref e) if e.to_string().starts_with("Unable to find USD currency rate")
+                converter.convert(from, to, date, value),
+                Err(ref e) if e.to_string().starts_with(&format!(
+                    "Unable to find {}/{} currency rate", from, to))
             );
         }
     }
