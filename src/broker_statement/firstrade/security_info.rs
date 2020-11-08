@@ -62,12 +62,13 @@ impl SecurityInfoSection {
         }
 
         for other_info in all_info.other_info {
-            let info = other_info.security_info;
+            let id = other_info.security_info.id;
+            let name = other_info.security_info.name;
 
-            if info.name.starts_with("INTEREST ON CREDIT BALANCE ") {
-                securities.add(info.id, SecurityType::Interest)?;
+            if name.starts_with("INTEREST ON CREDIT BALANCE ") || name.starts_with("FULLYPAID LENDING REBATE ") {
+                securities.add(id, SecurityType::Interest)?;
             } else {
-                return Err!("Got an unsupported security type: {:?}", info.name);
+                return Err!("Got an unsupported security type: {:?}", name);
             }
         }
 
