@@ -16,6 +16,9 @@ lazy_static! {
     static ref UPDATE_TIME: Gauge = register_simple_metric(
         "time", "Metrics generation time.");
 
+    static ref BROKERS: GaugeVec = register_metric(
+        "brokers", "Net asset value by broker.", &["currency", "broker", "country"]);
+
     static ref ASSETS: GaugeVec = register_instrument_metric(
         "assets", "Open positions value.");
 
@@ -63,6 +66,10 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     let currency = &statistics.currency;
     let performance = statistics.performance.as_ref().unwrap();
     let income_structure = &performance.income_structure;
+
+    for (broker, &value) in &statistics.brokers {
+        set_metric(&BROKERS, &[currency, broker.brief_name(), broker.country()], value);
+    }
 
     for (instrument, &value) in &statistics.assets {
         set_instrument_metric(&ASSETS, currency, &instrument, value);

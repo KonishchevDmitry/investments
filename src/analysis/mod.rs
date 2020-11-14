@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use crate::brokers::Broker;
 use crate::broker_statement::BrokerStatement;
 use crate::commissions::CommissionCalc;
 use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
@@ -32,6 +33,7 @@ impl PortfolioStatistics {
                     currency: currency.to_owned(),
 
                     assets: BTreeMap::new(),
+                    brokers: BTreeMap::new(),
                     performance: None,
 
                     projected_taxes: dec!(0),
@@ -62,7 +64,9 @@ impl PortfolioStatistics {
 pub struct PortfolioCurrencyStatistics {
     pub currency: String,
 
+    // Use BTreeMap to get consistent metrics order
     pub assets: BTreeMap<String, Decimal>,
+    pub brokers: BTreeMap<Broker, Decimal>,
     pub performance: Option<PortfolioPerformanceAnalysis>,
 
     pub projected_taxes: Decimal,
@@ -70,8 +74,9 @@ pub struct PortfolioCurrencyStatistics {
 }
 
 impl PortfolioCurrencyStatistics {
-    fn add_assets(&mut self, instrument: &str, amount: Decimal) {
+    fn add_assets(&mut self, broker: Broker, instrument: &str, amount: Decimal) {
         *self.assets.entry(instrument.to_owned()).or_default() += amount;
+        *self.brokers.entry(broker).or_default() += amount;
     }
 }
 
@@ -90,6 +95,8 @@ pub fn analyse(
     }
 
     for (portfolio, statement) in &mut portfolios {
+        let broker = statement.broker.type_;
+
         if interactive {
             statement.check_date();
         }
@@ -98,7 +105,7 @@ pub fn analyse(
             let cash_assets = statement.cash_assets.total_assets_real_time(
                 &statistics.currency, &converter)?;
 
-            Ok(statistics.add_assets("Cash", cash_assets))
+            Ok(statistics.add_assets(broker, "Cash", cash_assets))
         })?;
 
         let net_value = statement.net_value(&converter, &quotes, portfolio.currency()?)?;
@@ -134,7 +141,7 @@ pub fn analyse(
                 let commission = converter.real_time_convert_to(trade.commission, currency)?;
                 let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
 
-                statistics.add_assets(&trade.symbol, volume);
+                statistics.add_assets(broker, &trade.symbol, volume);
                 statistics.projected_commissions += commission;
                 statistics.projected_taxes += tax_to_pay;
 

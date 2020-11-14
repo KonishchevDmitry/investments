@@ -214,7 +214,7 @@ impl BrokerStatement {
 
         if months >= dec!(1) {
             warn!("{} broker statement is {} months old and may be outdated.",
-                  self.broker.name, util::round(months, 1));
+                  self.broker.brief_name, util::round(months, 1));
         }
     }
 

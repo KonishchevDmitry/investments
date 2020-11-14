@@ -13,7 +13,7 @@ use crate::core::GenericResult;
 use crate::currency::CashAssets;
 use crate::types::Decimal;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum Broker {
     Bcs,
     Firstrade,
@@ -27,7 +27,7 @@ impl Broker {
         let config = config.brokers.as_ref()
             .and_then(|brokers| self.get_config(brokers))
             .ok_or_else(|| format!(
-                "{} configuration is not set in the configuration file", self.get_name()))?
+                "{} broker configuration is not set in the configuration file", self.brief_name()))?
             .clone();
 
         let statements_merging_strategy = match self {
@@ -38,7 +38,9 @@ impl Broker {
 
         Ok(BrokerInfo {
             type_: self,
-            name: self.get_name(),
+            name: self.name(),
+            brief_name: self.brief_name(),
+
             config: config,
             commission_spec: self.get_commission_spec(plan)?,
             allow_future_fees: matches!(self, Broker::Tinkoff),
@@ -47,13 +49,30 @@ impl Broker {
         })
     }
 
-    fn get_name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             Broker::Bcs => "ООО «Компания БКС»",
             Broker::Firstrade => "Firstrade Securities Inc.",
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
             Broker::Open => "АО «Открытие Брокер»",
             Broker::Tinkoff => "АО «Тинькофф Банк»",
+        }
+    }
+
+    pub fn brief_name(self) -> &'static str {
+        match self {
+            Broker::Bcs => "БКС",
+            Broker::Firstrade => "Firstrade",
+            Broker::InteractiveBrokers => "Interactive Brokers",
+            Broker::Open => "Открытие",
+            Broker::Tinkoff => "Тинькофф",
+        }
+    }
+
+    pub fn country(self) -> &'static str {
+        match self {
+            Broker::Bcs | Broker::Open | Broker::Tinkoff => "Russia",
+            Broker::Firstrade | Broker::InteractiveBrokers => "USA",
         }
     }
 
@@ -92,7 +111,7 @@ impl Broker {
             Some(plan) => {
                 *plans.get(plan.as_str()).ok_or_else(|| format!(
                     "Invalid plan for {}: {}. Available plans: {}",
-                    self.get_name(), plan, plans.keys().copied().collect::<Vec<_>>().join(", "),
+                    self.name(), plan, plans.keys().copied().collect::<Vec<_>>().join(", "),
                 ))?
             },
             None => default,
@@ -124,6 +143,7 @@ impl<'de> Deserialize<'de> for Broker {
 pub struct BrokerInfo {
     pub type_: Broker,
     pub name: &'static str,
+    pub brief_name: &'static str,
 
     config: BrokerConfig,
     pub commission_spec: CommissionSpec,
@@ -140,7 +160,7 @@ impl BrokerInfo {
             Some(commission_spec) => commission_spec,
             None => return Err!(concat!(
                 "Unable to calculate commission for {} deposit to {}: there is no commission ",
-                "specification in the configuration file"), currency, self.name),
+                "specification in the configuration file"), currency, self.brief_name),
         };
 
         Ok(commission_spec.fixed_amount)
