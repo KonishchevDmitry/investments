@@ -6,7 +6,7 @@ use crate::util::RoundingMethod;
 
 use super::{
     CommissionSpec, TradeCommissionSpec, TransactionCommissionSpec,
-    CumulativeCommissionSpec, CumulativeFeeSpec
+    CumulativeCommissionSpec, CumulativeTierType, CumulativeTieredSpec, CumulativeFeeSpec
 };
 
 pub struct CommissionSpecBuilder(CommissionSpec);
@@ -111,18 +111,29 @@ impl CumulativeCommissionSpecBuilder {
     }
 
     pub fn percent(self, percent: Decimal) -> CumulativeCommissionSpecBuilder {
-        self.tiers(btreemap!{0 => percent}).unwrap()
+        self.tiers(CumulativeTierType::Volume, btreemap!{0 => percent}).unwrap()
     }
 
-    pub fn tiers(mut self, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
+    pub fn volume_tiered(self, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
+        self.tiers(CumulativeTierType::Volume, tiers)
+    }
+
+    pub fn portfolio_net_value_tiered(self, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
+        self.tiers(CumulativeTierType::PortfolioNetValue, tiers)
+    }
+
+    fn tiers(mut self, _type: CumulativeTierType, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
         if tiers.is_empty() || tiers.get(&0).is_none() {
-            return Err!(concat!(
-                "Invalid tiered commission specification: ",
-                "There is no tier with zero starting volume",
-            ));
+            return Err!("Invalid tiered commission specification: There is no tier with zero value");
+        } else if self.0.percent.is_some() {
+            return Err!("An attempt to redefine commission tiers")
         }
 
-        self.0.tiers.replace(tiers.iter().map(|(&k, &v)| (k.into(), v)).collect());
+        self.0.percent.replace(CumulativeTieredSpec {
+            _type,
+            tiers: tiers.iter().map(|(&k, &v)| (k.into(), v)).collect(),
+        });
+
         Ok(self)
     }
 
@@ -151,8 +162,10 @@ impl CumulativeCommissionSpecBuilder {
         if tiers.is_empty() || tiers.get(&0).is_none() {
             return Err!(concat!(
                 "Invalid tiered depositary commission specification: ",
-                "There is no tier for zero portfolio size",
+                "There is no tier for zero portfolio net value",
             ));
+        } else if !self.0.monthly_depositary.is_empty() {
+            return Err!("An attempt to redefine depositary commission")
         }
 
         self.0.monthly_depositary = tiers.iter().map(|(&k, &v)| (k.into(), v)).collect();

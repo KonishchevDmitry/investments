@@ -69,15 +69,37 @@ impl TransactionCommissionSpec {
 #[derive(Default, Clone, Debug)]
 pub struct CumulativeCommissionSpec {
     // Broker commissions
-    tiers: Option<BTreeMap<Decimal, Decimal>>,
+    percent: Option<CumulativeTieredSpec>,
     minimum_daily: Option<Decimal>,
     minimum_monthly: Option<Decimal>,
 
     // Additional fees (exchange, regulatory and clearing)
     fees: Vec<CumulativeFeeSpec>,
 
-    // Depositary (tiered by portfolio size)
+    // Depositary (tiered by portfolio net value)
     monthly_depositary: BTreeMap<Decimal, Decimal>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum CumulativeTierType {
+    Volume,
+    PortfolioNetValue,
+}
+
+#[derive(Clone, Debug)]
+pub struct CumulativeTieredSpec {
+    _type: CumulativeTierType,
+    tiers: BTreeMap<Decimal, Decimal>,
+}
+
+impl CumulativeTieredSpec {
+    fn percent(&self, volume: Decimal, portfolio_net_value: Decimal) -> Decimal {
+        let key = match self._type {
+            CumulativeTierType::Volume => volume,
+            CumulativeTierType::PortfolioNetValue => std::cmp::max(dec!(0), portfolio_net_value),
+        };
+        *self.tiers.range((Bound::Unbounded, Bound::Included(key))).last().unwrap().1
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -179,13 +201,11 @@ impl CommissionCalc {
     }
 
     fn calculate_daily(&self, volume: Decimal) -> (Decimal, Decimal) {
-        let mut commission = if let Some(ref tiers) = self.spec.cumulative.tiers {
-            let percent = *tiers.range((Bound::Unbounded, Bound::Included(volume)))
-                .last().unwrap().1;
+        let mut commission = dec!(0);
 
-            util::round_with(volume * percent / dec!(100), 2, self.spec.rounding_method)
-        } else {
-            dec!(0)
+        if let Some(ref tiers) = self.spec.cumulative.percent {
+            let percent = tiers.percent(volume, self.portfolio_net_value);
+            commission += util::round_with(volume * percent / dec!(100), 2, self.spec.rounding_method);
         };
 
         if let Some(minimum) = self.spec.cumulative.minimum_daily {

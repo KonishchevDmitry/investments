@@ -13,11 +13,17 @@ pub fn investor() -> CommissionSpec {
         .build()
 }
 
-// FIXME(konishchev): Support portfolio size tiers
 pub fn investor_pro() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .cumulative(CumulativeCommissionSpecBuilder::new()
-            .percent(dec!(0.035))
+            .portfolio_net_value_tiered(btreemap!{
+                         0 => dec!(0.300),
+                   900_000 => dec!(0.035),
+                 2_500_000 => dec!(0.030),
+                 5_000_000 => dec!(0.025),
+                10_000_000 => dec!(0.020),
+                30_000_000 => dec!(0.015),
+            }).unwrap()
             .percent_fee(dec!(0.01))
             .monthly_depositary(dec!(299))
             .build())
@@ -27,7 +33,7 @@ pub fn investor_pro() -> CommissionSpec {
 pub fn professional() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .cumulative(CumulativeCommissionSpecBuilder::new()
-            .tiers(btreemap!{
+            .volume_tiered(btreemap!{
                          0 => dec!(0.0531),
                    100_000 => dec!(0.0413),
                    300_000 => dec!(0.0354),
@@ -88,7 +94,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::investor_pro(), Cash::new(currency, dec!(0))).unwrap();
+            &converter, super::investor_pro(), Cash::new(currency, dec!(1_000_000))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(13, 10, 2020),  78, dec!(1640.0)),
