@@ -8,7 +8,9 @@ use crate::commissions::{
 #[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::TradeType;
 
-// FIXME(konishchev): Support Tinkoff tiers
+// Please note:
+// We don't support Tinkoff volume tiers: actual commission depends on the order of trades which is
+// inappropriate for our purposes.
 pub fn trader() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .trade(TradeCommissionSpecBuilder::new()
