@@ -49,7 +49,6 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    // FIXME(konishchev): Add real test data
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
     fn investor(trade_type: TradeType) {
         let currency = "RUB";
@@ -69,6 +68,8 @@ mod tests {
             (date!(13, 10, 2020),  418, dec!(4.824)),
             (date!(13, 10, 2020), 2379, dec!(4.826)),
             (date!(13, 10, 2020),  353, dec!(4.826)),
+
+            (date!(14, 10, 2020),  100, dec!(4.808)),
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
@@ -78,6 +79,7 @@ mod tests {
 
         assert_eq!(calc.calculate(), hashmap!{
             date!(13, 10, 2020) => Cash::new(currency, dec!(599.83)),
+            date!(14, 10, 2020) => Cash::new(currency, dec!(  0.48)),
         });
     }
 
