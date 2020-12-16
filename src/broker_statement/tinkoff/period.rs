@@ -27,18 +27,16 @@ impl SectionParser for PeriodParser {
         let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
         let cell = xls::get_string_cell(row[0])?;
 
-        if cell.starts_with(PeriodParser::CALCULATION_DATE_PREFIX) {
-            let calculation_date = parse_date(
-                cell[PeriodParser::CALCULATION_DATE_PREFIX.len()..].trim())?;
-
+        if let Some(date) = cell.strip_prefix(PeriodParser::CALCULATION_DATE_PREFIX) {
+            let calculation_date = parse_date(date.trim())?;
             if self.calculation_date.replace(calculation_date).is_some() {
                 return Err!("Got a duplicated statement creation date")
             }
-        } else if cell.starts_with(PeriodParser::PERIOD_PREFIX) {
-            let calculation_date = self.calculation_date.ok_or_else(||
+        } else if let Some(date) = cell.strip_prefix(PeriodParser::PERIOD_PREFIX) {
+            let calculation_date = self.calculation_date.ok_or(
                 "Got statement period without calculation date")?;
 
-            let mut period = parse_period(cell[PeriodParser::PERIOD_PREFIX.len()..].trim())?;
+            let mut period = parse_period(date.trim())?;
             period.1 = std::cmp::min(period.1, calculation_date.succ());
             if period.1 <= period.0 {
                 return Err!("Got an invalid statement period: {}", formatting::format_period(period));

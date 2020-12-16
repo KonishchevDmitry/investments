@@ -46,7 +46,7 @@ impl SheetReader {
     }
 
     pub fn next_row_checked(&mut self) -> GenericResult<&[Cell]> {
-        Ok(self.next_row().ok_or_else(|| "Got an unexpected end of sheet")?)
+        Ok(self.next_row().ok_or("Got an unexpected end of sheet")?)
     }
 
     pub fn step_back(&mut self) {

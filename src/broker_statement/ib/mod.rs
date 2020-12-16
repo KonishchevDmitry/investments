@@ -217,9 +217,7 @@ impl<'a> StatementParser<'a> {
         // When statement has no non-base currency activity it contains only base currency summary
         // and we have to use it as the only source of current cash assets info.
         if self.statement.cash_assets.is_empty() {
-            let amount = self.base_currency_summary.ok_or_else(||
-                "Unable to find base currency summary")?;
-
+            let amount = self.base_currency_summary.ok_or("Unable to find base currency summary")?;
             self.statement.cash_assets.deposit(amount);
         }
 
@@ -227,8 +225,7 @@ impl<'a> StatementParser<'a> {
     }
 
     fn base_currency(&self) -> GenericResult<&str> {
-        Ok(self.base_currency.as_deref().ok_or_else(||
-            "Unable to determine account base currency")?)
+        Ok(self.base_currency.as_deref().ok_or("Unable to determine account base currency")?)
     }
 
     fn get_execution_date(&mut self, symbol: &str, conclusion_date: Date) -> Date {

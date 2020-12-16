@@ -138,7 +138,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
         quote_currency
     } else {
-        quote.meta.currency.as_ref().ok_or_else(||
+        quote.meta.currency.as_ref().ok_or(
             "Got an unexpected response from server: missing quote currency")?.as_str()
     };
 

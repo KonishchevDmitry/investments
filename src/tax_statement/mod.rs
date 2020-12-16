@@ -27,8 +27,7 @@ pub fn generate_tax_statement(
 
     let mut tax_statement = match tax_statement_path {
         Some(path) => {
-            let year = year.ok_or_else(||
-                "Tax year must be specified when tax statement is specified")?;
+            let year = year.ok_or("Tax year must be specified when tax statement is specified")?;
 
             let statement = TaxStatement::read(path)?;
             if statement.year != year {

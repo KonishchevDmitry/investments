@@ -33,7 +33,7 @@ impl TaxStatementReader {
 
         let year = EXTENSION_REGEX.captures(path)
             .and_then(|captures| captures.get(1).unwrap().as_str().parse::<u8>().ok())
-            .ok_or_else(||"Invalid tax statement file extension: *.dcX is expected")?;
+            .ok_or("Invalid tax statement file extension: *.dcX is expected")?;
         let year = 2010 + i32::from(year);
 
         if year != SUPPORTED_YEAR {
@@ -150,6 +150,8 @@ impl TaxStatementReader {
 
 pub struct TaxStatementWriter {
     file: BufWriter<File>,
+
+    #[allow(clippy::rc_buffer)]
     buffer: Rc<String>,
 }
 

@@ -222,7 +222,7 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
 }
 
 fn get_value<T>(value: Option<T>) -> GenericResult<T> {
-    Ok(value.ok_or_else(|| "Got an unexpected response from server")?)
+    Ok(value.ok_or("Got an unexpected response from server")?)
 }
 
 #[cfg(not(test))]

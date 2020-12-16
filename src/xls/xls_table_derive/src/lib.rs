@@ -108,7 +108,7 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
 
     for field in fields {
         let field_name = field.ident.as_ref()
-            .ok_or_else(|| "A struct with named fields is expected")?.to_string();
+            .ok_or("A struct with named fields is expected")?.to_string();
         let mut field_params = None;
 
         for attr in &field.attrs {

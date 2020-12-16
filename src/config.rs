@@ -126,8 +126,7 @@ pub struct PortfolioConfig {
 
 impl PortfolioConfig {
     pub fn currency(&self) -> GenericResult<&str> {
-        Ok(self.currency.as_ref().ok_or_else(||
-            "The portfolio's currency is not specified in the config")?)
+        Ok(self.currency.as_ref().ok_or("The portfolio's currency is not specified in the config")?)
     }
 
     pub fn get_stock_symbols(&self) -> HashSet<String> {
