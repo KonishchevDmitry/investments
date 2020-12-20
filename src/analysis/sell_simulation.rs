@@ -14,7 +14,7 @@ use crate::util;
 
 pub fn simulate_sell(
     portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
-    quotes: &Quotes, positions: &[(String, Option<Decimal>)],
+    quotes: &Quotes, positions: &[(String, Option<Decimal>)], base_currency: Option<&str>,
 ) -> EmptyResult {
     for (symbol, _) in positions {
         if statement.open_positions.get(symbol).is_none() {
@@ -44,7 +44,8 @@ pub fn simulate_sell(
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(stock_sells, additional_commissions, &portfolio.get_tax_country(), converter)
+    print_results(
+        stock_sells, additional_commissions, &portfolio.get_tax_country(), converter, base_currency)
 }
 
 #[derive(StaticTable)]
@@ -91,12 +92,14 @@ struct FifoRow {
 
 fn print_results(
     stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
-    country: &Country, converter: &CurrencyConverter
+    country: &Country, converter: &CurrencyConverter, base_currency: Option<&str>,
 ) -> EmptyResult {
     let same_currency = stock_sells.iter().all(|trade| {
-        trade.price.currency == country.currency &&
-            trade.commission.currency == country.currency
+        base_currency.unwrap_or(trade.price.currency) == country.currency &&
+            base_currency.unwrap_or(trade.commission.currency) == country.currency
     });
+
+    let conclusion_date = util::today_trade_conclusion_date();
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_local_revenue = Cash::new(country.currency, dec!(0));
@@ -106,12 +109,16 @@ fn print_results(
 
     let mut total_commission = MultiCurrencyCashAccount::new();
 
-    for commission in additional_commissions.iter() {
-        let commission = commission.round();
+    for mut commission in additional_commissions.iter() {
+        if let Some(base_currency) = base_currency {
+            commission = converter.convert_to_cash_rounding(conclusion_date, commission, base_currency)?;
+        } else {
+            commission = commission.round();
+        }
 
         total_profit.withdraw(commission);
         total_local_profit.amount -= converter.convert_to_rounding(
-            util::today_trade_conclusion_date(), commission, total_local_profit.currency)?;
+            conclusion_date, commission, total_local_profit.currency)?;
 
         total_commission.deposit(commission);
     }
@@ -126,7 +133,11 @@ fn print_results(
 
     let mut fifo_table = FifoTable::new();
 
-    for trade in stock_sells {
+    for mut trade in stock_sells {
+        if let Some(base_currency) = base_currency {
+            trade.convert(base_currency, converter)?;
+        }
+
         let commission = trade.commission.round();
         let details = trade.calculate(&country, &converter)?;
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));

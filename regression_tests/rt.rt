@@ -100,7 +100,7 @@ APP: regression_tests/investments
      all
      AGG
 
-[42]
+[420]
 NAME: Tinkoff simulate sell
 STDOUT: tinkoff-simulate-sell
 APP: regression_tests/investments
@@ -111,6 +111,20 @@ APP: regression_tests/investments
      FXUS
      all
      FXRU
+
+[421]
+NAME: Tinkoff simulate sell in USD
+STDOUT: tinkoff-simulate-sell-in-usd
+APP: regression_tests/investments
+     testdata/config
+     simulate-sell
+     tinkoff
+     all
+     FXUS
+     all
+     FXRU
+     --base-currency
+     USD
 
 [43]
 NAME: Open Broker simulate sell

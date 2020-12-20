@@ -1,4 +1,4 @@
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
@@ -96,6 +96,18 @@ impl StockSell {
         self.sources = sources;
     }
 
+    pub fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
+        self.price = converter.convert_to_cash_rounding(self.execution_date, self.price, currency)?;
+        self.volume = converter.convert_to_cash_rounding(self.execution_date, self.volume, currency)?;
+        self.commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
+
+        for source in &mut self.sources {
+            source.convert(currency, converter)?;
+        }
+
+        Ok(())
+    }
+
     pub fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
         Ok(self.calculate_impl(country, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
@@ -188,6 +200,12 @@ pub struct StockSellSource {
 }
 
 impl StockSellSource {
+    fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
+        self.price = converter.convert_to_cash_rounding(self.execution_date, self.price, currency)?;
+        self.commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
+        Ok(())
+    }
+
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
         let cost = (self.price * self.quantity).round();
         let local_cost = converter.convert_to_rounding(

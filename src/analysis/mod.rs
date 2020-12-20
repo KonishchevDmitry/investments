@@ -176,11 +176,14 @@ pub fn analyse(
     Ok((statistics, converter))
 }
 
-pub fn simulate_sell(config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)]) -> EmptyResult {
+pub fn simulate_sell(
+    config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)],
+    base_currency: Option<&str>,
+) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let statement = load_portfolio(config, portfolio, true)?;
     let (converter, quotes) = load_tools(config)?;
-    sell_simulation::simulate_sell(portfolio, statement, &converter, &quotes, positions)
+    sell_simulation::simulate_sell(portfolio, statement, &converter, &quotes, positions, base_currency)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {

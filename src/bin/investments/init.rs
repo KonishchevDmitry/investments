@@ -19,6 +19,7 @@ pub enum Action {
     SimulateSell {
         name: String,
         positions: Vec<(String, Option<Decimal>)>,
+        base_currency: Option<String>,
     },
 
     Sync(String),
@@ -72,14 +73,14 @@ pub fn initialize() -> (Action, Config) {
             .short("c")
             .long("config")
             .value_name("PATH")
-            .help(&format!("Configuration directory path [default: {}]", default_config_dir_path))
-            .takes_value(true))
+            .takes_value(true)
+            .help(&format!("Configuration directory path [default: {}]", default_config_dir_path)))
         .arg(Arg::with_name("cache_expire_time")
             .short("e")
             .long("cache-expire-time")
             .value_name("DURATION")
-            .help("Quote cache expire time (in $number{m|h|d} format)")
-            .takes_value(true))
+            .takes_value(true)
+            .help("Quote cache expire time (in $number{m|h|d} format)"))
         .arg(Arg::with_name("verbose")
             .short("v")
             .long("verbose")
@@ -131,6 +132,12 @@ pub fn initialize() -> (Action, Config) {
             .arg(portfolio::arg()))
         .subcommand(SubCommand::with_name("simulate-sell")
             .about("Simulates stock selling (calculates revenue, profit and taxes)")
+            .arg(Arg::with_name("base_currency")
+                .short("b")
+                .long("base-currency")
+                .value_name("CURRENCY")
+                .takes_value(true)
+                .help("Actual asset base currency to calculate the profit in"))
             .arg(portfolio::arg())
             .arg(Arg::with_name("POSITIONS")
                 .min_values(2)
@@ -306,7 +313,9 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
                 positions.push((symbol.to_owned(), quantity));
             }
 
-            Action::SimulateSell {name, positions}
+            let base_currency = matches.value_of("base_currency").map(ToOwned::to_owned);
+
+            Action::SimulateSell {name, positions, base_currency}
         }
 
         "tax-statement" => {
