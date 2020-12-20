@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, BTreeMap};
 use std::fs::File;
 use std::io::Read;
 
@@ -31,6 +31,10 @@ pub struct Config {
     #[serde(default)]
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
+
+    #[serde(default)]
+    pub tax_rate: BTreeMap<u32, Decimal>,  // FIXME(konishchev): Support
+
     #[serde(default)]
     pub metrics: MetricsConfig,
 
@@ -51,6 +55,7 @@ impl Config {
 
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
+            tax_rate: Default::default(),
             metrics: Default::default(),
 
             alphavantage: None,
