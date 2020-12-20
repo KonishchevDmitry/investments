@@ -53,9 +53,24 @@ impl Quotes {
     }
 
     pub fn batch(&self, symbol: &str) -> EmptyResult {
-        if self.cache.get(symbol)?.is_none() {
-            self.batched_symbols.borrow_mut().insert(symbol.to_owned());
+        let mut symbol = symbol.to_owned();
+
+        // Reverse pair quote sometimes slightly differs from `1 / pair`, but in some places we use
+        // redundant currency conversions back and forth assuming that eventual result won't differ
+        // more than rounding precision (for example in stock selling simulation when user specifies
+        // base currency to calculate the performance in).
+        //
+        // To workaround the issue we make quotes consistent here.
+        if let Ok((base, quote)) = parse_currency_pair(&symbol) {
+            if base < quote {
+                symbol = get_currency_pair(quote, base)
+            }
         }
+
+        if self.cache.get(&symbol)?.is_none() {
+            self.batched_symbols.borrow_mut().insert(symbol);
+        }
+
         Ok(())
     }
 
@@ -64,10 +79,8 @@ impl Quotes {
             return Ok(price);
         }
 
+        self.batch(symbol)?;
         let mut batched_symbols = self.batched_symbols.borrow_mut();
-        batched_symbols.insert(symbol.to_owned());
-
-        let mut price = None;
 
         for provider in &self.providers {
             let quotes = {
@@ -95,28 +108,29 @@ impl Quotes {
                     "Failed to get quotes from {}: {}", provider.name(), e))?
             };
 
-            for (other_symbol, other_price) in quotes.iter() {
-                let mut other_price = *other_price;
+            for (symbol, price) in quotes.iter() {
+                let mut price = *price;
 
                 // Some providers return stock quotes with unnecessary very high precision, so add
                 // rounding here. But don't round Forex pairs since we always round conversion
                 // result + reverse pairs always need high precision.
-                if provider.high_precision() && !is_currency_pair(other_symbol) {
-                    let rounded_price = other_price.round();
-                    let round_precision =
-                        (other_price.amount - rounded_price.amount).abs() / other_price.amount;
+                if provider.high_precision() && !is_currency_pair(symbol) {
+                    let rounded_price = price.round();
+                    let round_precision = (price.amount - rounded_price.amount).abs() / price.amount;
 
                     if round_precision < dec!(0.0001) {
-                        other_price = rounded_price;
+                        price = rounded_price;
                     }
                 };
 
-                if *other_symbol == symbol {
-                    price.replace(other_price);
+                if let Ok((base, quote)) = parse_currency_pair(&symbol) {
+                    let reverse_pair = get_currency_pair(quote, base);
+                    let reverse_price = Cash::new(base, dec!(1) / price.amount);
+                    self.cache.save(&reverse_pair, reverse_price)?;
                 }
 
-                self.cache.save(&other_symbol, other_price)?;
-                batched_symbols.remove(other_symbol);
+                self.cache.save(&symbol, price)?;
+                batched_symbols.remove(symbol);
             }
 
             if batched_symbols.is_empty() {
@@ -129,7 +143,7 @@ impl Quotes {
             return Err!("Unable to find quotes for following symbols: {}", symbols.join(", "));
         }
 
-        Ok(price.unwrap())
+        Ok(self.cache.get(symbol)?.unwrap())
     }
 }
 
