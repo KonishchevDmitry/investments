@@ -8,7 +8,6 @@ use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
-use crate::localities;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
 
@@ -86,7 +85,7 @@ pub fn analyse(
 ) -> GenericResult<(PortfolioStatistics, CurrencyConverter)> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
-    let country = localities::russia();
+    let country = config.get_tax_country();
     let (converter, quotes) = load_tools(config)?;
     let mut statistics = PortfolioStatistics::new();
 
@@ -133,7 +132,8 @@ pub fn analyse(
                 break;
             }
 
-            let details = trade.calculate(&country, &converter)?;
+            let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+            let details = trade.calculate(&country, tax_year, &converter)?;
 
             statistics.process(|statistics| {
                 let currency = &statistics.currency;
@@ -163,7 +163,7 @@ pub fn analyse(
 
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            country, &statistics.currency, &converter, include_closed_positions);
+            &country, &statistics.currency, &converter, include_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
             analyser.add(&portfolio, &statement)?;
@@ -183,7 +183,10 @@ pub fn simulate_sell(
     let portfolio = config.get_portfolio(portfolio_name)?;
     let statement = load_portfolio(config, portfolio, true)?;
     let (converter, quotes) = load_tools(config)?;
-    sell_simulation::simulate_sell(portfolio, statement, &converter, &quotes, positions, base_currency)
+
+    sell_simulation::simulate_sell(
+        &config.get_tax_country(), portfolio, statement,
+        &converter, &quotes, positions, base_currency)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {

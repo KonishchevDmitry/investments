@@ -18,7 +18,7 @@ use csv::{self, StringRecord};
 use log::{trace, warn};
 
 #[cfg(test)] use crate::brokers::Broker;
-#[cfg(test)] use crate::config::{self, Config};
+#[cfg(test)] use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::formatting::format_date;
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn parse_real_current() {
-        let tax_remapping = config::load_config("testdata/config/config.yaml").unwrap()
+        let tax_remapping = Config::load("testdata/config/config.yaml").unwrap()
             .get_portfolio("ib").unwrap().get_tax_remapping().unwrap();
         let statement = parse_full("current", Some(tax_remapping));
         let current_year = statement.period.1.year();

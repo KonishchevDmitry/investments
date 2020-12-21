@@ -2,9 +2,8 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use std::fs::File;
 use std::io::Read;
 
-use chrono::{Duration, Datelike};
+use chrono::Duration;
 use num_traits::FromPrimitive;
-use regex::Regex;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
@@ -33,7 +32,7 @@ pub struct Config {
     pub brokers: Option<BrokersConfig>,
 
     #[serde(default)]
-    pub tax_rate: BTreeMap<u32, Decimal>,  // FIXME(konishchev): Support
+    pub tax_rate: BTreeMap<i32, Decimal>,  // FIXME(konishchev): Support
 
     #[serde(default)]
     pub metrics: MetricsConfig,
@@ -62,6 +61,77 @@ impl Config {
             finnhub: None,
             twelvedata: None,
         }
+    }
+
+    pub fn load(path: &str) -> GenericResult<Config> {
+        let mut data = Vec::new();
+        File::open(path)?.read_to_end(&mut data)?;
+
+        let mut config: Config = serde_yaml::from_slice(&data)?;
+
+        for deposit in &config.deposits {
+            if deposit.open_date > deposit.close_date {
+                return Err!(
+                    "Invalid {:?} deposit dates: {} -> {}",
+                    deposit.name, formatting::format_date(deposit.open_date),
+                    formatting::format_date(deposit.close_date));
+            }
+
+            for &(date, _amount) in &deposit.contributions {
+                if date < deposit.open_date || date > deposit.close_date {
+                    return Err!(
+                        "Invalid {:?} deposit contribution date: {}",
+                        deposit.name, formatting::format_date(date));
+                }
+            }
+        }
+
+        {
+            let mut portfolio_names = HashSet::new();
+
+            for portfolio in &config.portfolios {
+                if !portfolio_names.insert(&portfolio.name) {
+                    return Err!("Duplicate portfolio name: {:?}", portfolio.name);
+                }
+
+                if let Some(ref currency) = portfolio.currency {
+                    match currency.as_str() {
+                        "RUB" | "USD" => (),
+                        _ => return Err!("Unsupported portfolio currency: {}", currency),
+                    };
+                }
+
+                for (symbol, mapping) in &portfolio.symbol_remapping {
+                    if portfolio.symbol_remapping.get(mapping).is_some() {
+                        return Err!(
+                            "Invalid symbol remapping configuration: Recursive {} symbol",
+                            symbol);
+                    }
+                }
+
+                validate_performance_merging_configuration(&portfolio.merge_performance)?;
+            }
+        }
+
+        for portfolio in &mut config.portfolios {
+            portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
+        }
+
+        for (&year, &tax_rate) in &config.tax_rate {
+            if year < 0 {
+                return Err!("Invalid tax rate year: {}", year);
+            } else if tax_rate < dec!(0) || tax_rate > dec!(100) {
+                return Err!("Invalid tax rate: {}", tax_rate);
+            }
+        }
+
+        validate_performance_merging_configuration(&config.metrics.merge_performance)?;
+
+        Ok(config)
+    }
+
+    pub fn get_tax_country(&self) -> Country {
+        localities::russia(&self.tax_rate)
     }
 
     pub fn get_portfolio(&self, name: &str) -> GenericResult<&PortfolioConfig> {
@@ -122,7 +192,7 @@ pub struct PortfolioConfig {
     #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,
 
-    #[serde(default, deserialize_with = "deserialize_tax_payment_day")]
+    #[serde(default, deserialize_with = "TaxPaymentDay::deserialize")]
     pub tax_payment_day: TaxPaymentDay,
 
     #[serde(default, deserialize_with = "deserialize_cash_flows")]
@@ -144,10 +214,6 @@ impl PortfolioConfig {
         symbols
     }
 
-    pub fn get_tax_country(&self) -> Country {
-        localities::russia()
-    }
-
     pub fn get_tax_remapping(&self) -> GenericResult<TaxRemapping> {
         let mut remapping = TaxRemapping::new();
 
@@ -156,6 +222,10 @@ impl PortfolioConfig {
         }
 
         Ok(remapping)
+    }
+
+    pub fn close_date() -> Date {
+        util::today()
     }
 }
 
@@ -265,91 +335,8 @@ pub struct TwelveDataConfig {
     pub token: String,
 }
 
-pub fn load_config(path: &str) -> GenericResult<Config> {
-    let mut data = Vec::new();
-    File::open(path)?.read_to_end(&mut data)?;
-
-    let mut config: Config = serde_yaml::from_slice(&data)?;
-
-    for deposit in &config.deposits {
-        if deposit.open_date > deposit.close_date {
-            return Err!(
-                "Invalid {:?} deposit dates: {} -> {}",
-                deposit.name, formatting::format_date(deposit.open_date),
-                formatting::format_date(deposit.close_date));
-        }
-
-        for &(date, _amount) in &deposit.contributions {
-            if date < deposit.open_date || date > deposit.close_date {
-                return Err!(
-                    "Invalid {:?} deposit contribution date: {}",
-                    deposit.name, formatting::format_date(date));
-            }
-        }
-    }
-
-    {
-        let mut portfolio_names = HashSet::new();
-
-        for portfolio in &config.portfolios {
-            if !portfolio_names.insert(&portfolio.name) {
-                return Err!("Duplicate portfolio name: {:?}", portfolio.name);
-            }
-
-            if let Some(ref currency) = portfolio.currency {
-                match currency.as_str() {
-                    "RUB" | "USD" => (),
-                    _ => return Err!("Unsupported portfolio currency: {}", currency),
-                };
-            }
-
-            for (symbol, mapping) in &portfolio.symbol_remapping {
-                if portfolio.symbol_remapping.get(mapping).is_some() {
-                    return Err!(
-                        "Invalid symbol remapping configuration: Recursive {} symbol",
-                        symbol);
-                }
-            }
-
-            validate_performance_merging_configuration(&portfolio.merge_performance)?;
-        }
-    }
-
-    for portfolio in &mut config.portfolios {
-        portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
-    }
-
-    validate_performance_merging_configuration(&config.metrics.merge_performance)?;
-
-    Ok(config)
-}
-
 fn default_expire_time() -> Duration {
     Duration::minutes(1)
-}
-
-fn deserialize_tax_payment_day<'de, D>(deserializer: D) -> Result<TaxPaymentDay, D::Error>
-    where D: Deserializer<'de>
-{
-    let tax_payment_day: String = Deserialize::deserialize(deserializer)?;
-    if tax_payment_day == "on-close" {
-        return Ok(TaxPaymentDay::OnClose);
-    }
-
-    Ok(Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {
-        let day = captures.name("day").unwrap().as_str().parse::<u32>().ok();
-        let month = captures.name("month").unwrap().as_str().parse::<u32>().ok();
-        let (day, month) = match (day, month) {
-            (Some(day), Some(month)) => (day, month),
-            _ => return None,
-        };
-
-        if Date::from_ymd_opt(util::today().year(), month, day).is_none() || (day, month) == (29, 2) {
-            return None;
-        }
-
-        Some(TaxPaymentDay::Day {month, day})
-    }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))?)
 }
 
 fn deserialize_cash_flows<'de, D>(deserializer: D) -> Result<Vec<(Date, Decimal)>, D::Error>

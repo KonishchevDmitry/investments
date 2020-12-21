@@ -6,7 +6,7 @@ use std::str::FromStr;
 use clap::{App, Arg, AppSettings, SubCommand, ArgMatches};
 use log::{self, debug, error};
 
-use investments::config::{Config, load_config};
+use investments::config::Config;
 use investments::core::GenericResult;
 use investments::types::{Date, Decimal};
 use investments::util::{self, DecimalRestrictions};
@@ -203,7 +203,7 @@ pub fn initialize() -> (Action, Config) {
     let config_dir_path = Path::new(&config_dir_path);
     let config_path = config_dir_path.join("config.yaml");
 
-    let mut config = match load_config(config_path.to_str().unwrap()) {
+    let mut config = match Config::load(config_path.to_str().unwrap()) {
         Ok(config) => config,
         Err(err) => {
             error!("Error while reading {:?} configuration file: {}.", config_path, err);

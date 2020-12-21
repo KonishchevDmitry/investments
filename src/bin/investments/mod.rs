@@ -61,7 +61,8 @@ fn run(action: Action, config: Config) -> EmptyResult {
             cash_flow::generate_cash_flow_report(&config, &name, year)?,
 
         Action::Deposits { date, cron_mode } => deposits::list(
-            config.deposits, date, cron_mode, config.notify_deposit_closing_days),
+            &config.get_tax_country(), config.deposits, date, cron_mode,
+            config.notify_deposit_closing_days),
 
         Action::Metrics(path) => metrics::collect(&config, &path)?,
     };

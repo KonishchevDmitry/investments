@@ -6,10 +6,10 @@ use crate::analysis::deposit_emulator::{DepositEmulator, Transaction};
 use crate::config::DepositConfig;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::formatting::{self, table::Style};
-use crate::localities;
+use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
-pub fn list(mut deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, notify_days: Option<u32>) {
+pub fn list(country: &Country, mut deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, notify_days: Option<u32>) {
     let mut deposits: Vec<DepositConfig> = deposits.drain(..).filter(|deposit| {
         deposit.open_date <= today
     }).collect();
@@ -20,9 +20,9 @@ pub fn list(mut deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, noti
     deposits.sort_by_key(|deposit| deposit.close_date);
 
     if cron_mode {
-        print_cron_mode(deposits, today, notify_days)
+        print_cron_mode(country, deposits, today, notify_days)
     } else {
-        print(deposits, today);
+        print(country, deposits, today);
     }
 }
 
@@ -42,13 +42,13 @@ struct Row {
     current_amount: Cash,
 }
 
-fn print(deposits: Vec<DepositConfig>, today: Date) {
+fn print(country: &Country, deposits: Vec<DepositConfig>, today: Date) {
     let mut table = Table::new();
     let mut total_amount = MultiCurrencyCashAccount::new();
     let mut total_current_amount = MultiCurrencyCashAccount::new();
 
     for deposit in deposits {
-        let (amount, current_amount) = calculate_amounts(&deposit, today);
+        let (amount, current_amount) = calculate_amounts(country, &deposit, today);
         total_amount.deposit(amount);
         total_current_amount.deposit(current_amount);
 
@@ -76,7 +76,7 @@ fn print(deposits: Vec<DepositConfig>, today: Date) {
     table.print("Open deposits");
 }
 
-fn print_cron_mode(deposits: Vec<DepositConfig>, today: Date, notify_days: Option<u32>) {
+fn print_cron_mode(country: &Country, deposits: Vec<DepositConfig>, today: Date, notify_days: Option<u32>) {
     let mut expiring_deposits = Vec::new();
     let mut closed_deposits = Vec::new();
 
@@ -93,7 +93,7 @@ fn print_cron_mode(deposits: Vec<DepositConfig>, today: Date, notify_days: Optio
     if !expiring_deposits.is_empty() {
         println!("The following deposits are about to close:");
         for deposit in &expiring_deposits {
-            print_closed_deposit(deposit);
+            print_closed_deposit(country, deposit);
         }
     }
 
@@ -104,22 +104,21 @@ fn print_cron_mode(deposits: Vec<DepositConfig>, today: Date, notify_days: Optio
 
         println!("The following deposits are closed:");
         for deposit in &closed_deposits {
-            print_closed_deposit(deposit);
+            print_closed_deposit(country, deposit);
         }
     }
 }
 
-fn print_closed_deposit(deposit: &DepositConfig) {
-    let (amount, close_amount) = calculate_amounts(deposit, deposit.close_date);
+fn print_closed_deposit(country: &Country, deposit: &DepositConfig) {
+    let (amount, close_amount) = calculate_amounts(country, deposit, deposit.close_date);
     println!(
         "• {date} {name}: {amount} -> {close_amount}",
         date=formatting::format_date(deposit.close_date), name=deposit.name, amount=amount,
         close_amount=close_amount);
 }
 
-fn calculate_amounts(deposit: &DepositConfig, today: Date) -> (Cash, Cash) {
-    let currency = deposit.currency.as_ref().map_or_else(
-        || localities::russia().currency, String::as_str);
+fn calculate_amounts(country: &Country, deposit: &DepositConfig, today: Date) -> (Cash, Cash) {
+    let currency = deposit.currency.as_ref().map_or(country.currency, String::as_str);
 
     let mut contributions = vec![(deposit.open_date, deposit.amount)];
     contributions.extend(&deposit.contributions);

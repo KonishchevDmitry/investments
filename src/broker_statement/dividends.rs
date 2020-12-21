@@ -9,6 +9,7 @@ use crate::types::{Date, Decimal};
 
 use super::payments::Payments;
 use super::taxes::{TaxId, TaxAccruals};
+use chrono::Datelike;
 
 #[derive(Debug)]
 pub struct Dividend {
@@ -21,13 +22,13 @@ pub struct Dividend {
 impl Dividend {
     pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
-        Ok(country.tax_to_pay(amount, None))
+        Ok(country.tax_to_pay(self.date.year(), amount, None))
     }
 
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
         let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
         let paid_tax = converter.convert_to_rounding(self.date, self.paid_tax, country.currency)?;
-        Ok(country.tax_to_pay(amount, Some(paid_tax)))
+        Ok(country.tax_to_pay(self.date.year(), amount, Some(paid_tax)))
     }
 
     pub fn description(&self) -> String {

@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::ops::AddAssign;
+
 use chrono::Datelike;
 use static_table_derive::StaticTable;
 
@@ -14,10 +17,9 @@ use crate::types::{Date, Decimal};
 use super::statement::TaxStatement;
 
 pub fn process_income(
-    portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
-    mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
+    country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement,
+    year: Option<i32>, mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> EmptyResult {
-    let country = portfolio.get_tax_country();
     let mut processor = TradesProcessor {
         portfolio,
         broker_statement,
@@ -32,19 +34,21 @@ pub fn process_income(
         same_dates: true,
         same_currency: true,
         stock_splits: false,
-        total_local_profit: Cash::new(country.currency, dec!(0)),
+        total_local_profit: HashMap::new(),
     };
 
     let mut trade_id = 0;
 
     for trade in &broker_statement.stock_sells {
+        let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+
         if let Some(year) = year {
-            if trade.execution_date.year() != year {
+            if tax_year != year {
                 continue;
             }
         }
 
-        let details = trade.calculate(&country, converter)?;
+        let details = trade.calculate(&country, tax_year, converter)?;
         processor.process_trade(trade_id, trade, &details)?;
 
         if let Some(ref mut tax_statement) = tax_statement {
@@ -66,7 +70,7 @@ struct TradesProcessor<'a> {
     broker_statement: &'a BrokerStatement,
     year: Option<i32>,
 
-    country: Country,
+    country: &'a Country,
     converter: &'a CurrencyConverter,
 
     trades_table: TradesTable,
@@ -75,7 +79,7 @@ struct TradesProcessor<'a> {
     same_dates: bool,
     same_currency: bool,
     stock_splits: bool,
-    total_local_profit: Cash,
+    total_local_profit: HashMap<i32, Decimal>,
 }
 
 #[derive(StaticTable)]
@@ -178,7 +182,9 @@ impl<'a> TradesProcessor<'a> {
         self.same_dates &= trade.execution_date == trade.conclusion_date;
         self.same_currency &= trade.price.currency == self.country.currency &&
             trade.commission.currency == self.country.currency;
-        self.total_local_profit.add_assign(details.local_profit).unwrap();
+
+        self.total_local_profit.entry(trade.execution_date.year()).or_default()
+            .add_assign(details.local_profit.amount);
 
         let conclusion_currency_rate = self.converter.precise_currency_rate(
             trade.conclusion_date, trade.commission.currency, self.country.currency)?;
@@ -278,17 +284,24 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.hide_multiplier()
         }
 
-        let mut totals = self.trades_table.add_empty_row();
-        totals.set_local_profit(self.total_local_profit);
+        let total_local_profit = self.total_local_profit.values().copied().sum();
+        let total_tax_to_pay = match self.portfolio.tax_payment_day {
+            TaxPaymentDay::Day {..} => Some(self.total_local_profit.iter().map(|(&year, &profit)| {
+                self.country.tax_to_pay(year, profit, None)
+            }).sum()),
 
-        let show_net_tax = match self.portfolio.tax_payment_day {
-            TaxPaymentDay::Day {..} => self.year.is_some(),
-            TaxPaymentDay::OnClose => self.year.is_none(),
+            TaxPaymentDay::OnClose(date) => if self.year.is_none() {
+                Some(self.country.tax_to_pay(date.year(), total_local_profit, None))
+            } else {
+                None
+            },
         };
 
-        if show_net_tax {
-            let tax_to_pay = self.country.tax_to_pay(self.total_local_profit.amount, None);
-            totals.set_tax_to_pay(Cash::new(self.country.currency, tax_to_pay));
+        let mut totals = self.trades_table.add_empty_row();
+        totals.set_local_profit(Cash::new(self.country.currency, total_local_profit));
+
+        if let Some(total_tax_to_pay) = total_tax_to_pay {
+            totals.set_tax_to_pay(Cash::new(self.country.currency, total_tax_to_pay));
         }
 
         self.trades_table.print(&format!(

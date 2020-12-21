@@ -108,13 +108,13 @@ impl StockSell {
         Ok(())
     }
 
-    pub fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
-        Ok(self.calculate_impl(country, converter).map_err(|e| format!(
+    pub fn calculate(&self, country: &Country, tax_year: i32, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
+        Ok(self.calculate_impl(country, tax_year, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
             self.symbol, formatting::format_date(self.conclusion_date), e))?)
     }
 
-    fn calculate_impl(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
+    fn calculate_impl(&self, country: &Country, tax_year: i32, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
         let revenue = self.volume.round();
         let local_revenue = converter.convert_to_cash_rounding(
             self.execution_date, revenue, country.currency)?;
@@ -149,7 +149,8 @@ impl StockSell {
             "Sell and buy trade have different currency: {}", e))?;
 
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
-        let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(local_profit.amount, None));
+        let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
+            tax_year, local_profit.amount, None));
 
         let real_tax_ratio = if profit.is_zero() {
             None

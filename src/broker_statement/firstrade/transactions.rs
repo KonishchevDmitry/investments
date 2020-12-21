@@ -13,6 +13,7 @@ use crate::util::{self, DecimalRestrictions};
 use super::StatementParser;
 use super::common::{Ignore, deserialize_date, deserialize_decimal, validate_sub_account};
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
+use chrono::Datelike;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -315,7 +316,7 @@ impl IncomeInfo {
         let foreign_country = localities::us();
         let amount = foreign_country.deduce_income(income);
         let paid_tax = amount - income;
-        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(amount, None));
+        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(date.year(), amount, None));
 
         parser.statement.dividends.push(Dividend {
             date: date,

@@ -23,7 +23,7 @@ use super::portfolio_analysis::{
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
 pub struct PortfolioPerformanceAnalyser<'a> {
     today: Date,
-    country: Country,
+    country: &'a Country,
     currency: &'a str,
     converter: &'a CurrencyConverter,
     include_closed_positions: bool,
@@ -36,7 +36,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
-        country: Country, currency: &'a str, converter: &'a CurrencyConverter,
+        country: &'a Country, currency: &'a str, converter: &'a CurrencyConverter,
         include_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
@@ -256,57 +256,59 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_positions(&mut self, statement: &BrokerStatement, portfolio: &PortfolioConfig) -> EmptyResult {
-        let mut taxes = NetTaxCalculator::new(self.country, portfolio.tax_payment_day);
+        let mut taxes = NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day);
         let mut stock_taxes = HashMap::new();
 
-        for stock_buy in &statement.stock_buys {
+        for trade in &statement.stock_buys {
             let multiplier = statement.stock_splits.get_multiplier(
-                &stock_buy.symbol, stock_buy.conclusion_date, self.today);
+                &trade.symbol, trade.conclusion_date, self.today);
 
             let commission = self.converter.convert_to(
-                stock_buy.conclusion_date, stock_buy.commission, self.currency)?;
+                trade.conclusion_date, trade.commission, self.currency)?;
             self.income_structure.commissions += commission;
 
             let mut assets = self.converter.convert_to(
-                stock_buy.execution_date, stock_buy.volume, self.currency)?;
+                trade.execution_date, trade.volume, self.currency)?;
             assets += commission;
 
-            let deposit_view = self.get_deposit_view(&stock_buy.symbol);
-            deposit_view.trade(stock_buy.conclusion_date, multiplier * stock_buy.quantity);
-            deposit_view.transaction(stock_buy.conclusion_date, assets);
+            let deposit_view = self.get_deposit_view(&trade.symbol);
+            deposit_view.trade(trade.conclusion_date, multiplier * trade.quantity);
+            deposit_view.transaction(trade.conclusion_date, assets);
         }
 
-        for stock_sell in &statement.stock_sells {
+        for trade in &statement.stock_sells {
             let multiplier = statement.stock_splits.get_multiplier(
-                &stock_sell.symbol, stock_sell.conclusion_date, self.today);
+                &trade.symbol, trade.conclusion_date, self.today);
 
             let assets = self.converter.convert_to(
-                stock_sell.execution_date, stock_sell.volume, self.currency)?;
+                trade.execution_date, trade.volume, self.currency)?;
 
             let commission = self.converter.convert_to(
-                stock_sell.conclusion_date, stock_sell.commission, self.currency)?;
+                trade.conclusion_date, trade.commission, self.currency)?;
             self.income_structure.commissions += commission;
 
             {
-                let deposit_view = self.get_deposit_view(&stock_sell.symbol);
+                let deposit_view = self.get_deposit_view(&trade.symbol);
 
-                deposit_view.trade(stock_sell.conclusion_date, multiplier * -stock_sell.quantity);
-                deposit_view.transaction(stock_sell.conclusion_date, -assets);
-                deposit_view.transaction(stock_sell.conclusion_date, commission);
+                deposit_view.trade(trade.conclusion_date, multiplier * -trade.quantity);
+                deposit_view.transaction(trade.conclusion_date, -assets);
+                deposit_view.transaction(trade.conclusion_date, commission);
 
                 deposit_view.last_sell_volume.replace(assets);
-                if stock_sell.emulation {
+                if trade.emulation {
                     deposit_view.closed = false;
                 }
             }
 
-            let local_profit = stock_sell.calculate(&self.country, self.converter)?.local_profit.amount;
+            let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+            let details = trade.calculate(&self.country, tax_year, self.converter)?;
+            let local_profit = details.local_profit.amount;
 
-            stock_taxes.entry(&stock_sell.symbol)
-                .or_insert_with(|| NetTaxCalculator::new(self.country, portfolio.tax_payment_day))
-                .add_profit(stock_sell.execution_date, local_profit);
+            stock_taxes.entry(&trade.symbol)
+                .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day))
+                .add_profit(trade.execution_date, local_profit);
 
-            taxes.add_profit(stock_sell.execution_date, local_profit);
+            taxes.add_profit(trade.execution_date, local_profit);
         }
 
         for (&symbol, symbol_taxes) in stock_taxes.iter() {
@@ -342,7 +344,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             self.income_structure.dividends += income;
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
-            let tax_payment_date = portfolio.tax_payment_day.get(dividend.date);
+            let (_, tax_payment_date) = portfolio.tax_payment_day.get(dividend.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} {} dividend {} tax: {}",
@@ -364,7 +366,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 interest.date, interest.amount, self.currency)?;
 
             let tax_to_pay = interest.tax_to_pay(&self.country, self.converter)?;
-            let tax_payment_date = portfolio.tax_payment_day.get(interest.date);
+            let (_, tax_payment_date) = portfolio.tax_payment_day.get(interest.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} idle cash interest {} tax: {}",

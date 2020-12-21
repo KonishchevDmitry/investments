@@ -2,11 +2,11 @@ use chrono::Datelike;
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
-use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
+use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
@@ -30,11 +30,10 @@ struct Row {
 }
 
 pub fn process_income(
-    portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
+    country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> EmptyResult {
     let mut table = Table::new();
-    let country = portfolio.get_tax_country();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
     let mut total_amount = dec!(0);

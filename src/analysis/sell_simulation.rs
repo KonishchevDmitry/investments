@@ -13,8 +13,9 @@ use crate::types::Decimal;
 use crate::util;
 
 pub fn simulate_sell(
-    portfolio: &PortfolioConfig, mut statement: BrokerStatement, converter: &CurrencyConverter,
-    quotes: &Quotes, positions: &[(String, Option<Decimal>)], base_currency: Option<&str>,
+    country: &Country, portfolio: &PortfolioConfig, mut statement: BrokerStatement,
+    converter: &CurrencyConverter, quotes: &Quotes,
+    positions: &[(String, Option<Decimal>)], base_currency: Option<&str>,
 ) -> EmptyResult {
     for (symbol, _) in positions {
         if statement.open_positions.get(symbol).is_none() {
@@ -44,8 +45,7 @@ pub fn simulate_sell(
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(
-        stock_sells, additional_commissions, &portfolio.get_tax_country(), converter, base_currency)
+    print_results(country, portfolio, stock_sells, additional_commissions, converter, base_currency)
 }
 
 #[derive(StaticTable)]
@@ -91,8 +91,9 @@ struct FifoRow {
 }
 
 fn print_results(
+    country: &Country, portfolio: &PortfolioConfig,
     stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
-    country: &Country, converter: &CurrencyConverter, base_currency: Option<&str>,
+    converter: &CurrencyConverter, base_currency: Option<&str>,
 ) -> EmptyResult {
     let same_currency = stock_sells.iter().all(|trade| {
         base_currency.unwrap_or(trade.price.currency) == country.currency &&
@@ -100,6 +101,7 @@ fn print_results(
     });
 
     let conclusion_date = util::today_trade_conclusion_date();
+    let execution_date = util::today_trade_execution_date();
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_local_revenue = Cash::new(country.currency, dec!(0));
@@ -139,7 +141,8 @@ fn print_results(
         }
 
         let commission = trade.commission.round();
-        let details = trade.calculate(&country, &converter)?;
+        let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+        let details = trade.calculate(&country, tax_year, &converter)?;
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         total_commission.deposit(commission);
@@ -181,7 +184,9 @@ fn print_results(
         });
     }
 
-    let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(total_local_profit.amount, None));
+    let (tax_year, _) = portfolio.tax_payment_day.get(execution_date, true);
+    let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
+        tax_year, total_local_profit.amount, None));
 
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);

@@ -14,6 +14,7 @@ mod trades;
 pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
 ) -> EmptyResult {
+    let country = config.get_tax_country();
     let portfolio = config.get_portfolio(portfolio_name)?;
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
 
@@ -43,13 +44,13 @@ pub fn generate_tax_statement(
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, None, true);
 
-    trades::process_income(&portfolio, &broker_statement, year, tax_statement.as_mut(), &converter)
+    trades::process_income(&country, &portfolio, &broker_statement, year, tax_statement.as_mut(), &converter)
         .map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
-    dividends::process_income(&portfolio, &broker_statement, year, tax_statement.as_mut(), &converter)
+    dividends::process_income(&country, &broker_statement, year, tax_statement.as_mut(), &converter)
         .map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
-    interest::process_income(&portfolio, &broker_statement, year, tax_statement.as_mut(), &converter)
+    interest::process_income(&country, &broker_statement, year, tax_statement.as_mut(), &converter)
         .map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
     if let Some(ref tax_statement) = tax_statement {

@@ -1,3 +1,6 @@
+use std::collections::BTreeMap;
+use std::ops::Bound;
+
 use chrono::{Datelike, Duration};
 
 use num_traits::Zero;
@@ -5,10 +8,11 @@ use num_traits::Zero;
 use crate::currency;
 use crate::types::{Date, Decimal};
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Country {
     pub currency: &'static str,
-    tax_rate: Decimal,
+    tax_rates: BTreeMap<i32, Decimal>,
+    default_tax_rate: Decimal,
     tax_precision: u32,
 }
 
@@ -31,14 +35,14 @@ impl Country {
         currency::round_to(currency::round(tax), self.tax_precision)
     }
 
-    pub fn tax_to_pay(&self, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+    pub fn tax_to_pay(&self, year: i32, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
         let income = currency::round(income);
 
         if income.is_sign_negative() || income.is_zero() {
             return dec!(0);
         }
 
-        let tax_to_pay = self.round_tax(income * self.tax_rate);
+        let tax_to_pay = self.round_tax(income * self.tax_rate(year));
 
         if let Some(paid_tax) = paid_tax {
             assert!(!paid_tax.is_sign_negative());
@@ -55,22 +59,31 @@ impl Country {
     }
 
     pub fn deduce_income(&self, result_income: Decimal) -> Decimal {
-        currency::round(result_income / (dec!(1) - self.tax_rate))
+        currency::round(result_income / (dec!(1) - self.default_tax_rate))
+    }
+
+    fn tax_rate(&self, year: i32) -> Decimal {
+        self.tax_rates
+            .range((Bound::Unbounded, Bound::Included(year)))
+            .map(|entry| *entry.1)
+            .last().unwrap_or(self.default_tax_rate)
     }
 }
 
-pub fn russia() -> Country {
+pub fn russia(tax_rates: &BTreeMap<i32, Decimal>) -> Country {
     Country {
         currency: "RUB",
-        tax_rate: Decimal::new(13, 2),
-        tax_precision: 0,
+        tax_rates: tax_rates.iter().map(|(&year, &rate)| (year, rate / dec!(100))).collect(),
+        default_tax_rate: Decimal::new(13, 2),
+        tax_precision: 0
     }
 }
 
 pub fn us() -> Country {
     Country {
         currency: "USD",
-        tax_rate: Decimal::new(10, 2),
+        tax_rates: BTreeMap::new(),
+        default_tax_rate: Decimal::new(10, 2),
         tax_precision: 2,
     }
 }

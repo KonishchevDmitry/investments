@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::default::Default;
 
 use chrono::Datelike;
-use lazy_static::lazy_static;
+use regex::Regex;
+use serde::Deserialize;
+use serde::de::{Deserializer, Error};
 
 use crate::core::EmptyResult;
 use crate::currency;
@@ -14,7 +16,7 @@ use crate::util;
 #[derive(Debug, Clone, Copy)]
 pub enum TaxPaymentDay {
     Day {month: u32, day: u32},
-    OnClose,
+    OnClose(Date),
 }
 
 impl Default for TaxPaymentDay {
@@ -27,16 +29,46 @@ impl Default for TaxPaymentDay {
 }
 
 impl TaxPaymentDay {
-    /// Returns an approximate date when tax is going to be paid for the specified income
-    pub fn get(&self, income_date: Date) -> Date {
-        lazy_static! {
-            static ref ACCOUNT_CLOSE_DATE: Date = Date::from_ymd(util::today().year() + 10, 1, 1);
+    /// Returns tax year and an approximate date when tax is going to be paid for the specified income
+    pub fn get(&self, income_date: Date, trading: bool) -> (i32, Date) {
+        match *self {
+            TaxPaymentDay::Day {month, day} => {
+                (income_date.year(), Date::from_ymd(income_date.year() + 1, month, day))
+            },
+            TaxPaymentDay::OnClose(close_date) => {
+                assert!(income_date <= close_date);
+
+                if trading {
+                    (close_date.year(), close_date)
+                } else {
+                    TaxPaymentDay::default().get(income_date, trading)
+                }
+            },
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<TaxPaymentDay, D::Error>
+        where D: Deserializer<'de>
+    {
+        let tax_payment_day: String = Deserialize::deserialize(deserializer)?;
+        if tax_payment_day == "on-close" {
+            return Ok(TaxPaymentDay::OnClose(Date::from_ymd(util::today().year() + 10, 1, 1)));
         }
 
-        match *self {
-            TaxPaymentDay::Day {month, day} => Date::from_ymd(income_date.year() + 1, month, day),
-            TaxPaymentDay::OnClose => *ACCOUNT_CLOSE_DATE,
-        }
+        Ok(Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {
+            let day = captures.name("day").unwrap().as_str().parse::<u32>().ok();
+            let month = captures.name("month").unwrap().as_str().parse::<u32>().ok();
+            let (day, month) = match (day, month) {
+                (Some(day), Some(month)) => (day, month),
+                _ => return None,
+            };
+
+            if Date::from_ymd_opt(util::today().year(), month, day).is_none() || (day, month) == (29, 2) {
+                return None;
+            }
+
+            Some(TaxPaymentDay::Day {month, day})
+        }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))?)
     }
 }
 
@@ -85,7 +117,7 @@ impl TaxRemapping {
 pub struct NetTaxCalculator {
     country: Country,
     tax_payment_day: TaxPaymentDay,
-    profit: HashMap<Date, Decimal>,
+    profit: HashMap<(i32, Date), Decimal>,
 }
 
 impl NetTaxCalculator {
@@ -99,7 +131,7 @@ impl NetTaxCalculator {
 
     pub fn add_profit(&mut self, date: Date, amount: Decimal) {
         let amount = currency::round(amount);
-        self.profit.entry(self.tax_payment_day.get(date))
+        self.profit.entry(self.tax_payment_day.get(date, true))
             .and_modify(|profit| *profit += amount)
             .or_insert(amount);
     }
@@ -108,11 +140,10 @@ impl NetTaxCalculator {
         let mut taxes = HashMap::new();
         let mut years = HashSet::new();
 
-        for (&tax_payment_date, &profit) in self.profit.iter() {
-            let year = tax_payment_date.year();
-            assert!(years.insert(year)); // Ensure that we have only one tax payment date per year
+        for (&(tax_year, tax_payment_date), &profit) in self.profit.iter() {
+            assert!(years.insert(tax_year)); // Ensure that we have only one tax payment per year
 
-            let tax_to_pay = self.country.tax_to_pay(profit, None);
+            let tax_to_pay = self.country.tax_to_pay(tax_year, profit, None);
             assert_eq!(taxes.insert(tax_payment_date, tax_to_pay), None);
         }
 
