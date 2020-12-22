@@ -15,13 +15,15 @@ use super::transactions::Transactions;
 pub struct StatementParser<'a> {
     pub reader: &'a mut StatementReader,
     pub statement: PartialBrokerStatement,
+    is_last: bool,
 }
 
 impl<'a> StatementParser<'a> {
-    pub fn parse(reader: &mut StatementReader, statement: OFX) -> GenericResult<PartialBrokerStatement> {
+    pub fn parse(reader: &mut StatementReader, statement: OFX, is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut parser = StatementParser {
             reader,
             statement: PartialBrokerStatement::new(),
+            is_last,
         };
         statement.parse(&mut parser)?;
         parser.statement.validate()
@@ -78,6 +80,11 @@ struct Report {
 
 impl OFX {
     pub fn parse(self, parser: &mut StatementParser) -> EmptyResult {
+        // Attention:
+        //
+        // Firstrade reports contain transactions for the specified period, but balance and open
+        // positions are always calculated for the statement generation date.
+
         let report = self.statement.response.report;
         let currency = report.currency;
         let transactions = report.transactions;
@@ -85,22 +92,21 @@ impl OFX {
         let (start_date, end_date) = util::parse_period(
             transactions.start_date, transactions.end_date)?;
 
-        if report.date < start_date || end_date <= report.date {
-            // The report contains transactions for the specified period, but balance and open
-            // positions info - for the statement generation date.
-            return Err!(concat!(
-                "Firstrade reports always must be generated for the period starting from account ",
-                "opening date until the date when the report is generated"))
+        if parser.is_last && end_date <= report.date {
+            return Err!("Last Firstrade report must include the day when the report was generated")
         }
-
         parser.statement.set_period((start_date, end_date))?;
 
         parser.statement.set_starting_assets(false)?;
-        report.balance.parse(parser, &currency)?;
+        if parser.is_last {
+            report.balance.parse(parser, &currency)?;
+        }
 
         let securities = self.security_info.parse()?;
         transactions.parse(parser, &currency, &securities)?;
-        report.open_positions.parse(parser, &securities)?;
+        if parser.is_last {
+            report.open_positions.parse(parser, &securities)?;
+        }
 
         Ok(())
     }

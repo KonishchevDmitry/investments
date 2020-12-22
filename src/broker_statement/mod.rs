@@ -401,8 +401,12 @@ impl BrokerStatement {
         self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
 
-        self.cash_assets = statement.cash_assets.clone();
-        assert!(self.historical_cash_assets.insert(self.last_date(), statement.cash_assets).is_none());
+        if !statement.cash_assets.is_empty() {
+            assert!(self.historical_cash_assets.insert(
+                self.last_date(), statement.cash_assets.clone()
+            ).is_none());
+        }
+        self.cash_assets = statement.cash_assets;
 
         self.fees.extend(statement.fees.drain(..));
         self.cash_flows.extend(statement.cash_flows.drain(..));
@@ -471,6 +475,10 @@ impl BrokerStatement {
             min_date: self.period.0,
             max_date: self.last_date(),
         };
+
+        if self.cash_assets.is_empty() {
+            return Err!("Unable to find any information about current cash assets");
+        }
 
         date_validator.sort_and_validate(
             "cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;

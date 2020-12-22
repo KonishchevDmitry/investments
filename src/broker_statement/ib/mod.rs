@@ -68,7 +68,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(!is_confirmation_report)
     }
 
-    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
             statement: PartialBrokerStatement::new(),
 
@@ -344,6 +344,6 @@ mod tests {
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(TaxRemapping::new(), true).unwrap().read(&path).unwrap();
+        StatementReader::new(TaxRemapping::new(), true).unwrap().read(&path, true).unwrap();
     }
 }

@@ -25,7 +25,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".xml"))
     }
 
-    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut statement = PartialBrokerStatement::new();
         read_statement(path)?.parse(&mut statement)?;
         statement.validate()

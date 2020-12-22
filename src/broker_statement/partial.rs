@@ -19,7 +19,6 @@ pub struct PartialBrokerStatement {
 
     pub starting_assets: Option<bool>,
     pub cash_flows: Vec<CashAssets>,
-    pub cash_assets: MultiCurrencyCashAccount,
 
     pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
@@ -29,12 +28,15 @@ pub struct PartialBrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
+    pub instrument_names: HashMap<String, String>,
     pub corporate_actions: Vec<CorporateAction>,
     pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub tax_accruals: HashMap<TaxId, TaxAccruals>,
 
+    // Please note that some brokers (Firstrade) provide this information only for the last
+    // statement (current date).
+    pub cash_assets: MultiCurrencyCashAccount,
     pub open_positions: HashMap<String, Decimal>,
-    pub instrument_names: HashMap<String, String>,
 }
 
 impl PartialBrokerStatement {
@@ -44,7 +46,6 @@ impl PartialBrokerStatement {
 
             starting_assets: None,
             cash_flows: Vec::new(),
-            cash_assets: MultiCurrencyCashAccount::new(),
 
             fees: Vec::new(),
             idle_cash_interest: Vec::new(),
@@ -54,12 +55,13 @@ impl PartialBrokerStatement {
             stock_sells: Vec::new(),
             dividends: Vec::new(),
 
+            instrument_names: HashMap::new(),
             corporate_actions: Vec::new(),
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
 
+            cash_assets: MultiCurrencyCashAccount::new(),
             open_positions: HashMap::new(),
-            instrument_names: HashMap::new(),
         }
     }
 
@@ -98,10 +100,6 @@ impl PartialBrokerStatement {
         }
 
         self.get_starting_assets()?;
-
-        if self.cash_assets.is_empty() {
-            return Err!("Unable to find any information about current cash assets");
-        }
 
         Ok(self)
     }

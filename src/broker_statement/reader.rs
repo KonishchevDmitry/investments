@@ -10,7 +10,7 @@ use super::PartialBrokerStatement;
 
 pub trait BrokerStatementReader {
     fn is_statement(&self, path: &str) -> GenericResult<bool>;
-    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement>;
+    fn read(&mut self, path: &str, is_last: bool) -> GenericResult<PartialBrokerStatement>;
     #[allow(clippy::boxed_local)]
     fn close(self: Box<Self>) -> EmptyResult { Ok(()) }
 }
@@ -38,11 +38,13 @@ pub fn read(
 
     let mut statements = Vec::new();
 
-    for file_name in &file_names {
+    for (id, file_name) in file_names.iter().enumerate() {
+        let is_last = id == file_names.len() - 1;
+
         let path = Path::new(statement_dir_path).join(file_name);
         let path = path.to_str().unwrap();
 
-        let statement = statement_reader.read(path).map_err(|e| format!(
+        let statement = statement_reader.read(path, is_last).map_err(|e| format!(
             "Error while reading {:?} broker statement: {}", path, e))?;
 
         statements.push(statement);

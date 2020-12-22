@@ -33,7 +33,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".xls"))
     }
 
-    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
 
         XlsStatementParser::read(path, parser, vec![

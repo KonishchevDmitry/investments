@@ -36,8 +36,8 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".ofx"))
     }
 
-    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
-        StatementParser::parse(self, read_statement(path)?)
+    fn read(&mut self, path: &str, is_last: bool) -> GenericResult<PartialBrokerStatement> {
+        StatementParser::parse(self, read_statement(path)?, is_last)
     }
 }
 

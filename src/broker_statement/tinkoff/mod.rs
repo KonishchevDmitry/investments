@@ -39,7 +39,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(path.ends_with(".xlsx"))
     }
 
-    fn read(&mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let sheet_parser = Box::new(StatementSheetParser{});
         let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
 
