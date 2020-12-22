@@ -54,7 +54,7 @@ serde = { version = "1.0.118", features = ["derive"] }
 serde_json = "1.0.60"
 serde_yaml = "0.8.14"
 serde-xml-rs = "0.4.0"
-shellexpand = "2.0.0"
+shellexpand = "2.1.0"
 
 diesel = { version = "1.4.5", features = ["sqlite", "chrono"] }
 diesel-derive-enum = { version = "1.1.0", features = ["sqlite"] }
@@ -62,8 +62,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.19.0", features = ["bundled"] }
 
-static_table_derive = "0.1.12"
-xls_table_derive = "0.3.6"
+static_table_derive = "0.1.14"
+xls_table_derive = "0.3.7"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
