@@ -41,7 +41,7 @@ fn run(action: Action, config: Config) -> EmptyResult {
             statistics.print();
         },
         Action::SimulateSell {name, positions, base_currency} => analysis::simulate_sell(
-            &config, &name, &positions, base_currency.as_deref())?,
+            &config, &name, positions, base_currency.as_deref())?,
 
         Action::Sync(name) => portfolio::sync(&config, &name)?,
         Action::Buy {name, shares, symbol, cash_assets} =>

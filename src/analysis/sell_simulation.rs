@@ -15,11 +15,18 @@ use crate::util;
 pub fn simulate_sell(
     country: &Country, portfolio: &PortfolioConfig, mut statement: BrokerStatement,
     converter: &CurrencyConverter, quotes: &Quotes,
-    positions: &[(String, Option<Decimal>)], base_currency: Option<&str>,
+    mut positions: Vec<(String, Option<Decimal>)>, base_currency: Option<&str>,
 ) -> EmptyResult {
-    for (symbol, _) in positions {
-        if statement.open_positions.get(symbol).is_none() {
-            return Err!("The portfolio has no open {:?} positions", symbol);
+    if positions.is_empty() {
+        positions = statement.open_positions.keys()
+            .map(|symbol| (symbol.to_owned(), None))
+            .collect();
+        positions.sort();
+    } else {
+        for (symbol, _) in &positions {
+            if statement.open_positions.get(symbol).is_none() {
+                return Err!("The portfolio has no open {:?} positions", symbol);
+            }
         }
     }
 
@@ -27,7 +34,7 @@ pub fn simulate_sell(
     let mut commission_calc = CommissionCalc::new(
         converter, statement.broker.commission_spec.clone(), net_value)?;
 
-    for (symbol, quantity) in positions {
+    for (symbol, quantity) in &positions {
         let quantity = *match quantity {
             Some(quantity) => quantity,
             None => statement.open_positions.get(symbol).ok_or_else(|| format!(

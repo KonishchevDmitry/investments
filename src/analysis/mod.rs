@@ -177,7 +177,7 @@ pub fn analyse(
 }
 
 pub fn simulate_sell(
-    config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)],
+    config: &Config, portfolio_name: &str, positions: Vec<(String, Option<Decimal>)>,
     base_currency: Option<&str>,
 ) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;

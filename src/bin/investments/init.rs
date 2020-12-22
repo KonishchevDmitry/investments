@@ -140,7 +140,7 @@ pub fn initialize() -> (Action, Config) {
                 .help("Actual asset base currency to calculate the profit in"))
             .arg(portfolio::arg())
             .arg(Arg::with_name("POSITIONS")
-                .min_values(2)
+                .multiple(true)
                 .help("Positions to sell in $quantity|all $symbol format")))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
@@ -293,27 +293,27 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
             flat: matches.is_present("flat"),
         },
         "simulate-sell" => {
-            let mut positions = Vec::new();
-            let mut positions_spec_iter = matches.values_of("POSITIONS").unwrap();
-
-            while let Some(quantity) = positions_spec_iter.next() {
-                let quantity = if quantity == "all" {
-                    None
-                } else {
-                    Some(util::parse_decimal(
-                        quantity, DecimalRestrictions::StrictlyPositive
-                    ).map_err(|_| format!(
-                        "Invalid positions specification: Invalid quantity: {:?}", quantity)
-                    )?)
-                };
-
-                let symbol = positions_spec_iter.next().ok_or(
-                    "Invalid positions specification: Even number of arguments is expected")?;
-
-                positions.push((symbol.to_owned(), quantity));
-            }
-
             let base_currency = matches.value_of("base_currency").map(ToOwned::to_owned);
+
+            let mut positions = Vec::new();
+            if let Some(mut positions_spec_iter) = matches.values_of("POSITIONS") {
+                while let Some(quantity) = positions_spec_iter.next() {
+                    let quantity = if quantity == "all" {
+                        None
+                    } else {
+                        Some(util::parse_decimal(
+                            quantity, DecimalRestrictions::StrictlyPositive
+                        ).map_err(|_| format!(
+                            "Invalid positions specification: Invalid quantity: {:?}", quantity)
+                        )?)
+                    };
+
+                    let symbol = positions_spec_iter.next().ok_or(
+                        "Invalid positions specification: Even number of arguments is expected")?;
+
+                    positions.push((symbol.to_owned(), quantity));
+                }
+            }
 
             Action::SimulateSell {name, positions, base_currency}
         }
