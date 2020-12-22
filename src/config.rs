@@ -32,7 +32,7 @@ pub struct Config {
     pub brokers: Option<BrokersConfig>,
 
     #[serde(default)]
-    pub tax_rate: BTreeMap<i32, Decimal>,  // FIXME(konishchev): Support
+    pub tax_rate: BTreeMap<i32, Decimal>,
 
     #[serde(default)]
     pub metrics: MetricsConfig,
