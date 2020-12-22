@@ -9,7 +9,7 @@ use serde::de::{Deserializer, Error};
 use crate::core::EmptyResult;
 use crate::currency;
 use crate::formatting::format_date;
-use crate::localities::Country;
+use crate::localities::{self, Country};
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -52,7 +52,7 @@ impl TaxPaymentDay {
     {
         let tax_payment_day: String = Deserialize::deserialize(deserializer)?;
         if tax_payment_day == "on-close" {
-            return Ok(TaxPaymentDay::OnClose(Date::from_ymd(util::today().year() + 10, 1, 1)));
+            return Ok(TaxPaymentDay::OnClose(localities::nearest_possible_account_close_date()));
         }
 
         Ok(Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {

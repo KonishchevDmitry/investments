@@ -7,6 +7,7 @@ use num_traits::Zero;
 
 use crate::currency;
 use crate::types::{Date, Decimal};
+use crate::util;
 
 #[derive(Clone)]
 pub struct Country {
@@ -109,4 +110,15 @@ pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     } else {
         today - Duration::days(3)
     }
+}
+
+pub fn nearest_possible_account_close_date() -> Date {
+    let execution_date = util::today_trade_execution_date();
+
+    let mut close_date = execution_date;
+    while get_russian_stock_exchange_min_last_working_day(close_date) < execution_date {
+        close_date += Duration::days(1);
+    }
+
+    close_date
 }
