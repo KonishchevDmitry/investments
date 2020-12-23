@@ -204,14 +204,13 @@ APP: regression_tests/investments
      rebalance
      bcs
 
-# FIXME(konishchev): Enable after performance issues fixes
-# [55]
-# NAME: IIA-B rebalance
-# STDOUT: iia-b-rebalance
-# APP: regression_tests/investments
-#      testdata/config
-#      rebalance
-#      kate-iia
+[55]
+NAME: IIA-B rebalance
+STDOUT: iia-b-rebalance
+APP: regression_tests/investments
+     testdata/config
+     rebalance
+     kate-iia
 
 # Tax statement
 
