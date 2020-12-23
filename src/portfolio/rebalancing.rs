@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use log::{self, log_enabled, debug};
-use num_traits::Zero;
+use num_traits::{ToPrimitive, Zero};
 
 use crate::brokers::BrokerInfo;
 use crate::commissions::CommissionCalc;
@@ -427,7 +427,7 @@ fn distribute_cash_assets(
 struct PossibleTrade {
     path: Vec<usize>,
     volume: Decimal,
-    result: Decimal,
+    result: f64,
 }
 
 fn find_assets_for_cash_distribution(
@@ -530,16 +530,24 @@ fn calculate_min_trade_volume(
     })
 }
 
-fn calculate_trade_result(expected_value: Decimal, target_value: Decimal, trade_volume: Decimal) -> Decimal {
+fn calculate_trade_result(expected_value: Decimal, target_value: Decimal, trade_volume: Decimal) -> f64 {
+    // We use f64 here instead of Decimal due to https://github.com/paupino/rust-decimal/issues/276
+    // Without this workaround the division takes too much time making this function the hottest
+    // point of all rebalancing logic and slowing down it from fraction of second to minutes (when
+    // building with devel profile) on big unbalanced portfolios with fractional shares or low cost
+    // stocks.
+
     let result_value = target_value + trade_volume;
 
     if expected_value.is_zero() {
         if result_value.is_zero() {
-            dec!(1)
+            1.0
         } else {
-            Decimal::max_value()
+            f64::MAX
         }
     } else {
+        let result_value = result_value.to_f64().unwrap();
+        let expected_value = expected_value.to_f64().unwrap();
         result_value / expected_value
     }
 }
@@ -547,6 +555,7 @@ fn calculate_trade_result(expected_value: Decimal, target_value: Decimal, trade_
 fn get_best_trade(trade_type: TradeType, best_trade: Option<PossibleTrade>, trade: PossibleTrade) -> PossibleTrade {
     match best_trade {
         Some(best_trade) => {
+            #[allow(clippy::float_cmp)]
             if best_trade.result == trade.result {
                 if best_trade.volume <= trade.volume {
                     best_trade
