@@ -1001,7 +1001,7 @@ dependencies = [
 
 [[package]]
 name = "investments"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "ansi_term 0.12.1",
  "calamine",
