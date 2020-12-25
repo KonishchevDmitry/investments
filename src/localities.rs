@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{HashMap, BTreeMap};
 use std::ops::Bound;
 
 use chrono::{Datelike, Duration};
@@ -6,44 +6,48 @@ use chrono::{Datelike, Duration};
 use num_traits::Zero;
 
 use crate::currency;
+use crate::taxes::IncomeType;
 use crate::types::{Date, Decimal};
 use crate::util;
 
 #[derive(Clone)]
 pub struct Country {
     pub currency: &'static str,
-    tax_rates: BTreeMap<i32, Decimal>,
     default_tax_rate: Decimal,
+    tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>,
     tax_precision: u32,
 }
 
 impl Country {
-    // When we work with taxes in Russia, the following rounding rules are applied:
-    // 1. Result of all calculations must be with kopecks precision
-    // 2. If we have income in foreign currency then:
-    //    2.1. Round it to cents
-    //    2.2. Convert to rubles using precise currency rate (65.4244 for example)
-    //    2.3. Round to kopecks
-    // 3. Taxes are calculated with rouble precision. But we should use double rounding here:
-    //    calculate them with kopecks precision first and then round to roubles.
-    //
-    // Декларация program allows to enter income only with kopecks precision - not bigger.
-    // It calculates tax for $10.64 income with 65.4244 currency rate as following:
-    // 1. income = round(10.64 * 65.4244, 2) = 696.12 (696.115616 without rounding)
-    // 2. tax = round(round(696.12 * 0.13, 2), 0) = 91 (90.4956 without rounding)
+    fn new(
+        currency: &'static str, mut default_tax_rate: Decimal,
+        mut tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>, tax_precision: u32,
+    ) -> Country {
+        default_tax_rate /= dec!(100);
+
+        for tax_rates in tax_rates.values_mut() {
+            for tax_rate in tax_rates.values_mut() {
+                *tax_rate /= dec!(100);
+            }
+        }
+
+        Country {currency, tax_rates, default_tax_rate, tax_precision}
+    }
 
     pub fn round_tax(&self, tax: Decimal) -> Decimal {
         currency::round_to(currency::round(tax), self.tax_precision)
     }
 
-    pub fn tax_to_pay(&self, year: i32, income: Decimal, paid_tax: Option<Decimal>) -> Decimal {
+    pub fn tax_to_pay(
+        &self, income_type: IncomeType, year: i32, income: Decimal, paid_tax: Option<Decimal>,
+    ) -> Decimal {
         let income = currency::round(income);
 
         if income.is_sign_negative() || income.is_zero() {
             return dec!(0);
         }
 
-        let tax_to_pay = self.round_tax(income * self.tax_rate(year));
+        let tax_to_pay = self.round_tax(income * self.tax_rate(income_type, year));
 
         if let Some(paid_tax) = paid_tax {
             assert!(!paid_tax.is_sign_negative());
@@ -59,34 +63,48 @@ impl Country {
         }
     }
 
-    pub fn deduce_income(&self, result_income: Decimal) -> Decimal {
-        currency::round(result_income / (dec!(1) - self.default_tax_rate))
+    pub fn deduce_income(&self, income_type: IncomeType, year: i32, result_income: Decimal) -> Decimal {
+        currency::round(result_income / (dec!(1) - self.tax_rate(income_type, year)))
     }
 
-    fn tax_rate(&self, year: i32) -> Decimal {
-        self.tax_rates
-            .range((Bound::Unbounded, Bound::Included(year)))
-            .map(|entry| *entry.1)
-            .last().unwrap_or(self.default_tax_rate)
+    fn tax_rate(&self, income_type: IncomeType, year: i32) -> Decimal {
+        self.tax_rates.get(&income_type).and_then(|tax_rates| {
+            tax_rates
+                .range((Bound::Unbounded, Bound::Included(year)))
+                .map(|entry| *entry.1)
+                .last()
+        }).unwrap_or(self.default_tax_rate)
     }
 }
 
-pub fn russia(tax_rates: &BTreeMap<i32, Decimal>) -> Country {
-    Country {
-        currency: "RUB",
-        tax_rates: tax_rates.iter().map(|(&year, &rate)| (year, rate / dec!(100))).collect(),
-        default_tax_rate: Decimal::new(13, 2),
-        tax_precision: 0
-    }
+// When we work with taxes in Russia, the following rounding rules are applied:
+// 1. Result of all calculations must be with kopecks precision
+// 2. If we have income in foreign currency then:
+//    2.1. Round it to cents
+//    2.2. Convert to rubles using precise currency rate (65.4244 for example)
+//    2.3. Round to kopecks
+// 3. Taxes are calculated with rouble precision. But we should use double rounding here:
+//    calculate them with kopecks precision first and then round to roubles.
+//
+// Декларация program allows to enter income only with kopecks precision - not bigger.
+// It calculates tax for $10.64 income with 65.4244 currency rate as following:
+// 1. income = round(10.64 * 65.4244, 2) = 696.12 (696.115616 without rounding)
+// 2. tax = round(round(696.12 * 0.13, 2), 0) = 91 (90.4956 without rounding)
+pub fn russia(
+    trading_tax_rates: &BTreeMap<i32, Decimal>, dividends_tax_rates: &BTreeMap<i32, Decimal>,
+    interest_tax_rates: &BTreeMap<i32, Decimal>,
+) -> Country {
+    Country::new("RUB", dec!(13), hashmap!{
+        IncomeType::Trading => trading_tax_rates.clone(),
+        IncomeType::Dividends => dividends_tax_rates.clone(),
+        IncomeType::Interest => interest_tax_rates.clone(),
+    }, 0)
 }
 
 pub fn us() -> Country {
-    Country {
-        currency: "USD",
-        tax_rates: BTreeMap::new(),
-        default_tax_rate: Decimal::new(10, 2),
-        tax_precision: 2,
-    }
+    Country::new("USD", dec!(0), hashmap!{
+        IncomeType::Dividends => btreemap!{0 => dec!(10)},
+    }, 2)
 }
 
 pub fn is_valid_execution_date(conclusion: Date, execution: Date) -> bool {

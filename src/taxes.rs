@@ -13,6 +13,13 @@ use crate::localities::{self, Country};
 use crate::types::{Date, Decimal};
 use crate::util;
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IncomeType {
+    Trading,
+    Dividends,
+    Interest,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TaxPaymentDay {
     Day {month: u32, day: u32},
@@ -143,7 +150,7 @@ impl NetTaxCalculator {
         for (&(tax_year, tax_payment_date), &profit) in self.profit.iter() {
             assert!(years.insert(tax_year)); // Ensure that we have only one tax payment per year
 
-            let tax_to_pay = self.country.tax_to_pay(tax_year, profit, None);
+            let tax_to_pay = self.country.tax_to_pay(IncomeType::Trading, tax_year, profit, None);
             assert_eq!(taxes.insert(tax_payment_date, tax_to_pay), None);
         }
 

@@ -32,7 +32,7 @@ pub struct Config {
     pub brokers: Option<BrokersConfig>,
 
     #[serde(default)]
-    pub tax_rate: BTreeMap<i32, Decimal>,
+    pub tax_rates: TaxRates,
 
     #[serde(default)]
     pub metrics: MetricsConfig,
@@ -54,7 +54,7 @@ impl Config {
 
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
-            tax_rate: Default::default(),
+            tax_rates: Default::default(),
             metrics: Default::default(),
 
             alphavantage: None,
@@ -117,11 +117,17 @@ impl Config {
             portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
         }
 
-        for (&year, &tax_rate) in &config.tax_rate {
-            if year < 0 {
-                return Err!("Invalid tax rate year: {}", year);
-            } else if tax_rate < dec!(0) || tax_rate > dec!(100) {
-                return Err!("Invalid tax rate: {}", tax_rate);
+        for &tax_rates in &[
+            &config.tax_rates.trading,
+            &config.tax_rates.dividends,
+            &config.tax_rates.interest,
+        ] {
+            for (&year, &tax_rate) in tax_rates {
+                if year < 0 {
+                    return Err!("Invalid tax rate year: {}", year);
+                } else if tax_rate < dec!(0) || tax_rate > dec!(100) {
+                    return Err!("Invalid tax rate: {}", tax_rate);
+                }
             }
         }
 
@@ -131,7 +137,7 @@ impl Config {
     }
 
     pub fn get_tax_country(&self) -> Country {
-        localities::russia(&self.tax_rate)
+        localities::russia(&self.tax_rates.trading, &self.tax_rates.dividends, &self.tax_rates.interest)
     }
 
     pub fn get_portfolio(&self, name: &str) -> GenericResult<&PortfolioConfig> {
@@ -194,6 +200,9 @@ pub struct PortfolioConfig {
 
     #[serde(default, deserialize_with = "TaxPaymentDay::deserialize")]
     pub tax_payment_day: TaxPaymentDay,
+
+    #[serde(default)]
+    pub tax_exemptions: Vec<String>, // FIXME(konishchev): Implement
 
     #[serde(default, deserialize_with = "deserialize_cash_flows")]
     pub tax_deductions: Vec<(Date, Decimal)>,
@@ -302,6 +311,17 @@ impl BrokerConfig {
             deposit_commissions: HashMap::new(),
         }
     }
+}
+
+#[derive(Deserialize, Default, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct TaxRates {
+    #[serde(default)]
+    pub trading: BTreeMap<i32, Decimal>,
+    #[serde(default)]
+    pub dividends: BTreeMap<i32, Decimal>,
+    #[serde(default)]
+    pub interest: BTreeMap<i32, Decimal>,
 }
 
 #[derive(Deserialize, Default, Debug)]

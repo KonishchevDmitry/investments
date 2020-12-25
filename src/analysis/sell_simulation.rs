@@ -9,6 +9,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
+use crate::taxes::IncomeType;
 use crate::types::Decimal;
 use crate::util;
 
@@ -193,7 +194,7 @@ fn print_results(
 
     let (tax_year, _) = portfolio.tax_payment_day.get(execution_date, true);
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
-        tax_year, total_local_profit.amount, None));
+        IncomeType::Trading, tax_year, total_local_profit.amount, None));
 
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);

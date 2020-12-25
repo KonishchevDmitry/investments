@@ -7,6 +7,7 @@ use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
 use crate::localities;
+use crate::taxes::IncomeType;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -314,9 +315,9 @@ impl IncomeInfo {
         }
 
         let foreign_country = localities::us();
-        let amount = foreign_country.deduce_income(income);
+        let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
         let paid_tax = amount - income;
-        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(date.year(), amount, None));
+        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
 
         parser.statement.dividends.push(Dividend {
             date: date,

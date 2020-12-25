@@ -11,7 +11,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::Country;
-use crate::taxes::TaxPaymentDay;
+use crate::taxes::{IncomeType, TaxPaymentDay};
 use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
@@ -287,11 +287,11 @@ impl<'a> TradesProcessor<'a> {
         let total_local_profit = self.total_local_profit.values().copied().sum();
         let total_tax_to_pay = match self.portfolio.tax_payment_day {
             TaxPaymentDay::Day {..} => Some(self.total_local_profit.iter().map(|(&year, &profit)| {
-                self.country.tax_to_pay(year, profit, None)
+                self.country.tax_to_pay(IncomeType::Trading, year, profit, None)
             }).sum()),
 
             TaxPaymentDay::OnClose(date) => if self.year.is_none() {
-                Some(self.country.tax_to_pay(date.year(), total_local_profit, None))
+                Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), total_local_profit, None))
             } else {
                 None
             },

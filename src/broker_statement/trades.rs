@@ -3,6 +3,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
+use crate::taxes::IncomeType;
 use crate::types::{Date, Decimal};
 
 #[derive(Debug)]
@@ -150,7 +151,7 @@ impl StockSell {
 
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
         let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
-            tax_year, local_profit.amount, None));
+            IncomeType::Trading, tax_year, local_profit.amount, None));
 
         let real_tax_ratio = if profit.is_zero() {
             None
