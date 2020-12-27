@@ -1,4 +1,6 @@
 use chrono::Datelike;
+use log::warn;
+
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
@@ -6,7 +8,7 @@ use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::localities::Country;
+use crate::localities::{Country, Jurisdiction};
 use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
@@ -76,7 +78,13 @@ pub fn process_income(
             income: Cash::new(country.currency, income),
         });
 
-        if let Some(ref mut tax_statement) = tax_statement {
+        if tax_statement.is_some() && broker_statement.broker.type_.jurisdiction() != Jurisdiction::Usa {
+            warn!(concat!(
+                "Tax statement generation for interest income is supported only for brokers with USA jurisdiction. ",
+                "Don't adding it to the tax statement."
+            ));
+            tax_statement = None;
+        } else if let Some(ref mut tax_statement) = tax_statement {
             let description = format!(
                 "{}: Проценты на остаток по брокерскому счету", broker_statement.broker.name);
 

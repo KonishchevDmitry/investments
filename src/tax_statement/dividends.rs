@@ -1,5 +1,6 @@
 use chrono::Datelike;
 use num_traits::Zero;
+
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;

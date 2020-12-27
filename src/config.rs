@@ -10,7 +10,7 @@ use serde::de::{Deserializer, Error};
 use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
-use crate::localities::{self, Country};
+use crate::localities::{self, Country, Jurisdiction};
 use crate::taxes::{TaxExemption, TaxPaymentDay, TaxRemapping};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
@@ -109,12 +109,16 @@ impl Config {
                     }
                 }
 
-                // FIXME(konishchev): Implement
+                validate_performance_merging_configuration(&portfolio.merge_performance)?;
+
                 if !portfolio.tax_exemptions.is_empty() {
+                    if portfolio.broker.jurisdiction() != Jurisdiction::Russia {
+                        return Err!("Tax exemptions are only supported for brokers with Russia jurisdiction")
+                    }
+
+                    // FIXME(konishchev): Implement
                     return Err!("Tax exceptions aren't supported yet");
                 }
-
-                validate_performance_merging_configuration(&portfolio.merge_performance)?;
             }
         }
 

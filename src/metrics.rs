@@ -68,7 +68,7 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     let income_structure = &performance.income_structure;
 
     for (broker, &value) in &statistics.brokers {
-        set_metric(&BROKERS, &[currency, broker.brief_name(), broker.country()], value);
+        set_metric(&BROKERS, &[currency, broker.brief_name(), broker.jurisdiction().name()], value);
     }
 
     for (instrument, &value) in &statistics.assets {

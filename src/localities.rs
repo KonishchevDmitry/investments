@@ -77,6 +77,21 @@ impl Country {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Jurisdiction {
+    Russia,
+    Usa,
+}
+
+impl Jurisdiction {
+    pub fn name(self) -> &'static str {
+        match self {
+            Jurisdiction::Russia => "Russia",
+            Jurisdiction::Usa => "USA",
+        }
+    }
+}
+
 // When we work with taxes in Russia, the following rounding rules are applied:
 // 1. Result of all calculations must be with kopecks precision
 // 2. If we have income in foreign currency then:

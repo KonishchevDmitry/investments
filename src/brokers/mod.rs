@@ -11,6 +11,7 @@ use crate::commissions::CommissionSpec;
 use crate::config::{Config, BrokersConfig, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::CashAssets;
+use crate::localities::Jurisdiction;
 use crate::types::Decimal;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
@@ -69,10 +70,10 @@ impl Broker {
         }
     }
 
-    pub fn country(self) -> &'static str {
+    pub fn jurisdiction(self) -> Jurisdiction {
         match self {
-            Broker::Bcs | Broker::Open | Broker::Tinkoff => "Russia",
-            Broker::Firstrade | Broker::InteractiveBrokers => "USA",
+            Broker::Bcs | Broker::Open | Broker::Tinkoff => Jurisdiction::Russia,
+            Broker::Firstrade | Broker::InteractiveBrokers => Jurisdiction::Usa,
         }
     }
 

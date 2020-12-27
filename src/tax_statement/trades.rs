@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::ops::AddAssign;
 
 use chrono::Datelike;
+use log::warn;
+
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails};
@@ -10,7 +12,7 @@ use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
-use crate::localities::Country;
+use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{IncomeType, TaxPaymentDay};
 use crate::types::{Date, Decimal};
 
@@ -52,8 +54,16 @@ pub fn process_income(
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, converter)?;
         processor.process_trade(trade_id, trade, &details)?;
 
-        if let Some(ref mut tax_statement) = tax_statement {
-            processor.add_income(tax_statement, trade, &details)?;
+        if let Some(ref mut statement) = tax_statement {
+            if broker_statement.broker.type_.jurisdiction() != Jurisdiction::Usa {
+                warn!(concat!(
+                    "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
+                    "Don't adding it to the tax statement."
+                ));
+                tax_statement = None;
+            } else {
+                processor.add_income(statement, trade, &details)?;
+            }
         }
 
         trade_id += 1;
