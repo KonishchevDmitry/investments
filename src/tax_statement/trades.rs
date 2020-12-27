@@ -48,7 +48,8 @@ pub fn process_income(
             }
         }
 
-        let details = trade.calculate(&country, tax_year, converter)?;
+        // FIXME(konishchev): Tax deductions support
+        let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, converter)?;
         processor.process_trade(trade_id, trade, &details)?;
 
         if let Some(ref mut tax_statement) = tax_statement {

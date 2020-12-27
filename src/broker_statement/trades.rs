@@ -3,7 +3,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
-use crate::taxes::IncomeType;
+use crate::taxes::{IncomeType, TaxExemption};
 use crate::types::{Date, Decimal};
 
 #[derive(Debug)]
@@ -109,49 +109,92 @@ impl StockSell {
         Ok(())
     }
 
-    pub fn calculate(&self, country: &Country, tax_year: i32, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
-        Ok(self.calculate_impl(country, tax_year, converter).map_err(|e| format!(
+    pub fn calculate(
+        &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
+        converter: &CurrencyConverter,
+    ) -> GenericResult<SellDetails> {
+        Ok(self.calculate_impl(country, tax_year, tax_exemptions, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
             self.symbol, formatting::format_date(self.conclusion_date), e))?)
     }
 
-    fn calculate_impl(&self, country: &Country, tax_year: i32, converter: &CurrencyConverter) -> GenericResult<SellDetails> {
-        let revenue = self.volume.round();
-        let local_revenue = converter.convert_to_cash_rounding(
-            self.execution_date, revenue, country.currency)?;
+    fn calculate_impl(
+        &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
+        converter: &CurrencyConverter,
+    ) -> GenericResult<SellDetails> {
+        let local_conclusion = |value| converter.convert_to_cash_rounding(
+            self.conclusion_date, value, country.currency);
+        let local_execution = |value| converter.convert_to_cash_rounding(
+            self.execution_date, value, country.currency);
 
-        let commission = self.commission.round();
-        let local_commission = converter.convert_to_cash_rounding(
-            self.conclusion_date, commission, country.currency)?;
-
-        let mut total_cost = commission;
-        let mut total_local_cost = local_commission;
-
-        let mut purchase_cost = Cash::new(total_cost.currency, dec!(0));
-        let mut purchase_local_cost = Cash::new(total_local_cost.currency, dec!(0));
+        let mut purchase_cost = Cash::new(self.price.currency, dec!(0));
+        let mut purchase_local_cost = Cash::new(country.currency, dec!(0));
+        let mut deductible_purchase_local_cost = Cash::new(country.currency, dec!(0));
 
         let mut fifo = Vec::new();
+        let mut total_quantity = dec!(0);
+        let mut tax_free_quantity = dec!(0);
 
         for source in &self.sources {
-            let fifo_details = source.calculate(country, converter)?;
+            let source_quantity = source.quantity * source.multiplier;
+            let mut source_details = source.calculate(country, converter)?;
 
-            purchase_cost.add_assign(fifo_details.total_cost).map_err(|e| format!(
+            let tax_exemptible = tax_exemptions.iter().any(TaxExemption::is_applicable);
+            if tax_exemptible {
+                let source_local_revenue = local_execution(self.price * source_quantity)?;
+                let source_local_commission = local_conclusion(
+                    self.commission * source_quantity / self.quantity)?;
+
+                let source_local_profit = source_local_revenue
+                    .sub(source_local_commission).unwrap()
+                    .sub(source_details.total_local_cost).unwrap();
+
+                // FIXME(konishchev): Force apply for tax free exemption
+                source_details.tax_exemption_applied = source_local_profit.is_positive();
+            }
+
+            total_quantity += source_quantity;
+            if source_details.tax_exemption_applied {
+                tax_free_quantity += source_quantity;
+            }
+
+            purchase_cost.add_assign(source_details.total_cost).map_err(|e| format!(
                 "Sell and buy trades have different currency: {}", e))?;
-            purchase_local_cost.add_assign(fifo_details.total_local_cost).unwrap();
+            purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
+            if !source_details.tax_exemption_applied {
+                deductible_purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
+            }
 
-            fifo.push(fifo_details);
+            fifo.push(source_details);
         }
 
-        total_cost.add_assign(purchase_cost).map_err(|e| format!(
+        assert_eq!(total_quantity, self.quantity);
+        let taxable_ratio = (total_quantity - tax_free_quantity) / total_quantity;
+
+        let revenue = self.volume.round();
+        let local_revenue = local_execution(revenue)?;
+        let taxable_local_revenue = local_execution(revenue * taxable_ratio)?;
+
+        let commission = self.commission.round();
+        let local_commission = local_conclusion(commission)?;
+        let deductible_local_commission = local_conclusion(commission * taxable_ratio)?;
+
+        let total_cost = commission.add(purchase_cost).map_err(|e| format!(
             "Sell and buy trade have different currency: {}", e))?;
-        total_local_cost.add_assign(purchase_local_cost).unwrap();
+        let total_local_cost = local_commission.add(purchase_local_cost).unwrap();
+        let deductible_total_local_cost = deductible_local_commission.add(deductible_purchase_local_cost).unwrap();
 
         let profit = revenue.sub(total_cost).map_err(|e| format!(
             "Sell and buy trade have different currency: {}", e))?;
-
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
-        let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
+        let taxable_local_profit = taxable_local_revenue.sub(deductible_total_local_cost).unwrap();
+
+        let tax_without_deduction = Cash::new(country.currency, country.tax_to_pay(
             IncomeType::Trading, tax_year, local_profit.amount, None));
+        let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
+            IncomeType::Trading, tax_year, taxable_local_profit.amount, None));
+        let tax_deduction = tax_without_deduction.sub(tax_to_pay).unwrap();
+        assert!(!tax_deduction.is_negative());
 
         let real_tax_ratio = if profit.is_zero() {
             None
@@ -168,24 +211,27 @@ impl StockSell {
 
         Ok(SellDetails {
             revenue,
-            local_revenue: local_revenue,
-            local_commission: local_commission,
+            local_revenue,
+            local_commission,
 
-            purchase_cost: purchase_cost,
-            purchase_local_cost: purchase_local_cost,
+            purchase_cost,
+            purchase_local_cost,
 
-            total_cost: total_cost,
-            total_local_cost: total_local_cost,
+            total_cost,
+            total_local_cost,
 
             profit,
-            local_profit: local_profit,
-            tax_to_pay: tax_to_pay,
+            local_profit,
+            taxable_local_profit,
+
+            tax_to_pay,
+            tax_deduction,
 
             real_tax_ratio,
             real_profit_ratio,
             real_local_profit_ratio,
 
-            fifo: fifo,
+            fifo,
         })
     }
 }
@@ -240,6 +286,8 @@ impl StockSellSource {
 
             total_cost,
             total_local_cost: Cash::new(country.currency, total_local_cost),
+
+            tax_exemption_applied: false,
         })
     }
 }
@@ -257,7 +305,12 @@ pub struct SellDetails {
 
     pub profit: Cash,
     pub local_profit: Cash,
+    // FIXME(konishchev): Display
+    pub taxable_local_profit: Cash,
+
     pub tax_to_pay: Cash,
+    // FIXME(konishchev): Display
+    pub tax_deduction: Cash,
 
     pub real_tax_ratio: Option<Decimal>,
     pub real_profit_ratio: Decimal,
@@ -282,4 +335,7 @@ pub struct FifoDetails {
 
     pub total_cost: Cash,
     pub total_local_cost: Cash,
+
+    // FIXME(konishchev): Display
+    pub tax_exemption_applied: bool,
 }

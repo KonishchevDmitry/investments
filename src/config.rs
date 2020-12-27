@@ -11,7 +11,7 @@ use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country};
-use crate::taxes::{TaxPaymentDay, TaxRemapping};
+use crate::taxes::{TaxExemption, TaxPaymentDay, TaxRemapping};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -109,6 +109,11 @@ impl Config {
                     }
                 }
 
+                // FIXME(konishchev): Implement
+                if !portfolio.tax_exemptions.is_empty() {
+                    return Err!("Tax exceptions aren't supported yet");
+                }
+
                 validate_performance_merging_configuration(&portfolio.merge_performance)?;
             }
         }
@@ -202,7 +207,7 @@ pub struct PortfolioConfig {
     pub tax_payment_day: TaxPaymentDay,
 
     #[serde(default)]
-    pub tax_exemptions: Vec<String>, // FIXME(konishchev): Implement
+    pub tax_exemptions: Vec<TaxExemption>,
 
     #[serde(default, deserialize_with = "deserialize_cash_flows")]
     pub tax_deductions: Vec<(Date, Decimal)>,

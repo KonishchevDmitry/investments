@@ -20,6 +20,29 @@ pub enum IncomeType {
     Interest,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum TaxExemption {
+    TaxFree,
+}
+
+impl TaxExemption {
+    pub fn is_applicable(&self) -> bool {
+        match self {
+            TaxExemption::TaxFree => true,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for TaxExemption {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+        let value = String::deserialize(deserializer)?;
+        Ok(match value.as_str() {
+            "tax-free" => TaxExemption::TaxFree,
+            _ => return Err(D::Error::unknown_variant(&value, &["tax-free"])),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TaxPaymentDay {
     Day {month: u32, day: u32},

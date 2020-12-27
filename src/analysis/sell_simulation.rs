@@ -150,7 +150,8 @@ fn print_results(
 
         let commission = trade.commission.round();
         let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
-        let details = trade.calculate(&country, tax_year, &converter)?;
+        // FIXME(konishchev): Tax deductions support
+        let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         total_commission.deposit(commission);
