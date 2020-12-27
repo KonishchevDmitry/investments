@@ -77,8 +77,12 @@ struct TradeRow {
     profit: Cash,
     #[column(name="Local profit")]
     local_profit: Cash,
+    #[column(name="Taxable profit")]
+    taxable_local_profit: Cash,
     #[column(name="Tax to pay")]
     tax_to_pay: Cash,
+    #[column(name="Tax deduction")]
+    tax_deduction: Cash,
     #[column(name="Real profit %")]
     real_profit: Cell,
     #[column(name="Real tax %")]
@@ -96,6 +100,8 @@ struct FifoRow {
     quantity: Decimal,
     #[column(name="Price")]
     price: Cash,
+    #[column(name="Tax free", align="center")]
+    tax_free: Option<String>,
 }
 
 fn print_results(
@@ -116,8 +122,10 @@ fn print_results(
 
     let mut total_profit = MultiCurrencyCashAccount::new();
     let mut total_local_profit = Cash::new(country.currency, dec!(0));
+    let mut total_taxable_local_profit = Cash::new(country.currency, dec!(0));
 
     let mut total_commission = MultiCurrencyCashAccount::new();
+    let mut total_tax_deduction = Cash::new(country.currency, dec!(0));
 
     for mut commission in additional_commissions.iter() {
         if let Some(base_currency) = base_currency {
@@ -125,42 +133,49 @@ fn print_results(
         } else {
             commission = commission.round();
         }
+        total_commission.deposit(commission);
+
+        let local_commission = converter.convert_to_cash_rounding(
+            conclusion_date, commission, country.currency)?;
 
         total_profit.withdraw(commission);
-        total_local_profit.amount -= converter.convert_to_rounding(
-            conclusion_date, commission, total_local_profit.currency)?;
-
-        total_commission.deposit(commission);
+        total_local_profit.sub_assign(local_commission).unwrap();
+        total_taxable_local_profit.sub_assign(local_commission).unwrap();
     }
 
     let mut trades_table = TradesTable::new();
-    if same_currency {
-        trades_table.hide_local_revenue();
-        trades_table.hide_local_profit();
-        trades_table.hide_real_tax();
-        trades_table.hide_real_local_profit();
-    }
-
     let mut fifo_table = FifoTable::new();
+    let mut tax_exemptions = false;
 
     for mut trade in stock_sells {
         if let Some(base_currency) = base_currency {
             trade.convert(base_currency, converter)?;
         }
 
-        let commission = trade.commission.round();
         let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
-        // FIXME(konishchev): Tax deductions support
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
-        let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
-        total_commission.deposit(commission);
+        tax_exemptions |=
+            details.taxable_local_profit != details.local_profit ||
+            !details.tax_deduction.is_zero();
+
         total_revenue.deposit(details.revenue);
         total_local_revenue.add_assign(details.local_revenue).unwrap();
+
+        let commission = trade.commission.round();
+        total_commission.deposit(commission);
+
         total_profit.deposit(details.profit);
         total_local_profit.add_assign(details.local_profit).unwrap();
+        total_taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
+
+        total_tax_deduction.add_assign(details.tax_deduction).unwrap();
+
+        let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
+            tax_exemptions |= buy_trade.tax_exemption_applied;
+
             purchase_cost.amount += converter.convert_to_rounding(
                 buy_trade.execution_date, buy_trade.price * buy_trade.quantity,
                 purchase_cost.currency)?;
@@ -173,6 +188,11 @@ fn print_results(
                 },
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
                 price: (buy_trade.price / buy_trade.multiplier).normalize(),
+                tax_free: if buy_trade.tax_exemption_applied {
+                    Some("✔".to_owned())
+                } else {
+                    None
+                },
             });
         }
 
@@ -182,20 +202,38 @@ fn print_results(
             buy_price: (purchase_cost / trade.quantity).round(),
             sell_price: trade.price,
             commission: commission,
+
             revenue: details.revenue,
             local_revenue: details.local_revenue,
+
             profit: details.profit,
             local_profit: details.local_profit,
+            taxable_local_profit: details.taxable_local_profit,
+
             tax_to_pay: details.tax_to_pay,
+            tax_deduction: details.tax_deduction,
+
             real_profit: Cell::new_ratio(details.real_profit_ratio),
             real_tax: details.real_tax_ratio.map(Cell::new_ratio),
             real_local_profit: Cell::new_ratio(details.real_local_profit_ratio),
         });
     }
 
+    if same_currency {
+        trades_table.hide_local_revenue();
+        trades_table.hide_local_profit();
+        trades_table.hide_real_tax();
+        trades_table.hide_real_local_profit();
+    }
+    if !tax_exemptions {
+        trades_table.hide_taxable_local_profit();
+        trades_table.hide_tax_deduction();
+        fifo_table.hide_tax_free();
+    }
+
     let (tax_year, _) = portfolio.tax_payment_day.get(execution_date, true);
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
-        IncomeType::Trading, tax_year, total_local_profit.amount, None));
+        IncomeType::Trading, tax_year, total_taxable_local_profit.amount, None));
 
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);
@@ -203,7 +241,9 @@ fn print_results(
     totals.set_local_revenue(total_local_revenue);
     totals.set_profit(total_profit);
     totals.set_local_profit(total_local_profit);
+    totals.set_taxable_local_profit(total_taxable_local_profit);
     totals.set_tax_to_pay(tax_to_pay);
+    totals.set_tax_deduction(total_tax_deduction);
 
     trades_table.print("Sell simulation results");
     fifo_table.print("FIFO details");
