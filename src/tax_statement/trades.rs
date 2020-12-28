@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::AddAssign;
 
 use chrono::Datelike;
 use log::warn;
@@ -36,7 +35,11 @@ pub fn process_income(
         same_dates: true,
         same_currency: true,
         stock_splits: false,
-        total_local_profit: HashMap::new(),
+        tax_exemptions: false,
+
+        total_local_profit: Cash::new(country.currency, dec!(0)),
+        total_taxable_local_profit: HashMap::new(),
+        total_tax_deduction: Cash::new(country.currency, dec!(0)),
     };
 
     let mut trade_id = 0;
@@ -50,7 +53,6 @@ pub fn process_income(
             }
         }
 
-        // FIXME(konishchev): Tax deductions support
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, converter)?;
         processor.process_trade(trade_id, trade, &details)?;
 
@@ -90,7 +92,11 @@ struct TradesProcessor<'a> {
     same_dates: bool,
     same_currency: bool,
     stock_splits: bool,
-    total_local_profit: HashMap<i32, Decimal>,
+    tax_exemptions: bool,
+
+    total_local_profit: Cash,
+    total_taxable_local_profit: HashMap<i32, Cash>,
+    total_tax_deduction: Cash,
 }
 
 #[derive(StaticTable)]
@@ -126,8 +132,12 @@ struct TradeRow {
     total_local_cost: Cash,
     #[column(name="Прибыль")]
     local_profit: Cash,
+    #[column(name="Налогообл.\nприбыль")]
+    taxable_local_profit: Cash,
     #[column(name="Налог")]
     tax_to_pay: Cash,
+    #[column(name="Вычет")]
+    tax_deduction: Cash,
     #[column(name="Реальный\nдоход")]
     real_profit_ratio: Cell,
     #[column(name="Реальный\nдоход (руб)")]
@@ -165,10 +175,14 @@ struct FifoRow {
     local_commission: Cash,
     #[column(name="Общие затраты")]
     total_local_cost: Cash,
+    #[column(name="Льгота", align="center")]
+    tax_free: Option<String>,
 }
 
 impl<'a> TradesProcessor<'a> {
     fn add_income(&self, tax_statement: &mut TaxStatement, trade: &StockSell, details: &SellDetails) -> EmptyResult {
+        assert_eq!(details.taxable_local_profit, details.local_profit);
+
         let name = self.broker_statement.get_instrument_name(&trade.symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
@@ -193,9 +207,13 @@ impl<'a> TradesProcessor<'a> {
         self.same_dates &= trade.execution_date == trade.conclusion_date;
         self.same_currency &= trade.price.currency == self.country.currency &&
             trade.commission.currency == self.country.currency;
+        self.tax_exemptions |= details.tax_exemption_applied();
 
-        self.total_local_profit.entry(trade.execution_date.year()).or_default()
-            .add_assign(details.local_profit.amount);
+        self.total_local_profit.add_assign(details.local_profit).unwrap();
+        self.total_taxable_local_profit.entry(trade.execution_date.year())
+            .and_modify(|total| total.add_assign(details.taxable_local_profit).unwrap())
+            .or_insert(details.taxable_local_profit);
+        self.total_tax_deduction.add_assign(details.tax_deduction).unwrap();
 
         let conclusion_currency_rate = self.converter.precise_currency_rate(
             trade.conclusion_date, trade.commission.currency, self.country.currency)?;
@@ -209,17 +227,26 @@ impl<'a> TradesProcessor<'a> {
             execution_date: trade.execution_date,
             security: security.to_owned(),
             quantity: trade.quantity,
+
             price: trade.price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
+
             revenue: details.revenue,
             local_revenue: details.local_revenue,
+
             commission: trade.commission.round(),
             local_commission: details.local_commission,
+
             purchase_local_cost: details.purchase_local_cost,
             total_local_cost: details.total_local_cost,
+
             local_profit: details.local_profit,
+            taxable_local_profit: details.taxable_local_profit,
+
             tax_to_pay: details.tax_to_pay,
+            tax_deduction: details.tax_deduction,
+
             real_profit_ratio: Cell::new_ratio(details.real_profit_ratio),
             real_local_profit_ratio: Cell::new_ratio(details.real_local_profit_ratio),
         });
@@ -254,14 +281,23 @@ impl<'a> TradesProcessor<'a> {
             security: security.to_owned(),
             quantity: buy_trade.quantity,
             multiplier: buy_trade.multiplier,
+
             price: buy_trade.price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
+
             cost: buy_trade.cost,
             local_cost: buy_trade.local_cost,
+
             commission: buy_trade.commission,
             local_commission: buy_trade.local_commission,
+
             total_local_cost: buy_trade.total_local_cost,
+            tax_free: if buy_trade.tax_exemption_applied {
+                Some("✔".to_owned())
+            } else {
+                None
+            },
         });
 
         Ok(())
@@ -277,7 +313,6 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.rename_conclusion_currency_rate("Курс руб.");
             self.fifo_table.hide_execution_currency_rate();
         }
-
         if self.same_currency {
             self.trades_table.hide_conclusion_currency_rate();
             self.trades_table.hide_execution_currency_rate();
@@ -290,30 +325,39 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.hide_local_cost();
             self.fifo_table.hide_local_commission();
         }
-
         if !self.stock_splits {
             self.fifo_table.hide_multiplier()
         }
+        if !self.tax_exemptions {
+            self.trades_table.hide_taxable_local_profit();
+            self.trades_table.hide_tax_deduction();
+            self.fifo_table.hide_tax_free();
+        }
 
-        let total_local_profit = self.total_local_profit.values().copied().sum();
+        let total_taxable_local_profit = self.total_taxable_local_profit.values().copied()
+            .fold(Cash::new(self.country.currency, dec!(0)), |total, profit| {
+                total.add(profit).unwrap()
+            });
+
         let total_tax_to_pay = match self.portfolio.tax_payment_day {
-            TaxPaymentDay::Day {..} => Some(self.total_local_profit.iter().map(|(&year, &profit)| {
-                self.country.tax_to_pay(IncomeType::Trading, year, profit, None)
+            TaxPaymentDay::Day {..} => Some(self.total_taxable_local_profit.iter().map(|(&year, profit)| {
+                self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
             }).sum()),
 
             TaxPaymentDay::OnClose(date) => if self.year.is_none() {
-                Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), total_local_profit, None))
+                Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), total_taxable_local_profit.amount, None))
             } else {
                 None
             },
         };
 
         let mut totals = self.trades_table.add_empty_row();
-        totals.set_local_profit(Cash::new(self.country.currency, total_local_profit));
-
+        totals.set_local_profit(self.total_local_profit);
+        totals.set_taxable_local_profit(total_taxable_local_profit);
         if let Some(total_tax_to_pay) = total_tax_to_pay {
             totals.set_tax_to_pay(Cash::new(self.country.currency, total_tax_to_pay));
         }
+        totals.set_tax_deduction(self.total_tax_deduction);
 
         self.trades_table.print(&format!(
             "Расчет прибыли от продажи ценных бумаг, полученной через {}",

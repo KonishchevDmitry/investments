@@ -154,10 +154,7 @@ fn print_results(
 
         let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
-
-        tax_exemptions |=
-            details.taxable_local_profit != details.local_profit ||
-            !details.tax_deduction.is_zero();
+        tax_exemptions |= details.tax_exemption_applied();
 
         total_revenue.deposit(details.revenue);
         total_local_revenue.add_assign(details.local_revenue).unwrap();
@@ -174,8 +171,6 @@ fn print_results(
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            tax_exemptions |= buy_trade.tax_exemption_applied;
-
             purchase_cost.amount += converter.convert_to_rounding(
                 buy_trade.execution_date, buy_trade.price * buy_trade.quantity,
                 purchase_cost.currency)?;

@@ -305,11 +305,9 @@ pub struct SellDetails {
 
     pub profit: Cash,
     pub local_profit: Cash,
-    // FIXME(konishchev): Display
     pub taxable_local_profit: Cash,
 
     pub tax_to_pay: Cash,
-    // FIXME(konishchev): Display
     pub tax_deduction: Cash,
 
     pub real_tax_ratio: Option<Decimal>,
@@ -317,6 +315,18 @@ pub struct SellDetails {
     pub real_local_profit_ratio: Decimal,
 
     pub fifo: Vec<FifoDetails>,
+}
+
+impl SellDetails {
+    pub fn tax_exemption_applied(&self) -> bool {
+        if self.fifo.iter().any(|trade| trade.tax_exemption_applied) {
+            return true;
+        }
+
+        assert_eq!(self.taxable_local_profit, self.local_profit);
+        assert!(self.tax_deduction.is_zero());
+        false
+    }
 }
 
 pub struct FifoDetails {
@@ -336,6 +346,5 @@ pub struct FifoDetails {
     pub total_cost: Cash,
     pub total_local_cost: Cash,
 
-    // FIXME(konishchev): Display
     pub tax_exemption_applied: bool,
 }
