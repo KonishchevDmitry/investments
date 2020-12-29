@@ -139,8 +139,17 @@ impl StockSell {
             let source_quantity = source.quantity * source.multiplier;
             let mut source_details = source.calculate(country, converter)?;
 
-            let tax_exemptible = tax_exemptions.iter().any(TaxExemption::is_applicable);
-            if tax_exemptible {
+            let mut tax_exemptible = false;
+            for tax_exemption in tax_exemptions {
+                let (exemptible, force) = tax_exemption.is_applicable();
+                tax_exemptible |= exemptible;
+                if force {
+                    source_details.tax_exemption_applied = true;
+                    break;
+                }
+            }
+
+            if tax_exemptible && !source_details.tax_exemption_applied {
                 let source_local_revenue = local_execution(self.price * source_quantity)?;
                 let source_local_commission = local_conclusion(
                     self.commission * source_quantity / self.quantity)?;
@@ -149,7 +158,6 @@ impl StockSell {
                     .sub(source_local_commission).unwrap()
                     .sub(source_details.total_local_cost).unwrap();
 
-                // FIXME(konishchev): Force apply for tax free exemption
                 source_details.tax_exemption_applied = source_local_profit.is_positive();
             }
 

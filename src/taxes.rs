@@ -26,9 +26,9 @@ pub enum TaxExemption {
 }
 
 impl TaxExemption {
-    pub fn is_applicable(&self) -> bool {
+    pub fn is_applicable(&self) -> (bool, bool) {
         match self {
-            TaxExemption::TaxFree => true,
+            TaxExemption::TaxFree => (true, true),
         }
     }
 }
