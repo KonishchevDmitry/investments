@@ -40,6 +40,9 @@ lazy_static! {
     static ref PROJECTED_TAXES: GaugeVec = register_portfolio_metric(
         "projected_taxes", "Projected taxes to pay.");
 
+    static ref PROJECTED_TAX_DEDUCTIONS: GaugeVec = register_portfolio_metric(
+        "projected_tax_deductions", "Projected tax deductions.");
+
     static ref PROJECTED_COMMISSIONS: GaugeVec = register_portfolio_metric(
         "projected_commissions", "Projected commissions to pay.");
 
@@ -92,6 +95,7 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     set_structure_metric(&EXPENCES_STRUCTURE, currency, "Commissions", income_structure.commissions);
 
     set_portfolio_metric(&PROJECTED_TAXES, currency, statistics.projected_taxes);
+    set_portfolio_metric(&PROJECTED_TAX_DEDUCTIONS, currency, statistics.projected_tax_deductions);
     set_portfolio_metric(&PROJECTED_COMMISSIONS, currency, statistics.projected_commissions);
 }
 

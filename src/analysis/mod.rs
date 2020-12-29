@@ -36,6 +36,7 @@ impl PortfolioStatistics {
                     performance: None,
 
                     projected_taxes: dec!(0),
+                    projected_tax_deductions: dec!(0),
                     projected_commissions: dec!(0),
                 }
             )).collect(),
@@ -69,6 +70,7 @@ pub struct PortfolioCurrencyStatistics {
     pub performance: Option<PortfolioPerformanceAnalysis>,
 
     pub projected_taxes: Decimal,
+    pub projected_tax_deductions: Decimal,
     pub projected_commissions: Decimal,
 }
 
@@ -133,7 +135,6 @@ pub fn analyse(
             }
 
             let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
-            // FIXME(konishchev): Tax deductions support
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 
             statistics.process(|statistics| {
@@ -141,10 +142,12 @@ pub fn analyse(
                 let volume = converter.real_time_convert_to(trade.volume, currency)?;
                 let commission = converter.real_time_convert_to(trade.commission, currency)?;
                 let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
+                let tax_deduction = converter.real_time_convert_to(details.tax_deduction, currency)?;
 
                 statistics.add_assets(broker, &trade.symbol, volume);
                 statistics.projected_commissions += commission;
                 statistics.projected_taxes += tax_to_pay;
+                statistics.projected_tax_deductions += tax_deduction;
 
                 Ok(())
             })?;

@@ -301,19 +301,19 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
 
             let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
-            // FIXME(konishchev): Tax deductions support
             let details = trade.calculate(&self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
             let local_profit = details.local_profit.amount;
+            let taxable_local_profit = details.taxable_local_profit.amount;
 
             stock_taxes.entry(&trade.symbol)
                 .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day))
-                .add_profit(trade.execution_date, local_profit);
+                .add_profit(trade.execution_date, local_profit, taxable_local_profit);
 
-            taxes.add_profit(trade.execution_date, local_profit);
+            taxes.add_profit(trade.execution_date, local_profit, taxable_local_profit);
         }
 
         for (&symbol, symbol_taxes) in stock_taxes.iter() {
-            for (&tax_payment_date, &tax_to_pay) in symbol_taxes.get_taxes().iter() {
+            for (&tax_payment_date, &(tax_to_pay, _tax_deduction)) in symbol_taxes.get_taxes().iter() {
                 if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                     trace!("* {} selling {} tax: {}",
                            symbol, formatting::format_date(tax_payment_date), amount);
@@ -323,11 +323,16 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
         }
 
-        for (&tax_payment_date, &tax_to_pay) in taxes.get_taxes().iter() {
+        for (&tax_payment_date, &(tax_to_pay, tax_deduction)) in taxes.get_taxes().iter() {
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* Stock selling {} tax: {}", formatting::format_date(tax_payment_date), amount);
                 self.transaction(tax_payment_date, amount);
                 self.income_structure.taxes += amount;
+            }
+
+            if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_deduction)? {
+                trace!("* {} tax deduction: {}", formatting::format_date(tax_payment_date), amount);
+                self.income_structure.tax_deductions += amount;
             }
         }
 
@@ -385,7 +390,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_tax_deductions(&mut self, portfolio: &PortfolioConfig) -> EmptyResult {
         for &(date, amount) in &portfolio.tax_deductions {
             let amount = self.converter.convert(self.country.currency, self.currency, date, amount)?;
-            trace!("* Tax deduction {}: {}", formatting::format_date(date), -amount);
+            trace!("* Tax deduction {}: {}", formatting::format_date(date), amount);
             self.transaction(date, -amount);
             self.income_structure.tax_deductions += amount;
         }
