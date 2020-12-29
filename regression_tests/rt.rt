@@ -119,10 +119,6 @@ APP: regression_tests/investments
      testdata/config
      simulate-sell
      tinkoff
-     all
-     FXUS
-     all
-     FXRU
      --base-currency
      USD
 
@@ -133,10 +129,6 @@ APP: regression_tests/investments
      testdata/config
      simulate-sell
      open
-     all
-     FXUS
-     all
-     FXRU
 
 [44]
 NAME: BCS simulate sell
@@ -145,10 +137,6 @@ APP: regression_tests/investments
      testdata/config
      simulate-sell
      bcs
-     all
-     FXRL
-     all
-     FXRU
 
 [45]
 NAME: IIA-B simulate sell
@@ -157,10 +145,6 @@ APP: regression_tests/investments
      testdata/config
      simulate-sell
      kate-iia
-     all
-     FXMM
-     all
-     TMOS
 
 # Rebalance
 
