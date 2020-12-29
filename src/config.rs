@@ -111,13 +111,8 @@ impl Config {
 
                 validate_performance_merging_configuration(&portfolio.merge_performance)?;
 
-                if !portfolio.tax_exemptions.is_empty() {
-                    if portfolio.broker.jurisdiction() != Jurisdiction::Russia {
-                        return Err!("Tax exemptions are only supported for brokers with Russia jurisdiction")
-                    }
-
-                    // FIXME(konishchev): Implement
-                    return Err!("Tax exceptions aren't supported yet");
+                if !portfolio.tax_exemptions.is_empty() && portfolio.broker.jurisdiction() != Jurisdiction::Russia {
+                    return Err!("Tax exemptions are only supported for brokers with Russia jurisdiction")
                 }
             }
         }

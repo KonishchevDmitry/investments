@@ -166,8 +166,6 @@ impl NetTaxCalculator {
     }
 
     pub fn add_profit(&mut self, date: Date, total: Decimal, taxable: Decimal) {
-        assert!(total >= taxable);
-
         let total = currency::round(total);
         let taxable = currency::round(taxable);
         let key = self.tax_payment_day.get(date, true);

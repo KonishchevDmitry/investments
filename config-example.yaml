@@ -57,7 +57,7 @@ portfolios:
 
     # Specifies the day when tax is paid. Used in portfolio performance analysis. Accepted values:
     # * Date in DD.MM format
-    # * on-close - for accounts that are taxable on their close
+    # * on-close - for accounts that are taxable on their close. Suitable for Individual Investment Account (type A).
     tax_payment_day: on-close
 
     # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
@@ -101,6 +101,9 @@ portfolios:
   - name: bcs
     broker: bcs
     statements: ~/Brokerage/БКС/Отчеты Брокера
+
+    # Configures the account as tax free. Suitable for Individual Investment Account (type B).
+    tax_exemptions: [tax-free]
 
   - name: tinkoff
     broker: tinkoff
