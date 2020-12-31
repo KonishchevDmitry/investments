@@ -6,12 +6,24 @@ use crate::commissions::{
 #[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::TradeType;
 
+// FIXME(konishchev): Add test with real data
+pub fn all_inclusive() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .trade(TradeCommissionSpecBuilder::new()
+            .commission(TransactionCommissionSpecBuilder::new()
+                .percent(dec!(0.05))
+                .minimum(dec!(0.04))
+                .build().unwrap())
+            .build())
+        .build()
+}
+
 pub fn iia() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .trade(TradeCommissionSpecBuilder::new()
             .commission(TransactionCommissionSpecBuilder::new()
-                .minimum(dec!(0.04))
                 .percent(dec!(0.057))
+                .minimum(dec!(0.04))
                 .build().unwrap())
             .build())
         .cumulative(CumulativeCommissionSpecBuilder::new()

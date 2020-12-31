@@ -100,7 +100,8 @@ impl Broker {
             Broker::InteractiveBrokers => (plans::ib::fixed, btreemap!{
                 "Fixed" => plans::ib::fixed as PlanFn,
             }),
-            Broker::Open => (plans::open::iia, btreemap!{
+            Broker::Open => (plans::open::all_inclusive, btreemap!{
+                "Всё включено" => plans::open::all_inclusive as PlanFn,
                 "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
             }),
             Broker::Tinkoff => (plans::tinkoff::trader, btreemap!{
