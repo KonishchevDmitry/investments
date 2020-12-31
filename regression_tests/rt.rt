@@ -49,11 +49,11 @@ APP: regression_tests/investments
 
 [23]
 NAME: Open Broker portfolio
-STDOUT: open-show
+STDOUT: iia-show
 APP: regression_tests/investments
      testdata/config
      show
-     open
+     iia
 
 [24]
 NAME: BCS portfolio
@@ -124,11 +124,11 @@ APP: regression_tests/investments
 
 [43]
 NAME: Open Broker simulate sell
-STDOUT: open-simulate-sell
+STDOUT: iia-simulate-sell
 APP: regression_tests/investments
      testdata/config
      simulate-sell
-     open
+     iia
 
 [44]
 NAME: BCS simulate sell
@@ -174,11 +174,11 @@ APP: regression_tests/investments
 
 [53]
 NAME: Open Broker rebalance
-STDOUT: open-rebalance
+STDOUT: iia-rebalance
 APP: regression_tests/investments
      testdata/config
      rebalance
-     open
+     iia
 
 [54]
 NAME: BCS rebalance
@@ -262,11 +262,11 @@ APP: regression_tests/investments
 
 [63]
 NAME: Open Broker tax statement
-STDOUT: open-tax-statement
+STDOUT: iia-tax-statement
 APP: regression_tests/investments
      testdata/config
      tax-statement
-     open
+     iia
 
 [64]
 NAME: BCS tax statement
@@ -356,11 +356,11 @@ APP: regression_tests/investments
 
 [73]
 NAME: Open Broker cash flow
-STDOUT: open-cash-flow
+STDOUT: iia-cash-flow
 APP: regression_tests/investments
      testdata/config
      cash-flow
-     open
+     iia
 
 [74]
 NAME: BCS cash flow
