@@ -1023,6 +1023,7 @@ dependencies = [
  "maplit",
  "matches",
  "mockito",
+ "num-integer",
  "num-traits",
  "prettytable-rs",
  "prometheus",

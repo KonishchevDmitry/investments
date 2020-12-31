@@ -5,20 +5,22 @@ use std::ops::Deref;
 #[cfg(test)] use std::path::Path;
 use std::rc::Rc;
 
+use chrono::Datelike;
 use lazy_static::lazy_static;
 use log::{debug, warn};
+use num_integer::Integer;
 use regex::Regex;
 #[cfg(test)] use tempfile::NamedTempFile;
 
 use crate::core::{EmptyResult, GenericResult};
-#[cfg(test)] use crate::util;
+use crate::util;
 
 use super::TaxStatement;
 use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
 
-const SUPPORTED_YEAR: i32 = 2019;
+const SUPPORTED_YEAR: i32 = 2020;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,
@@ -31,10 +33,15 @@ impl TaxStatementReader {
             static ref EXTENSION_REGEX: Regex = Regex::new(r"\.dc(\d)$").unwrap();
         }
 
-        let year = EXTENSION_REGEX.captures(path)
-            .and_then(|captures| captures.get(1).unwrap().as_str().parse::<u8>().ok())
+        let short_year = EXTENSION_REGEX.captures(path)
+            .and_then(|captures| captures.get(1).unwrap().as_str().parse::<i32>().ok())
             .ok_or("Invalid tax statement file extension: *.dcX is expected")?;
-        let year = 2010 + i32::from(year);
+
+        let (mut decade, current_short_year) = util::today().year().div_mod_floor(&10);
+        if short_year > current_short_year + 1 {
+            decade -= 1;
+        }
+        let year = decade * 10 + short_year;
 
         if year != SUPPORTED_YEAR {
             warn!(concat!(
@@ -213,7 +220,7 @@ impl TaxStatementWriter {
 }
 
 fn get_extension(year: i32) -> String {
-    format!(".dc{}", year - 2010)
+    format!(".dc{}", year % 10)
 }
 
 fn get_header(year: i32) -> String {
@@ -254,7 +261,7 @@ mod tests {
         let date = date!(1, 1, year);
         let currency = "USD"; // 840 - Доллар США
 
-        let currency_rate = dec!(69.4706);
+        let currency_rate = dec!(61.9057);
         let amount = dec!(100);
         let local_amount = amount * currency_rate;
         let paid_tax = dec!(10);
