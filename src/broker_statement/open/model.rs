@@ -325,16 +325,19 @@ impl CashFlows {
             let amount = cash_flow.amount;
 
             match CashFlowType::parse(&cash_flow.description)? {
-                CashFlowType::Deposit => {
+                CashFlowType::DepositOrWithdrawal => {
                     let amount = util::validate_named_decimal(
-                        "deposit amount", amount, DecimalRestrictions::StrictlyPositive)?;
+                        "deposit or withdrawal amount", amount,
+                        DecimalRestrictions::StrictlyPositive)?;
 
-                    statement.cash_flows.push(
-                        CashAssets::new_from_cash(date, Cash::new(currency, amount)));
+                    statement.cash_flows.push(CashAssets::new_from_cash(
+                        date, Cash::new(currency, amount)));
                 },
+
                 CashFlowType::Commission => {
                     // It's taken into account during trades processing
                 },
+
                 CashFlowType::Fee(description) => {
                     let amount = util::validate_named_decimal(
                         "fee amount", amount, DecimalRestrictions::StrictlyNegative)?;
