@@ -106,6 +106,7 @@ impl Broker {
             }),
             Broker::Tinkoff => (plans::tinkoff::trader, btreemap!{
                 "Трейдер" => plans::tinkoff::trader as PlanFn,
+                "Премиум" => plans::tinkoff::premium as PlanFn,
             }),
         };
 

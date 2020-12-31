@@ -27,6 +27,17 @@ pub fn trader() -> CommissionSpec {
         .build()
 }
 
+// FIXME(konishchev): Add test with real data
+pub fn premium() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .trade(TradeCommissionSpecBuilder::new()
+            .commission(TransactionCommissionSpecBuilder::new()
+                .percent(dec!(0.025))
+                .build().unwrap())
+            .build())
+        .build()
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
