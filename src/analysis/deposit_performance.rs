@@ -1,6 +1,7 @@
 #[cfg(test)] use chrono::Duration;
 
 use log::{debug, warn};
+use num_traits::Zero;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
@@ -68,15 +69,21 @@ pub fn compare_to_bank_deposit(
     Ok((interest, difference))
 }
 
-pub fn check_emulation_precision(name: &str, currency: &str, assets: Decimal, difference: Decimal) -> EmptyResult {
+pub fn check_emulation_precision(
+    name: &str, currency: &str, transactions: &[Transaction], mut assets: Decimal, difference: Decimal,
+) -> EmptyResult {
+    if assets.is_zero() {
+        assets = transactions.last().unwrap().amount;
+    }
+
     let precision = (difference / assets).abs() * dec!(100);
     let difference = Cash::new(currency, difference).round();
 
     if precision >= dec!(1) {
         let message = format!(concat!(
-        "Failed to compare {} {} performance to bank deposit: ",
-        "got a result with too low precision ({}%, {})"),
-                              name, currency, util::round(precision, 3), difference);
+            "Failed to compare {} {} performance to bank deposit: ",
+            "got a result with too low precision ({}%, {})"
+        ), name, currency, util::round(precision, 3), difference);
 
         if cfg!(debug_assertions) {
             return Err(message.into());

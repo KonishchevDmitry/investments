@@ -110,7 +110,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             &deposit_view.transactions, &deposit_view.interest_periods, dec!(0))?;
 
         deposit_performance::check_emulation_precision(
-            symbol, self.currency, deposit_view.last_sell_volume.unwrap(), difference)?;
+            symbol, self.currency, &deposit_view.transactions,
+            deposit_view.last_sell_volume.unwrap(), difference)?;
 
         let name = deposit_view.name.unwrap();
         let days = get_total_activity_duration(&deposit_view.interest_periods);
@@ -146,7 +147,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             &self.transactions, &activity_periods, self.current_assets)?;
 
         deposit_performance::check_emulation_precision(
-            "portfolio", self.currency, self.current_assets, difference)?;
+            "portfolio", self.currency, &self.transactions, self.current_assets, difference)?;
 
         let days = get_total_activity_duration(&activity_periods);
         let investments = self.transactions.iter()
