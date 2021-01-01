@@ -1,60 +1,83 @@
-#[cfg(test)] use matches::assert_matches;
 use lazy_static::lazy_static;
-use num_traits::{FromPrimitive, ToPrimitive};
 use regex::Regex;
-use serde::{Deserialize, Deserializer};
-use serde::de::Error;
+use serde::Deserialize;
 
-use crate::core::GenericResult;
+use crate::broker_statement::fees::Fee;
+use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::{Cash, CashAssets};
 use crate::types::{Date, Decimal};
-use crate::util;
+use crate::util::{self, DecimalRestrictions};
 
-fn parse_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%Y-%m-%dT00:00:00")
+use super::common::deserialize_date;
+
+#[derive(Deserialize)]
+pub struct CashFlows {
+    #[serde(rename = "item")]
+    cash_flows: Vec<CashFlow>,
 }
 
-pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
-    where D: Deserializer<'de>
-{
-    let value: String = Deserialize::deserialize(deserializer)?;
-    parse_date(&value).map_err(D::Error::custom)
+#[derive(Deserialize)]
+struct CashFlow {
+    #[serde(rename = "operation_date", deserialize_with = "deserialize_date")]
+    date: Date,
+
+    #[serde(rename = "currency_code")]
+    currency: String,
+
+    amount: Decimal,
+
+    #[serde(rename = "comment")]
+    description: String,
 }
 
-pub fn parse_security_description(mut issuer: &str) -> &str {
-    if let Some(index) = issuer.find("п/у") {
-        issuer = &issuer[..index];
-    }
+impl CashFlows {
+    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        for cash_flow in &self.cash_flows {
+            let date = cash_flow.date;
+            let currency = &cash_flow.currency;
+            let amount = cash_flow.amount;
 
-    if let Some(index) = issuer.find('(') {
-        issuer = &issuer[..index];
-    }
+            match CashFlowType::parse(&cash_flow.description)? {
+                CashFlowType::DepositOrWithdrawal => {
+                    let amount = util::validate_named_decimal(
+                        "deposit or withdrawal amount", amount,
+                        DecimalRestrictions::StrictlyPositive)?;
 
-    issuer.trim()
-}
+                    statement.cash_flows.push(CashAssets::new_from_cash(
+                        date, Cash::new(currency, amount)));
+                },
 
-pub fn parse_quantity(decimal_quantity: Decimal, allow_zero: bool) -> GenericResult<u32> {
-    Ok(decimal_quantity.to_u32().and_then(|quantity| {
-        if Decimal::from_u32(quantity).unwrap() != decimal_quantity {
-            return None;
+                CashFlowType::Commission => {
+                    // It's taken into account during trades processing
+                },
+
+                CashFlowType::Fee(description) => {
+                    let amount = util::validate_named_decimal(
+                        "fee amount", amount, DecimalRestrictions::StrictlyNegative)?;
+
+                    statement.fees.push(Fee {
+                        date,
+                        amount: Cash::new(currency, amount),
+                        description: Some(description),
+                    });
+                },
+            };
         }
 
-        if !allow_zero && quantity == 0 {
-            return None;
-        }
-
-        Some(quantity)
-    }).ok_or_else(|| format!("Invalid quantity: {}", decimal_quantity))?)
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
-pub enum CashFlowType {
+enum CashFlowType {
     DepositOrWithdrawal,
     Commission,
     Fee(String),
 }
 
 impl CashFlowType {
-    pub fn parse(description: &str) -> GenericResult<CashFlowType> {
+    fn parse(description: &str) -> GenericResult<CashFlowType> {
         lazy_static! {
             static ref SPACES_REGEX: Regex = Regex::new(r"\s{2,}").unwrap();
         }
@@ -98,20 +121,9 @@ impl CashFlowType {
 
 #[cfg(test)]
 mod tests {
+    use matches::assert_matches;
     use rstest::rstest;
     use super::*;
-
-    #[test]
-    fn date_parsing() {
-        assert_eq!(parse_date("2017-12-31T00:00:00").unwrap(), date!(31, 12, 2017));
-    }
-
-    #[test]
-    fn security_description_parsing() {
-        assert_eq!(parse_security_description(
-            "FinEx MSCI China UCITS ETF (USD Share Class) п/у FinEx Investment Management LLP"),
-            "FinEx MSCI China UCITS ETF");
-    }
 
     #[rstest(description => [
         "Списаны средства клиента 123456 для возврата на расчетный счет",

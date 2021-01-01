@@ -1,0 +1,149 @@
+use std::collections::HashMap;
+
+use log::warn;
+use serde::Deserialize;
+
+use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::broker_statement::trades::{StockBuy, StockSell};
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
+use crate::types::{Date, Decimal};
+use crate::util::{self, DecimalRestrictions};
+
+use super::common::{deserialize_date, parse_quantity, get_symbol};
+
+#[derive(Deserialize)]
+pub struct ConcludedTrades {
+    #[serde(rename = "item")]
+    trades: Vec<ConcludedTrade>,
+}
+
+#[derive(Deserialize)]
+struct ConcludedTrade {
+    #[serde(rename = "deal_no")]
+    id: u64,
+
+    security_name: String,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    conclusion_date: Date,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    execution_date: Date,
+
+    #[serde(rename = "buy_qnty")]
+    buy_quantity: Option<Decimal>,
+
+    #[serde(rename = "sell_qnty")]
+    sell_quantity: Option<Decimal>,
+
+    #[serde(rename = "price_currency_code")]
+    currency: String,
+
+    #[serde(rename = "accounting_currency_code")]
+    accounting_currency: String,
+
+    price: Decimal,
+
+    #[serde(rename="volume_currency")]
+    volume: Decimal,
+
+    #[serde(rename = "broker_commission")]
+    commission: Decimal,
+}
+
+impl ConcludedTrades {
+    pub fn parse(
+        &self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>,
+        trades_with_shifted_execution_date: &mut HashMap<u64, Date>,
+    ) -> EmptyResult {
+        for trade in &self.trades {
+            let symbol = get_symbol(securities, &trade.security_name)?;
+            let price = util::validate_named_decimal(
+                "price", trade.price, DecimalRestrictions::StrictlyPositive)?.normalize();
+            let volume = util::validate_named_decimal(
+                "trade volume", trade.volume, DecimalRestrictions::StrictlyPositive)?.normalize();
+            let commission = util::validate_named_decimal(
+                "commission", trade.commission, DecimalRestrictions::PositiveOrZero)?;
+
+            // Just don't know which one exactly is
+            if trade.currency != trade.accounting_currency {
+                return Err!(
+                    "Trade currency for {} is not equal to accounting currency which is not supported yet",
+                     symbol);
+            }
+
+            let price = Cash::new(&trade.currency, price);
+            let volume = Cash::new(&trade.currency, volume);
+            let commission = Cash::new(&trade.accounting_currency, commission);
+            let execution_date = match trades_with_shifted_execution_date.remove(&trade.id) {
+                Some(execution_date) => {
+                    warn!(concat!(
+                        "Actual execution date of {:?} trade differs from the planned one. ",
+                        "Fix execution date for this trade."
+                    ), trade.id);
+
+                    execution_date
+                },
+                None => trade.execution_date,
+            };
+
+            match (trade.buy_quantity, trade.sell_quantity) {
+                (Some(quantity), None) => {
+                    let quantity = parse_quantity(quantity, false)?;
+                    debug_assert_eq!(volume, price * quantity);
+
+                    statement.stock_buys.push(StockBuy::new(
+                        symbol, quantity.into(), price, volume, commission,
+                        trade.conclusion_date, execution_date, false));
+                },
+                (None, Some(quantity)) => {
+                    let quantity = parse_quantity(quantity, false)?;
+                    debug_assert_eq!(volume, price * quantity);
+
+                    statement.stock_sells.push(StockSell::new(
+                        symbol, quantity.into(), price, volume, commission,
+                        trade.conclusion_date, execution_date, false, false));
+                },
+                _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
+            };
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ExecutedTrades {
+    #[serde(rename = "item")]
+    trades: Vec<ExecutedTrade>,
+}
+
+#[derive(Deserialize)]
+struct ExecutedTrade {
+    #[serde(rename = "deal_no")]
+    id: u64,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    plan_execution_date: Date,
+
+    #[serde(deserialize_with = "deserialize_date")]
+    fact_execution_date: Date,
+}
+
+impl ExecutedTrades {
+    pub fn parse(&self) -> GenericResult<HashMap<u64, Date>> {
+        let mut trades_with_shifted_execution_date = HashMap::new();
+
+        for trade in &self.trades {
+            if trade.fact_execution_date != trade.plan_execution_date {
+                if trades_with_shifted_execution_date.insert(trade.id, trade.fact_execution_date).is_some() {
+                    return Err!("Got a duplicated {:?} trade", trade.id);
+                }
+            }
+        }
+
+        Ok(trades_with_shifted_execution_date)
+    }
+}
+

@@ -1,3 +1,9 @@
+mod assets;
+mod cash_flows;
+mod common;
+mod report;
+mod trades;
+
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
@@ -6,10 +12,7 @@ use crate::core::GenericResult;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-use self::model::BrokerReport;
-
-mod parsers;
-mod model;
+use report::BrokerReport;
 
 pub struct StatementReader {
 }
