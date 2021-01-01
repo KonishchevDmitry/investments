@@ -239,7 +239,7 @@ fn deserialize_optional_decimal<'de, D>(deserializer: D) -> Result<Option<Decima
     where D: Deserializer<'de>
 {
     let value: String = Deserialize::deserialize(deserializer)?;
-    if value == "" {
+    if value.is_empty() {
         return Ok(None);
     }
 
@@ -253,7 +253,6 @@ mod tests {
     use std::collections::HashSet;
     use std::fs::File;
     use std::io::Read;
-    use std::iter::FromIterator;
     use std::path::Path;
 
     use mockito::{self, Mock, mock};
@@ -297,8 +296,8 @@ mod tests {
         let _mock = mock_response(&securities, &format!("moex-{}.xml", status));
         let quotes = Moex::new().get_quotes(&securities).unwrap();
         assert_eq!(
-            HashSet::from_iter(quotes.keys().map(String::as_str)),
-            HashSet::<&str>::from_iter(securities.iter().cloned()),
+            quotes.keys().map(String::as_str).collect::<HashSet<&str>>(),
+            securities.iter().cloned().collect::<HashSet<&str>>(),
         );
     }
 

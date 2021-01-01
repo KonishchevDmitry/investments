@@ -1,5 +1,3 @@
-use std::iter::FromIterator;
-
 use chrono::Datelike;
 
 use crate::core::GenericResult;
@@ -46,7 +44,7 @@ impl DepositEmulator {
     }
 
     pub fn with_interest_periods(mut self, custom_interest_periods: &[InterestPeriod]) -> DepositEmulator {
-        self.interest_periods = Vec::from_iter(custom_interest_periods.iter().rev().cloned());
+        self.interest_periods = custom_interest_periods.iter().rev().cloned().collect();
         self
     }
 
@@ -255,7 +253,7 @@ fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Gener
             let (year, month) = get_next_year_month(year, month);
             let date = Date::from_ymd(year, month, 1).pred();
             let days = (date - current).num_days();
-            assert!(days >= 28 && days <= 31);
+            assert!((28..=31).contains(&days));
             date
         }
     })
