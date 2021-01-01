@@ -70,7 +70,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
-            statement: PartialBrokerStatement::new(),
+            statement: PartialBrokerStatement::new(false),
 
             base_currency: None,
             base_currency_summary: None,
@@ -216,9 +216,9 @@ impl<'a> StatementParser<'a> {
 
         // When statement has no non-base currency activity it contains only base currency summary
         // and we have to use it as the only source of current cash assets info.
-        if self.statement.cash_assets.is_empty() {
+        if self.statement.cash_assets.is_none() {
             let amount = self.base_currency_summary.ok_or("Unable to find base currency summary")?;
-            self.statement.cash_assets.deposit(amount);
+            self.statement.cash_assets.get_or_insert_with(Default::default).deposit(amount);
         }
 
         self.statement.validate()

@@ -22,7 +22,7 @@ impl<'a> StatementParser<'a> {
     pub fn parse(reader: &mut StatementReader, statement: OFX, is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut parser = StatementParser {
             reader,
-            statement: PartialBrokerStatement::new(),
+            statement: PartialBrokerStatement::new(false),
             is_last,
         };
         statement.parse(&mut parser)?;

@@ -29,7 +29,7 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
-        let mut statement = PartialBrokerStatement::new();
+        let mut statement = PartialBrokerStatement::new(true);
         read_statement(path)?.parse(&mut statement)?;
         statement.validate()
     }

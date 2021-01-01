@@ -89,12 +89,13 @@ impl BrokerStatement {
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
     ) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
+        let last_index = statements.len() - 1;
 
         let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
-        for mut partial in statements.drain(..) {
+        for (index, mut partial) in statements.into_iter().enumerate() {
             for (dividend_id, accruals) in partial.dividend_accruals.drain() {
                 dividend_accruals.entry(dividend_id)
                     .and_modify(|existing: &mut DividendAccruals| existing.merge(&accruals))
@@ -107,7 +108,7 @@ impl BrokerStatement {
                     .or_insert(accruals);
             }
 
-            statement.merge(partial).map_err(|e| format!(
+            statement.merge(partial, index == last_index).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
         }
 
@@ -396,18 +397,20 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn merge(&mut self, mut statement: PartialBrokerStatement) -> EmptyResult {
+    fn merge(&mut self, mut statement: PartialBrokerStatement, last: bool) -> EmptyResult {
         let period = statement.get_period()?;
         self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
 
-        // FIXME(konishchev): Support empty
-        if !statement.cash_assets.is_empty() {
+        if let Some(cash_assets) = statement.cash_assets {
             assert!(self.historical_cash_assets.insert(
-                self.last_date(), statement.cash_assets.clone()
+                self.last_date(), cash_assets.clone()
             ).is_none());
+
+            self.cash_assets = cash_assets;
+        } else if last {
+            return Err!("Unable to find any information about current cash assets");
         }
-        self.cash_assets = statement.cash_assets;
 
         self.fees.extend(statement.fees.drain(..));
         self.cash_flows.extend(statement.cash_flows.drain(..));
@@ -476,11 +479,6 @@ impl BrokerStatement {
             min_date: self.period.0,
             max_date: self.last_date(),
         };
-
-        // FIXME(konishchev): Support empty
-        if self.cash_assets.is_empty() {
-            return Err!("Unable to find any information about current cash assets");
-        }
 
         date_validator.sort_and_validate(
             "cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;

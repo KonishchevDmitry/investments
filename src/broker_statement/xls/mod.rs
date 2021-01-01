@@ -17,7 +17,7 @@ impl XlsStatementParser {
         path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>,
     ) -> GenericResult<PartialBrokerStatement> {
         XlsStatementParser {
-            statement: PartialBrokerStatement::new(),
+            statement: PartialBrokerStatement::new(true),
             sheet: SheetReader::new(path, parser)?,
         }.parse(sections)
     }

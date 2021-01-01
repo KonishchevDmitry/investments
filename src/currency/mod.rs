@@ -170,7 +170,7 @@ pub struct CurrencyRate {
     price: Decimal,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct MultiCurrencyCashAccount {
     assets: HashMap<&'static str, Decimal>,
@@ -178,9 +178,7 @@ pub struct MultiCurrencyCashAccount {
 
 impl MultiCurrencyCashAccount {
     pub fn new() -> MultiCurrencyCashAccount {
-        MultiCurrencyCashAccount {
-            assets: HashMap::new(),
-        }
+        Default::default()
     }
 
     pub fn is_empty(&self) -> bool {

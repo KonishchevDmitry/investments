@@ -35,12 +35,12 @@ pub struct PartialBrokerStatement {
 
     // Please note that some brokers (Firstrade) provide this information only for the last
     // statement (current date).
-    pub cash_assets: MultiCurrencyCashAccount,
+    pub cash_assets: Option<MultiCurrencyCashAccount>,
     pub open_positions: HashMap<String, Decimal>,
 }
 
 impl PartialBrokerStatement {
-    pub fn new() -> PartialBrokerStatement {
+    pub fn new(zero_cash_assets: bool) -> PartialBrokerStatement {
         PartialBrokerStatement {
             period: None,
 
@@ -60,7 +60,11 @@ impl PartialBrokerStatement {
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
 
-            cash_assets: MultiCurrencyCashAccount::new(),
+            cash_assets: if zero_cash_assets {
+                Some(MultiCurrencyCashAccount::new())
+            } else {
+                None
+            },
             open_positions: HashMap::new(),
         }
     }

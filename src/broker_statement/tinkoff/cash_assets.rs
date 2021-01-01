@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 use num_traits::Zero;
 
@@ -21,8 +22,8 @@ pub struct CashAssetsParser {
 
 impl SectionParser for CashAssetsParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
-        parse_current_assets(parser)?;
-        parse_cash_flows(parser)?;
+        let currencies = parse_current_assets(parser)?;
+        parse_cash_flows(parser, &currencies)?;
         Ok(())
     }
 }
@@ -56,17 +57,22 @@ impl TableReader for AssetsRow {
     }
 }
 
-fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
+fn parse_current_assets(parser: &mut XlsStatementParser) -> GenericResult<HashSet<String>> {
+    let mut currencies = HashSet::new();
     parser.statement.starting_assets.get_or_insert(false);
 
     for assets in &xls::read_table::<AssetsRow>(&mut parser.sheet)? {
+        currencies.insert(assets.currency.clone());
+
         let starting = parse_decimal(&assets.starting, DecimalRestrictions::No)?;
         if !starting.is_zero() {
             parser.statement.starting_assets.replace(true);
         }
 
         let planned = parse_cash(&assets.currency, &assets.planned, DecimalRestrictions::No)?;
-        parser.statement.cash_assets.deposit(planned);
+        if !planned.is_zero() {
+            parser.statement.cash_assets.as_mut().unwrap().deposit(planned);
+        }
 
         let debt = parse_decimal(&assets.debt, DecimalRestrictions::No)?;
         if !debt.is_zero() {
@@ -79,7 +85,7 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> EmptyResult {
         }
     }
 
-    Ok(())
+    Ok(currencies)
 }
 
 #[derive(XlsTableRow)]
@@ -106,13 +112,13 @@ impl TableReader for CashFlowRow {
     }
 }
 
-fn parse_cash_flows(parser: &mut XlsStatementParser) -> EmptyResult {
+fn parse_cash_flows(parser: &mut XlsStatementParser, currencies: &HashSet<String>) -> EmptyResult {
     let mut cash_flows = Vec::new();
 
-    struct CashFlow {
+    struct CashFlow<'a> {
         date: Date,
         time: Option<Time>,
-        currency: &'static str,
+        currency: &'a str,
         info: CashFlowRow,
     }
 
@@ -120,8 +126,8 @@ fn parse_cash_flows(parser: &mut XlsStatementParser) -> EmptyResult {
         let row = xls::strip_row_expecting_columns(&parser.sheet.next_row_checked()?, 1)?;
         let title = xls::get_string_cell(&row[0])?;
 
-        let currency = match parser.statement.cash_assets.get(title) {
-            Some(assets) => assets.currency,
+        let currency = match currencies.get(title) {
+            Some(currency) => currency.as_str(),
             None => {
                 parser.sheet.step_back();
                 break;
