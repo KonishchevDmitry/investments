@@ -8,6 +8,7 @@ use regex::Regex;
 use rust_decimal::RoundingStrategy;
 
 use crate::core::GenericResult;
+use crate::currency::Cash;
 use crate::formatting;
 use crate::types::{Date, Time, DateTime, Decimal};
 
@@ -46,6 +47,10 @@ pub fn validate_decimal(value: Decimal, restrictions: DecimalRestrictions) -> Ge
 pub fn validate_named_decimal(name: &str, value: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
     Ok(validate_decimal(value, restrictions).map_err(|e| format!(
         "Invalid {} ({}): {}", name, value, e))?)
+}
+
+pub fn validate_named_cash(name: &str, currency: &str, value: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
+    Ok(Cash::new(currency, validate_named_decimal(name, value, restrictions)?))
 }
 
 pub fn decimal_precision(value: Decimal) -> u32 {

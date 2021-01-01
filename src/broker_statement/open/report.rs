@@ -9,6 +9,7 @@ use crate::types::Date;
 
 use super::assets::{AccountSummary, Assets, Securities};
 use super::cash_flows::CashFlows;
+use super::forex::ForexTrades;
 use super::trades::{ConcludedTrades, ExecutedTrades};
 use super::common::deserialize_date;
 
@@ -25,6 +26,9 @@ pub struct BrokerReport {
 
     #[serde(rename = "spot_assets")]
     assets: Option<Assets>,
+
+    #[serde(rename = "spot_nonstock_conversion_deals_conclusion")]
+    forex_trades: Option<ForexTrades>,
 
     #[serde(rename = "spot_main_deals_conclusion")]
     concluded_trades: Option<ConcludedTrades>,
@@ -52,6 +56,10 @@ impl BrokerReport {
 
         if let Some(ref assets) = self.assets {
             assets.parse(statement, &securities)?;
+        }
+
+        if let Some(ref trades) = self.forex_trades {
+            trades.parse(statement)?;
         }
 
         let mut trades_with_shifted_execution_date = if let Some(ref trades) = self.executed_trades {
