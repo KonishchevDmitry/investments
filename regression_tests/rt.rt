@@ -8,14 +8,14 @@ ACTUAL_PATH: testdata/rt_actual
 NAME: Deposits
 STDOUT: deposits
 APP: regression_tests/investments
-     testdata/config
+     main
      deposits
 
 [11]
 NAME: Deposits cron mode
 STDOUT: deposits-cron
 APP: regression_tests/investments
-     testdata/config
+     main
      deposits
      --cron
      --date
@@ -27,7 +27,7 @@ APP: regression_tests/investments
 NAME: IB portfolio
 STDOUT: ib-show
 APP: regression_tests/investments
-     testdata/config
+     main
      show
      ib
 
@@ -35,7 +35,7 @@ APP: regression_tests/investments
 NAME: Firstrade portfolio
 STDOUT: firstrade-show
 APP: regression_tests/investments
-     testdata/config
+     main
      show
      firstrade
 
@@ -43,7 +43,7 @@ APP: regression_tests/investments
 NAME: Tinkoff portfolio
 STDOUT: tinkoff-show
 APP: regression_tests/investments
-     testdata/config
+     main
      show
      tinkoff
 
@@ -51,7 +51,7 @@ APP: regression_tests/investments
 NAME: Open Broker portfolio
 STDOUT: iia-show
 APP: regression_tests/investments
-     testdata/config
+     main
      show
      iia
 
@@ -59,7 +59,7 @@ APP: regression_tests/investments
 NAME: BCS portfolio
 STDOUT: bcs-show
 APP: regression_tests/investments
-     testdata/config
+     main
      show
      bcs
 
@@ -69,7 +69,7 @@ APP: regression_tests/investments
 NAME: Analyse
 STDOUT: analyse
 APP: regression_tests/investments
-     testdata/config
+     main
      analyse
      all
      --all
@@ -80,7 +80,7 @@ APP: regression_tests/investments
 NAME: IB simulate sell
 STDOUT: ib-simulate-sell
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      ib
      all
@@ -92,7 +92,7 @@ APP: regression_tests/investments
 NAME: Firstrade simulate sell
 STDOUT: firstrade-simulate-sell
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      firstrade
      all
@@ -104,7 +104,7 @@ APP: regression_tests/investments
 NAME: Tinkoff simulate sell
 STDOUT: tinkoff-simulate-sell
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      tinkoff
      all
@@ -116,7 +116,7 @@ APP: regression_tests/investments
 NAME: Tinkoff simulate sell in USD
 STDOUT: tinkoff-simulate-sell-in-usd
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      tinkoff
      --base-currency
@@ -126,7 +126,7 @@ APP: regression_tests/investments
 NAME: Open Broker simulate sell
 STDOUT: iia-simulate-sell
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      iia
 
@@ -134,7 +134,7 @@ APP: regression_tests/investments
 NAME: BCS simulate sell
 STDOUT: bcs-simulate-sell
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      bcs
 
@@ -142,7 +142,7 @@ APP: regression_tests/investments
 NAME: IIA-B simulate sell
 STDOUT: iia-b-simulate-sell
 APP: regression_tests/investments
-     testdata/config
+     main
      simulate-sell
      kate-iia
 
@@ -152,7 +152,7 @@ APP: regression_tests/investments
 NAME: IB rebalance
 STDOUT: ib-rebalance
 APP: regression_tests/investments
-     testdata/config
+     main
      rebalance
      ib
 
@@ -160,7 +160,7 @@ APP: regression_tests/investments
 NAME: Firstrade rebalance
 STDOUT: firstrade-rebalance
 APP: regression_tests/investments
-     testdata/config
+     main
      rebalance
      firstrade
 
@@ -168,7 +168,7 @@ APP: regression_tests/investments
 NAME: Tinkoff rebalance
 STDOUT: tinkoff-rebalance
 APP: regression_tests/investments
-     testdata/config
+     main
      rebalance
      tinkoff
 
@@ -176,7 +176,7 @@ APP: regression_tests/investments
 NAME: Open Broker rebalance
 STDOUT: iia-rebalance
 APP: regression_tests/investments
-     testdata/config
+     main
      rebalance
      iia
 
@@ -184,7 +184,7 @@ APP: regression_tests/investments
 NAME: BCS rebalance
 STDOUT: bcs-rebalance
 APP: regression_tests/investments
-     testdata/config
+     main
      rebalance
      bcs
 
@@ -192,7 +192,7 @@ APP: regression_tests/investments
 NAME: IIA-B rebalance
 STDOUT: iia-b-rebalance
 APP: regression_tests/investments
-     testdata/config
+     main
      rebalance
      kate-iia
 
@@ -202,7 +202,7 @@ APP: regression_tests/investments
 NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      ib
      2018
@@ -210,7 +210,7 @@ APP: regression_tests/investments
 [601]
 NAME: IB tax statement generation 2018
 APP: regression_tests/test-tax-statement
-     testdata/config
+     main
      ib
      2018
      $OUT_PATH/ib-tax-statement-2018.dc8
@@ -220,7 +220,7 @@ DIFF: rt-binary
 NAME: IB tax statement 2019
 STDOUT: ib-tax-statement-2019
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      ib
      2019
@@ -228,7 +228,7 @@ APP: regression_tests/investments
 [603]
 NAME: IB tax statement generation 2019
 APP: regression_tests/test-tax-statement
-     testdata/config
+     main
      ib
      2019
      $OUT_PATH/ib-tax-statement-2019.dc9
@@ -238,7 +238,7 @@ DIFF: rt-binary
 NAME: IB tax statement 2020
 STDOUT: ib-tax-statement-2020
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      ib
      2020
@@ -247,7 +247,7 @@ APP: regression_tests/investments
 NAME: Firstrade tax statement 2020
 STDOUT: firstrade-tax-statement-2020
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      firstrade
      2020
@@ -256,7 +256,7 @@ APP: regression_tests/investments
 NAME: Tinkoff tax statement
 STDOUT: tinkoff-tax-statement
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      tinkoff
 
@@ -264,7 +264,7 @@ APP: regression_tests/investments
 NAME: Open Broker tax statement
 STDOUT: iia-tax-statement
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      iia
 
@@ -272,7 +272,7 @@ APP: regression_tests/investments
 NAME: BCS tax statement
 STDOUT: bcs-tax-statement
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      bcs
 
@@ -280,7 +280,7 @@ APP: regression_tests/investments
 NAME: Kate tax statement
 STDOUT: kate-tax-statement
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      kate
 
@@ -288,7 +288,7 @@ APP: regression_tests/investments
 NAME: Kate IIA tax statement
 STDOUT: kate-iia-tax-statement
 APP: regression_tests/investments
-     testdata/config
+     main
      tax-statement
      kate-iia
 
@@ -296,17 +296,17 @@ APP: regression_tests/investments
 NAME: IB third-party tax statement
 STDOUT: ib-third-party-tax-statement
 APP: regression_tests/investments
-     testdata/third-party-config
+     other
      tax-statement
-     third-party
+     ib-complex
 
 [68]
 NAME: IB third-party tax statement with stock split
 STDOUT: ib-stock-split-tax-statement
 APP: regression_tests/investments
-     testdata/third-party-config
+     other
      tax-statement
-     stock-split
+     ib-stock-split
 
 # Cash flow
 
@@ -314,7 +314,7 @@ APP: regression_tests/investments
 NAME: IB cash flow 2018
 STDOUT: ib-cash-flow-2018
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      ib
      2018
@@ -323,7 +323,7 @@ APP: regression_tests/investments
 NAME: IB cash flow 2019
 STDOUT: ib-cash-flow-2019
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      ib
      2019
@@ -332,7 +332,7 @@ APP: regression_tests/investments
 NAME: IB cash flow 2020
 STDOUT: ib-cash-flow-2020
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      ib
      2020
@@ -341,7 +341,7 @@ APP: regression_tests/investments
 NAME: Firstrade cash flow 2020
 STDOUT: firstrade-cash-flow-2020
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      firstrade
      2020
@@ -350,23 +350,31 @@ APP: regression_tests/investments
 NAME: Tinkoff cash flow
 STDOUT: tinkoff-cash-flow
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      tinkoff
 
-[73]
+[731]
 NAME: Open Broker cash flow
 STDOUT: iia-cash-flow
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      iia
+
+[732]
+NAME: Open Broker inactive with forex trades
+STDOUT: open-inactive-with-forex
+APP: regression_tests/investments
+     other
+     cash-flow
+     open-inactive-with-forex
 
 [74]
 NAME: BCS cash flow
 STDOUT: bcs-cash-flow
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      bcs
 
@@ -374,7 +382,7 @@ APP: regression_tests/investments
 NAME: Kate cash flow
 STDOUT: kate-cash-flow
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      kate
 
@@ -382,7 +390,7 @@ APP: regression_tests/investments
 NAME: Kate IIA cash flow
 STDOUT: kate-iia-cash-flow
 APP: regression_tests/investments
-     testdata/config
+     main
      cash-flow
      kate-iia
 
@@ -390,23 +398,23 @@ APP: regression_tests/investments
 NAME: IB margin RUB cash flow
 STDOUT: ib-margin-rub-cash-flow
 APP: regression_tests/investments
-     testdata/third-party-config
+     other
      cash-flow
-     margin-rub
+     ib-margin-rub
 
 [78]
 NAME: IB third-party cash flow with stock split
 STDOUT: ib-stock-split-cash-flow
 APP: regression_tests/investments
-     testdata/third-party-config
+     other
      cash-flow
-     stock-split
+     ib-stock-split
 
 # Metrics
 
 [8]
 NAME: Metrics
 APP: regression_tests/investments
-     testdata/config
+     main
      metrics
      $OUT_PATH/metrics

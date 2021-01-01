@@ -282,10 +282,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_real_current() {
-        let tax_remapping = Config::load("testdata/config/config.yaml").unwrap()
+    fn parse_real() {
+        let tax_remapping = Config::load("testdata/configs/main/config.yaml").unwrap()
             .get_portfolio("ib").unwrap().get_tax_remapping().unwrap();
-        let statement = parse_full("current", Some(tax_remapping));
+        let statement = parse_full("my", Some(tax_remapping));
         let current_year = statement.period.1.year();
 
         assert!(!statement.cash_flows.is_empty());
@@ -324,14 +324,20 @@ mod tests {
     }
 
     #[rstest(name => [
-        "third-party/margin-rub",
-        "third-party/latest",
-
         "return-of-capital-with-tax",
         "return-of-capital-without-tax",
+
+        "margin-rub",
+        "complex",
     ])]
-    fn parse_real(name: &str) {
+    fn parse_real_other(name: &str) {
         parse_full(name, None);
+    }
+
+    #[rstest(name => ["no-activity", "multi-currency-activity"])]
+    fn parse_real_partial(name: &str) {
+        let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
+        StatementReader::new(TaxRemapping::new(), true).unwrap().read(&path, true).unwrap();
     }
 
     fn parse_full(name: &str, tax_remapping: Option<TaxRemapping>) -> BrokerStatement {
@@ -339,11 +345,5 @@ mod tests {
         let path = format!("testdata/interactive-brokers/{}", name);
         let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
         BrokerStatement::read(broker, &path, &hashmap!{}, &hashmap!{}, tax_remapping, true).unwrap()
-    }
-
-    #[rstest(name => ["no-activity", "multi-currency-activity"])]
-    fn parse_real_partial(name: &str) {
-        let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(TaxRemapping::new(), true).unwrap().read(&path, true).unwrap();
     }
 }

@@ -73,12 +73,12 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    #[rstest(name => ["bcs", "kate", "kate-iia"])]
+    #[rstest(name => ["my", "kate", "kate-iia"])]
     fn parse_real(name: &str) {
         let broker = Broker::Bcs.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
-            broker, &format!("testdata/{}", name),
+            broker, &format!("testdata/bcs/{}", name),
             &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
@@ -89,7 +89,7 @@ mod tests {
 
         assert!(statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
-        assert_eq!(statement.stock_sells.is_empty(), name == "bcs");
+        assert_eq!(statement.stock_sells.is_empty(), name == "my");
         assert!(statement.dividends.is_empty());
 
         assert!(!statement.open_positions.is_empty());

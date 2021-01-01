@@ -87,7 +87,7 @@ mod tests {
         let mut count = 0;
         let mut execution_dates = TradeExecutionDates::new();
 
-        for entry in fs::read_dir("testdata/interactive-brokers/current").unwrap() {
+        for entry in fs::read_dir("testdata/interactive-brokers/my").unwrap() {
             let path = entry.unwrap().path();
             let path = path.to_str().unwrap();
 

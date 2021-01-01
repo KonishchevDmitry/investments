@@ -84,7 +84,7 @@ mod tests {
         let broker = Broker::Firstrade.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
-            broker, "testdata/firstrade", &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
+            broker, "testdata/firstrade/my", &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
