@@ -49,27 +49,30 @@ fn read_statement(path: &str) -> GenericResult<BrokerReport> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn parse_real() {
+    // FIXME(konishchev): Add non-IIA account
+    #[rstest(name => ["iia", "inactive-with-forex"])]
+    fn parse_real(name: &str) {
         let broker = Broker::Open.get_info(&Config::mock(), None).unwrap();
+        let path = format!("testdata/open-broker/{}", name);
 
         let statement = BrokerStatement::read(
-            broker, "testdata/open-broker", &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
+            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
-        assert!(!statement.cash_assets.is_empty());
+        assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
 
         assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
 
-        assert!(statement.forex_trades.is_empty());
-        assert!(!statement.stock_buys.is_empty());
-        assert!(!statement.stock_sells.is_empty());
+        assert_eq!(statement.forex_trades.is_empty(), name != "inactive-with-forex");
+        assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");
+        assert_eq!(statement.stock_sells.is_empty(), name == "inactive-with-forex");
         assert!(statement.dividends.is_empty());
 
-        assert!(!statement.open_positions.is_empty());
-        assert!(!statement.instrument_names.is_empty());
+        assert_eq!(statement.open_positions.is_empty(), name == "inactive-with-forex");
+        assert_eq!(statement.instrument_names.is_empty(), name == "inactive-with-forex");
     }
 }
