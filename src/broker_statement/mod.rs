@@ -401,6 +401,7 @@ impl BrokerStatement {
         self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
 
+        // FIXME(konishchev): Support empty
         if !statement.cash_assets.is_empty() {
             assert!(self.historical_cash_assets.insert(
                 self.last_date(), statement.cash_assets.clone()
@@ -476,6 +477,7 @@ impl BrokerStatement {
             max_date: self.last_date(),
         };
 
+        // FIXME(konishchev): Support empty
         if self.cash_assets.is_empty() {
             return Err!("Unable to find any information about current cash assets");
         }

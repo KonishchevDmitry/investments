@@ -42,7 +42,7 @@ impl CashFlows {
                 CashFlowType::DepositOrWithdrawal => {
                     let amount = util::validate_named_decimal(
                         "deposit or withdrawal amount", amount,
-                        DecimalRestrictions::StrictlyPositive)?;
+                        DecimalRestrictions::NonZero)?;
 
                     statement.cash_flows.push(CashAssets::new_from_cash(
                         date, Cash::new(currency, amount)));

@@ -24,7 +24,7 @@ pub struct BrokerReport {
     account_summary: AccountSummary,
 
     #[serde(rename = "spot_assets")]
-    assets: Assets,
+    assets: Option<Assets>,
 
     #[serde(rename = "spot_main_deals_conclusion")]
     concluded_trades: Option<ConcludedTrades>,
@@ -36,7 +36,7 @@ pub struct BrokerReport {
     cash_flow: Option<CashFlows>,
 
     #[serde(rename = "spot_portfolio_security_params")]
-    securities: Securities,
+    securities: Option<Securities>,
 }
 
 impl BrokerReport {
@@ -44,8 +44,15 @@ impl BrokerReport {
         statement.period = Some((self.date_from, self.date_to.succ()));
         self.account_summary.parse(statement)?;
 
-        let securities = self.securities.parse(statement)?;
-        self.assets.parse(statement, &securities)?;
+        let securities = if let Some(ref securities) = self.securities {
+            securities.parse(statement)?
+        } else {
+            HashMap::new()
+        };
+
+        if let Some(ref assets) = self.assets {
+            assets.parse(statement, &securities)?;
+        }
 
         let mut trades_with_shifted_execution_date = if let Some(ref trades) = self.executed_trades {
             trades.parse()?
