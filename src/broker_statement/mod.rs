@@ -421,11 +421,12 @@ impl BrokerStatement {
         self.stock_sells.extend(statement.stock_sells.drain(..));
         self.dividends.extend(statement.dividends.drain(..));
 
-        for action in statement.corporate_actions.drain(..) {
+        for action in statement.corporate_actions {
             match action.action {
                 CorporateActionType::StockSplit(divisor) => {
                     self.stock_splits.add(action.date, &action.symbol, divisor)?;
                 }
+                _ => unimplemented!(), // FIXME(konishchev): Support
             };
             self.corporate_actions.push(action);
         }

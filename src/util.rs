@@ -1,8 +1,10 @@
+use std::borrow::Cow;
 use std::ops::{Neg, Add};
 use std::str::FromStr;
 
 use chrono::{self, Duration, Local, TimeZone};
 use chrono_tz::Tz;
+use lazy_static::lazy_static;
 use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
@@ -89,6 +91,13 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
     }
 
     round_value.normalize()
+}
+
+pub fn fold_spaces(string: &str) -> Cow<str> {
+    lazy_static! {
+        static ref SPACES_REGEX: Regex = Regex::new(r"\s{2,}").unwrap();
+    }
+    SPACES_REGEX.replace_all(string, " ")
 }
 
 pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
@@ -179,7 +188,6 @@ fn tz_now() -> chrono::DateTime<Local> {
     #[cfg(debug_assertions)]
     {
         use std::process;
-        use lazy_static::lazy_static;
 
         lazy_static! {
             static ref FAKE_NOW: Option<chrono::DateTime<Local>> = parse_fake_now().unwrap_or_else(|e| {
