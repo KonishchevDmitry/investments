@@ -288,12 +288,15 @@ impl<'a> TradesProcessor<'a> {
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
 
+            // FIXME(konishchev): Zero support
             cost: buy_trade.cost,
+            // FIXME(konishchev): Zero support
             local_cost: buy_trade.local_cost,
 
             commission: buy_trade.commission,
             local_commission: buy_trade.local_commission,
 
+            // FIXME(konishchev): Zero support
             total_local_cost: buy_trade.total_local_cost,
             tax_free: if buy_trade.tax_exemption_applied {
                 Some("✔".to_owned())

@@ -18,6 +18,9 @@ pub struct ForexTrade {
 pub struct StockBuy {
     pub symbol: String,
     pub quantity: Decimal,
+
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -154,6 +157,7 @@ impl StockSell {
                 let source_local_commission = local_conclusion(
                     self.commission * source_quantity / self.quantity)?;
 
+                // FIXME(konishchev): Zero support
                 let source_local_profit = source_local_revenue
                     .sub(source_local_commission).unwrap()
                     .sub(source_details.total_local_cost).unwrap();
@@ -166,10 +170,13 @@ impl StockSell {
                 tax_free_quantity += source_quantity;
             }
 
+            // FIXME(konishchev): Zero support
             purchase_cost.add_assign(source_details.total_cost).map_err(|e| format!(
                 "Sell and buy trades have different currency: {}", e))?;
+            // FIXME(konishchev): Zero support
             purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
             if !source_details.tax_exemption_applied {
+                // FIXME(konishchev): Zero support
                 deductible_purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
             }
 
@@ -248,6 +255,9 @@ impl StockSell {
 pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
+
+    // Please note that the following values can be zero due to corporate actions or other non-trade
+    // operations:
     pub price: Cash,
     pub commission: Cash,
 
@@ -257,19 +267,16 @@ pub struct StockSellSource {
 
 impl StockSellSource {
     fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
-        // FIXME(konishchev): Zero support
         self.price = converter.convert_to_cash_rounding(self.execution_date, self.price, currency)?;
         self.commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
         Ok(())
     }
 
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        // FIXME(konishchev): Zero support
         let cost = (self.price * self.quantity).round();
         let local_cost = converter.convert_to_rounding(
             self.execution_date, cost, country.currency)?;
 
-        // FIXME(konishchev): Zero support
         let commission = self.commission.round();
         let local_commission = converter.convert_to_rounding(
             self.conclusion_date, commission, country.currency)?;
@@ -277,7 +284,6 @@ impl StockSellSource {
         let mut total_cost = cost;
         let mut total_local_cost = local_cost;
 
-        // FIXME(konishchev): Zero support
         total_cost.add_assign(self.commission.round()).map_err(|e| format!(
             "Trade and commission have different currency: {}", e))?;
         total_local_cost += local_commission;
@@ -309,9 +315,10 @@ pub struct SellDetails {
     pub local_revenue: Cash,
     pub local_commission: Cash,
 
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
     pub purchase_cost: Cash,
     pub purchase_local_cost: Cash,
-
     pub total_cost: Cash,
     pub total_local_cost: Cash,
 
@@ -344,17 +351,18 @@ impl SellDetails {
 pub struct FifoDetails {
     pub quantity: Decimal,
     pub multiplier: Decimal,
-    pub price: Cash,
-
-    pub commission: Cash,
-    pub local_commission: Cash,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
 
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
+    pub price: Cash,
+    pub commission: Cash,
+    pub local_commission: Cash,
+    // and:
     pub cost: Cash,
     pub local_cost: Cash,
-
     pub total_cost: Cash,
     pub total_local_cost: Cash,
 
