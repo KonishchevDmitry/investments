@@ -44,7 +44,8 @@ pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
-pub use self::trades::{ForexTrade, StockBuy, StockSell, StockSellSource, SellDetails, FifoDetails};
+pub use self::trades::{
+    ForexTrade, StockBuy, StockSource, StockSell, StockSellSource, SellDetails, FifoDetails};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -429,7 +430,7 @@ impl BrokerStatement {
                 CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
                     let zero = Cash::new(&currency, dec!(0));
                     self.stock_buys.push(StockBuy::new(
-                        &symbol, quantity, zero, zero, zero,
+                        &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
                         date, action.date, false,
                     ));
                 },

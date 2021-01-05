@@ -1,5 +1,7 @@
+use num_traits::Zero;
+
 use crate::broker_statement::{
-    BrokerStatement, ForexTrade, StockBuy, StockSell, Dividend, Fee, IdleCashInterest};
+    BrokerStatement, ForexTrade, StockBuy, StockSell, StockSource, Dividend, Fee, IdleCashInterest};
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
@@ -95,15 +97,21 @@ impl CashFlowMapper {
     }
 
     fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
-        // FIXME(konishchev): Zero support
+        match trade.source {
+            StockSource::Trade => {
+                let description = format!("Покупка {} {}", trade.quantity, name);
+                self.add(trade.conclusion_date, -trade.volume, description);
 
-        let description = format!("Покупка {} {}", trade.quantity, name);
-        self.add(trade.conclusion_date, -trade.volume, description);
-
-        if !trade.commission.is_zero() {
-            let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
-            self.add(trade.conclusion_date, -trade.commission, description);
-        };
+                if !trade.commission.is_zero() {
+                    let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
+                    self.add(trade.conclusion_date, -trade.commission, description);
+                };
+            },
+            StockSource::CorporateAction => {
+                assert!(trade.volume.amount.is_zero());
+                assert!(trade.commission.amount.is_zero());
+            },
+        }
     }
 
     fn stock_sell(&mut self, name: &str, trade: &StockSell) {

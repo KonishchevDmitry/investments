@@ -4,7 +4,7 @@ use log::warn;
 use serde::Deserialize;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::broker_statement::trades::{StockBuy, StockSell};
+use crate::broker_statement::trades::{StockBuy, StockSell, StockSource};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::{Date, Decimal};
@@ -94,7 +94,7 @@ impl ConcludedTrades {
                     debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_buys.push(StockBuy::new(
-                        symbol, quantity.into(), price, volume, commission,
+                        symbol, quantity.into(), StockSource::Trade, price, volume, commission,
                         trade.conclusion_date, execution_date, false));
                 },
                 (None, Some(quantity)) => {

@@ -15,9 +15,16 @@ pub struct ForexTrade {
 }
 
 #[derive(Debug)]
+pub enum StockSource {
+    Trade,
+    CorporateAction,
+}
+
+#[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
     pub quantity: Decimal,
+    pub source: StockSource,
 
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
@@ -34,11 +41,12 @@ pub struct StockBuy {
 
 impl StockBuy {
     pub fn new(
-        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
+        symbol: &str, quantity: Decimal, source: StockSource,
+        price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
+            symbol: symbol.to_owned(), quantity, source, price, volume, commission,
             conclusion_date, execution_date, margin, sold: dec!(0),
         }
     }

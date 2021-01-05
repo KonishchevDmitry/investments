@@ -192,7 +192,6 @@ impl<'a> TradesProcessor<'a> {
         tax_statement.add_stock_income(
             &description, trade.execution_date, details.revenue.currency, precise_currency_rate,
             details.revenue.amount, details.local_revenue.amount,
-            // FIXME(konishchev): Zero support
             details.total_local_cost.amount
         ).map_err(|e| format!(
             "Unable to add income from selling {} on {} to the tax statement: {}",
@@ -239,9 +238,7 @@ impl<'a> TradesProcessor<'a> {
             commission: trade.commission.round(),
             local_commission: details.local_commission,
 
-            // FIXME(konishchev): Zero support
             purchase_local_cost: details.purchase_local_cost,
-            // FIXME(konishchev): Zero support
             total_local_cost: details.total_local_cost,
 
             local_profit: details.local_profit,
@@ -270,7 +267,6 @@ impl<'a> TradesProcessor<'a> {
         let conclusion_currency_rate = self.converter.precise_currency_rate(
             buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?;
 
-        // FIXME(konishchev): Zero support
         let execution_currency_rate = self.converter.precise_currency_rate(
             buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?;
 
@@ -286,20 +282,16 @@ impl<'a> TradesProcessor<'a> {
             quantity: buy_trade.quantity,
             multiplier: buy_trade.multiplier,
 
-            // FIXME(konishchev): Zero support
             price: buy_trade.price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
 
-            // FIXME(konishchev): Zero support
             cost: buy_trade.cost,
-            // FIXME(konishchev): Zero support
             local_cost: buy_trade.local_cost,
 
             commission: buy_trade.commission,
             local_commission: buy_trade.local_commission,
 
-            // FIXME(konishchev): Zero support
             total_local_cost: buy_trade.total_local_cost,
             tax_free: if buy_trade.tax_exemption_applied {
                 Some("✔".to_owned())
