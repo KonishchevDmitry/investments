@@ -257,16 +257,19 @@ pub struct StockSellSource {
 
 impl StockSellSource {
     fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
+        // FIXME(konishchev): Zero support
         self.price = converter.convert_to_cash_rounding(self.execution_date, self.price, currency)?;
         self.commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
         Ok(())
     }
 
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
+        // FIXME(konishchev): Zero support
         let cost = (self.price * self.quantity).round();
         let local_cost = converter.convert_to_rounding(
             self.execution_date, cost, country.currency)?;
 
+        // FIXME(konishchev): Zero support
         let commission = self.commission.round();
         let local_commission = converter.convert_to_rounding(
             self.conclusion_date, commission, country.currency)?;
@@ -274,6 +277,7 @@ impl StockSellSource {
         let mut total_cost = cost;
         let mut total_local_cost = local_cost;
 
+        // FIXME(konishchev): Zero support
         total_cost.add_assign(self.commission.round()).map_err(|e| format!(
             "Trade and commission have different currency: {}", e))?;
         total_local_cost += local_commission;

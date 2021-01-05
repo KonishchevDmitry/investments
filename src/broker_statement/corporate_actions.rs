@@ -19,8 +19,10 @@ pub enum CorporateActionType {
 
     // See https://github.com/KonishchevDmitry/investments/issues/20 for details
     Spinoff {
+        date: Date,
         symbol: String,
         quantity: Decimal,
+        currency: String,
     }
 }
 

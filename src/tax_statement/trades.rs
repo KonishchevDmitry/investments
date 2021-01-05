@@ -267,6 +267,7 @@ impl<'a> TradesProcessor<'a> {
         let conclusion_currency_rate = self.converter.precise_currency_rate(
             buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?;
 
+        // FIXME(konishchev): Zero support
         let execution_currency_rate = self.converter.precise_currency_rate(
             buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?;
 
@@ -282,6 +283,7 @@ impl<'a> TradesProcessor<'a> {
             quantity: buy_trade.quantity,
             multiplier: buy_trade.multiplier,
 
+            // FIXME(konishchev): Zero support
             price: buy_trade.price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,

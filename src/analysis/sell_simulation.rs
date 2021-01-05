@@ -171,6 +171,7 @@ fn print_results(
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
+            // FIXME(konishchev): Zero support
             purchase_cost.amount += converter.convert_to_rounding(
                 buy_trade.execution_date, buy_trade.price * buy_trade.quantity,
                 purchase_cost.currency)?;
@@ -182,6 +183,7 @@ fn print_results(
                    None
                 },
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
+                // FIXME(konishchev): Zero support
                 price: (buy_trade.price / buy_trade.multiplier).normalize(),
                 tax_free: if buy_trade.tax_exemption_applied {
                     Some("✔".to_owned())

@@ -95,6 +95,8 @@ impl CashFlowMapper {
     }
 
     fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
+        // FIXME(konishchev): Zero support
+
         let description = format!("Покупка {} {}", trade.quantity, name);
         self.add(trade.conclusion_date, -trade.volume, description);
 

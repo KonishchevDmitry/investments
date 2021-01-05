@@ -426,7 +426,13 @@ impl BrokerStatement {
                 CorporateActionType::StockSplit(divisor) => {
                     self.stock_splits.add(action.date, &action.symbol, divisor)?;
                 }
-                _ => unimplemented!(), // FIXME(konishchev): Support
+                CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
+                    let zero = Cash::new(&currency, dec!(0));
+                    self.stock_buys.push(StockBuy::new(
+                        &symbol, quantity, zero, zero, zero,
+                        date, action.date, false,
+                    ));
+                },
             };
             self.corporate_actions.push(action);
         }

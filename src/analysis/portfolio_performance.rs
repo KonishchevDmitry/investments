@@ -261,6 +261,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let mut stock_taxes = HashMap::new();
 
         for trade in &statement.stock_buys {
+            // FIXME(konishchev): Zero support
+
             let multiplier = statement.stock_splits.get_multiplier(
                 &trade.symbol, trade.conclusion_date, self.today);
 
