@@ -106,12 +106,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     ) -> GenericResult<InstrumentPerformanceAnalysis> {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
-        let (interest, difference) = deposit_performance::compare_to_bank_deposit(
-            &deposit_view.transactions, &deposit_view.interest_periods, dec!(0))?;
-
-        deposit_performance::check_emulation_precision(
-            symbol, self.currency, &deposit_view.transactions,
-            deposit_view.last_sell_volume.unwrap(), difference)?;
+        let interest = deposit_performance::compare_to_bank_deposit(
+            &deposit_view.transactions, &deposit_view.interest_periods, dec!(0),
+        ).map(|(interest, difference)| -> GenericResult<Decimal> {
+            deposit_performance::check_emulation_precision(
+                symbol, self.currency, &deposit_view.transactions,
+                deposit_view.last_sell_volume.unwrap(), difference)?;
+            Ok(interest)
+        }).transpose()?;
 
         let name = deposit_view.name.unwrap();
         let days = get_total_activity_duration(&deposit_view.interest_periods);
@@ -137,17 +139,18 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         if self.transactions.is_empty() {
             return Err!("The portfolio has no activity yet");
         }
-
         self.transactions.sort_by_key(|transaction| transaction.date);
 
         let activity_periods = vec![InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
-        let (interest, difference) = deposit_performance::compare_to_bank_deposit(
-            &self.transactions, &activity_periods, self.current_assets)?;
-
-        deposit_performance::check_emulation_precision(
-            "portfolio", self.currency, &self.transactions, self.current_assets, difference)?;
+        let interest = deposit_performance::compare_to_bank_deposit(
+            &self.transactions, &activity_periods, self.current_assets,
+        ).map(|(interest, difference)| -> GenericResult<Decimal> {
+            deposit_performance::check_emulation_precision(
+                "portfolio", self.currency, &self.transactions, self.current_assets, difference)?;
+            Ok(interest)
+        }).transpose()?;
 
         let days = get_total_activity_duration(&activity_periods);
         let investments = self.transactions.iter()
@@ -261,8 +264,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let mut stock_taxes = HashMap::new();
 
         for trade in &statement.stock_buys {
-            // FIXME(konishchev): Zero support
-
             let multiplier = statement.stock_splits.get_multiplier(
                 &trade.symbol, trade.conclusion_date, self.today);
 
@@ -466,7 +467,11 @@ impl StockDepositView {
     }
 
     fn transaction(&mut self, date: Date, amount: Decimal) {
-        self.transactions.push(Transaction::new(date, amount))
+        // Some assets can be acquired for free due to corporate actions or other non-trading
+        // operations.
+        if !amount.is_zero() {
+            self.transactions.push(Transaction::new(date, amount))
+        }
     }
 }
 
