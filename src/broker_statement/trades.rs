@@ -157,7 +157,6 @@ impl StockSell {
                 let source_local_commission = local_conclusion(
                     self.commission * source_quantity / self.quantity)?;
 
-                // FIXME(konishchev): Zero support
                 let source_local_profit = source_local_revenue
                     .sub(source_local_commission).unwrap()
                     .sub(source_details.total_local_cost).unwrap();
@@ -170,13 +169,10 @@ impl StockSell {
                 tax_free_quantity += source_quantity;
             }
 
-            // FIXME(konishchev): Zero support
             purchase_cost.add_assign(source_details.total_cost).map_err(|e| format!(
                 "Sell and buy trades have different currency: {}", e))?;
-            // FIXME(konishchev): Zero support
             purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
             if !source_details.tax_exemption_applied {
-                // FIXME(konishchev): Zero support
                 deductible_purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
             }
 
@@ -219,10 +215,18 @@ impl StockSell {
 
         let real_profit = profit.sub(converter.convert_to_cash_rounding(
             self.execution_date, tax_to_pay, profit.currency)?)?;
-        let real_profit_ratio = real_profit.div(purchase_cost).unwrap();
+        let real_profit_ratio = if purchase_cost.is_zero() {
+            None
+        } else {
+            Some(real_profit.div(purchase_cost).unwrap())
+        };
 
         let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
-        let real_local_profit_ratio = real_local_profit.div(purchase_local_cost).unwrap();
+        let real_local_profit_ratio = if purchase_local_cost.is_zero() {
+            None
+        } else {
+            Some(real_local_profit.div(purchase_local_cost).unwrap())
+        };
 
         Ok(SellDetails {
             revenue,
@@ -330,8 +334,8 @@ pub struct SellDetails {
     pub tax_deduction: Cash,
 
     pub real_tax_ratio: Option<Decimal>,
-    pub real_profit_ratio: Decimal,
-    pub real_local_profit_ratio: Decimal,
+    pub real_profit_ratio: Option<Decimal>,
+    pub real_local_profit_ratio: Option<Decimal>,
 
     pub fifo: Vec<FifoDetails>,
 }

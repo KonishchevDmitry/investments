@@ -139,9 +139,9 @@ struct TradeRow {
     #[column(name="Вычет")]
     tax_deduction: Cash,
     #[column(name="Реальный\nдоход")]
-    real_profit_ratio: Cell,
+    real_profit_ratio: Option<Cell>,
     #[column(name="Реальный\nдоход (руб)")]
-    real_local_profit_ratio: Cell,
+    real_local_profit_ratio: Option<Cell>,
 }
 
 #[derive(StaticTable)]
@@ -192,6 +192,7 @@ impl<'a> TradesProcessor<'a> {
         tax_statement.add_stock_income(
             &description, trade.execution_date, details.revenue.currency, precise_currency_rate,
             details.revenue.amount, details.local_revenue.amount,
+            // FIXME(konishchev): Zero support
             details.total_local_cost.amount
         ).map_err(|e| format!(
             "Unable to add income from selling {} on {} to the tax statement: {}",
@@ -238,7 +239,9 @@ impl<'a> TradesProcessor<'a> {
             commission: trade.commission.round(),
             local_commission: details.local_commission,
 
+            // FIXME(konishchev): Zero support
             purchase_local_cost: details.purchase_local_cost,
+            // FIXME(konishchev): Zero support
             total_local_cost: details.total_local_cost,
 
             local_profit: details.local_profit,
@@ -247,8 +250,8 @@ impl<'a> TradesProcessor<'a> {
             tax_to_pay: details.tax_to_pay,
             tax_deduction: details.tax_deduction,
 
-            real_profit_ratio: Cell::new_ratio(details.real_profit_ratio),
-            real_local_profit_ratio: Cell::new_ratio(details.real_local_profit_ratio),
+            real_profit_ratio: details.real_profit_ratio.map(Cell::new_ratio),
+            real_local_profit_ratio: details.real_local_profit_ratio.map(Cell::new_ratio),
         });
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
