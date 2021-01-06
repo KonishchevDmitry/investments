@@ -26,6 +26,8 @@ for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
     fi
 done
 
-for portfolio in ib-margin-rub ib-stock-split; do
+for portfolio in ib-complex ib-margin-rub ib-stock-split; do
     ./regression_tests/investments other tax-statement "$portfolio" > /dev/null
 done
+
+./regression_tests/investments other simulate-sell ib-complex 1 VTRS > /dev/null

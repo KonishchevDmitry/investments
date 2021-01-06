@@ -146,6 +146,18 @@ APP: regression_tests/investments
      simulate-sell
      kate-iia
 
+[46]
+NAME: Zero cost position selling
+STDOUT: zero-cost-simulate-sell
+APP: regression_tests/investments
+     other
+     simulate-sell
+     ib-complex
+     5
+     VTRS
+     125
+     VTRS
+
 # Rebalance
 
 [50]
