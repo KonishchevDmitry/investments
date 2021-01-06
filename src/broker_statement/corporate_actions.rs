@@ -16,6 +16,14 @@ pub struct CorporateAction {
 #[cfg_attr(test, derive(PartialEq))]
 pub enum CorporateActionType {
     StockSplit(u32),
+
+    // See https://github.com/KonishchevDmitry/investments/issues/20 for details
+    Spinoff {
+        date: Date,
+        symbol: String,
+        quantity: Decimal,
+        currency: String,
+    }
 }
 
 #[derive(Default, Debug)]

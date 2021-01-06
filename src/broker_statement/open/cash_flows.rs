@@ -1,5 +1,3 @@
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde::Deserialize;
 
 use crate::broker_statement::fees::Fee;
@@ -78,10 +76,7 @@ enum CashFlowType {
 
 impl CashFlowType {
     fn parse(description: &str) -> GenericResult<CashFlowType> {
-        lazy_static! {
-            static ref SPACES_REGEX: Regex = Regex::new(r"\s{2,}").unwrap();
-        }
-        let description = SPACES_REGEX.replace_all(description, " ");
+        let description = util::fold_spaces(description);
 
         for &commission_description in &[
             "Вознаграждение брокера за заключение сделок Конвертации ДС",

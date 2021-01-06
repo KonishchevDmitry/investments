@@ -15,9 +15,19 @@ pub struct ForexTrade {
 }
 
 #[derive(Debug)]
+pub enum StockSource {
+    Trade,
+    CorporateAction,
+}
+
+#[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
     pub quantity: Decimal,
+    pub source: StockSource,
+
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -31,11 +41,12 @@ pub struct StockBuy {
 
 impl StockBuy {
     pub fn new(
-        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
+        symbol: &str, quantity: Decimal, source: StockSource,
+        price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
+            symbol: symbol.to_owned(), quantity, source, price, volume, commission,
             conclusion_date, execution_date, margin, sold: dec!(0),
         }
     }
@@ -212,10 +223,18 @@ impl StockSell {
 
         let real_profit = profit.sub(converter.convert_to_cash_rounding(
             self.execution_date, tax_to_pay, profit.currency)?)?;
-        let real_profit_ratio = real_profit.div(purchase_cost).unwrap();
+        let real_profit_ratio = if purchase_cost.is_zero() {
+            None
+        } else {
+            Some(real_profit.div(purchase_cost).unwrap())
+        };
 
         let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
-        let real_local_profit_ratio = real_local_profit.div(purchase_local_cost).unwrap();
+        let real_local_profit_ratio = if purchase_local_cost.is_zero() {
+            None
+        } else {
+            Some(real_local_profit.div(purchase_local_cost).unwrap())
+        };
 
         Ok(SellDetails {
             revenue,
@@ -248,6 +267,9 @@ impl StockSell {
 pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
+
+    // Please note that the following values can be zero due to corporate actions or other non-trade
+    // operations:
     pub price: Cash,
     pub commission: Cash,
 
@@ -305,9 +327,10 @@ pub struct SellDetails {
     pub local_revenue: Cash,
     pub local_commission: Cash,
 
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
     pub purchase_cost: Cash,
     pub purchase_local_cost: Cash,
-
     pub total_cost: Cash,
     pub total_local_cost: Cash,
 
@@ -319,8 +342,8 @@ pub struct SellDetails {
     pub tax_deduction: Cash,
 
     pub real_tax_ratio: Option<Decimal>,
-    pub real_profit_ratio: Decimal,
-    pub real_local_profit_ratio: Decimal,
+    pub real_profit_ratio: Option<Decimal>,
+    pub real_local_profit_ratio: Option<Decimal>,
 
     pub fifo: Vec<FifoDetails>,
 }
@@ -340,17 +363,18 @@ impl SellDetails {
 pub struct FifoDetails {
     pub quantity: Decimal,
     pub multiplier: Decimal,
-    pub price: Cash,
-
-    pub commission: Cash,
-    pub local_commission: Cash,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
 
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
+    pub price: Cash,
+    pub commission: Cash,
+    pub local_commission: Cash,
+    // and:
     pub cost: Cash,
     pub local_cost: Cash,
-
     pub total_cost: Cash,
     pub total_local_cost: Cash,
 

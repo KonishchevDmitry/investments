@@ -79,9 +79,14 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     }
 
     for (instrument, analysis) in &performance.instruments {
-        set_instrument_metric(&PERFORMANCE, currency, &instrument, analysis.interest);
+        if let Some(interest) = analysis.interest {
+            set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
+        }
     }
-    set_instrument_metric(&PERFORMANCE, currency, "Portfolio", performance.portfolio.interest);
+
+    if let Some(interest) = performance.portfolio.interest {
+        set_instrument_metric(&PERFORMANCE, currency, "Portfolio", interest);
+    }
 
     set_portfolio_metric(&PROFIT, currency, income_structure.profit());
     set_portfolio_metric(&NET_PROFIT, currency, income_structure.net_profit);

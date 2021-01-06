@@ -3,7 +3,7 @@
 use log::{debug, warn};
 use num_traits::Zero;
 
-use crate::core::{GenericResult, EmptyResult};
+use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::types::Decimal;
 use crate::util;
@@ -12,7 +12,7 @@ use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 
 pub fn compare_to_bank_deposit(
     transactions: &[Transaction], interest_periods: &[InterestPeriod], current_assets: Decimal
-) -> GenericResult<(Decimal, Decimal)> {
+) -> Option<(Decimal, Decimal)> {
     let start_date = std::cmp::min(
         transactions.first().unwrap().date,
         interest_periods.first().unwrap().start,
@@ -22,6 +22,12 @@ pub fn compare_to_bank_deposit(
         transactions.last().unwrap().date,
         interest_periods.last().unwrap().end,
     );
+
+    // Some assets can be acquired for free due to corporate actions or other non-trading
+    // operations. In this case we can't calculate their performance.
+    if !transactions.iter().any(|transaction| transaction.amount > dec!(0)) {
+        return None;
+    }
 
     let emulate = |interest: Decimal| -> Decimal {
         let result_assets = DepositEmulator::new(start_date, end_date, interest)
@@ -66,7 +72,7 @@ pub fn compare_to_bank_deposit(
         }
     }
 
-    Ok((interest, difference))
+    Some((interest, difference))
 }
 
 pub fn check_emulation_precision(

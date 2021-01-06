@@ -139,9 +139,9 @@ struct TradeRow {
     #[column(name="Вычет")]
     tax_deduction: Cash,
     #[column(name="Реальный\nдоход")]
-    real_profit_ratio: Cell,
+    real_profit_ratio: Option<Cell>,
     #[column(name="Реальный\nдоход (руб)")]
-    real_local_profit_ratio: Cell,
+    real_local_profit_ratio: Option<Cell>,
 }
 
 #[derive(StaticTable)]
@@ -247,8 +247,8 @@ impl<'a> TradesProcessor<'a> {
             tax_to_pay: details.tax_to_pay,
             tax_deduction: details.tax_deduction,
 
-            real_profit_ratio: Cell::new_ratio(details.real_profit_ratio),
-            real_local_profit_ratio: Cell::new_ratio(details.real_local_profit_ratio),
+            real_profit_ratio: details.real_profit_ratio.map(Cell::new_ratio),
+            real_local_profit_ratio: details.real_local_profit_ratio.map(Cell::new_ratio),
         });
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
