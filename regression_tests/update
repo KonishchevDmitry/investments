@@ -31,3 +31,4 @@ for portfolio in ib-complex ib-margin-rub ib-stock-split; do
 done
 
 ./regression_tests/investments other simulate-sell ib-complex 1 VTRS > /dev/null
+./regression_tests/investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX > /dev/null

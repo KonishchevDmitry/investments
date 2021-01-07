@@ -138,7 +138,7 @@ APP: regression_tests/investments
      simulate-sell
      bcs
 
-[45]
+[450]
 NAME: IIA-B simulate sell
 STDOUT: iia-b-simulate-sell
 APP: regression_tests/investments
@@ -146,7 +146,7 @@ APP: regression_tests/investments
      simulate-sell
      kate-iia
 
-[46]
+[451]
 NAME: Zero cost position selling
 STDOUT: zero-cost-simulate-sell
 APP: regression_tests/investments
@@ -157,6 +157,18 @@ APP: regression_tests/investments
      VTRS
      125
      VTRS
+
+[452]
+NAME: Trade with mixed currency
+STDOUT: mixed-currency-trade-simulate-sell
+APP: regression_tests/investments
+     other
+     simulate-sell
+     tinkoff-mixed-currency-trade
+     all
+     VTBA
+     all
+     VTBX
 
 # Rebalance
 
@@ -207,9 +219,6 @@ APP: regression_tests/investments
      main
      rebalance
      kate-iia
-
-# Tax statement
-# FIXME(konishchev): Add 2021 year
 
 [6000]
 NAME: IB tax statement 2018
@@ -265,6 +274,24 @@ APP: regression_tests/test-tax-statement
      $OUT_PATH/ib-tax-statement-2020.dc0
 DIFF: rt-binary
 
+[6022]
+NAME: IB tax statement 2021
+STDOUT: ib-tax-statement-2021
+APP: regression_tests/investments
+     main
+     tax-statement
+     ib
+     2021
+
+[6023]
+NAME: IB tax statement generation 2021
+APP: regression_tests/test-tax-statement
+     main
+     ib
+     2021
+     $OUT_PATH/ib-tax-statement-2021.dc1
+DIFF: rt-binary
+
 [6100]
 NAME: Firstrade tax statement 2020
 STDOUT: firstrade-tax-statement-2020
@@ -281,6 +308,24 @@ APP: regression_tests/test-tax-statement
      firstrade
      2020
      $OUT_PATH/firstrade-tax-statement-2020.dc0
+DIFF: rt-binary
+
+[6102]
+NAME: Firstrade tax statement 2021
+STDOUT: firstrade-tax-statement-2021
+APP: regression_tests/investments
+     main
+     tax-statement
+     firstrade
+     2021
+
+[6103]
+NAME: Firstrade tax statement generation 2021
+APP: regression_tests/test-tax-statement
+     main
+     firstrade
+     2021
+     $OUT_PATH/firstrade-tax-statement-2021.dc1
 DIFF: rt-binary
 
 [62]
@@ -347,9 +392,6 @@ APP: regression_tests/investments
      tax-statement
      ib-stock-split
 
-# Cash flow
-# FIXME(konishchev): Add 2021 year
-
 [700]
 NAME: IB cash flow 2018
 STDOUT: ib-cash-flow-2018
@@ -377,6 +419,15 @@ APP: regression_tests/investments
      ib
      2020
 
+[703]
+NAME: IB cash flow 2021
+STDOUT: ib-cash-flow-2021
+APP: regression_tests/investments
+     main
+     cash-flow
+     ib
+     2021
+
 [710]
 NAME: Firstrade cash flow 2020
 STDOUT: firstrade-cash-flow-2020
@@ -385,6 +436,15 @@ APP: regression_tests/investments
      cash-flow
      firstrade
      2020
+
+[711]
+NAME: Firstrade cash flow 2021
+STDOUT: firstrade-cash-flow-2021
+APP: regression_tests/investments
+     main
+     cash-flow
+     firstrade
+     2021
 
 [72]
 NAME: Tinkoff cash flow
