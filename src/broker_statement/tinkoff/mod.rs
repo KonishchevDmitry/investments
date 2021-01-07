@@ -106,14 +106,12 @@ impl SheetParser for StatementSheetParser {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
     #[test]
     fn parse_real() {
-        let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
-
-        let statement = BrokerStatement::read(
-            broker, "testdata/tinkoff/my", &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
+        let statement = parse("my");
 
         assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
@@ -128,5 +126,16 @@ mod tests {
 
         assert!(!statement.open_positions.is_empty());
         assert!(statement.instrument_names.is_empty());
+    }
+
+    #[rstest(name => ["mixed-currency-trade"])]
+    fn parse_real_other(name: &str) {
+        parse(name);
+    }
+
+    fn parse(name: &str) -> BrokerStatement {
+        let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
+        let path = format!("testdata/tinkoff/{}", name);
+        BrokerStatement::read(broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap()
     }
 }
