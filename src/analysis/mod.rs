@@ -115,7 +115,7 @@ pub fn analyse(
 
         for (symbol, quantity) in statement.open_positions.clone() {
             let price = quotes.get(&symbol)?;
-            statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
+            statement.emulate_sell(&symbol, quantity, price, &mut commission_calc, &converter)?;
         }
 
         let additional_commissions = statement.emulate_commissions(commission_calc);

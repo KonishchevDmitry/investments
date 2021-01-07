@@ -236,7 +236,8 @@ impl BrokerStatement {
     }
 
     pub fn emulate_sell(
-        &mut self, symbol: &str, quantity: Decimal, price: Cash, commission_calc: &mut CommissionCalc
+        &mut self, symbol: &str, quantity: Decimal, price: Cash,
+        commission_calc: &mut CommissionCalc, converter: &CurrencyConverter,
     ) -> EmptyResult {
         let conclusion_date = util::today_trade_conclusion_date();
 
@@ -250,9 +251,33 @@ impl BrokerStatement {
         let commission = commission_calc.add_trade(
             conclusion_date, TradeType::Sell, quantity, price)?;
 
-        let stock_cell = StockSell::new(
+        let mut stock_cell = StockSell::new(
             symbol, quantity, price, price * quantity, commission,
             conclusion_date, execution_date, false, true);
+
+        // This is a partial workaround for our current inability to work with multi-currency
+        // trades.
+        //
+        // Some ETF traded on MOEX can be traded for both RUB and USD currencies, but we get all
+        // quotes in RUB. To be able to work with ETF that were bough for USD we convert quotes to
+        // this currency.
+        if price.currency == "RUB" {
+            let mut buy_currencies = HashSet::new();
+
+            for trade in &self.stock_buys {
+                if trade.symbol == symbol && !trade.is_sold() {
+                    buy_currencies.insert(trade.price.currency.to_owned());
+                }
+            }
+
+            if buy_currencies.len() == 1 {
+                let currency = buy_currencies.iter().next().unwrap();
+                if price.currency != currency {
+                    debug!("Converting {} quotes to {} during sell emulation.", symbol, currency);
+                    stock_cell.convert(currency, converter)?;
+                }
+            }
+        }
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = open_position.get_mut();
@@ -268,9 +293,9 @@ impl BrokerStatement {
             return Err!("The portfolio has no open {} position", symbol);
         }
 
+        self.cash_assets.deposit(stock_cell.volume);
+        self.cash_assets.withdraw(stock_cell.commission);
         self.stock_sells.push(stock_cell);
-        self.cash_assets.deposit(price * quantity);
-        self.cash_assets.withdraw(commission);
 
         Ok(())
     }

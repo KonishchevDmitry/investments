@@ -68,13 +68,13 @@ impl CurrencyConverter {
         self.convert(cash.currency, to, date, cash.amount)
     }
 
+    pub fn real_time_convert_to(&self, cash: Cash, to: &str) -> GenericResult<Decimal> {
+        self.convert_to(self.real_time_date(), cash, to)
+    }
+
     // Implements rounding according to Russian taxation rules
     pub fn convert_to_rounding(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Decimal> {
         Ok(currency::round(self.convert_to(date, cash.round(), to)?))
-    }
-
-    pub fn real_time_convert_to(&self, cash: Cash, to: &str) -> GenericResult<Decimal> {
-        self.convert_to(self.real_time_date(), cash, to)
     }
 
     // Implements rounding according to Russian taxation rules
@@ -82,7 +82,7 @@ impl CurrencyConverter {
         Ok(self.convert_to_cash(date, cash.round(), to)?.round())
     }
 
-    fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
+    pub fn convert_to_cash(&self, date: Date, cash: Cash, to: &str) -> GenericResult<Cash> {
         Ok(Cash::new(to, self.convert_to(date, cash, to)?))
     }
 
@@ -161,6 +161,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
                 formatting::format_date(date));
         }
 
+        // FIXME(konishchev): Should we use quotes for today?
         if !self.strict_mode && date > today {
             if let Some(ref quotes) = self.quotes {
                 let price = quotes.get(&get_currency_pair(from, to))?;

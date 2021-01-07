@@ -42,7 +42,8 @@ pub fn simulate_sell(
                 "The portfolio has no open {:?} positions", symbol))?,
         };
 
-        statement.emulate_sell(&symbol, quantity, quotes.get(&symbol)?, &mut commission_calc)?;
+        let price = quotes.get(&symbol)?;
+        statement.emulate_sell(&symbol, quantity, price, &mut commission_calc, converter)?;
     }
 
     statement.process_trades()?;
