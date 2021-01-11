@@ -129,8 +129,11 @@ pub fn is_valid_execution_date(conclusion: Date, execution: Date) -> bool {
 
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
     // New Year holidays
-    if today.month() == 1 && today.day() < 10 {
-        Date::from_ymd(today.year() - 1, 12, 30)
+    if today.month() == 1 && today.day() < 12 {
+        std::cmp::max(
+            today - Duration::days(10),
+            Date::from_ymd(today.year() - 1, 12, 30),
+        )
     // 8 march holidays
     } else if today.month() == 3 && today.day() == 12 {
         today - Duration::days(4)
