@@ -9,8 +9,8 @@ use crate::formatting::{self, table::Style};
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
-pub fn list(country: &Country, mut deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, notify_days: Option<u32>) {
-    let mut deposits: Vec<DepositConfig> = deposits.drain(..).filter(|deposit| {
+pub fn list(country: &Country, deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, notify_days: Option<u32>) {
+    let mut deposits: Vec<DepositConfig> = deposits.into_iter().filter(|deposit| {
         deposit.open_date <= today
     }).collect();
 

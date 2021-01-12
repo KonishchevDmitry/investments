@@ -1,7 +1,8 @@
 use num_traits::Zero;
 
 use crate::broker_statement::{
-    BrokerStatement, ForexTrade, StockBuy, StockSell, StockSource, Dividend, Fee, IdleCashInterest};
+    BrokerStatement, ForexTrade, StockBuy, StockSell, StockSource, Dividend, Fee, IdleCashInterest,
+    TaxWithholding};
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
@@ -56,6 +57,10 @@ impl CashFlowMapper {
             cash_flow.cash.is_negative()
         ) {
             self.deposit_or_withdrawal(withdrawal)
+        }
+
+        for withholding in &statement.tax_agent_withholdings {
+            self.tax_agent_withholding(withholding);
         }
 
         self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
@@ -132,6 +137,11 @@ impl CashFlowMapper {
             let description = format!("Налог, удержанный с дивиденда от {}", name);
             self.add(dividend.date, -dividend.paid_tax, description);
         };
+    }
+
+    fn tax_agent_withholding(&mut self, withholding: &TaxWithholding) {
+        let description = format!("Удержание налога за {} год", withholding.year);
+        self.add(withholding.date, -withholding.amount, description);
     }
 
     fn add_static(&mut self, date: Date, amount: Cash, description: &str) -> &mut CashFlow {

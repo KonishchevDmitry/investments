@@ -53,6 +53,8 @@ pub fn generate_tax_statement(
     interest::process_income(&country, &broker_statement, year, tax_statement.as_mut(), &converter)
         .map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
+    // FIXME(konishchev): Tax agent withholdings
+
     if let Some(ref tax_statement) = tax_statement {
         tax_statement.save()?;
     }

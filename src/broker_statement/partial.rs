@@ -12,16 +12,16 @@ use super::dividends::{Dividend, DividendId, DividendAccruals};
 use super::fees::Fee;
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
-use super::taxes::{TaxId, TaxAccruals};
+use super::taxes::{TaxId, TaxAccruals, TaxWithholding};
 
 pub struct PartialBrokerStatement {
     pub period: Option<(Date, Date)>,
 
     pub starting_assets: Option<bool>,
     pub cash_flows: Vec<CashAssets>,
-
     pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
+    pub tax_agent_withholdings: Vec<TaxWithholding>,
 
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
@@ -46,9 +46,9 @@ impl PartialBrokerStatement {
 
             starting_assets: None,
             cash_flows: Vec::new(),
-
             fees: Vec::new(),
             idle_cash_interest: Vec::new(),
+            tax_agent_withholdings: Vec::new(),
 
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),

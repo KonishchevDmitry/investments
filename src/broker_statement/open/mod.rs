@@ -66,6 +66,7 @@ mod tests {
 
         assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
+        assert!(statement.tax_agent_withholdings.is_empty());
 
         assert_eq!(statement.forex_trades.is_empty(), name != "inactive-with-forex");
         assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");

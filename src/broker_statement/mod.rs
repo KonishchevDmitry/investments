@@ -44,6 +44,7 @@ pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
+pub use self::taxes::TaxWithholding;
 pub use self::trades::{
     ForexTrade, StockBuy, StockSource, StockSell, StockSellSource, SellDetails, FifoDetails};
 
@@ -58,6 +59,7 @@ pub struct BrokerStatement {
     pub fees: Vec<Fee>,
     pub cash_flows: Vec<CashAssets>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
+    pub tax_agent_withholdings: Vec<TaxWithholding>,
 
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
@@ -158,6 +160,7 @@ impl BrokerStatement {
             fees: Vec::new(),
             cash_flows: Vec::new(),
             idle_cash_interest: Vec::new(),
+            tax_agent_withholdings: Vec::new(),
 
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),
@@ -423,7 +426,7 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn merge(&mut self, mut statement: PartialBrokerStatement, last: bool) -> EmptyResult {
+    fn merge(&mut self, statement: PartialBrokerStatement, last: bool) -> EmptyResult {
         let period = statement.get_period()?;
         self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
@@ -438,14 +441,15 @@ impl BrokerStatement {
             return Err!("Unable to find any information about current cash assets");
         }
 
-        self.fees.extend(statement.fees.drain(..));
-        self.cash_flows.extend(statement.cash_flows.drain(..));
-        self.idle_cash_interest.extend(statement.idle_cash_interest.drain(..));
+        self.fees.extend(statement.fees.into_iter());
+        self.cash_flows.extend(statement.cash_flows.into_iter());
+        self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
+        self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
 
-        self.forex_trades.extend(statement.forex_trades.drain(..));
-        self.stock_buys.extend(statement.stock_buys.drain(..));
-        self.stock_sells.extend(statement.stock_sells.drain(..));
-        self.dividends.extend(statement.dividends.drain(..));
+        self.forex_trades.extend(statement.forex_trades.into_iter());
+        self.stock_buys.extend(statement.stock_buys.into_iter());
+        self.stock_sells.extend(statement.stock_sells.into_iter());
+        self.dividends.extend(statement.dividends.into_iter());
 
         for action in statement.corporate_actions {
             match action.action {
@@ -464,7 +468,7 @@ impl BrokerStatement {
         }
 
         self.open_positions = statement.open_positions;
-        self.instrument_names.extend(statement.instrument_names.drain());
+        self.instrument_names.extend(statement.instrument_names.into_iter());
 
         Ok(())
     }
@@ -514,38 +518,42 @@ impl BrokerStatement {
         };
 
         date_validator.sort_and_validate(
-            "cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
+            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
         if !self.fees.is_empty() {
             self.sort_and_alter_fees(date_validator.max_date);
-            date_validator.validate("fee", &self.fees, |fee| fee.date)?;
+            date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
         }
 
         date_validator.sort_and_validate(
-            "idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
+            "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
 
         date_validator.sort_and_validate(
-            "forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
+            "a tax agent withholding", &mut self.tax_agent_withholdings,
+            |withholding| withholding.date)?;
+
+        date_validator.sort_and_validate(
+            "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
         if !self.stock_buys.is_empty() {
             self.sort_stock_buys()?;
             date_validator.validate(
-                "stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
+                "a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
         }
 
         if !self.stock_sells.is_empty() {
             self.sort_stock_sells()?;
             date_validator.validate(
-                "stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
+                "a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
         }
 
         if !self.dividends.is_empty() {
             self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
-            date_validator.validate("dividend", &self.dividends, |dividend| dividend.date)?;
+            date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
         }
 
         date_validator.sort_and_validate(
-            "corporate action", &mut self.corporate_actions, |action| action.date)?;
+            "a corporate action", &mut self.corporate_actions, |action| action.date)?;
 
         Ok(())
     }
@@ -657,12 +665,12 @@ impl DateValidator {
         let last_date = get_date(objects.first().unwrap());
 
         if first_date < self.min_date {
-            return Err!("Got a {} outside of statement period: {}",
+            return Err!("Got {} outside of statement period: {}",
                         name, formatting::format_date(first_date));
         }
 
         if last_date > self.max_date {
-            return Err!("Got a {} outside of statement period: {}",
+            return Err!("Got {} outside of statement period: {}",
                         name, formatting::format_date(last_date));
         }
 

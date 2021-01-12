@@ -60,6 +60,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 "Unable to calculate current assets: The broker statement has open positions");
         }
 
+        // FIXME(konishchev): Tax agent withholdings
         trace!("Deposit emulator transactions for {:?}:", portfolio.name);
         self.process_deposits_and_withdrawals(statement)?;
         self.process_positions(statement, portfolio)?;
