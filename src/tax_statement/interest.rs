@@ -4,7 +4,7 @@ use log::warn;
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
-use crate::core::EmptyResult;
+use crate::core::GenericResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
@@ -34,7 +34,7 @@ struct Row {
 pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> EmptyResult {
+) -> GenericResult<Cash> {
     let mut table = Table::new();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
@@ -110,5 +110,5 @@ pub fn process_income(
             broker_statement.broker.name));
     }
 
-    Ok(())
+    Ok(Cash::new(country.currency, total_tax_to_pay))
 }

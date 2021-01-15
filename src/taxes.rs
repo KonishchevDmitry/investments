@@ -49,6 +49,7 @@ pub enum TaxPaymentDay {
     OnClose(Date),
 }
 
+// FIXME(konishchev): Alter?
 impl Default for TaxPaymentDay {
     fn default() -> TaxPaymentDay {
         TaxPaymentDay::Day {

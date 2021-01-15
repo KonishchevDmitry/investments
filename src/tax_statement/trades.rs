@@ -7,7 +7,7 @@ use static_table_derive::StaticTable;
 
 use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails};
 use crate::config::PortfolioConfig;
-use crate::core::EmptyResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
@@ -20,7 +20,7 @@ use super::statement::TaxStatement;
 pub fn process_income(
     country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement,
     year: Option<i32>, mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> EmptyResult {
+) -> GenericResult<Option<Cash>> {
     let mut processor = TradesProcessor {
         portfolio,
         broker_statement,
@@ -37,8 +37,10 @@ pub fn process_income(
         stock_splits: false,
         tax_exemptions: false,
 
+        // FIXME(konishchev): Take fees into account
         total_local_profit: Cash::new(country.currency, dec!(0)),
-        total_taxable_local_profit: HashMap::new(),
+        total_taxable_local_profit_by_year: HashMap::new(),
+        total_taxable_local_profit: Cash::new(country.currency, dec!(0)),
         total_tax_deduction: Cash::new(country.currency, dec!(0)),
     };
 
@@ -71,11 +73,13 @@ pub fn process_income(
         trade_id += 1;
     }
 
+    let total_tax_to_pay = processor.process_totals()?;
+
     if trade_id != 0 {
-        processor.print();
+        processor.print(total_tax_to_pay);
     }
 
-    Ok(())
+    Ok(total_tax_to_pay)
 }
 
 struct TradesProcessor<'a> {
@@ -95,7 +99,8 @@ struct TradesProcessor<'a> {
     tax_exemptions: bool,
 
     total_local_profit: Cash,
-    total_taxable_local_profit: HashMap<i32, Cash>,
+    total_taxable_local_profit_by_year: HashMap<i32, Cash>,
+    total_taxable_local_profit: Cash,
     total_tax_deduction: Cash,
 }
 
@@ -210,7 +215,8 @@ impl<'a> TradesProcessor<'a> {
         self.tax_exemptions |= details.tax_exemption_applied();
 
         self.total_local_profit.add_assign(details.local_profit).unwrap();
-        self.total_taxable_local_profit.entry(trade.execution_date.year())
+        self.total_taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
+        self.total_taxable_local_profit_by_year.entry(trade.execution_date.year())
             .and_modify(|total| total.add_assign(details.taxable_local_profit).unwrap())
             .or_insert(details.taxable_local_profit);
         self.total_tax_deduction.add_assign(details.tax_deduction).unwrap();
@@ -303,7 +309,21 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn print(mut self) {
+    fn process_totals(&mut self) -> GenericResult<Option<Cash>> {
+        Ok(match self.portfolio.tax_payment_day {
+            TaxPaymentDay::Day {..} => Some(self.total_taxable_local_profit_by_year.iter().map(|(&year, profit)| {
+                self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
+            }).sum()),
+
+            TaxPaymentDay::OnClose(date) => if self.year.is_none() {
+                Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), self.total_taxable_local_profit.amount, None))
+            } else {
+                None
+            },
+        }.map(|amount| Cash::new(self.country.currency, amount)))
+    }
+
+    fn print(mut self, total_tax_to_pay: Option<Cash>) {
         if self.same_dates {
             self.trades_table.hide_execution_date();
             self.trades_table.rename_conclusion_currency_rate("Курс руб.");
@@ -334,28 +354,11 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.hide_tax_free();
         }
 
-        let total_taxable_local_profit = self.total_taxable_local_profit.values().copied()
-            .fold(Cash::new(self.country.currency, dec!(0)), |total, profit| {
-                total.add(profit).unwrap()
-            });
-
-        let total_tax_to_pay = match self.portfolio.tax_payment_day {
-            TaxPaymentDay::Day {..} => Some(self.total_taxable_local_profit.iter().map(|(&year, profit)| {
-                self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
-            }).sum()),
-
-            TaxPaymentDay::OnClose(date) => if self.year.is_none() {
-                Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), total_taxable_local_profit.amount, None))
-            } else {
-                None
-            },
-        };
-
         let mut totals = self.trades_table.add_empty_row();
         totals.set_local_profit(self.total_local_profit);
-        totals.set_taxable_local_profit(total_taxable_local_profit);
+        totals.set_taxable_local_profit(self.total_taxable_local_profit);
         if let Some(total_tax_to_pay) = total_tax_to_pay {
-            totals.set_tax_to_pay(Cash::new(self.country.currency, total_tax_to_pay));
+            totals.set_tax_to_pay(total_tax_to_pay);
         }
         totals.set_tax_deduction(self.total_tax_deduction);
 

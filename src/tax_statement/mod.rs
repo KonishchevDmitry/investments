@@ -3,14 +3,17 @@ use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
+use crate::localities::Jurisdiction;
 
 pub use self::statement::TaxStatement;
 
 mod dividends;
 mod interest;
 mod statement;
+mod tax_agent;
 mod trades;
 
+#[allow(clippy::logic_bug)] // FIXME(konishchev): Remove it
 pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
 ) -> EmptyResult {
@@ -44,16 +47,26 @@ pub fn generate_tax_statement(
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, None, true);
 
-    trades::process_income(&country, &portfolio, &broker_statement, year, tax_statement.as_mut(), &converter)
-        .map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
+    let trades_tax = trades::process_income(
+        &country, &portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
+    ).map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
-    dividends::process_income(&country, &broker_statement, year, tax_statement.as_mut(), &converter)
-        .map_err(|e| format!("Failed to process dividend income: {}", e))?;
+    let dividends_tax = dividends::process_income(
+        &country, &broker_statement, year, tax_statement.as_mut(), &converter,
+    ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
-    interest::process_income(&country, &broker_statement, year, tax_statement.as_mut(), &converter)
-        .map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
+    let interest_tax = interest::process_income(
+        &country, &broker_statement, year, tax_statement.as_mut(), &converter,
+    ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
-    // FIXME(konishchev): Tax agent withholdings
+    // FIXME(konishchev): Implement
+    if false && broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
+        if let Some(mut total_tax) = trades_tax {
+            total_tax.add_assign(dividends_tax).unwrap();
+            total_tax.add_assign(interest_tax).unwrap();
+            tax_agent::process_tax_agent_withholdings(&broker_statement, year, total_tax);
+        }
+    }
 
     if let Some(ref tax_statement) = tax_statement {
         tax_statement.save()?;

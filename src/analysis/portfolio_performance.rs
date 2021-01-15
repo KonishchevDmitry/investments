@@ -60,12 +60,12 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 "Unable to calculate current assets: The broker statement has open positions");
         }
 
-        // FIXME(konishchev): Tax agent withholdings
         trace!("Deposit emulator transactions for {:?}:", portfolio.name);
         self.process_deposits_and_withdrawals(statement)?;
         self.process_positions(statement, portfolio)?;
         self.process_dividends(statement, portfolio)?;
         self.process_interest(statement, portfolio)?;
+        self.process_tax_agent_withholdings(statement)?;
         self.process_tax_deductions(portfolio)?;
         self.process_cash_assets(statement)?;
 
@@ -387,6 +387,16 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 self.transaction(tax_payment_date, amount);
                 self.income_structure.taxes += amount;
             }
+        }
+
+        Ok(())
+    }
+
+    fn process_tax_agent_withholdings(&mut self, statement: &BrokerStatement) -> EmptyResult {
+        for withholding in &statement.tax_agent_withholdings {
+            let amount = self.converter.convert_to(withholding.date, withholding.amount, self.currency)?;
+            trace!("* Tax withholding {}: {}", formatting::format_date(withholding.date), amount);
+            self.transaction(withholding.date, -amount);
         }
 
         Ok(())
