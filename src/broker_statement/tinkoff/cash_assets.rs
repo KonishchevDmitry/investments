@@ -192,7 +192,7 @@ fn parse_cash_flow(
             CashAssets::new_from_cash(date, -check_amount(withdrawal)?)),
         "Комиссия по тарифу" => statement.fees.push(Fee {
             date,
-            amount: -check_amount(withdrawal)?,
+            amount: check_amount(withdrawal)?,
             description: Some(operation.clone()),
         }),
         "Покупка/продажа" | "Комиссия за сделки" => {},

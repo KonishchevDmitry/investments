@@ -68,12 +68,12 @@ impl CashFlowMapper {
     }
 
     fn fee(&mut self, fee: &Fee) {
-        self.add_static(fee.date, fee.amount, match fee.description.as_ref() {
+        self.add_static(fee.date, -fee.amount, match fee.description.as_ref() {
             Some(description) => &description,
             None => if fee.amount.is_negative() {
-                "Комиссия брокера"
-            } else {
                 "Возврат излишне удержанной комиссии"
+            } else {
+                "Комиссия брокера"
             },
         });
     }

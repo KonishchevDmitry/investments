@@ -61,7 +61,7 @@ impl CashFlowParser {
 
                 parser.statement.fees.push(Fee {
                     date,
-                    amount: Cash::new(currency, -cash_flow.withdrawal),
+                    amount: Cash::new(currency, cash_flow.withdrawal),
                     description: Some(description),
                 });
             },

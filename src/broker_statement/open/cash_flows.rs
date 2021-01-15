@@ -51,7 +51,7 @@ impl CashFlows {
                 },
 
                 CashFlowType::Fee(description) => {
-                    let amount = util::validate_named_decimal(
+                    let amount = -util::validate_named_decimal(
                         "fee amount", amount, DecimalRestrictions::StrictlyNegative)?;
 
                     statement.fees.push(Fee {
