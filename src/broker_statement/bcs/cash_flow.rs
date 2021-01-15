@@ -1,4 +1,5 @@
 use crate::broker_statement::fees::Fee;
+use crate::broker_statement::taxes::TaxWithholding;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
@@ -64,6 +65,19 @@ impl CashFlowParser {
                     description: Some(description),
                 });
             },
+            "НДФЛ" => {
+                let withheld_tax = Cash::new(currency, cash_flow.withdrawal);
+                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
+
+                let comment = cash_flow.comment.as_deref().unwrap_or_default();
+                let year = comment.parse::<u16>().map_err(|_| format!(
+                    "Got an unexpected comment for {:?} operation: {:?}",
+                    operation, comment,
+                ))? as i32;
+
+                let tax_withholding = TaxWithholding::new(date, year, withheld_tax)?;
+                parser.statement.tax_agent_withholdings.push(tax_withholding);
+            },
             _ => return Err!("Unsupported cash flow operation: {:?}", cash_flow.operation),
         };
 
@@ -103,7 +117,7 @@ struct CashFlowRow {
     #[column(name="Площадка")]
     _8: SkipCell,
     #[column(name="Примечание")]
-    _9: SkipCell,
+    comment: Option<String>,
     #[column(name="Промежуточный клиринг (FORTS)")]
     _10: SkipCell,
 }
