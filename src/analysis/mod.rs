@@ -134,7 +134,7 @@ pub fn analyse(
                 break;
             }
 
-            let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+            let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 
             statistics.process(|statistics| {

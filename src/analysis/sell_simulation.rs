@@ -153,7 +153,7 @@ fn print_results(
             trade.convert(base_currency, converter)?;
         }
 
-        let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+        let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
         tax_exemptions |= details.tax_exemption_applied();
 
@@ -227,7 +227,7 @@ fn print_results(
         fifo_table.hide_tax_free();
     }
 
-    let (tax_year, _) = portfolio.tax_payment_day.get(execution_date, true);
+    let (tax_year, _) = portfolio.tax_payment_day().get(execution_date, true);
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
         IncomeType::Trading, tax_year, total_taxable_local_profit.amount, None));
 

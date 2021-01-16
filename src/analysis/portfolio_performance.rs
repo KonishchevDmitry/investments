@@ -261,7 +261,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_positions(&mut self, statement: &BrokerStatement, portfolio: &PortfolioConfig) -> EmptyResult {
-        let mut taxes = NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day);
+        let mut taxes = NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day());
         let mut stock_taxes = HashMap::new();
 
         for trade in &statement.stock_buys {
@@ -305,13 +305,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 }
             }
 
-            let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+            let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
             let details = trade.calculate(&self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
             let local_profit = details.local_profit.amount;
             let taxable_local_profit = details.taxable_local_profit.amount;
 
             stock_taxes.entry(&trade.symbol)
-                .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day))
+                .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
                 .add_profit(trade.execution_date, local_profit, taxable_local_profit);
 
             taxes.add_profit(trade.execution_date, local_profit, taxable_local_profit);
@@ -355,7 +355,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             self.income_structure.dividends += income;
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
-            let (_, tax_payment_date) = portfolio.tax_payment_day.get(dividend.date, false);
+            let (_, tax_payment_date) = portfolio.tax_payment_day().get(dividend.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} {} dividend {} tax: {}",
@@ -377,7 +377,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 interest.date, interest.amount, self.currency)?;
 
             let tax_to_pay = interest.tax_to_pay(&self.country, self.converter)?;
-            let (_, tax_payment_date) = portfolio.tax_payment_day.get(interest.date, false);
+            let (_, tax_payment_date) = portfolio.tax_payment_day().get(interest.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} idle cash interest {} tax: {}",

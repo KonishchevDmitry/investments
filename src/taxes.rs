@@ -9,7 +9,7 @@ use serde::de::{Deserializer, Error};
 use crate::core::EmptyResult;
 use crate::currency;
 use crate::formatting::format_date;
-use crate::localities::{self, Country};
+use crate::localities::{self, Country, Jurisdiction};
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -43,47 +43,59 @@ impl<'de> Deserialize<'de> for TaxExemption {
     }
 }
 
+pub struct TaxPaymentDay {
+    jurisdiction: Jurisdiction,
+    pub spec: TaxPaymentDaySpec,
+}
+
+impl TaxPaymentDay {
+    pub fn new(jurisdiction: Jurisdiction, spec: TaxPaymentDaySpec) -> TaxPaymentDay {
+        TaxPaymentDay {jurisdiction, spec}
+    }
+
+    /// Returns tax year and an approximate date when tax is going to be paid for the specified income
+    pub fn get(&self, income_date: Date, trading: bool) -> (i32, Date) {
+        match self.spec {
+            TaxPaymentDaySpec::Day {month, day} => {
+                (income_date.year(), Date::from_ymd(income_date.year() + 1, month, day))
+            },
+            TaxPaymentDaySpec::OnClose(close_date) => {
+                assert!(income_date <= close_date);
+
+                if trading {
+                    (close_date.year(), close_date)
+                } else {
+                    let tax_payment_day = TaxPaymentDay::new(self.jurisdiction, TaxPaymentDaySpec::default());
+                    tax_payment_day.get(income_date, trading)
+                }
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-pub enum TaxPaymentDay {
+pub enum TaxPaymentDaySpec {
     Day {month: u32, day: u32},
     OnClose(Date),
 }
 
 // FIXME(konishchev): Alter?
-impl Default for TaxPaymentDay {
-    fn default() -> TaxPaymentDay {
-        TaxPaymentDay::Day {
+impl Default for TaxPaymentDaySpec {
+    fn default() -> TaxPaymentDaySpec {
+        TaxPaymentDaySpec::Day {
             month: 3,
             day: 15,
         }
     }
 }
 
-impl TaxPaymentDay {
-    /// Returns tax year and an approximate date when tax is going to be paid for the specified income
-    pub fn get(&self, income_date: Date, trading: bool) -> (i32, Date) {
-        match *self {
-            TaxPaymentDay::Day {month, day} => {
-                (income_date.year(), Date::from_ymd(income_date.year() + 1, month, day))
-            },
-            TaxPaymentDay::OnClose(close_date) => {
-                assert!(income_date <= close_date);
-
-                if trading {
-                    (close_date.year(), close_date)
-                } else {
-                    TaxPaymentDay::default().get(income_date, trading)
-                }
-            },
-        }
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<TaxPaymentDay, D::Error>
+impl TaxPaymentDaySpec {
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<TaxPaymentDaySpec, D::Error>
         where D: Deserializer<'de>
     {
         let tax_payment_day: String = Deserialize::deserialize(deserializer)?;
         if tax_payment_day == "on-close" {
-            return Ok(TaxPaymentDay::OnClose(localities::nearest_possible_account_close_date()));
+            return Ok(TaxPaymentDaySpec::OnClose(localities::nearest_possible_account_close_date()));
         }
 
         Ok(Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {
@@ -98,7 +110,7 @@ impl TaxPaymentDay {
                 return None;
             }
 
-            Some(TaxPaymentDay::Day {month, day})
+            Some(TaxPaymentDaySpec::Day {month, day})
         }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))?)
     }
 }

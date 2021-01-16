@@ -12,7 +12,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
-use crate::taxes::{IncomeType, TaxPaymentDay};
+use crate::taxes::{IncomeType, TaxPaymentDaySpec};
 use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
@@ -47,7 +47,7 @@ pub fn process_income(
     let jurisdiction = broker_statement.broker.type_.jurisdiction();
 
     for trade in &broker_statement.stock_sells {
-        let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
+        let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
 
         if let Some(year) = year {
             if tax_year != year {
@@ -75,7 +75,7 @@ pub fn process_income(
 
     if jurisdiction == Jurisdiction::Russia {
         for fee in &broker_statement.fees {
-            let (tax_year, _) = portfolio.tax_payment_day.get(fee.date, true);
+            let (tax_year, _) = portfolio.tax_payment_day().get(fee.date, true);
 
             if let Some(year) = year {
                 if tax_year != year {
@@ -355,12 +355,12 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_totals(&mut self) -> GenericResult<Option<Cash>> {
-        Ok(match self.portfolio.tax_payment_day {
-            TaxPaymentDay::Day {..} => Some(self.total_taxable_local_profit_by_year.iter().map(|(&year, profit)| {
+        Ok(match self.portfolio.tax_payment_day().spec {
+            TaxPaymentDaySpec::Day {..} => Some(self.total_taxable_local_profit_by_year.iter().map(|(&year, profit)| {
                 self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
             }).sum()),
 
-            TaxPaymentDay::OnClose(date) => if self.year.is_none() {
+            TaxPaymentDaySpec::OnClose(date) => if self.year.is_none() {
                 Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), self.total_taxable_local_profit.amount, None))
             } else {
                 None

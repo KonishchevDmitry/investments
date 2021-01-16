@@ -11,7 +11,7 @@ use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country, Jurisdiction};
-use crate::taxes::{TaxExemption, TaxPaymentDay, TaxRemapping};
+use crate::taxes::{TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -111,6 +111,13 @@ impl Config {
 
                 validate_performance_merging_configuration(&portfolio.merge_performance)?;
 
+                if
+                    matches!(portfolio.tax_payment_day_spec, TaxPaymentDaySpec::OnClose(_)) &&
+                    portfolio.broker.jurisdiction() != Jurisdiction::Russia
+                {
+                    return Err!("On close tax payment date is only available for brokers with Russia jurisdiction")
+                }
+
                 if !portfolio.tax_exemptions.is_empty() && portfolio.broker.jurisdiction() != Jurisdiction::Russia {
                     return Err!("Tax exemptions are only supported for brokers with Russia jurisdiction")
                 }
@@ -202,8 +209,8 @@ pub struct PortfolioConfig {
     #[serde(default)]
     pub assets: Vec<AssetAllocationConfig>,
 
-    #[serde(default, deserialize_with = "TaxPaymentDay::deserialize")]
-    pub tax_payment_day: TaxPaymentDay,
+    #[serde(default, rename = "tax_payment_day", deserialize_with = "TaxPaymentDaySpec::deserialize")]
+    tax_payment_day_spec: TaxPaymentDaySpec,
 
     #[serde(default)]
     pub tax_exemptions: Vec<TaxExemption>,
@@ -225,6 +232,10 @@ impl PortfolioConfig {
         }
 
         symbols
+    }
+
+    pub fn tax_payment_day(&self) -> TaxPaymentDay {
+        TaxPaymentDay::new(self.broker.jurisdiction(), self.tax_payment_day_spec)
     }
 
     pub fn get_tax_remapping(&self) -> GenericResult<TaxRemapping> {
