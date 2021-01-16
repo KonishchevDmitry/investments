@@ -13,7 +13,6 @@ mod statement;
 mod tax_agent;
 mod trades;
 
-#[allow(clippy::logic_bug)] // FIXME(konishchev): Remove it
 pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
 ) -> EmptyResult {
@@ -59,8 +58,7 @@ pub fn generate_tax_statement(
         &country, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
-    // FIXME(konishchev): Implement
-    if false && broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
+    if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
         if let Some(mut total_tax) = trades_tax {
             total_tax.add_assign(dividends_tax).unwrap();
             total_tax.add_assign(interest_tax).unwrap();

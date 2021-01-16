@@ -8,7 +8,7 @@ struct Row {
     #[column(name="Посчитанный")]
     calculated_tax: Cash,
     #[column(name="Удержанный брокером")]
-    withholded_tax: MultiCurrencyCashAccount,
+    withheld_tax: MultiCurrencyCashAccount,
 }
 
 pub fn process_tax_agent_withholdings(
@@ -31,6 +31,6 @@ pub fn process_tax_agent_withholdings(
         withheld_tax.deposit(Cash::new(calculated_tax.currency, dec!(0)));
     }
 
-    table.add_row(Row {calculated_tax, withholded_tax: withheld_tax });
+    table.add_row(Row {calculated_tax, withheld_tax});
     table.print(&format!("Налог, удержанный {}", broker_statement.broker.name));
 }
