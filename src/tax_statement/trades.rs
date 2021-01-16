@@ -5,7 +5,7 @@ use log::warn;
 
 use static_table_derive::StaticTable;
 
-use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails};
+use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails, Fee};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -37,7 +37,6 @@ pub fn process_income(
         stock_splits: false,
         tax_exemptions: false,
 
-        // FIXME(konishchev): Take fees into account
         total_local_profit: Cash::new(country.currency, dec!(0)),
         total_taxable_local_profit_by_year: HashMap::new(),
         total_taxable_local_profit: Cash::new(country.currency, dec!(0)),
@@ -45,6 +44,7 @@ pub fn process_income(
     };
 
     let mut trade_id = 0;
+    let jurisdiction = broker_statement.broker.type_.jurisdiction();
 
     for trade in &broker_statement.stock_sells {
         let (tax_year, _) = portfolio.tax_payment_day.get(trade.execution_date, true);
@@ -59,18 +59,32 @@ pub fn process_income(
         processor.process_trade(trade_id, trade, &details)?;
 
         if let Some(ref mut statement) = tax_statement {
-            if broker_statement.broker.type_.jurisdiction() != Jurisdiction::Usa {
+            if jurisdiction == Jurisdiction::Usa {
+                processor.add_income(statement, trade, &details)?;
+            } else {
                 warn!(concat!(
                     "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
                     "Don't adding it to the tax statement."
                 ));
                 tax_statement = None;
-            } else {
-                processor.add_income(statement, trade, &details)?;
             }
         }
 
         trade_id += 1;
+    }
+
+    if jurisdiction == Jurisdiction::Russia {
+        for fee in &broker_statement.fees {
+            let (tax_year, _) = portfolio.tax_payment_day.get(fee.date, true);
+
+            if let Some(year) = year {
+                if tax_year != year {
+                    continue;
+                }
+            }
+
+            processor.process_fee(fee)?;
+        }
     }
 
     let total_tax_to_pay = processor.process_totals()?;
@@ -305,6 +319,37 @@ impl<'a> TradesProcessor<'a> {
                 None
             },
         });
+
+        Ok(())
+    }
+
+    fn process_fee(&mut self, fee: &Fee) -> EmptyResult {
+        self.same_currency &= fee.amount.currency == self.country.currency;
+
+        let amount = fee.amount.round();
+        let local_amount = self.converter.convert_to_cash_rounding(
+            fee.date, fee.amount, self.country.currency)?;
+
+        self.total_local_profit.sub_assign(local_amount).unwrap();
+        self.total_taxable_local_profit.sub_assign(local_amount).unwrap();
+        self.total_taxable_local_profit_by_year.entry(fee.date.year())
+            .and_modify(|total| total.sub_assign(local_amount).unwrap())
+            .or_insert(-local_amount);
+
+        let mut row = self.trades_table.add_empty_row();
+        row.set_conclusion_date(fee.date);
+        row.set_security(fee.local_description());
+
+        if amount.is_negative() {
+            row.set_revenue(-amount);
+            row.set_local_revenue(-local_amount);
+        } else {
+            row.set_commission(amount);
+            row.set_local_commission(local_amount);
+        }
+
+        row.set_local_profit(-local_amount);
+        row.set_taxable_local_profit(-local_amount);
 
         Ok(())
     }
