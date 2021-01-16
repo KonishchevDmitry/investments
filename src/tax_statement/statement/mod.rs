@@ -113,6 +113,9 @@ impl TaxStatement {
 
             paid_tax: dec!(0),
             local_paid_tax: dec!(0),
+
+            // Please note that we should always specify this deduction amount - even if it's zero.
+            // If it's not specified the income doesn't participate into settlement of losses.
             deduction: DeductionInfo {
                 code: 201,
                 amount: purchase_local_cost,
