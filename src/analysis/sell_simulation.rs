@@ -169,12 +169,12 @@ fn print_results(
 
         total_tax_deduction.add_assign(details.tax_deduction).unwrap();
 
+        let price_precision = std::cmp::max(2, util::decimal_precision(trade.price.amount));
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
             purchase_cost.amount += converter.convert_to_rounding(
-                buy_trade.execution_date, buy_trade.price * buy_trade.quantity,
-                purchase_cost.currency)?;
+                buy_trade.execution_date, buy_trade.cost, purchase_cost.currency)?;
 
             fifo_table.add_row(FifoRow {
                 symbol: if index == 0 {
@@ -195,7 +195,7 @@ fn print_results(
         trades_table.add_row(TradeRow {
             symbol: trade.symbol,
             quantity: trade.quantity,
-            buy_price: (purchase_cost / trade.quantity).round(),
+            buy_price: (purchase_cost / trade.quantity).round_to(price_precision).normalize(),
             sell_price: trade.price,
             commission: commission,
 

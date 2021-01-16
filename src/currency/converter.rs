@@ -161,7 +161,6 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
                 formatting::format_date(date));
         }
 
-        // FIXME(konishchev): Should we use quotes for today?
         if !self.strict_mode && date > today {
             if let Some(ref quotes) = self.quotes {
                 let price = quotes.get(&get_currency_pair(from, to))?;

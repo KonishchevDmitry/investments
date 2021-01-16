@@ -360,11 +360,22 @@ impl BrokerStatement {
                 let source_quantity = (sell_quantity / multiplier).normalize();
                 assert_eq!(source_quantity * multiplier, sell_quantity);
 
+                let (volume, commission) = if source_quantity == stock_buy.quantity {
+                    (stock_buy.volume, stock_buy.commission)
+                } else {
+                    (
+                        stock_buy.price * source_quantity,
+                        stock_buy.commission / stock_buy.quantity * source_quantity,
+                    )
+                };
+
                 sources.push(StockSellSource {
                     quantity: source_quantity,
                     multiplier: multiplier,
+
                     price: stock_buy.price,
-                    commission: stock_buy.commission / stock_buy.quantity * source_quantity,
+                    volume,
+                    commission,
 
                     conclusion_date: stock_buy.conclusion_date,
                     execution_date: stock_buy.execution_date,

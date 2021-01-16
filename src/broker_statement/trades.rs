@@ -274,10 +274,10 @@ pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
-    // FIXME(konishchev): We've missed volume here
     // Please note that the following values can be zero due to corporate actions or other non-trade
     // operations:
     pub price: Cash,
+    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
 
     pub conclusion_date: Date,
@@ -286,18 +286,19 @@ pub struct StockSellSource {
 
 impl StockSellSource {
     fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
-        let (price, _, commission) = convert_trade(
-            self.quantity, self.price * self.quantity, self.commission,
+        let (price, volume, commission) = convert_trade(
+            self.quantity, self.volume, self.commission,
             self.conclusion_date, self.execution_date,
             currency, converter)?;
 
         self.price = price;
+        self.volume = volume;
         self.commission = commission;
         Ok(())
     }
 
     fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        let cost = (self.price * self.quantity).round();
+        let cost = self.volume.round();
         let local_cost = converter.convert_to_rounding(
             self.execution_date, cost, country.currency)?;
 
@@ -315,13 +316,13 @@ impl StockSellSource {
         Ok(FifoDetails {
             quantity: self.quantity,
             multiplier: self.multiplier,
-            price: self.price,
-
-            commission: commission,
-            local_commission: Cash::new(country.currency, local_commission),
 
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
+
+            price: self.price,
+            commission: commission,
+            local_commission: Cash::new(country.currency, local_commission),
 
             cost,
             local_cost: Cash::new(country.currency, local_cost),
