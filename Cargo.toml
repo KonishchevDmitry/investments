@@ -14,15 +14,15 @@ readme = "README.md"
 
 edition = "2018"
 exclude = ["/testdata"]
-default-run = "investments"
 
 [[bin]]
 name = "investments"
 path = "src/bin/investments/mod.rs"
 
-[[bin]]
+# Used by regression tests
+[[example]]
 name = "tax-statement-parser"
-path = "src/bin/tax_statement_parser.rs"
+path = "examples/tax_statement_parser.rs"
 
 [dependencies]
 ansi_term = "0.12.1"

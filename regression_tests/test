@@ -16,7 +16,7 @@ show-diff() {
 }
 
 parse-tax-statement() {
-    cargo run --manifest-path "$project_path/Cargo.toml" --bin tax-statement-parser -- "$@"
+    cargo run --manifest-path "$project_path/Cargo.toml" --example tax-statement-parser -- "$@"
 }
 
 prepare-temp-dir() {

@@ -22,7 +22,7 @@ or [БКС](https://broker.ru/).
 1. Install Rust - https://www.rust-lang.org/tools/install
 2. Install or upgrade the package:
 ```
-cargo install investments --bin investments
+cargo install investments
 ```
 If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
 
@@ -30,7 +30,7 @@ If you want to install the package from sources, use:
 ```
 git clone https://github.com/KonishchevDmitry/investments.git
 cd investments
-cargo install --path . --bin investments --force
+cargo install --path . --force
 ```
 
 # Configuration

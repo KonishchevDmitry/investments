@@ -19,7 +19,6 @@ pub fn run() -> EmptyResult {
 
     let path = matches.value_of("TAX_STATEMENT").unwrap();
     let statement = TaxStatement::read(path)?;
-
     println!("{:#?}", statement);
 
     Ok(())
