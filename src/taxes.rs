@@ -56,16 +56,25 @@ impl TaxPaymentDay {
     /// Returns tax year and an approximate date when tax is going to be paid for the specified income
     pub fn get(&self, income_date: Date, trading: bool) -> (i32, Date) {
         match self.spec {
-            TaxPaymentDaySpec::Day {month, day} => {
-                (income_date.year(), Date::from_ymd(income_date.year() + 1, month, day))
+            TaxPaymentDaySpec::Day {mut month, mut day} => {
+                let tax_year = income_date.year();
+
+                if trading && self.jurisdiction == Jurisdiction::Russia {
+                    month = 1;
+                    day = 1;
+                }
+
+                (tax_year, Date::from_ymd(tax_year + 1, month, day))
             },
+
             TaxPaymentDaySpec::OnClose(close_date) => {
                 assert!(income_date <= close_date);
 
                 if trading {
                     (close_date.year(), close_date)
                 } else {
-                    let tax_payment_day = TaxPaymentDay::new(self.jurisdiction, TaxPaymentDaySpec::default());
+                    let day = TaxPaymentDaySpec::default();
+                    let tax_payment_day = TaxPaymentDay::new(self.jurisdiction, day);
                     tax_payment_day.get(income_date, trading)
                 }
             },
@@ -79,7 +88,6 @@ pub enum TaxPaymentDaySpec {
     OnClose(Date),
 }
 
-// FIXME(konishchev): Alter?
 impl Default for TaxPaymentDaySpec {
     fn default() -> TaxPaymentDaySpec {
         TaxPaymentDaySpec::Day {
