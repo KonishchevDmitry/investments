@@ -97,7 +97,7 @@ impl Tests {
     }
 
     fn with_args<'a>(&'a mut self, name: &str, args: &[&str]) -> &'a mut Test {
-        self.tests.push(Test::new(name, "regression_tests/investments", args));
+        self.tests.push(Test::new(name, "tests/investments", args));
         self.tests.last_mut().unwrap()
     }
 
@@ -107,7 +107,7 @@ impl Tests {
 
         self.tests.push(Test::new(
             &format!("{} tax statement generation {}", name, year),
-            "regression_tests/test-tax-statement", &[id, &year.to_string(), &path],
+            "tests/test-tax-statement", &[id, &year.to_string(), &path],
         ));
 
         let test = self.tests.last_mut().unwrap();

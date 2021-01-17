@@ -22,4 +22,4 @@ cp "src/tax_statement/statement/testdata/filled.dc$reference_short_year" "$state
 [ "$year" -eq "$reference_year" ] ||
     sed -i "s/^\(DLSG            Decl\)$reference_year/\\1$year/" "$statement_path"
 
-./regression_tests/investments "$config" tax-statement "$broker" "$year" "$statement_path"
+./tests/investments "$config" tax-statement "$broker" "$year" "$statement_path"

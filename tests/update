@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# Updates regression tests input data
+#
+
+set -eu
+
+wait-api-rate-limits() {
+    sleep 1
+}
+
+(cd testdata && ./update)
+
+for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
+    case "$broker" in
+        firstrade|ib) cash=10000;;
+        *) cash=100000;;
+    esac
+
+    ./tests/investments main sync "$broker"
+    ./tests/investments main cash "$broker" "$cash"
+
+    # FIXME(konishchev): Enable after deposit
+    if [ "$broker" != open ]; then
+        ./tests/investments main analyse "$broker" > /dev/null && wait-api-rate-limits
+    fi
+done
+
+for portfolio in ib-complex ib-margin-rub ib-stock-split; do
+    ./tests/investments other tax-statement "$portfolio" > /dev/null
+done
+
+./tests/investments other simulate-sell ib-complex 1 VTRS > /dev/null
+./tests/investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX > /dev/null

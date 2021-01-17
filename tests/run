@@ -21,7 +21,7 @@ parse-tax-statement() {
 
 prepare-temp-dir() {
     cleanup-temp-dir
-    temp_dir="$(mktemp -d /var/tmp/investments-regression-test.XXXXXX)"
+    temp_dir="$(mktemp -d /var/tmp/investments-tests.XXXXXX)"
 }
 
 cleanup-temp-dir() {
@@ -33,7 +33,7 @@ trap cleanup-temp-dir EXIT
 trap "exit 1" INT TERM QUIT
 
 which -s retest || cargo install qtrac-retest
-if retest -v -v regression_tests/rt.rt; then
+if retest -v -v tests/rt.rt; then
     exit 0
 fi
 
