@@ -37,7 +37,7 @@ main() {
     too_many_arguments
     unit_arg
     '
-    check --bins "$blacklist"
+    check '--bins --examples' "$blacklist"
     check '--bins --release' "$blacklist"
 
     blacklist="$blacklist
