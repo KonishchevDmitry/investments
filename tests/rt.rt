@@ -2,154 +2,77 @@
 EXPECTED_PATH: testdata/rt_expected
 ACTUAL_PATH: testdata/rt_actual
 
-# Deposits
-
-[10]
+[1]
 NAME: Deposits
 STDOUT: deposits
-APP: regression_tests/investments
+APP: tests/investments
      main
      deposits
 
-[11]
+[2]
 NAME: Deposits cron mode
-STDOUT: deposits-cron
-APP: regression_tests/investments
+STDOUT: deposits-cron-mode
+APP: tests/investments
      main
      deposits
      --cron
      --date
      01.01.2100
 
-# Portfolios
-
-[20]
-NAME: IB portfolio
-STDOUT: ib-show
-APP: regression_tests/investments
+[3]
+NAME: Show
+STDOUT: show
+APP: tests/investments
      main
      show
      ib
 
-[21]
-NAME: Firstrade portfolio
-STDOUT: firstrade-show
-APP: regression_tests/investments
+[4]
+NAME: Show flat
+STDOUT: show-flat
+APP: tests/investments
      main
      show
-     firstrade
+     ib
+     --flat
 
-[22]
-NAME: Tinkoff portfolio
-STDOUT: tinkoff-show
-APP: regression_tests/investments
-     main
-     show
-     tinkoff
-
-[23]
-NAME: Open Broker portfolio
-STDOUT: open-show
-APP: regression_tests/investments
-     main
-     show
-     iia
-
-[24]
-NAME: BCS portfolio
-STDOUT: bcs-show
-APP: regression_tests/investments
-     main
-     show
-     bcs
-
-# Analyse
-
-[3]
+[5]
 NAME: Analyse
 STDOUT: analyse
-APP: regression_tests/investments
+APP: tests/investments
      main
      analyse
      all
      --all
 
-# Simulate sell
-
-[400]
-NAME: IB simulate sell
-STDOUT: ib-simulate-sell
-APP: regression_tests/investments
-     main
-     simulate-sell
-     ib
-
-[401]
-NAME: IB simulate sell partial
-STDOUT: ib-simulate-sell-partial
-APP: regression_tests/investments
+[6]
+NAME: Simulate sell partial
+STDOUT: simulate-sell-partial
+APP: tests/investments
      main
      simulate-sell
      ib
      all
      VTI
-     all
+     50
+     BND
+     50
      BND
 
-[41]
-NAME: Firstrade simulate sell
-STDOUT: firstrade-simulate-sell
-APP: regression_tests/investments
-     main
-     simulate-sell
-     firstrade
-
-[420]
-NAME: Tinkoff simulate sell
-STDOUT: tinkoff-simulate-sell
-APP: regression_tests/investments
-     main
-     simulate-sell
-     tinkoff
-
-[421]
-NAME: Tinkoff simulate sell in USD
-STDOUT: tinkoff-simulate-sell-in-usd
-APP: regression_tests/investments
+[7]
+NAME: Simulate sell in USD
+STDOUT: simulate-sell-in-usd
+APP: tests/investments
      main
      simulate-sell
      tinkoff
      --base-currency
      USD
 
-[43]
-NAME: Open Broker simulate sell
-STDOUT: open-simulate-sell
-APP: regression_tests/investments
-     main
-     simulate-sell
-     iia
-
-[44]
-NAME: BCS simulate sell
-STDOUT: bcs-simulate-sell
-APP: regression_tests/investments
-     main
-     simulate-sell
-     bcs
-
-[450]
-NAME: IIA-B simulate sell
-STDOUT: iia-b-simulate-sell
-APP: regression_tests/investments
-     main
-     simulate-sell
-     kate-iia
-
-[451]
-NAME: Zero cost position selling
-STDOUT: zero-cost-simulate-sell
-APP: regression_tests/investments
+[8]
+NAME: Simulate sell zero cost position
+STDOUT: simulate-sell-zero-cost-position
+APP: tests/investments
      other
      simulate-sell
      ib-complex
@@ -158,10 +81,10 @@ APP: regression_tests/investments
      125
      VTRS
 
-[452]
-NAME: Trade with mixed currency
-STDOUT: mixed-currency-trade-simulate-sell
-APP: regression_tests/investments
+[9]
+NAME: Simulate sell with mixed currency
+STDOUT: simulate-sell-with-mixed-currency
+APP: tests/investments
      other
      simulate-sell
      tinkoff-mixed-currency-trade
@@ -170,359 +93,436 @@ APP: regression_tests/investments
      all
      VTBX
 
-# Rebalance
+[10]
+NAME: IB complex tax statement
+STDOUT: ib-complex-tax-statement
+APP: tests/investments
+     other
+     tax-statement
+     ib-complex
 
-[50]
-NAME: IB rebalance
-STDOUT: ib-rebalance
-APP: regression_tests/investments
+[11]
+NAME: IB stock split tax statement
+STDOUT: ib-stock-split-tax-statement
+APP: tests/investments
+     other
+     tax-statement
+     ib-stock-split
+
+[12]
+NAME: IB margin RUB cash flow
+STDOUT: ib-margin-rub-cash-flow
+APP: tests/investments
+     other
+     cash-flow
+     ib-margin-rub
+
+[13]
+NAME: IB stock split cash flow
+STDOUT: ib-stock-split-cash-flow
+APP: tests/investments
+     other
+     cash-flow
+     ib-stock-split
+
+[14]
+NAME: Open inactive with forex trades cash flow
+STDOUT: open-inactive-with-forex-trades-cash-flow
+APP: tests/investments
+     other
+     cash-flow
+     open-inactive-with-forex
+
+[15]
+NAME: Metrics
+APP: tests/investments
+     main
+     metrics
+     $OUT_PATH/metrics
+
+[16]
+NAME: Rebalance IB
+STDOUT: rebalance-ib
+APP: tests/investments
      main
      rebalance
      ib
 
-[51]
-NAME: Firstrade rebalance
-STDOUT: firstrade-rebalance
-APP: regression_tests/investments
+[17]
+NAME: Simulate sell IB
+STDOUT: simulate-sell-ib
+APP: tests/investments
      main
-     rebalance
-     firstrade
+     simulate-sell
+     ib
 
-[52]
-NAME: Tinkoff rebalance
-STDOUT: tinkoff-rebalance
-APP: regression_tests/investments
-     main
-     rebalance
-     tinkoff
-
-[53]
-NAME: Open Broker rebalance
-STDOUT: open-rebalance
-APP: regression_tests/investments
-     main
-     rebalance
-     iia
-
-[54]
-NAME: BCS rebalance
-STDOUT: bcs-rebalance
-APP: regression_tests/investments
-     main
-     rebalance
-     bcs
-
-[55]
-NAME: IIA-B rebalance
-STDOUT: iia-b-rebalance
-APP: regression_tests/investments
-     main
-     rebalance
-     kate-iia
-
-[6000]
+[18]
 NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
-APP: regression_tests/investments
+APP: tests/investments
      main
      tax-statement
      ib
      2018
 
-[6001]
+[19]
 NAME: IB tax statement generation 2018
-APP: regression_tests/test-tax-statement
+APP: tests/test-tax-statement
      main
      ib
      2018
      $OUT_PATH/ib-tax-statement-2018.dc8
 DIFF: rt-binary
 
-[6010]
+[20]
+NAME: IB cash flow 2018
+STDOUT: ib-cash-flow-2018
+APP: tests/investments
+     main
+     cash-flow
+     ib
+     2018
+
+[21]
 NAME: IB tax statement 2019
 STDOUT: ib-tax-statement-2019
-APP: regression_tests/investments
+APP: tests/investments
      main
      tax-statement
      ib
      2019
 
-[6011]
+[22]
 NAME: IB tax statement generation 2019
-APP: regression_tests/test-tax-statement
+APP: tests/test-tax-statement
      main
      ib
      2019
      $OUT_PATH/ib-tax-statement-2019.dc9
 DIFF: rt-binary
 
-[6020]
+[23]
+NAME: IB cash flow 2019
+STDOUT: ib-cash-flow-2019
+APP: tests/investments
+     main
+     cash-flow
+     ib
+     2019
+
+[24]
 NAME: IB tax statement 2020
 STDOUT: ib-tax-statement-2020
-APP: regression_tests/investments
+APP: tests/investments
      main
      tax-statement
      ib
      2020
 
-[6021]
+[25]
 NAME: IB tax statement generation 2020
-APP: regression_tests/test-tax-statement
+APP: tests/test-tax-statement
      main
      ib
      2020
      $OUT_PATH/ib-tax-statement-2020.dc0
 DIFF: rt-binary
 
-[6022]
+[26]
+NAME: IB cash flow 2020
+STDOUT: ib-cash-flow-2020
+APP: tests/investments
+     main
+     cash-flow
+     ib
+     2020
+
+[27]
 NAME: IB tax statement 2021
 STDOUT: ib-tax-statement-2021
-APP: regression_tests/investments
+APP: tests/investments
      main
      tax-statement
      ib
      2021
 
-[6023]
+[28]
 NAME: IB tax statement generation 2021
-APP: regression_tests/test-tax-statement
+APP: tests/test-tax-statement
      main
      ib
      2021
      $OUT_PATH/ib-tax-statement-2021.dc1
 DIFF: rt-binary
 
-[6100]
+[29]
+NAME: IB cash flow 2021
+STDOUT: ib-cash-flow-2021
+APP: tests/investments
+     main
+     cash-flow
+     ib
+     2021
+
+[30]
+NAME: Rebalance Firstrade
+STDOUT: rebalance-firstrade
+APP: tests/investments
+     main
+     rebalance
+     firstrade
+
+[31]
+NAME: Simulate sell Firstrade
+STDOUT: simulate-sell-firstrade
+APP: tests/investments
+     main
+     simulate-sell
+     firstrade
+
+[32]
 NAME: Firstrade tax statement 2020
 STDOUT: firstrade-tax-statement-2020
-APP: regression_tests/investments
+APP: tests/investments
      main
      tax-statement
      firstrade
      2020
 
-[6101]
+[33]
 NAME: Firstrade tax statement generation 2020
-APP: regression_tests/test-tax-statement
+APP: tests/test-tax-statement
      main
      firstrade
      2020
      $OUT_PATH/firstrade-tax-statement-2020.dc0
 DIFF: rt-binary
 
-[6102]
+[34]
+NAME: Firstrade cash flow 2020
+STDOUT: firstrade-cash-flow-2020
+APP: tests/investments
+     main
+     cash-flow
+     firstrade
+     2020
+
+[35]
 NAME: Firstrade tax statement 2021
 STDOUT: firstrade-tax-statement-2021
-APP: regression_tests/investments
+APP: tests/investments
      main
      tax-statement
      firstrade
      2021
 
-[6103]
+[36]
 NAME: Firstrade tax statement generation 2021
-APP: regression_tests/test-tax-statement
+APP: tests/test-tax-statement
      main
      firstrade
      2021
      $OUT_PATH/firstrade-tax-statement-2021.dc1
 DIFF: rt-binary
 
-[62]
-NAME: Tinkoff tax statement
-STDOUT: tinkoff-tax-statement
-APP: regression_tests/investments
-     main
-     tax-statement
-     tinkoff
-
-[63]
-NAME: Open Broker tax statement
-STDOUT: open-tax-statement
-APP: regression_tests/investments
-     main
-     tax-statement
-     open
-
-[64]
-NAME: BCS tax statement
-STDOUT: bcs-tax-statement
-APP: regression_tests/investments
-     main
-     tax-statement
-     bcs
-
-[65]
-NAME: IIA tax statement
-STDOUT: iia-tax-statement
-APP: regression_tests/investments
-     main
-     tax-statement
-     iia
-
-[660]
-NAME: Kate tax statement
-STDOUT: kate-tax-statement
-APP: regression_tests/investments
-     main
-     tax-statement
-     kate
-
-[661]
-NAME: Kate IIA tax statement
-STDOUT: kate-iia-tax-statement
-APP: regression_tests/investments
-     main
-     tax-statement
-     kate-iia
-
-[670]
-NAME: IB third-party complex tax statement
-STDOUT: ib-complex-tax-statement
-APP: regression_tests/investments
-     other
-     tax-statement
-     ib-complex
-
-[671]
-NAME: IB third-party tax statement with stock split
-STDOUT: ib-stock-split-tax-statement
-APP: regression_tests/investments
-     other
-     tax-statement
-     ib-stock-split
-
-[700]
-NAME: IB cash flow 2018
-STDOUT: ib-cash-flow-2018
-APP: regression_tests/investments
-     main
-     cash-flow
-     ib
-     2018
-
-[701]
-NAME: IB cash flow 2019
-STDOUT: ib-cash-flow-2019
-APP: regression_tests/investments
-     main
-     cash-flow
-     ib
-     2019
-
-[702]
-NAME: IB cash flow 2020
-STDOUT: ib-cash-flow-2020
-APP: regression_tests/investments
-     main
-     cash-flow
-     ib
-     2020
-
-[703]
-NAME: IB cash flow 2021
-STDOUT: ib-cash-flow-2021
-APP: regression_tests/investments
-     main
-     cash-flow
-     ib
-     2021
-
-[710]
-NAME: Firstrade cash flow 2020
-STDOUT: firstrade-cash-flow-2020
-APP: regression_tests/investments
-     main
-     cash-flow
-     firstrade
-     2020
-
-[711]
+[37]
 NAME: Firstrade cash flow 2021
 STDOUT: firstrade-cash-flow-2021
-APP: regression_tests/investments
+APP: tests/investments
      main
      cash-flow
      firstrade
      2021
 
-[72]
-NAME: Tinkoff cash flow
-STDOUT: tinkoff-cash-flow
-APP: regression_tests/investments
+[38]
+NAME: Rebalance IIA
+STDOUT: rebalance-iia
+APP: tests/investments
      main
-     cash-flow
-     tinkoff
+     rebalance
+     iia
 
-[730]
-NAME: Open Broker cash flow
-STDOUT: open-cash-flow
-APP: regression_tests/investments
+[39]
+NAME: Simulate sell IIA
+STDOUT: simulate-sell-iia
+APP: tests/investments
      main
-     cash-flow
-     open
+     simulate-sell
+     iia
 
-[731]
-NAME: Open Broker inactive with forex trades cash flow
-STDOUT: open-inactive-with-forex-cash-flow
-APP: regression_tests/investments
-     other
-     cash-flow
-     open-inactive-with-forex
-
-[74]
-NAME: BCS cash flow
-STDOUT: bcs-cash-flow
-APP: regression_tests/investments
+[40]
+NAME: IIA tax statement
+STDOUT: iia-tax-statement
+APP: tests/investments
      main
-     cash-flow
-     bcs
+     tax-statement
+     iia
 
-[75]
+[41]
 NAME: IIA cash flow
 STDOUT: iia-cash-flow
-APP: regression_tests/investments
+APP: tests/investments
      main
      cash-flow
      iia
 
-[760]
+[42]
+NAME: Rebalance BCS
+STDOUT: rebalance-bcs
+APP: tests/investments
+     main
+     rebalance
+     bcs
+
+[43]
+NAME: Simulate sell BCS
+STDOUT: simulate-sell-bcs
+APP: tests/investments
+     main
+     simulate-sell
+     bcs
+
+[44]
+NAME: BCS tax statement
+STDOUT: bcs-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     bcs
+
+[45]
+NAME: BCS cash flow
+STDOUT: bcs-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     bcs
+
+[46]
+NAME: Rebalance Open
+STDOUT: rebalance-open
+APP: tests/investments
+     main
+     rebalance
+     open
+
+[47]
+NAME: Simulate sell Open
+STDOUT: simulate-sell-open
+APP: tests/investments
+     main
+     simulate-sell
+     open
+
+[48]
+NAME: Open tax statement
+STDOUT: open-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     open
+
+[49]
+NAME: Open cash flow
+STDOUT: open-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     open
+
+[50]
+NAME: Rebalance Tinkoff
+STDOUT: rebalance-tinkoff
+APP: tests/investments
+     main
+     rebalance
+     tinkoff
+
+[51]
+NAME: Simulate sell Tinkoff
+STDOUT: simulate-sell-tinkoff
+APP: tests/investments
+     main
+     simulate-sell
+     tinkoff
+
+[52]
+NAME: Tinkoff tax statement
+STDOUT: tinkoff-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     tinkoff
+
+[53]
+NAME: Tinkoff cash flow
+STDOUT: tinkoff-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     tinkoff
+
+[54]
+NAME: Rebalance Kate
+STDOUT: rebalance-kate
+APP: tests/investments
+     main
+     rebalance
+     kate
+
+[55]
+NAME: Simulate sell Kate
+STDOUT: simulate-sell-kate
+APP: tests/investments
+     main
+     simulate-sell
+     kate
+
+[56]
+NAME: Kate tax statement
+STDOUT: kate-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     kate
+
+[57]
 NAME: Kate cash flow
 STDOUT: kate-cash-flow
-APP: regression_tests/investments
+APP: tests/investments
      main
      cash-flow
      kate
 
-[761]
+[58]
+NAME: Rebalance Kate IIA
+STDOUT: rebalance-kate-iia
+APP: tests/investments
+     main
+     rebalance
+     kate-iia
+
+[59]
+NAME: Simulate sell Kate IIA
+STDOUT: simulate-sell-kate-iia
+APP: tests/investments
+     main
+     simulate-sell
+     kate-iia
+
+[60]
+NAME: Kate IIA tax statement
+STDOUT: kate-iia-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     kate-iia
+
+[61]
 NAME: Kate IIA cash flow
 STDOUT: kate-iia-cash-flow
-APP: regression_tests/investments
+APP: tests/investments
      main
      cash-flow
      kate-iia
 
-[770]
-NAME: IB third-party margin RUB cash flow
-STDOUT: ib-margin-rub-cash-flow
-APP: regression_tests/investments
-     other
-     cash-flow
-     ib-margin-rub
-
-[771]
-NAME: IB third-party with stock split cash flow
-STDOUT: ib-stock-split-cash-flow
-APP: regression_tests/investments
-     other
-     cash-flow
-     ib-stock-split
-
-# Metrics
-
-[8]
-NAME: Metrics
-APP: regression_tests/investments
-     main
-     metrics
-     $OUT_PATH/metrics

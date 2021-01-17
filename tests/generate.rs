@@ -21,8 +21,7 @@ fn generate_regression_tests() {
     t.add("Analyse", "analyse all --all");
 
     // simulate-sell
-    // FIXME(konishchev): Partial
-    t.add("Simulate sell partial", "simulate-sell ib all VTI all BND");
+    t.add("Simulate sell partial", "simulate-sell ib all VTI 50 BND 50 BND");
     t.add("Simulate sell in USD", "simulate-sell tinkoff --base-currency USD");
     t.add("Simulate sell zero cost position", "simulate-sell ib-complex 5 VTRS 125 VTRS").config("other");
     t.add("Simulate sell with mixed currency", "simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX").config("other");
