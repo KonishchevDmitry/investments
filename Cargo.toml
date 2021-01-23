@@ -48,7 +48,7 @@ quick-xml = { version = "0.20.0", features = [ "serialize" ] }
 rayon = "1.5.0"
 regex = "1.4.3"
 reqwest = { version = "0.11.0", features = ["blocking", "json"] }
-rust_decimal = "1.9.0"
+rust_decimal = "~1.9.0"
 rust_decimal_macros = "1.9.0"
 separator = "0.4.1"
 serde = { version = "1.0.119", features = ["derive"] }
