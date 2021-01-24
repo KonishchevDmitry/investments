@@ -29,10 +29,12 @@ fn generate_regression_tests() {
     // tax-statement
     t.add("IB complex tax statement", "tax-statement ib-complex").config("other");
     t.add("IB stock split tax statement", "tax-statement ib-stock-split").config("other");
+    t.add("IB simple with LSE tax statement", "tax-statement ib-simple-with-lse").config("other");
 
     // cash-flow
     t.add("IB margin RUB cash flow", "cash-flow ib-margin-rub").config("other");
     t.add("IB stock split cash flow", "cash-flow ib-stock-split").config("other");
+    t.add("IB simple with LSE cash flow", "cash-flow ib-simple-with-lse").config("other");
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
 
     // metrics

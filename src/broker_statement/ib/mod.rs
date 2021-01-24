@@ -331,6 +331,8 @@ mod tests {
 
         "margin-rub",
         "complex",
+
+        "simple-with-lse",
     ])]
     fn parse_real_other(name: &str) {
         parse_full(name, None);
