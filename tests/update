@@ -30,5 +30,6 @@ for portfolio in ib-complex ib-margin-rub ib-stock-split; do
     ./tests/investments other tax-statement "$portfolio" > /dev/null
 done
 
+./tests/investments other analyse ib-complex --all > /dev/null
 ./tests/investments other simulate-sell ib-complex 1 VTRS > /dev/null
 ./tests/investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX > /dev/null
