@@ -46,8 +46,8 @@ APP: tests/investments
      --all
 
 [6]
-NAME: Analyse
-STDOUT: analyse
+NAME: Analyse complex
+STDOUT: analyse-complex
 APP: tests/investments
      other
      analyse

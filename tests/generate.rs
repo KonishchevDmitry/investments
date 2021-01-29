@@ -19,7 +19,7 @@ fn generate_regression_tests() {
 
     // analyse
     t.add("Analyse", "analyse all --all");
-    t.add("Analyse", "analyse ib-complex --all").config("other");
+    t.add("Analyse complex", "analyse ib-complex --all").config("other");
 
     // simulate-sell
     t.add("Simulate sell partial", "simulate-sell ib all VTI 50 BND 50 BND");
