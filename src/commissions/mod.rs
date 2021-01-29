@@ -7,7 +7,8 @@ use chrono::Datelike;
 use num_traits::{cast::ToPrimitive, Zero};
 
 use crate::core::GenericResult;
-use crate::currency::{Cash, converter::CurrencyConverterRc};
+use crate::currency::Cash;
+use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::types::{Date, Decimal, TradeType};
 use crate::util::{self, RoundingMethod};
 
@@ -38,31 +39,37 @@ pub struct TransactionCommissionSpec {
 }
 
 impl TransactionCommissionSpec {
-    fn calculate(&self, shares: u32, volume: Decimal) -> Decimal {
+    fn calculate(
+        &self, plan_currency: &str, converter: &CurrencyConverter,
+        date: Date, shares: u32, volume: Cash,
+    ) -> GenericResult<Cash> {
         let mut commission = dec!(0);
+        let currency = volume.currency;
+        let convert = |amount| converter.convert(plan_currency, currency, date, amount);
 
         if let Some(per_share) = self.per_share {
-            commission += per_share * Decimal::from(shares);
+            commission += convert(per_share)? * Decimal::from(shares);
         }
 
         if let Some(percent) = self.percent {
-            commission += volume * percent / dec!(100);
+            commission += volume.amount * percent / dec!(100);
         }
 
         if let Some(maximum_percent) = self.maximum_percent {
-            let max_commission = volume * maximum_percent / dec!(100);
+            let max_commission = volume.amount * maximum_percent / dec!(100);
             if commission > max_commission {
                 commission = max_commission;
             }
         }
 
         if let Some(minimum) = self.minimum {
+            let minimum = convert(minimum)?;
             if commission < minimum {
                 commission = minimum
             }
         }
 
-        commission
+        Ok(Cash::new(currency, commission))
     }
 }
 
@@ -109,6 +116,7 @@ pub struct CumulativeFeeSpec {
 
 pub struct CommissionCalc {
     spec: CommissionSpec,
+    converter: CurrencyConverterRc,
     volume: HashMap<Date, Decimal>,
     portfolio_net_value: Decimal,
 }
@@ -117,7 +125,7 @@ impl CommissionCalc {
     pub fn new(converter: CurrencyConverterRc, spec: CommissionSpec, portfolio_net_value: Cash) -> GenericResult<CommissionCalc> {
         let portfolio_net_value = converter.real_time_convert_to(portfolio_net_value, &spec.currency)?;
         Ok(CommissionCalc {
-            spec,
+            spec, converter,
             volume: HashMap::new(),
             portfolio_net_value,
         })
@@ -142,15 +150,19 @@ impl CommissionCalc {
         let volume = get_trade_volume(self.spec.currency, price * shares)?;
         *self.volume.entry(date).or_default() += volume;
 
-        let mut commission = self.spec.trade.commission.calculate(whole_shares, volume);
+        let volume = Cash::new(self.spec.currency, volume); // FIXME(konishchev): Temporary
+        let mut commission = self.spec.trade.commission.calculate(
+            self.spec.currency, &self.converter, date, whole_shares, volume)?;
 
         for (transaction_type, fee_spec) in &self.spec.trade.transaction_fees {
             if *transaction_type == trade_type {
-                commission += fee_spec.calculate(whole_shares, volume);
+                let fee = fee_spec.calculate(
+                    self.spec.currency, &self.converter, date, whole_shares, volume)?;
+                commission.add_assign(fee)?;
             }
         }
 
-        Ok(Cash::new(self.spec.currency, commission))
+        Ok(commission)
     }
 
     pub fn calculate(self) -> HashMap<Date, Cash> {
