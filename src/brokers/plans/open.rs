@@ -43,7 +43,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::all_inclusive(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::all_inclusive(), Cash::new(currency, dec!(0))).unwrap();
 
         let date = date!(4, 1, 2021);
 
@@ -68,7 +68,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::iia(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::iia(), Cash::new(currency, dec!(0))).unwrap();
 
         let date = date!(14, 12, 2017);
 

@@ -5,7 +5,7 @@ use crate::commissions::CommissionCalc;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
-use crate::currency::converter::CurrencyConverter;
+use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
@@ -15,7 +15,7 @@ use crate::util;
 
 pub fn simulate_sell(
     country: &Country, portfolio: &PortfolioConfig, mut statement: BrokerStatement,
-    converter: &CurrencyConverter, quotes: &Quotes,
+    converter: CurrencyConverterRc, quotes: &Quotes,
     mut positions: Vec<(String, Option<Decimal>)>, base_currency: Option<&str>,
 ) -> EmptyResult {
     if positions.is_empty() {
@@ -31,9 +31,9 @@ pub fn simulate_sell(
         }
     }
 
-    let net_value = statement.net_value(converter, quotes, portfolio.currency()?)?;
+    let net_value = statement.net_value(&converter, quotes, portfolio.currency()?)?;
     let mut commission_calc = CommissionCalc::new(
-        converter, statement.broker.commission_spec.clone(), net_value)?;
+        converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 
     for (symbol, quantity) in &positions {
         let quantity = *match quantity {
@@ -43,7 +43,7 @@ pub fn simulate_sell(
         };
 
         let price = quotes.get(&symbol)?;
-        statement.emulate_sell(&symbol, quantity, price, &mut commission_calc, converter)?;
+        statement.emulate_sell(&symbol, quantity, price, &mut commission_calc, &converter)?;
     }
 
     statement.process_trades()?;
@@ -54,7 +54,7 @@ pub fn simulate_sell(
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(country, portfolio, stock_sells, additional_commissions, converter, base_currency)
+    print_results(country, portfolio, stock_sells, additional_commissions, &converter, base_currency)
 }
 
 #[derive(StaticTable)]

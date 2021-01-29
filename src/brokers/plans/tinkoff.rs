@@ -56,7 +56,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::trader(), Cash::new(currency, portfolio_net_value.into())).unwrap();
+            converter, super::trader(), Cash::new(currency, portfolio_net_value.into())).unwrap();
 
         let date = date!(22, 6, 2020);
 

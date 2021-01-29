@@ -6,7 +6,7 @@ use crate::broker_statement::BrokerStatement;
 use crate::commissions::CommissionCalc;
 use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{GenericResult, EmptyResult};
-use crate::currency::converter::CurrencyConverter;
+use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
 use crate::quotes::Quotes;
 use crate::types::Decimal;
@@ -84,7 +84,7 @@ impl PortfolioCurrencyStatistics {
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,
     merge_performance: Option<&PerformanceMergingConfig>, interactive: bool,
-) -> GenericResult<(PortfolioStatistics, CurrencyConverter)> {
+) -> GenericResult<(PortfolioStatistics, CurrencyConverterRc)> {
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
     let country = config.get_tax_country();
@@ -111,7 +111,7 @@ pub fn analyse(
 
         let net_value = statement.net_value(&converter, &quotes, portfolio.currency()?)?;
         let mut commission_calc = CommissionCalc::new(
-            &converter, statement.broker.commission_spec.clone(), net_value)?;
+            converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 
         for (symbol, quantity) in statement.open_positions.clone() {
             let price = quotes.get(&symbol)?;
@@ -190,7 +190,7 @@ pub fn simulate_sell(
 
     sell_simulation::simulate_sell(
         &config.get_tax_country(), portfolio, statement,
-        &converter, &quotes, positions, base_currency)
+        converter, &quotes, positions, base_currency)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
@@ -221,7 +221,7 @@ fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strict_mode: boo
         portfolio.get_tax_remapping()?, strict_mode)
 }
 
-fn load_tools(config: &Config) -> GenericResult<(CurrencyConverter, Rc<Quotes>)> {
+fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, Rc<Quotes>)> {
     let database = db::connect(&config.db_path)?;
     let quotes = Rc::new(Quotes::new(&config, database.clone())?);
     let converter = CurrencyConverter::new(database, Some(quotes.clone()), false);

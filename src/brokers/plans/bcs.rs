@@ -60,7 +60,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::investor(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::investor(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(13, 10, 2020),  28, dec!(1639.9)),
@@ -94,7 +94,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::investor_pro(), Cash::new(currency, dec!(1_000_000))).unwrap();
+            converter, super::investor_pro(), Cash::new(currency, dec!(1_000_000))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(13, 10, 2020),  78, dec!(1640.0)),
@@ -128,7 +128,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            &converter, super::professional(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::professional(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2, 12, 2019),  35, dec!(2959.5)),

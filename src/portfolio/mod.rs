@@ -119,7 +119,7 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
 
     let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &quotes)?;
     if rebalance {
-        rebalancing::rebalance_portfolio(&mut portfolio, &converter)?;
+        rebalancing::rebalance_portfolio(&mut portfolio, converter)?;
     }
 
     print_portfolio(portfolio, flat);

@@ -34,16 +34,18 @@ pub struct CurrencyConverter {
     backend: Box<dyn CurrencyConverterBackend>,
 }
 
+pub type CurrencyConverterRc = Rc<CurrencyConverter>;
+
 impl CurrencyConverter {
-    pub fn new(database: db::Connection, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> CurrencyConverter {
+    pub fn new(database: db::Connection, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> CurrencyConverterRc {
         let rate_cache = CurrencyRateCache::new(database);
         let backend = CurrencyRateCacheBackend::new(rate_cache, quotes, strict_mode);
-        CurrencyConverter::new_with_backend(backend)
+        Rc::new(CurrencyConverter::new_with_backend(backend))
     }
 
     #[cfg(test)]
-    pub fn mock() -> CurrencyConverter {
-        CurrencyConverter::new_with_backend(CurrencyRateCacheBackendMock::new())
+    pub fn mock() -> CurrencyConverterRc {
+        Rc::new(CurrencyConverter::new_with_backend(CurrencyRateCacheBackendMock::new()))
     }
 
     pub fn new_with_backend(source: Box<dyn CurrencyConverterBackend>) -> CurrencyConverter {
