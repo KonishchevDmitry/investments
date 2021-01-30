@@ -156,8 +156,7 @@ impl CommissionCalc {
         let whole_shares = shares.ceil().to_u32().ok_or_else(|| format!(
             "Got an invalid number of shares: {}", shares))?;
 
-        let volume = get_trade_volume(self.spec.currency, price * shares)?;
-        let volume = Cash::new(self.spec.currency, volume); // FIXME(konishchev): Temporary
+        let volume = price * shares;
         self.volume.entry(date).or_default().deposit(volume);
 
         let mut commission = self.spec.trade.commission.calculate(self, date, whole_shares, volume)?;
@@ -262,18 +261,6 @@ impl CommissionCalc {
 
         Ok((commissions, fees))
     }
-}
-
-fn get_trade_volume(commission_currency: &str, volume: Cash) -> GenericResult<Decimal> {
-    if volume.currency != commission_currency {
-        return Err!(concat!(
-            "Unable to calculate trade commission: ",
-            "Commission currency doesn't match trade currency: {} vs {}"),
-            commission_currency, volume.currency
-        );
-    }
-
-    Ok(volume.amount)
 }
 
 fn get_monthly_commission_date(year: i32, month: u32) -> Date {
