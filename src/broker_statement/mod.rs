@@ -8,6 +8,7 @@ mod payments;
 mod reader;
 mod taxes;
 mod trades;
+mod validators;
 mod xls;
 
 mod bcs;
@@ -38,6 +39,7 @@ use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::partial::PartialBrokerStatement;
 use self::reader::BrokerStatementReader;
 use self::taxes::{TaxId, TaxAccruals};
+use self::validators::{DateValidator, validate_trades};
 
 pub use self::corporate_actions::{CorporateAction, CorporateActionType, StockSplitController};
 pub use self::dividends::Dividend;
@@ -245,6 +247,7 @@ impl BrokerStatement {
         let conclusion_date = util::today_trade_conclusion_date();
 
         let mut execution_date = util::today_trade_execution_date();
+        // FIXME(konishchev): Not last element?
         if let Some(last_trade) = self.stock_sells.last() {
             if last_trade.execution_date > execution_date {
                 execution_date = last_trade.execution_date;
@@ -503,12 +506,14 @@ impl BrokerStatement {
             }
         }
 
+        // FIXME(konishchev): Execution order?
         for stock_buy in &mut self.stock_buys {
             if let Some(mapping) = remapping.get(&stock_buy.symbol) {
                 stock_buy.symbol = mapping.to_owned();
             }
         }
 
+        // FIXME(konishchev): Execution order?
         for stock_sell in &mut self.stock_sells {
             if let Some(mapping) = remapping.get(&stock_sell.symbol) {
                 stock_sell.symbol = mapping.to_owned();
@@ -525,16 +530,14 @@ impl BrokerStatement {
     }
 
     fn validate(&mut self) -> EmptyResult {
-        let date_validator = DateValidator {
-            min_date: self.period.0,
-            max_date: self.last_date(),
-        };
+        let max_date = self.last_date();
+        let date_validator = DateValidator::new(self.period.0, max_date);
 
         date_validator.sort_and_validate(
             "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
         if !self.fees.is_empty() {
-            self.sort_and_alter_fees(date_validator.max_date);
+            self.sort_and_alter_fees(max_date);
             date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
         }
 
@@ -549,15 +552,13 @@ impl BrokerStatement {
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
         if !self.stock_buys.is_empty() {
-            self.sort_stock_buys()?;
-            date_validator.validate(
-                "a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
+            validate_trades("buy", &mut self.stock_buys)?;
+            date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
         }
 
         if !self.stock_sells.is_empty() {
-            self.sort_stock_sells()?;
-            date_validator.validate(
-                "a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
+            validate_trades("sell", &mut self.stock_sells)?;
+            date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
         }
 
         if !self.dividends.is_empty() {
@@ -581,46 +582,6 @@ impl BrokerStatement {
         }
 
         self.fees.sort_by_key(|fee| fee.date);
-    }
-
-    fn sort_stock_buys(&mut self) -> EmptyResult {
-        self.stock_buys.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
-
-        let mut prev = None;
-
-        for trade in &self.stock_buys {
-            if let Some((conclusion_date, execution_date, symbol)) = prev {
-                if trade.execution_date < execution_date && !trade.margin {
-                    return Err!(
-                        "Got an unexpected execution order for buy trades: {} -> {} {}, {} -> {} {}",
-                        formatting::format_date(conclusion_date), formatting::format_date(execution_date), symbol,
-                        formatting::format_date(trade.conclusion_date), formatting::format_date(trade.execution_date), trade.symbol);
-                }
-            }
-            prev.replace((trade.conclusion_date, trade.execution_date, &trade.symbol));
-        }
-
-        Ok(())
-    }
-
-    fn sort_stock_sells(&mut self) -> EmptyResult {
-        self.stock_sells.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
-
-        let mut prev = None;
-
-        for trade in &self.stock_sells {
-            if let Some((conclusion_date, execution_date, symbol)) = prev {
-                if trade.execution_date < execution_date && !trade.margin {
-                    return Err!(
-                        "Got an unexpected execution order for sell trades: {} -> {} {}, {} -> {} {}",
-                        formatting::format_date(conclusion_date), formatting::format_date(execution_date), symbol,
-                        formatting::format_date(trade.conclusion_date), formatting::format_date(trade.execution_date), trade.symbol);
-                }
-            }
-            prev.replace((trade.conclusion_date, trade.execution_date, &trade.symbol));
-        }
-
-        Ok(())
     }
 
     fn validate_open_positions(&self) -> EmptyResult {
@@ -658,39 +619,6 @@ impl BrokerStatement {
                     "{}: {} vs {}"
                 ), symbol, calculated, actual);
             }
-        }
-
-        Ok(())
-    }
-}
-
-struct DateValidator {
-    min_date: Date,
-    max_date: Date,
-}
-
-impl DateValidator {
-    fn sort_and_validate<T>(&self, name: &str, objects: &mut [T], get_date: fn(&T) -> Date) -> EmptyResult {
-        if !objects.is_empty() {
-            objects.sort_by_key(get_date);
-            self.validate(name, objects, get_date)?;
-        }
-
-        Ok(())
-    }
-
-    fn validate<T>(&self, name: &str, objects: &[T], get_date: fn(&T) -> Date) -> EmptyResult {
-        let first_date = get_date(objects.first().unwrap());
-        let last_date = get_date(objects.first().unwrap());
-
-        if first_date < self.min_date {
-            return Err!("Got {} outside of statement period: {}",
-                        name, formatting::format_date(first_date));
-        }
-
-        if last_date > self.max_date {
-            return Err!("Got {} outside of statement period: {}",
-                        name, formatting::format_date(last_date));
         }
 
         Ok(())
