@@ -7,13 +7,14 @@ use num_traits::FromPrimitive;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
+use crate::broker_statement::CorporateAction;
 use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country, Jurisdiction};
 use crate::taxes::{TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::types::{Date, Decimal};
-use crate::util::{self, DecimalRestrictions};
+use crate::util::{self, DecimalRestrictions, deserialize_date};
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -196,6 +197,8 @@ pub struct PortfolioConfig {
     pub instrument_names: HashMap<String, String>,
     #[serde(default)]
     tax_remapping: Vec<TaxRemappingConfig>,
+    #[serde(default)]
+    pub corporate_actions: Vec<CorporateAction>,
 
     pub currency: Option<String>,
     pub min_trade_volume: Option<Decimal>,
@@ -391,13 +394,6 @@ fn deserialize_cash_flows<'de, D>(deserializer: D) -> Result<Vec<(Date, Decimal)
     cash_flows.sort_by_key(|cash_flow| cash_flow.0);
 
     Ok(cash_flows)
-}
-
-fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
-    where D: Deserializer<'de>
-{
-    let date: String = Deserialize::deserialize(deserializer)?;
-    Ok(util::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?)
 }
 
 fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>

@@ -56,7 +56,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
                 CorporateAction {
                     date: execution_date, symbol,
-                    action: CorporateActionType::StockSplit(divisor),
+                    action: CorporateActionType::StockSplit{divisor},
                 }
             },
             "Spinoff" => {
@@ -103,7 +103,7 @@ mod tests {
         assert_eq!(parse(&record).unwrap(), CorporateAction {
             date: date!(31, 8, 2020),
             symbol: s!("AAPL"),
-            action: CorporateActionType::StockSplit(4),
+            action: CorporateActionType::StockSplit{divisor: 4},
         });
     }
 

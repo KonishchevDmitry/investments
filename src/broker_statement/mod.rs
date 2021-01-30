@@ -472,10 +472,10 @@ impl BrokerStatement {
 
         for action in statement.corporate_actions {
             match action.action {
-                CorporateActionType::StockSplit(divisor) => {
+                CorporateActionType::StockSplit{divisor} => {
                     self.stock_splits.add(action.date, &action.symbol, divisor)?;
                 }
-                CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
+                CorporateActionType::Spinoff{date, ref symbol, quantity, ref currency} => {
                     let zero = Cash::new(&currency, dec!(0));
                     self.stock_buys.push(StockBuy::new(
                         &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,

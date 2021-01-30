@@ -8,6 +8,8 @@ use lazy_static::lazy_static;
 use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
+use serde::Deserialize;
+use serde::de::{Deserializer, Error};
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
@@ -113,6 +115,13 @@ pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
     Ok(Date::parse_from_str(date, format).map_err(|_| format!(
         "Invalid date: {:?}", date))?)
+}
+
+pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+    where D: Deserializer<'de>
+{
+    let date: String = Deserialize::deserialize(deserializer)?;
+    Ok(parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?)
 }
 
 pub fn parse_time(time: &str, format: &str) -> GenericResult<Time> {
