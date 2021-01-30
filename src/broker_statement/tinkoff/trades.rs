@@ -75,10 +75,9 @@ impl SectionParser for TradesParser {
                 ),
             };
 
-            let forex = if trade.symbol == "USD000UTSTOM" {
-                Some("USD")
-            } else {
-                None
+            let forex = match trade.symbol.as_str() {
+                "USD000000TOD" | "USD000UTSTOM" => Some("USD"),
+                _ => None,
             };
 
             match trade.operation.as_str() {

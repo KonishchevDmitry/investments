@@ -586,15 +586,18 @@ impl BrokerStatement {
     fn sort_stock_buys(&mut self) -> EmptyResult {
         self.stock_buys.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
 
-        let mut prev_execution_date = None;
+        let mut prev = None;
 
         for trade in &self.stock_buys {
-            if let Some(prev_execution_date) = prev_execution_date {
-                if trade.execution_date < prev_execution_date && !trade.margin {
-                    return Err!("Got an unexpected execution order for buy trades");
+            if let Some((conclusion_date, execution_date, symbol)) = prev {
+                if trade.execution_date < execution_date && !trade.margin {
+                    return Err!(
+                        "Got an unexpected execution order for buy trades: {} -> {} {}, {} -> {} {}",
+                        formatting::format_date(conclusion_date), formatting::format_date(execution_date), symbol,
+                        formatting::format_date(trade.conclusion_date), formatting::format_date(trade.execution_date), trade.symbol);
                 }
             }
-            prev_execution_date.replace(trade.execution_date);
+            prev.replace((trade.conclusion_date, trade.execution_date, &trade.symbol));
         }
 
         Ok(())
@@ -603,15 +606,18 @@ impl BrokerStatement {
     fn sort_stock_sells(&mut self) -> EmptyResult {
         self.stock_sells.sort_by_key(|trade| (trade.conclusion_date, trade.execution_date));
 
-        let mut prev_execution_date = None;
+        let mut prev = None;
 
         for trade in &self.stock_sells {
-            if let Some(prev_execution_date) = prev_execution_date {
-                if trade.execution_date < prev_execution_date && !trade.margin {
-                    return Err!("Got an unexpected execution order for sell trades");
+            if let Some((conclusion_date, execution_date, symbol)) = prev {
+                if trade.execution_date < execution_date && !trade.margin {
+                    return Err!(
+                        "Got an unexpected execution order for sell trades: {} -> {} {}, {} -> {} {}",
+                        formatting::format_date(conclusion_date), formatting::format_date(execution_date), symbol,
+                        formatting::format_date(trade.conclusion_date), formatting::format_date(trade.execution_date), trade.symbol);
                 }
             }
-            prev_execution_date.replace(trade.execution_date);
+            prev.replace((trade.conclusion_date, trade.execution_date, &trade.symbol));
         }
 
         Ok(())
