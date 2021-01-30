@@ -77,6 +77,7 @@ impl SectionParser for TradesParser {
 
             let forex = match trade.symbol.as_str() {
                 "USD000000TOD" | "USD000UTSTOM" => Some("USD"),
+                "EUR_RUB__TOM" => Some("EUR"),
                 _ => None,
             };
 
