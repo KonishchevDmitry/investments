@@ -79,12 +79,12 @@ impl BrokerStatement {
     pub fn read(
         broker: BrokerInfo, statement_dir_path: &str,
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
-        tax_remapping: TaxRemapping, strict_mode: bool,
+        tax_remapping: TaxRemapping, corporate_actions: &[CorporateAction], strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
         let statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strict_mode)?;
 
         let joint_statement = BrokerStatement::new_from(
-            broker, statements, symbol_remapping, instrument_names)?;
+            broker, statements, symbol_remapping, instrument_names, corporate_actions)?;
         debug!("{:#?}", joint_statement);
         Ok(joint_statement)
     }
@@ -92,6 +92,7 @@ impl BrokerStatement {
     fn new_from(
         broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>,
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
+        corporate_actions: &[CorporateAction],
     ) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
         let last_index = statements.len() - 1;
@@ -135,6 +136,19 @@ impl BrokerStatement {
         }
 
         statement.remap_symbols(symbol_remapping)?;
+
+        let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
+            .map(|trade| trade.symbol.clone()).collect();
+
+        for action in corporate_actions {
+            if portfolio_symbols.get(&action.symbol).is_none() {
+                return Err!(
+                    "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
+                    action.symbol);
+            }
+            statement.apply_corporate_action(action.clone())?;
+        }
+
         statement.instrument_names.extend(
             instrument_names.iter().map(|(symbol, name)| (symbol.clone(), name.clone())));
 
@@ -471,24 +485,30 @@ impl BrokerStatement {
         self.dividends.extend(statement.dividends.into_iter());
 
         for action in statement.corporate_actions {
-            match action.action {
-                CorporateActionType::StockSplit{divisor} => {
-                    self.stock_splits.add(action.date, &action.symbol, divisor)?;
-                }
-                CorporateActionType::Spinoff{date, ref symbol, quantity, ref currency} => {
-                    let zero = Cash::new(&currency, dec!(0));
-                    self.stock_buys.push(StockBuy::new(
-                        &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
-                        date, action.date, false,
-                    ));
-                },
-            };
-            self.corporate_actions.push(action);
+            self.apply_corporate_action(action)?;
         }
 
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.into_iter());
 
+        Ok(())
+    }
+
+    fn apply_corporate_action(&mut self, action: CorporateAction) -> EmptyResult {
+        match action.action {
+            CorporateActionType::StockSplit{divisor} => {
+                self.stock_splits.add(action.date, &action.symbol, divisor)?;
+            }
+            CorporateActionType::Spinoff{date, ref symbol, quantity, ref currency} => {
+                let zero = Cash::new(&currency, dec!(0));
+                self.stock_buys.push(StockBuy::new(
+                    &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
+                    date, action.date, false,
+                ));
+            },
+        };
+
+        self.corporate_actions.push(action);
         Ok(())
     }
 

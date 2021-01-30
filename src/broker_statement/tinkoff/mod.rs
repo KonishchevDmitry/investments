@@ -137,6 +137,6 @@ mod tests {
     fn parse(name: &str) -> BrokerStatement {
         let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/tinkoff/{}", name);
-        BrokerStatement::read(broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap()
+        BrokerStatement::read(broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap()
     }
 }

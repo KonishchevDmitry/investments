@@ -22,7 +22,7 @@ pub fn generate_tax_statement(
 
     let broker_statement = BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, true)?;
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, true)?;
 
     if let Some(year) = year {
         broker_statement.check_period_against_tax_year(year)?;

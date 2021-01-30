@@ -26,7 +26,7 @@ pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
 
     let statement = BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, false)?;
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, false)?;
     statement.check_date();
 
     let assets = Assets::new(statement.cash_assets, statement.open_positions);

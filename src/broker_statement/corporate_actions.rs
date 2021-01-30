@@ -10,7 +10,7 @@ use crate::formatting::format_date;
 use crate::types::{Date, Decimal};
 use crate::util::deserialize_date;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct CorporateAction {
     #[serde(deserialize_with = "deserialize_date")]
@@ -20,7 +20,7 @@ pub struct CorporateAction {
     pub action: CorporateActionType,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type", rename_all="kebab-case")]
 pub enum CorporateActionType {

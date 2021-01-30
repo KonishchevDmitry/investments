@@ -218,7 +218,7 @@ fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strict_mode: boo
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
     BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, strict_mode)
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, strict_mode)
 }
 
 fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, Rc<Quotes>)> {

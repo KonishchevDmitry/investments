@@ -59,7 +59,7 @@ mod tests {
         let path = format!("testdata/open-broker/{}", name);
 
         let statement = BrokerStatement::read(
-            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), true).unwrap();
+            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap();
 
         assert!(!statement.cash_flows.is_empty());
         assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");

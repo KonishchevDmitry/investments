@@ -112,6 +112,13 @@ portfolios:
     plan: Инвестор
     statements: ~/Brokerage/Тинькофф/Отчеты Брокера
 
+    # Tinkoff doesn't provide any information about corporate actions, so we have to specify them manually
+    #corporate_actions:
+    #  - type: stock-split
+    #    date: 27.10.2020
+    #    symbol: NEE
+    #    ratio: 4:1
+
 # Tax rate is assumed to be 13% by default, but you can override it. For example the following setting sets tax rate to
 # 15% starting from 2023 year.
 #tax_rates:
