@@ -53,6 +53,7 @@ portfolios:
 
   - name: open
     broker: open-broker
+    plan: Всё включено
     statements: ~/Brokerage/Открытие/Отчеты Брокера
 
     # Specifies the day when tax is paid. Used in portfolio performance analysis. Accepted values:
@@ -100,6 +101,7 @@ portfolios:
 
   - name: bcs
     broker: bcs
+    plan: Инвестор
     statements: ~/Brokerage/БКС/Отчеты Брокера
 
     # Configures the account as tax free. Suitable for Individual Investment Account (type B).
@@ -107,6 +109,7 @@ portfolios:
 
   - name: tinkoff
     broker: tinkoff
+    plan: Инвестор
     statements: ~/Brokerage/Тинькофф/Отчеты Брокера
 
 # Tax rate is assumed to be 13% by default, but you can override it. For example the following setting sets tax rate to

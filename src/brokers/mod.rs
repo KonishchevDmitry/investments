@@ -104,7 +104,8 @@ impl Broker {
                 "Всё включено" => plans::open::all_inclusive as PlanFn,
                 "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
             }),
-            Broker::Tinkoff => (plans::tinkoff::trader, btreemap!{
+            Broker::Tinkoff => (plans::tinkoff::investor, btreemap!{
+                "Инвестор" => plans::tinkoff::investor as PlanFn,
                 "Трейдер" => plans::tinkoff::trader as PlanFn,
                 "Премиум" => plans::tinkoff::premium as PlanFn,
             }),
