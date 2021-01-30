@@ -39,7 +39,7 @@ use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::partial::PartialBrokerStatement;
 use self::reader::BrokerStatementReader;
 use self::taxes::{TaxId, TaxAccruals};
-use self::validators::{DateValidator, validate_trades};
+use self::validators::{DateValidator, sort_and_validate_trades};
 
 pub use self::corporate_actions::{CorporateAction, CorporateActionType, StockSplitController};
 pub use self::dividends::Dividend;
@@ -245,12 +245,15 @@ impl BrokerStatement {
         commission_calc: &mut CommissionCalc, converter: &CurrencyConverter,
     ) -> EmptyResult {
         let conclusion_date = util::today_trade_conclusion_date();
-
         let mut execution_date = util::today_trade_execution_date();
-        // FIXME(konishchev): Not last element?
-        if let Some(last_trade) = self.stock_sells.last() {
-            if last_trade.execution_date > execution_date {
-                execution_date = last_trade.execution_date;
+
+        for trade in self.stock_sells.iter().rev() {
+            if trade.execution_date > execution_date {
+                execution_date = trade.execution_date;
+            }
+
+            if trade.symbol == symbol {
+                break
             }
         }
 
@@ -506,14 +509,12 @@ impl BrokerStatement {
             }
         }
 
-        // FIXME(konishchev): Execution order?
         for stock_buy in &mut self.stock_buys {
             if let Some(mapping) = remapping.get(&stock_buy.symbol) {
                 stock_buy.symbol = mapping.to_owned();
             }
         }
 
-        // FIXME(konishchev): Execution order?
         for stock_sell in &mut self.stock_sells {
             if let Some(mapping) = remapping.get(&stock_sell.symbol) {
                 stock_sell.symbol = mapping.to_owned();
@@ -552,12 +553,12 @@ impl BrokerStatement {
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
         if !self.stock_buys.is_empty() {
-            validate_trades("buy", &mut self.stock_buys)?;
+            sort_and_validate_trades("buy", &mut self.stock_buys)?;
             date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
         }
 
         if !self.stock_sells.is_empty() {
-            validate_trades("sell", &mut self.stock_sells)?;
+            sort_and_validate_trades("sell", &mut self.stock_sells)?;
             date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
         }
 

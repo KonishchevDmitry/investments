@@ -1,3 +1,5 @@
+use std::collections::{HashMap, hash_map::Entry};
+
 use crate::core::EmptyResult;
 use crate::formatting;
 use crate::types::Date;
@@ -74,27 +76,42 @@ impl StockTrade for StockSell {
     }
 }
 
-pub fn validate_trades<T: StockTrade>(name: &str, trades: &mut [T]) -> EmptyResult {
+pub fn sort_and_validate_trades<T: StockTrade>(name: &str, trades: &mut [T]) -> EmptyResult {
+    // Checking trades order to be sure that we won't be surprised during FIFO calculation.
+    //
+    // Stocks may have different settlement duration for example due to corporate actions, so check
+    // the order only for trades of the same stock.
+
     trades.sort_by_key(|trade| {
         let trade = trade.info();
         (trade.conclusion_date, trade.execution_date)
     });
 
-    let mut prev = None;
+    let mut symbols: HashMap<&str, TradeInfo> = HashMap::new();
 
-    // FIXME(konishchev): Relative order?
     for trade in trades {
         let trade = trade.info();
 
-        if let Some((prev_symbol, prev_conclusion_date, prev_execution_date)) = prev {
-            if trade.execution_date < prev_execution_date && !trade.margin {
-                return Err!(
-                    "Got an unexpected execution order of {} trades: {} -> {} {}, {} -> {} {}", name,
-                    formatting::format_date(prev_conclusion_date), formatting::format_date(prev_execution_date), prev_symbol,
-                    formatting::format_date(trade.conclusion_date), formatting::format_date(trade.execution_date), trade.symbol);
-            }
-        }
-        prev.replace((trade.symbol, trade.conclusion_date, trade.execution_date));
+        match symbols.entry(trade.symbol) {
+            Entry::Occupied(mut entry) => {
+                let prev = entry.get_mut();
+
+                if trade.execution_date < prev.execution_date && !trade.margin {
+                    return Err!(
+                        "Got an unexpected execution order of {} trades for {}: {} -> {}, {} -> {}",
+                        name, trade.symbol,
+                        formatting::format_date(prev.conclusion_date),
+                        formatting::format_date(prev.execution_date),
+                        formatting::format_date(trade.conclusion_date),
+                        formatting::format_date(trade.execution_date));
+                }
+
+                entry.insert(trade);
+            },
+            Entry::Vacant(entry) => {
+                entry.insert(trade);
+            },
+        };
     }
 
     Ok(())
