@@ -22,7 +22,7 @@ struct Row {
     #[column(name="Сумма")]
     foreign_amount: Cash,
     #[column(name="Курс руб.")]
-    currency_rate: Decimal,
+    currency_rate: Option<Decimal>,
     #[column(name="Сумма (руб)")]
     amount: Cash,
     #[column(name="К уплате")]
@@ -72,7 +72,11 @@ pub fn process_income(
             date: interest.date,
             currency: foreign_amount.currency.to_owned(),
             foreign_amount: foreign_amount,
-            currency_rate: precise_currency_rate,
+            currency_rate: if foreign_amount.currency != country.currency {
+                Some(precise_currency_rate)
+            } else {
+                None
+            },
             amount: Cash::new(country.currency, amount),
             tax_to_pay: Cash::new(country.currency, tax_to_pay),
             income: Cash::new(country.currency, income),

@@ -134,9 +134,9 @@ struct TradeRow {
     #[column(name="Цена")]
     price: Cash,
     #[column(name="Курс руб.\nдата сделки")]
-    conclusion_currency_rate: Decimal,
+    conclusion_currency_rate: Option<Decimal>,
     #[column(name="Курс руб.\nдата расчета")]
-    execution_currency_rate: Decimal,
+    execution_currency_rate: Option<Decimal>,
     #[column(name="Доход от\nпродажи")]
     revenue: Cash,
     #[column(name="Доход от\nпродажи (руб)")]
@@ -181,9 +181,9 @@ struct FifoRow {
     #[column(name="Цена")]
     price: Cash,
     #[column(name="Курс руб.\nдата сделки")]
-    conclusion_currency_rate: Decimal,
+    conclusion_currency_rate: Option<Decimal>,
     #[column(name="Курс руб.\nдата расчета")]
-    execution_currency_rate: Decimal,
+    execution_currency_rate: Option<Decimal>,
     #[column(name="Расходы")]
     cost: Cash,
     #[column(name="Расходы (руб)")]
@@ -235,11 +235,19 @@ impl<'a> TradesProcessor<'a> {
             .or_insert(details.taxable_local_profit);
         self.total_tax_deduction.add_assign(details.tax_deduction).unwrap();
 
-        let conclusion_currency_rate = self.converter.precise_currency_rate(
-            trade.conclusion_date, trade.commission.currency, self.country.currency)?;
+        let conclusion_currency_rate = if trade.commission.currency != self.country.currency {
+            Some(self.converter.precise_currency_rate(
+                trade.conclusion_date, trade.commission.currency, self.country.currency)?)
+        } else {
+            None
+        };
 
-        let execution_currency_rate = self.converter.precise_currency_rate(
-            trade.execution_date, trade.price.currency, self.country.currency)?;
+        let execution_currency_rate = if trade.price.currency != self.country.currency {
+            Some(self.converter.precise_currency_rate(
+                trade.execution_date, trade.price.currency, self.country.currency)?)
+        } else {
+            None
+        };
 
         self.trades_table.add_row(TradeRow {
             id: trade_id,
@@ -284,11 +292,19 @@ impl<'a> TradesProcessor<'a> {
             buy_trade.commission.currency == self.country.currency;
         self.stock_splits |= buy_trade.multiplier != dec!(1);
 
-        let conclusion_currency_rate = self.converter.precise_currency_rate(
-            buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?;
+        let conclusion_currency_rate = if buy_trade.commission.currency != self.country.currency {
+            Some(self.converter.precise_currency_rate(
+                buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?)
+        } else {
+            None
+        };
 
-        let execution_currency_rate = self.converter.precise_currency_rate(
-            buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?;
+        let execution_currency_rate = if buy_trade.price.currency != self.country.currency {
+            Some(self.converter.precise_currency_rate(
+                buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?)
+        } else {
+            None
+        };
 
         self.fifo_table.add_row(FifoRow {
             id: if first {
