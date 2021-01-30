@@ -71,7 +71,7 @@ impl SheetParser for StatementSheetParser {
 
     fn skip_row(&self, row: &[Cell]) -> bool {
         lazy_static! {
-            static ref CURRENT_PAGE_REGEX: Regex = Regex::new(r"^\d из$").unwrap();
+            static ref CURRENT_PAGE_REGEX: Regex = Regex::new(r"^\d+ из$").unwrap();
         }
 
         enum State {
