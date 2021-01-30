@@ -303,15 +303,17 @@ impl BrokerStatement {
         Ok(())
     }
 
-    pub fn emulate_commissions(&mut self, commission_calc: CommissionCalc) -> MultiCurrencyCashAccount {
+    pub fn emulate_commissions(&mut self, commission_calc: CommissionCalc) -> GenericResult<MultiCurrencyCashAccount> {
         let mut total = MultiCurrencyCashAccount::new();
 
-        for &commission in commission_calc.calculate().values() {
-            self.cash_assets.withdraw(commission);
-            total.deposit(commission);
+        for commissions in commission_calc.calculate()?.values() {
+            for commission in commissions.iter() {
+                self.cash_assets.withdraw(commission);
+                total.deposit(commission);
+            }
         }
 
-        total
+        Ok(total)
     }
 
     pub fn process_trades(&mut self) -> EmptyResult {

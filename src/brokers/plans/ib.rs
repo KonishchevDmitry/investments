@@ -80,6 +80,6 @@ mod tests {
         assert_eq!(calc.add_trade(date, trade_type, shares(26), Cash::new(currency, dec!(174.2))).unwrap(),
                    Cash::new(currency, dec!(1.06)));
 
-        assert_eq!(calc.calculate(), HashMap::new());
+        assert_eq!(calc.calculate().unwrap(), HashMap::new());
     }
 }

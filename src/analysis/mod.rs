@@ -118,7 +118,7 @@ pub fn analyse(
             statement.emulate_sell(&symbol, quantity, price, &mut commission_calc, &converter)?;
         }
 
-        let additional_commissions = statement.emulate_commissions(commission_calc);
+        let additional_commissions = statement.emulate_commissions(commission_calc)?;
         statistics.process(|statistics| {
             let additional_commissions = additional_commissions.total_assets_real_time(
                 &statistics.currency, &converter)?;

@@ -181,6 +181,12 @@ impl MultiCurrencyCashAccount {
         Default::default()
     }
 
+    pub fn new_from(amount: Cash) -> MultiCurrencyCashAccount {
+        let mut assets = MultiCurrencyCashAccount::new();
+        assets.deposit(amount);
+        assets
+    }
+
     pub fn is_empty(&self) -> bool {
         self.assets.is_empty()
     }
@@ -216,16 +222,28 @@ impl MultiCurrencyCashAccount {
         self.deposit(-amount)
     }
 
-    pub fn total_assets_real_time(
-        &self, currency: &str, converter: &CurrencyConverter
+    pub fn add(&mut self, other: &MultiCurrencyCashAccount) {
+        for amount in other.iter() {
+            self.deposit(amount);
+        }
+    }
+
+    pub fn total_assets(
+        &self, date: Date, currency: &str, converter: &CurrencyConverter
     ) -> GenericResult<Decimal> {
         let mut total_assets = dec!(0);
 
         for assets in self.iter() {
-            total_assets += converter.real_time_convert_to(assets, currency)?;
+            total_assets += converter.convert_to(date, assets, currency)?;
         }
 
         Ok(total_assets)
+    }
+
+    pub fn total_assets_real_time(
+        &self, currency: &str, converter: &CurrencyConverter
+    ) -> GenericResult<Decimal> {
+        self.total_assets(converter.real_time_date(), currency, converter)
     }
 }
 

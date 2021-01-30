@@ -639,8 +639,10 @@ fn calculate_total_commissions(portfolio: &Portfolio, converter: CurrencyConvert
     let date = util::today_trade_conclusion_date();
     let mut additional_commissions = dec!(0);
 
-    for &commission in calc.calculate().values() {
-        additional_commissions += converter.convert_to(date, commission, &portfolio.currency)?;
+    for commissions in calc.calculate()?.values() {
+        for commission in commissions.iter() {
+            additional_commissions += converter.convert_to(date, commission, &portfolio.currency)?;
+        }
     }
 
     Ok((trade_commissions, additional_commissions))

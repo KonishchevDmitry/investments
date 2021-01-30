@@ -92,7 +92,7 @@ impl CurrencyConverter {
         self.backend.convert(from, to, date, amount)
     }
 
-    fn real_time_date(&self) -> Date {
+    pub fn real_time_date(&self) -> Date {
         util::today_trade_execution_date()
     }
 }

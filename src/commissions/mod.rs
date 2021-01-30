@@ -7,8 +7,8 @@ use chrono::Datelike;
 use num_traits::{cast::ToPrimitive, Zero};
 
 use crate::core::GenericResult;
-use crate::currency::Cash;
-use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
+use crate::currency::{Cash, MultiCurrencyCashAccount};
+use crate::currency::converter::CurrencyConverterRc;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util::{self, RoundingMethod};
 
@@ -21,6 +21,17 @@ pub struct CommissionSpec {
 
     trade: TradeCommissionSpec,
     cumulative: CumulativeCommissionSpec,
+}
+
+impl CommissionSpec {
+    fn round(&self, amount: Decimal) -> Decimal {
+        util::round_with(amount, 2, self.rounding_method)
+    }
+
+    fn round_cash(&self, mut amount: Cash) -> Cash {
+        amount.amount = self.round(amount.amount);
+        amount
+    }
 }
 
 #[derive(Default, Clone, Debug)]
@@ -39,13 +50,10 @@ pub struct TransactionCommissionSpec {
 }
 
 impl TransactionCommissionSpec {
-    fn calculate(
-        &self, plan_currency: &str, converter: &CurrencyConverter,
-        date: Date, shares: u32, volume: Cash,
-    ) -> GenericResult<Cash> {
+    fn calculate(&self, calc: &CommissionCalc, date: Date, shares: u32, volume: Cash) -> GenericResult<Cash> {
         let mut commission = dec!(0);
         let currency = volume.currency;
-        let convert = |amount| converter.convert(plan_currency, currency, date, amount);
+        let convert = |amount| calc.converter.convert(calc.spec.currency, currency, date, amount);
 
         if let Some(per_share) = self.per_share {
             commission += convert(per_share)? * Decimal::from(shares);
@@ -100,12 +108,16 @@ pub struct CumulativeTieredSpec {
 }
 
 impl CumulativeTieredSpec {
-    fn percent(&self, volume: Decimal, portfolio_net_value: Decimal) -> Decimal {
+    fn percent(&self, calc: &CommissionCalc, date: Date, volume: Decimal) -> GenericResult<Decimal> {
         let key = match self._type {
             CumulativeTierType::Volume => volume,
-            CumulativeTierType::PortfolioNetValue => std::cmp::max(dec!(0), portfolio_net_value),
+            CumulativeTierType::PortfolioNetValue => {
+                let portfolio_net_value = calc.converter.convert_to(
+                    date, calc.portfolio_net_value, calc.spec.currency)?;
+                std::cmp::max(dec!(0), portfolio_net_value)
+            },
         };
-        *self.tiers.range((Bound::Unbounded, Bound::Included(key))).last().unwrap().1
+        Ok(*self.tiers.range((Bound::Unbounded, Bound::Included(key))).last().unwrap().1)
     }
 }
 
@@ -116,25 +128,22 @@ pub struct CumulativeFeeSpec {
 
 pub struct CommissionCalc {
     spec: CommissionSpec,
+    portfolio_net_value: Cash,
     converter: CurrencyConverterRc,
-    volume: HashMap<Date, Decimal>,
-    portfolio_net_value: Decimal,
+    volume: HashMap<Date, MultiCurrencyCashAccount>,
 }
 
 impl CommissionCalc {
     pub fn new(converter: CurrencyConverterRc, spec: CommissionSpec, portfolio_net_value: Cash) -> GenericResult<CommissionCalc> {
-        let portfolio_net_value = converter.real_time_convert_to(portfolio_net_value, &spec.currency)?;
         Ok(CommissionCalc {
-            spec, converter,
+            spec, portfolio_net_value, converter,
             volume: HashMap::new(),
-            portfolio_net_value,
         })
     }
 
     pub fn add_trade(&mut self, date: Date, trade_type: TradeType, shares: Decimal, price: Cash) -> GenericResult<Cash> {
-        let mut commission = self.add_trade_precise(date, trade_type, shares, price)?;
-        commission.amount = util::round_with(commission.amount, 2, self.spec.rounding_method);
-        Ok(commission)
+        let commission = self.add_trade_precise(date, trade_type, shares, price)?;
+        Ok(self.spec.round_cash(commission))
     }
 
     pub fn add_trade_precise(&mut self, date: Date, trade_type: TradeType, shares: Decimal, price: Cash) -> GenericResult<Cash> {
@@ -148,16 +157,14 @@ impl CommissionCalc {
             "Got an invalid number of shares: {}", shares))?;
 
         let volume = get_trade_volume(self.spec.currency, price * shares)?;
-        *self.volume.entry(date).or_default() += volume;
-
         let volume = Cash::new(self.spec.currency, volume); // FIXME(konishchev): Temporary
-        let mut commission = self.spec.trade.commission.calculate(
-            self.spec.currency, &self.converter, date, whole_shares, volume)?;
+        self.volume.entry(date).or_default().deposit(volume);
+
+        let mut commission = self.spec.trade.commission.calculate(self, date, whole_shares, volume)?;
 
         for (transaction_type, fee_spec) in &self.spec.trade.transaction_fees {
             if *transaction_type == trade_type {
-                let fee = fee_spec.calculate(
-                    self.spec.currency, &self.converter, date, whole_shares, volume)?;
+                let fee = fee_spec.calculate(self, date, whole_shares, volume)?;
                 commission.add_assign(fee)?;
             }
         }
@@ -165,73 +172,95 @@ impl CommissionCalc {
         Ok(commission)
     }
 
-    pub fn calculate(self) -> HashMap<Date, Cash> {
+    pub fn calculate(self) -> GenericResult<HashMap<Date, MultiCurrencyCashAccount>> {
         let mut total_by_date = HashMap::new();
-        let mut monthly = HashMap::new();
+        let mut monthly: HashMap<_, Decimal> = HashMap::new();
 
-        for (&date, &volume) in &self.volume {
-            let (commission, fee) = self.calculate_daily(volume);
+        for (&date, volume) in &self.volume {
+            let (commissions, fees) = self.calculate_daily(date, volume)?;
 
-            let total = commission + fee;
-            if !total.is_zero() {
+            let mut total = MultiCurrencyCashAccount::new();
+            total.add(&commissions);
+            total.add(&fees);
+
+            if !total.is_empty() {
                 total_by_date.insert(date, total);
             }
 
-            monthly.entry((date.year(), date.month()))
-                .and_modify(|total| *total += commission)
-                .or_insert(commission);
+            let total_commission = self.spec.round(commissions.total_assets(
+                date, self.spec.currency, &self.converter)?);
+            *monthly.entry((date.year(), date.month())).or_default() += total_commission;
         }
 
         if let Some(minimum_monthly) = self.spec.cumulative.minimum_monthly {
             for (&(year, month), &commission) in &monthly {
                 if commission < minimum_monthly {
+                    let date = get_monthly_commission_date(year, month);
                     let additional_commission = minimum_monthly - commission;
-                    total_by_date.entry(get_monthly_commission_date(year, month))
-                        .and_modify(|total| *total += additional_commission)
-                        .or_insert(additional_commission);
+                    total_by_date.entry(date).or_default().deposit(
+                        Cash::new(self.spec.currency, additional_commission));
                 }
             }
         }
 
         if !self.spec.cumulative.monthly_depositary.is_empty() {
+            let portfolio_net_value = self.converter.real_time_convert_to(
+                self.portfolio_net_value, self.spec.currency)?;
+
             let monthly_depositary = *self.spec.cumulative.monthly_depositary
-                .range((Bound::Unbounded, Bound::Included(std::cmp::max(dec!(0), self.portfolio_net_value))))
+                .range((Bound::Unbounded, Bound::Included(std::cmp::max(dec!(0), portfolio_net_value))))
                 .last().unwrap().1;
 
             if !monthly_depositary.is_zero() {
                 for &(year, month) in monthly.keys() {
-                    total_by_date.entry(get_monthly_commission_date(year, month))
-                        .and_modify(|total| *total += monthly_depositary)
-                        .or_insert(monthly_depositary);
+                    let date = get_monthly_commission_date(year, month);
+                    total_by_date.entry(date).or_default().deposit(
+                        Cash::new(self.spec.currency, monthly_depositary));
                 }
             }
         }
 
-        total_by_date.iter().map(|(&date, &commission)| {
-            (date, Cash::new(self.spec.currency, commission))
-        }).collect()
+        Ok(total_by_date)
     }
 
-    fn calculate_daily(&self, volume: Decimal) -> (Decimal, Decimal) {
-        let mut commission = dec!(0);
+    fn calculate_daily(
+        &self, date: Date, volumes: &MultiCurrencyCashAccount
+    ) -> GenericResult<(MultiCurrencyCashAccount, MultiCurrencyCashAccount)> {
+        let mut commissions = MultiCurrencyCashAccount::new();
 
         if let Some(ref tiers) = self.spec.cumulative.percent {
-            let percent = tiers.percent(volume, self.portfolio_net_value);
-            commission += util::round_with(volume * percent / dec!(100), 2, self.spec.rounding_method);
+            let total_volume = volumes.total_assets(date, self.spec.currency, &self.converter)?;
+            let percent = tiers.percent(self, date, total_volume)?;
+
+            for volume in volumes.iter() {
+                let commission = self.spec.round_cash(volume * percent / dec!(100));
+                if commission.is_positive() {
+                    commissions.deposit(commission);
+                }
+            }
         };
 
         if let Some(minimum) = self.spec.cumulative.minimum_daily {
-            if commission < minimum {
-                commission = minimum;
+            let total_commission = self.spec.round(commissions.total_assets(
+                date, self.spec.currency, &self.converter)?);
+
+            if total_commission < minimum {
+                let additional_commission = minimum - total_commission;
+                commissions.deposit(Cash::new(self.spec.currency, additional_commission));
             }
         }
 
-        let mut fees = dec!(0);
+        let mut fees = MultiCurrencyCashAccount::new();
         for fee in &self.spec.cumulative.fees {
-            fees += util::round_with(volume * fee.percent / dec!(100), 2, self.spec.rounding_method);
+            for volume in volumes.iter() {
+                let fee = self.spec.round_cash(volume * fee.percent / dec!(100));
+                if fee.is_positive() {
+                    fees.deposit(fee);
+                }
+            }
         }
 
-        (commission, fees)
+        Ok((commissions, fees))
     }
 }
 

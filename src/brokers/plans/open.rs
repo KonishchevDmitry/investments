@@ -4,7 +4,7 @@
 use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
-#[cfg(test)] use crate::currency::Cash;
+#[cfg(test)] use crate::currency::{Cash, MultiCurrencyCashAccount};
 #[cfg(test)] use crate::currency::converter::CurrencyConverter;
 #[cfg(test)] use crate::types::TradeType;
 
@@ -60,7 +60,7 @@ mod tests {
             );
         }
 
-        assert_eq!(calc.calculate(), HashMap::new());
+        assert_eq!(calc.calculate().unwrap(), HashMap::new());
     }
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
@@ -84,9 +84,10 @@ mod tests {
             Cash::new(currency, dec!(0.04)),
         );
 
-        assert_eq!(calc.calculate(), hashmap!{
+        assert_eq!(calc.calculate().unwrap(), hashmap!{
+            // Depositary commission
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(1, 1, 2018) => Cash::new(currency, dec!(175)), // Depositary commission
+            date!(1, 1, 2018) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(175))),
         });
     }
 }
