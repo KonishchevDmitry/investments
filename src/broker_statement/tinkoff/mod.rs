@@ -2,6 +2,7 @@ mod assets;
 mod cash_assets;
 mod common;
 mod period;
+mod securities;
 mod trades;
 
 use std::cell::RefCell;
@@ -23,6 +24,7 @@ use super::xls::{XlsStatementParser, Section, SectionParserRc};
 use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
 use period::PeriodParser;
+use securities::SecuritiesInfoParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
@@ -57,6 +59,8 @@ impl BrokerStatementReader for StatementReader {
             Section::new("3.1 Движение по ценным бумагам инвестора")
                 .alias("3. Движение финансовых активов инвестора")
                 .parser(Box::new(AssetsParser {})).required(),
+            Section::new("4.1 Информация о ценных бумагах")
+                .parser(Box::new(SecuritiesInfoParser {})).required(),
         ])
     }
 }
@@ -126,7 +130,7 @@ mod tests {
         assert!(statement.dividends.is_empty());
 
         assert!(!statement.open_positions.is_empty());
-        assert!(statement.instrument_names.is_empty());
+        assert!(!statement.instrument_names.is_empty());
     }
 
     #[rstest(name => ["mixed-currency-trade"])]
