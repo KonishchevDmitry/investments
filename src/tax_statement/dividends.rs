@@ -24,7 +24,7 @@ struct Row {
     #[column(name="Сумма")]
     foreign_amount: Cash,
     #[column(name="Курс руб.")]
-    currency_rate: Decimal,
+    currency_rate: Option<Decimal>,
     #[column(name="Сумма (руб)")]
     amount: Cash,
 
@@ -47,6 +47,7 @@ pub fn process_income(
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> GenericResult<Cash> {
     let mut table = Table::new();
+    let mut same_currency = true;
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
     let mut total_amount = dec!(0);
@@ -69,6 +70,7 @@ pub fn process_income(
 
         let foreign_amount = dividend.amount.round();
         total_foreign_amount.deposit(foreign_amount);
+        same_currency &= foreign_amount.currency == country.currency;
 
         let precise_currency_rate = converter.precise_currency_rate(
             dividend.date, foreign_amount.currency, country.currency)?;
@@ -81,6 +83,7 @@ pub fn process_income(
 
         let foreign_paid_tax = dividend.paid_tax.round();
         total_foreign_paid_tax.deposit(foreign_paid_tax);
+        same_currency &= foreign_paid_tax.currency == country.currency;
 
         let paid_tax = converter.convert_to_rounding(
             dividend.date, foreign_paid_tax, country.currency)?;
@@ -104,7 +107,11 @@ pub fn process_income(
             currency: foreign_amount.currency.to_owned(),
 
             foreign_amount: foreign_amount,
-            currency_rate: precise_currency_rate,
+            currency_rate: if foreign_amount.currency == country.currency {
+                None
+            } else {
+                Some(precise_currency_rate)
+            },
             amount: Cash::new(country.currency, amount),
 
             tax: Cash::new(country.currency, tax),
@@ -131,6 +138,12 @@ pub fn process_income(
                 "Unable to add {} to the tax statement: {}", dividend.description(), e
             ))?;
         }
+    }
+
+    if same_currency {
+        table.hide_currency_rate();
+        table.hide_amount();
+        table.hide_paid_tax();
     }
 
     if !table.is_empty() {
