@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::broker_statement::taxes::{TaxId, TaxAccruals};
+use crate::broker_statement::taxes::TaxId;
 use crate::core::{GenericResult, EmptyResult};
 use crate::util::DecimalRestrictions;
 
@@ -41,9 +41,7 @@ impl RecordParser for WithholdingTaxParser {
         // Positive number is used to cancel a previous tax payment and usually followed by another
         // negative number.
         let tax = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
-
-        let accruals = parser.statement.tax_accruals.entry(tax_id)
-            .or_insert_with(TaxAccruals::new);
+        let accruals = parser.statement.tax_accruals.entry(tax_id).or_default();
 
         if tax.is_positive() {
             accruals.reverse(tax);
@@ -69,19 +67,18 @@ fn parse_tax_description(description: &str) -> GenericResult<String> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn tax_parsing() {
-        test_tax_parsing("BND (US9219378356) Cash Dividend USD 0.181007 - US Tax", "BND");
-        test_tax_parsing("BND(US9219378356) Cash Dividend USD 0.193413 per Share - US Tax", "BND");
-        test_tax_parsing("BND(US9219378356) Cash Dividend 0.18366600 USD per Share - US Tax", "BND");
-        test_tax_parsing("BND(43645828) Cash Dividend 0.19446400 USD per Share - US Tax", "BND");
-        test_tax_parsing("UNIT(US91325V1089) Payment in Lieu of Dividend - US Tax", "UNIT");
-        test_tax_parsing("ETN(IE00B8KQN827) Cash Dividend USD 0.73 per Share - IE Tax", "ETN");
-    }
-
-    fn test_tax_parsing(description: &str, symbol: &str) {
+    #[rstest(description, symbol,
+        case("BND (US9219378356) Cash Dividend USD 0.181007 - US Tax", "BND"),
+        case("BND(US9219378356) Cash Dividend USD 0.193413 per Share - US Tax", "BND"),
+        case("BND(US9219378356) Cash Dividend 0.18366600 USD per Share - US Tax", "BND"),
+        case("BND(43645828) Cash Dividend 0.19446400 USD per Share - US Tax", "BND"),
+        case("UNIT(US91325V1089) Payment in Lieu of Dividend - US Tax", "UNIT"),
+        case("ETN(IE00B8KQN827) Cash Dividend USD 0.73 per Share - IE Tax", "ETN"),
+    )]
+    fn tax_parsing(description: &str, symbol: &str) {
         assert_eq!(parse_tax_description(description).unwrap(), symbol.to_owned());
     }
 }

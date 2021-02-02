@@ -45,7 +45,7 @@ impl BrokerStatementReader for StatementReader {
         let sheet_parser = Box::new(StatementSheetParser{});
         let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
 
-        XlsStatementParser::read(path, sheet_parser, vec![
+        let mut statement = XlsStatementParser::read(path, sheet_parser, vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX)
                 .by_prefix().parser_rc(period_parser.clone()).required(),
             Section::new(PeriodParser::PERIOD_PREFIX)
@@ -61,7 +61,10 @@ impl BrokerStatementReader for StatementReader {
                 .parser(Box::new(AssetsParser {})).required(),
             Section::new("4.1 Информация о ценных бумагах")
                 .parser(Box::new(SecuritiesInfoParser {})).required(),
-        ])
+        ])?;
+
+        cash_assets::postprocess(&mut statement)?;
+        Ok(statement)
     }
 }
 

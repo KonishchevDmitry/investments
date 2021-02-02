@@ -3,19 +3,13 @@ use crate::currency::Cash;
 
 /// Calculates result amount from a series of payments and reversals. Doesn't require payments and
 /// reversals to be in order because Interactive Brokers' statement does't guarantee the order.
+#[derive(Default)]
 pub struct Payments {
     payments: Vec<Cash>,
     reversals: Vec<Cash>,
 }
 
 impl Payments {
-    pub fn new() -> Payments {
-        Payments {
-            payments: Vec::new(),
-            reversals: Vec::new(),
-        }
-    }
-
     pub fn add(&mut self, amount: Cash) {
         self.payments.push(amount);
     }

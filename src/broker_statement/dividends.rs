@@ -43,6 +43,12 @@ pub struct DividendId {
     pub issuer: String,
 }
 
+impl DividendId {
+    pub fn new(date: Date, issuer: &str) -> DividendId {
+        DividendId {date, issuer: issuer.to_owned()}
+    }
+}
+
 pub type DividendAccruals = Payments;
 
 pub fn process_dividend_accruals(

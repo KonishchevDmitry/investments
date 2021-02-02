@@ -201,7 +201,6 @@ which I assured to be handled properly and wrote regression tests for. For examp
 * Bonds
 * Futures
 * Margin accounts
-* Currencies other than USD and RUB
 
 
 # Denial of responsibility

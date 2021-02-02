@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::broker_statement::dividends::{DividendId, DividendAccruals};
+use crate::broker_statement::dividends::DividendId;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -21,10 +21,8 @@ impl RecordParser for DividendsParser {
         let issuer = parse_dividend_description(record.get_value("Description")?)?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
-        let accruals = parser.statement.dividend_accruals.entry(DividendId {
-            date: date,
-            issuer: issuer,
-        }).or_insert_with(DividendAccruals::new);
+        let dividend_id = DividendId::new(date, &issuer);
+        let accruals = parser.statement.dividend_accruals.entry(dividend_id).or_default();
 
         if amount.is_negative() {
             accruals.reverse(-amount)
@@ -50,23 +48,22 @@ fn parse_dividend_description(description: &str) -> GenericResult<String> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn dividend_parsing() {
-        test_parsing("VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)", "VNQ");
-        test_parsing("IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)", "IEMG");
+    #[rstest(description, symbol,
+        case("VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)", "VNQ"),
+        case("IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)", "IEMG"),
 
-        test_parsing("BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)", "BND");
-        test_parsing("VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital)", "VNQ");
+        case("BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)", "BND"),
+        case("VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital)", "VNQ"),
 
-        test_parsing("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND");
-        test_parsing("BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)", "BND");
+        case("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND"),
+        case("BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)", "BND"),
 
-        test_parsing("UNIT(US91325V1089) Payment in Lieu of Dividend (Ordinary Dividend)", "UNIT");
-    }
-
-    fn test_parsing(description: &str, symbol: &str) {
+        case("UNIT(US91325V1089) Payment in Lieu of Dividend (Ordinary Dividend)", "UNIT"),
+    )]
+    fn dividend_parsing(description: &str, symbol: &str) {
         assert_eq!(parse_dividend_description(description).unwrap(), symbol.to_owned());
     }
 }
