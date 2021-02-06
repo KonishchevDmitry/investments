@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use chrono::Duration;
@@ -31,7 +31,7 @@ pub struct CurrencyRateCache {
     tomorrow: Date,
 
     db: db::Connection,
-    in_memory_missing: Mutex<HashMap<String, HashSet<Date>>>,
+    cache: Mutex<HashMap<String, HashMap<Date, Option<Decimal>>>>,
 }
 
 impl CurrencyRateCache {
@@ -42,7 +42,7 @@ impl CurrencyRateCache {
             tomorrow: today.succ(),
 
             db: connection,
-            in_memory_missing: Mutex::new(HashMap::new()),
+            cache: Mutex::new(HashMap::new()),
         }
     }
 
@@ -61,9 +61,9 @@ impl CurrencyRateCache {
             return Err!("An attempt to get currency rate for the future")
         }
 
-        if let Some(missing) = self.in_memory_missing.lock().unwrap().get(currency) {
-            if missing.get(&date).is_some() {
-                return Ok(CurrencyRateCacheResult::Exists(None));
+        if let Some(cache) = self.cache.lock().unwrap().get(currency) {
+            if let Some(price) = cache.get(&date).copied() {
+                return Ok(CurrencyRateCacheResult::Exists(price));
             }
         }
 
@@ -74,13 +74,20 @@ impl CurrencyRateCache {
                 .filter(currency_rates::date.eq(date))
                 .get_result::<Option<String>>(&*self.db).optional()?;
 
-            if let Some(cached_price) = result {
-                return Ok(CurrencyRateCacheResult::Exists(match cached_price {
+            if let Some(price) = result {
+                let price = match price {
                     Some(price) => Some(
                         util::parse_decimal(&price, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
-                            "Got an invalid price from the database: {:?}", price))?),
+                            "Got an invalid price from the database: {:?}", price))?
+                    ),
                     None => None,
-                }));
+                };
+
+                self.cache.lock().unwrap()
+                    .entry(currency.to_owned()).or_default()
+                    .insert(date, price);
+
+                return Ok(CurrencyRateCacheResult::Exists(price));
             }
 
             let start_date = {
@@ -175,10 +182,10 @@ impl CurrencyRateCache {
             debug_assert!(date > end_date || end_date == self.tomorrow);
 
             while date <= std::cmp::min(end_date, self.today) {
-                self.in_memory_missing.lock().unwrap()
+                self.cache.lock().unwrap()
                     .entry(currency.to_owned())
-                    .or_insert_with(HashSet::new)
-                    .insert(date);
+                    .or_default()
+                    .insert(date, None);
                 date = date.succ();
             }
         }
@@ -238,7 +245,7 @@ mod tests {
         for &clear_in_memory_cache in &[false, true] {
             let mut date = cache_start_date.pred();
             if clear_in_memory_cache {
-                cache.in_memory_missing.lock().unwrap().clear();
+                cache.cache.lock().unwrap().clear();
             }
 
             assert_matches!(
