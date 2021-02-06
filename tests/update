@@ -3,7 +3,7 @@
 # Updates regression tests input data
 #
 
-set -eux
+set -eu
 
 wait-api-rate-limits() {
     local time=${1:-1}
