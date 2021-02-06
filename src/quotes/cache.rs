@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
 use chrono::Duration;
 use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
@@ -10,25 +13,36 @@ use crate::util::{self, DecimalRestrictions};
 pub struct Cache {
     db: db::Connection,
     expire_time: Duration,
+    cache: Option<Mutex<HashMap<String, Cash>>>,
 }
 
 impl Cache {
-    pub fn new(connection: db::Connection, expire_time: Duration) -> Cache {
+    pub fn new(connection: db::Connection, expire_time: Duration, in_memory_cache: bool) -> Cache {
         Cache {
             db: connection,
             expire_time: expire_time,
+            cache: if in_memory_cache {
+                Some(Mutex::new(HashMap::new()))
+            } else {
+                None
+            },
         }
     }
 
     #[cfg(test)]
     pub fn new_temporary() -> (NamedTempFile, Cache) {
         let (database, connection) = db::new_temporary();
-        (database, Cache::new(connection, Duration::minutes(1)))
+        (database, Cache::new(connection, Duration::minutes(1), false))
     }
 
     pub fn get(&self, symbol: &str) -> GenericResult<Option<Cash>> {
-        let expire_time = util::now() - self.expire_time;
+        if let Some(ref cache) = self.cache {
+            if let Some(price) = cache.lock().unwrap().get(symbol).copied() {
+                return Ok(Some(price));
+            }
+        }
 
+        let expire_time = util::now() - self.expire_time;
         let result = quotes::table
             .select((quotes::currency, quotes::price))
             .filter(quotes::symbol.eq(symbol))
@@ -43,10 +57,19 @@ impl Cache {
         let price = util::parse_decimal(&price, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
             "Got an invalid price from the database: {:?}", price))?;
 
-        Ok(Some(Cash::new(&currency, price)))
+        let price = Cash::new(&currency, price);
+        if let Some(ref cache) = self.cache {
+            cache.lock().unwrap().entry(symbol.to_owned()).or_insert(price);
+        }
+
+        Ok(Some(price))
     }
 
     pub fn save(&self, symbol: &str, price: Cash) -> EmptyResult {
+        if let Some(ref cache) = self.cache {
+            cache.lock().unwrap().insert(symbol.to_owned(), price);
+        }
+
         diesel::replace_into(quotes::table)
             .values(models::NewQuote {
                 symbol: symbol,
@@ -55,6 +78,7 @@ impl Cache {
                 price: price.amount.to_string(),
             })
             .execute(&*self.db)?;
+
         Ok(())
     }
 }

@@ -37,7 +37,7 @@ impl Quotes {
         let twelvedata = config.twelvedata.as_ref().ok_or(
             "Twelve Data configuration is not set in the configuration file")?;
 
-        Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time), vec![
+        Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), vec![
             Box::new(Finnhub::new(&finnhub.token)),
             Box::new(TwelveData::new(&twelvedata.token)),
             Box::new(Moex::new()),
