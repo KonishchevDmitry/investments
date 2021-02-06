@@ -4,7 +4,7 @@ use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
 use crate::core::GenericResult;
-use crate::currency::{self, Cash, CurrencyRate};
+use crate::currency::{self, Cash, CurrencyRate, cbr};
 use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
@@ -88,8 +88,20 @@ impl CurrencyConverter {
         Ok(Cash::new(to, self.convert_to(date, cash, to)?))
     }
 
-    pub fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
-        self.backend.convert(from, to, date, amount)
+    pub fn convert(&self, from: &str, to: &str, date: Date, mut amount: Decimal) -> GenericResult<Decimal> {
+        if from == to {
+            return Ok(amount);
+        }
+
+        let (multiplier, divider) = self.backend.currency_rate(from, to, date)?;
+        if let Some(multiplier) = multiplier {
+            amount *= multiplier;
+        }
+        if let Some(divider) = divider {
+            amount /= divider;
+        }
+
+        Ok(amount)
     }
 
     pub fn real_time_date(&self) -> Date {
@@ -98,7 +110,7 @@ impl CurrencyConverter {
 }
 
 pub trait CurrencyConverterBackend {
-    fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal>;
+    fn currency_rate(&self, from: &str, to: &str, date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)>;
 }
 
 struct CurrencyRateCacheBackend {
@@ -117,10 +129,6 @@ impl CurrencyRateCacheBackend {
     }
 
     fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
-        if currency == "RUB" {
-            return Ok(Some(dec!(1)));
-        }
-
         let cache_result = self.rate_cache.get(currency, date).map_err(|e| format!(
             "Failed to get currency rate from the currency rate cache: {}", e))?;
 
@@ -144,11 +152,7 @@ impl CurrencyRateCacheBackend {
 }
 
 impl CurrencyConverterBackend for CurrencyRateCacheBackend {
-    fn convert(&self, from: &str, to: &str, date: Date, amount: Decimal) -> GenericResult<Decimal> {
-        if from == to {
-            return Ok(amount);
-        }
-
+    fn currency_rate(&self, from: &str, to: &str, date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)> {
         let today = self.rate_cache.today();
 
         if
@@ -167,7 +171,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
             if let Some(ref quotes) = self.quotes {
                 let price = quotes.get(&get_currency_pair(from, to))?;
                 assert_eq!(price.currency, to);
-                return Ok(amount * price.amount)
+                return Ok((Some(price.amount), None));
             }
         }
 
@@ -175,12 +179,31 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         let min_date = localities::get_russian_stock_exchange_min_last_working_day(cur_date);
 
         while cur_date >= min_date {
-            if let Some(from_price) = self.get_price(from, cur_date, false)? {
-                if let Some(to_price) = self.get_price(to, cur_date, false)? {
-                    return Ok(amount * from_price / to_price);
-                }
-            }
-            cur_date = cur_date.pred();
+            let multiplier = if from == cbr::BASE_CURRENCY {
+                None
+            } else {
+                Some(match self.get_price(from, cur_date, false)? {
+                    Some(price) => price,
+                    None => {
+                        cur_date = cur_date.pred();
+                        continue
+                    },
+                })
+            };
+
+            let divider = if to == cbr::BASE_CURRENCY {
+                None
+            } else {
+                Some(match self.get_price(to, cur_date, false)? {
+                    Some(price) => price,
+                    None => {
+                        cur_date = cur_date.pred();
+                        continue
+                    },
+                })
+            };
+
+            return Ok((multiplier, divider));
         }
 
         Err!("Unable to find {}/{} currency rate for {} with {} days precision",
@@ -201,17 +224,14 @@ impl CurrencyRateCacheBackendMock {
 
 #[cfg(test)]
 impl CurrencyConverterBackend for CurrencyRateCacheBackendMock {
-    fn convert(&self, from: &str, to: &str, _date: Date, amount: Decimal) -> GenericResult<Decimal> {
-        if from != to {
-            return Err!("Unsupported currency rate conversion: {} -> {}", from, to)
-        }
-        Ok(amount)
+    fn currency_rate(&self, from: &str, to: &str, _date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)> {
+        Err!("Unsupported currency rate conversion: {} -> {}", from, to)
     }
 }
 
 #[cfg(not(test))]
 fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    Ok(crate::currency::cbr::get_rates(currency, start_date, end_date).map_err(|e| format!(
+    Ok(cbr::get_rates(currency, start_date, end_date).map_err(|e| format!(
         "Failed to get currency rates from the Central Bank of the Russian Federation: {}", e))?)
 }
 

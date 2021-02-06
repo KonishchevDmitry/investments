@@ -13,6 +13,8 @@ use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util;
 
+pub const BASE_CURRENCY: &str = "RUB";
+
 pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
     let currency_code = match currency {
         "USD" => "R01235",
