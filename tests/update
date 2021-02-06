@@ -3,13 +3,28 @@
 # Updates regression tests input data
 #
 
-set -eu
+set -eux
 
 wait-api-rate-limits() {
-    sleep 1
+    local time=${1:-1}
+    echo "Sleeping ${time}s to fit into API rate limits..."
+    sleep ${1:-1}
+}
+
+investments() {
+    local config="testdata/configs/$1"; shift
+    cargo run --quiet -- --config "$config" "$@" > /dev/null
+}
+
+rate-limited-investments() {
+    wait-api-rate-limits
+    investments "$@"
 }
 
 (cd testdata && ./update)
+
+INVESTMENTS_NOW=$(< testdata/time)
+export INVESTMENTS_NOW
 
 for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
     case "$broker" in
@@ -17,19 +32,19 @@ for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
         *) cash=100000;;
     esac
 
-    ./tests/investments main sync "$broker"
-    ./tests/investments main cash "$broker" "$cash"
+    investments main sync "$broker"
+    investments main cash "$broker" "$cash"
 
     # FIXME(konishchev): Enable after deposit
     if [ "$broker" != open ]; then
-        ./tests/investments main analyse "$broker" > /dev/null && wait-api-rate-limits
+        rate-limited-investments main analyse "$broker"
     fi
 done
 
 for portfolio in ib-complex ib-margin-rub ib-stock-split; do
-    ./tests/investments other tax-statement "$portfolio" > /dev/null
+    rate-limited-investments other tax-statement "$portfolio"
 done
 
-./tests/investments other analyse ib-complex --all > /dev/null
-./tests/investments other simulate-sell ib-complex 1 VTRS > /dev/null
-./tests/investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX > /dev/null
+wait-api-rate-limits 60 && investments other analyse ib-complex --all
+rate-limited-investments other simulate-sell ib-complex 1 VTRS
+rate-limited-investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX
