@@ -26,34 +26,34 @@ path = "examples/tax_statement_parser.rs"
 
 [dependencies]
 ansi_term = "0.12.1"
-calamine = "0.16.2"
+calamine = "0.17.0"
 chrono = "0.4.19"
 chrono-tz = "0.5.3"
 cast = "0.2.3"
 clap = "2.33.3"
 csv = "1.1.5"
 easy-logging = "0.1.1"
-encoding_rs = "0.8.26"
-governor = "0.3.1"
+encoding_rs = "0.8.28"
+governor = "0.3.2"
 indoc = "1.0.3"
 lazy_static = "1.4.0"
-log = "0.4.13"
+log = "0.4.14"
 maplit = "1.0.2"
 matches = "0.1.8"
 num-integer = "0.1.44"
 num-traits = "0.2.14"
 prettytable-rs = "0.8.0"
 prometheus = "0.11.0"
-quick-xml = { version = "0.20.0", features = [ "serialize" ] }
+quick-xml = { version = "0.21.0", features = [ "serialize" ] }
 rayon = "1.5.0"
 regex = "1.4.3"
 reqwest = { version = "0.11.0", features = ["blocking", "json"] }
-rust_decimal = "~1.10.1"
-rust_decimal_macros = "~1.10.1"
+rust_decimal = "~1.10.2"
+rust_decimal_macros = "~1.10.2"
 separator = "0.4.1"
-serde = { version = "1.0.121", features = ["derive"] }
-serde_json = "1.0.61"
-serde_yaml = "0.8.15"
+serde = { version = "1.0.123", features = ["derive"] }
+serde_json = "1.0.62"
+serde_yaml = "0.8.16"
 serde-xml-rs = "0.4.1"
 shellexpand = "2.1.0"
 
@@ -63,15 +63,15 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.19.0", features = ["bundled"] }
 
-static_table_derive = "0.1.17"
-xls_table_derive = "0.3.10"
+static_table_derive = "0.1.18"
+xls_table_derive = "0.3.11"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
 xls_table_derive = { path = "src/xls/xls_table_derive" }
 
 [dev-dependencies]
-mockito = "0.28.0"
+mockito = "0.29.0"
 qtrac-retest = "4.0.6"
 rstest = "0.6.4"
 tempfile = "3.2.0"
