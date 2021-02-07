@@ -1,9 +1,11 @@
 use chrono::Datelike;
+use log::warn;
 use num_traits::Zero;
 
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
+use crate::brokers::Broker;
 use crate::core::GenericResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
@@ -147,6 +149,22 @@ pub fn process_income(
     }
 
     if !table.is_empty() {
+        if broker_statement.broker.type_ == Broker::Tinkoff {
+            let mut messages = vec![concat!(
+                "The following calculations for dividend income are very inaccurate ",
+                "(see https://github.com/KonishchevDmitry/investments/issues/26)."
+            )];
+
+            if tax_statement.is_some() {
+                messages.push(concat!(
+                    "The result tax statement must be corrected manually. Please also take into ",
+                    "account that all dividends will be declared with USA jurisdiction."
+                ));
+            };
+
+            eprintln!(); warn!("{}", messages.join(" "));
+        }
+
         let mut totals = table.add_empty_row();
 
         totals.set_foreign_amount(total_foreign_amount);

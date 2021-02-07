@@ -1,7 +1,6 @@
 use crate::broker_statement::BrokerStatement;
 use crate::config::Config;
 use crate::core::EmptyResult;
-use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::localities::Jurisdiction;
@@ -51,14 +50,9 @@ pub fn generate_tax_statement(
         &country, &portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
-    let dividends_tax = if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
-        // FIXME(konishchev): Not implemented yet
-        Cash::new(&country.currency, dec!(0))
-    } else {
-        dividends::process_income(
-            &country, &broker_statement, year, tax_statement.as_mut(), &converter,
-        ).map_err(|e| format!("Failed to process dividend income: {}", e))?
-    };
+    let dividends_tax = dividends::process_income(
+        &country, &broker_statement, year, tax_statement.as_mut(), &converter,
+    ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
     let interest_tax = interest::process_income(
         &country, &broker_statement, year, tax_statement.as_mut(), &converter,
