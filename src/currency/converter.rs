@@ -236,6 +236,7 @@ fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> Gener
 }
 
 #[cfg(test)]
+#[allow(clippy::unnecessary_wraps)]
 fn get_currency_rates(currency: &str, _start_date: Date, _end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
     Ok(match currency {
         "USD" => vec![

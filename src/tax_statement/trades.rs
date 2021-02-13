@@ -87,7 +87,7 @@ pub fn process_income(
         }
     }
 
-    let total_tax_to_pay = processor.process_totals()?;
+    let total_tax_to_pay = processor.process_totals();
 
     if trade_id != 0 {
         processor.print(total_tax_to_pay);
@@ -370,8 +370,8 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_totals(&mut self) -> GenericResult<Option<Cash>> {
-        Ok(match self.portfolio.tax_payment_day().spec {
+    fn process_totals(&mut self) -> Option<Cash> {
+        match self.portfolio.tax_payment_day().spec {
             TaxPaymentDaySpec::Day {..} => Some(self.total_taxable_local_profit_by_year.iter().map(|(&year, profit)| {
                 self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
             }).sum()),
@@ -381,7 +381,7 @@ impl<'a> TradesProcessor<'a> {
             } else {
                 None
             },
-        }.map(|amount| Cash::new(self.country.currency, amount)))
+        }.map(|amount| Cash::new(self.country.currency, amount))
     }
 
     fn print(mut self, total_tax_to_pay: Option<Cash>) {

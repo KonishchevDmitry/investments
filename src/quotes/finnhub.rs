@@ -159,6 +159,7 @@ fn is_outdated(time: i64) -> GenericResult<bool> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unnecessary_wraps)]
 fn is_outdated(time: i64) -> GenericResult<bool> {
     #![allow(clippy::unreadable_literal)]
     Ok(time < 1582295400)
