@@ -1,10 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::ops::AddAssign;
 
 use chrono::Datelike;
 use log::warn;
 
 use static_table_derive::StaticTable;
 
+use crate::brokers::Broker;
 use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails, Fee};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
@@ -19,7 +21,7 @@ use super::statement::TaxStatement;
 
 pub fn process_income(
     country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement,
-    year: Option<i32>, mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
+    year: Option<i32>, tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> GenericResult<Option<Cash>> {
     let mut processor = TradesProcessor {
         portfolio,
@@ -43,55 +45,10 @@ pub fn process_income(
         total_tax_deduction: Cash::new(country.currency, dec!(0)),
     };
 
-    let mut trade_id = 0;
-    let jurisdiction = broker_statement.broker.type_.jurisdiction();
-
-    for trade in &broker_statement.stock_sells {
-        let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-
-        if let Some(year) = year {
-            if tax_year != year {
-                continue;
-            }
-        }
-
-        let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, converter)?;
-        processor.process_trade(trade_id, trade, &details)?;
-
-        if let Some(ref mut statement) = tax_statement {
-            if jurisdiction == Jurisdiction::Usa {
-                processor.add_income(statement, trade, &details)?;
-            } else {
-                warn!(concat!(
-                    "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
-                    "Don't adding it to the tax statement."
-                ));
-                tax_statement = None;
-            }
-        }
-
-        trade_id += 1;
-    }
-
-    if jurisdiction == Jurisdiction::Russia {
-        for fee in &broker_statement.fees {
-            let (tax_year, _) = portfolio.tax_payment_day().get(fee.date, true);
-
-            if let Some(year) = year {
-                if tax_year != year {
-                    continue;
-                }
-            }
-
-            processor.process_fee(fee)?;
-        }
-    }
+    processor.process_trades(tax_statement)?;
 
     let total_tax_to_pay = processor.process_totals();
-
-    if trade_id != 0 {
-        processor.print(total_tax_to_pay);
-    }
+    processor.print(total_tax_to_pay);
 
     Ok(total_tax_to_pay)
 }
@@ -199,23 +156,125 @@ struct FifoRow {
 }
 
 impl<'a> TradesProcessor<'a> {
-    fn add_income(&self, tax_statement: &mut TaxStatement, trade: &StockSell, details: &SellDetails) -> EmptyResult {
-        assert_eq!(details.taxable_local_profit, details.local_profit);
+    fn pre_process_fees(&mut self) -> GenericResult<(VecDeque<PreprocessedFee>, HashMap<i32, Decimal>)> {
+        let broker = self.broker_statement.broker.type_;
 
-        let name = self.broker_statement.get_instrument_name(&trade.symbol);
-        let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
+        let mut fees = VecDeque::new();
+        let mut fees_by_year = HashMap::<i32, Decimal>::new();
 
-        let precise_currency_rate = self.converter.precise_currency_rate(
-            trade.execution_date, details.revenue.currency, self.country.currency)?;
+        let mut index = 0;
+        let count = self.broker_statement.fees.len();
 
-        tax_statement.add_stock_income(
-            &description, trade.execution_date, details.revenue.currency, precise_currency_rate,
-            details.revenue.amount, details.local_revenue.amount,
-            details.total_local_cost.amount
-        ).map_err(|e| format!(
-            "Unable to add income from selling {} on {} to the tax statement: {}",
-            trade.symbol, formatting::format_date(trade.execution_date), e
-        ))?;
+        while index < count {
+            let fee = &self.broker_statement.fees[index];
+            index += 1;
+
+            if broker == Broker::InteractiveBrokers {
+                // IB generates a lot of fee + reversal pairs for Snapshot Quotes, so detect them
+                // here and skip to make the statement less noisy.
+
+                if index < count && fee.amount.is_positive() {
+                    let next_fee = &self.broker_statement.fees[index];
+                    if next_fee.date == fee.date && next_fee.amount == -fee.amount {
+                        index += 1;
+                        continue;
+                    }
+                }
+            }
+
+            if let Some(year) = self.year {
+                let (tax_year, _) = self.portfolio.tax_payment_day().get(fee.date, true);
+                if tax_year != year {
+                    continue;
+                }
+            }
+
+            let fee = self.pre_process_fee(fee)?;
+            fees_by_year.entry(fee.date.year()).or_default()
+                .add_assign(fee.local_amount.amount);
+            fees.push_back(fee);
+        }
+
+        Ok((fees, fees_by_year))
+    }
+
+    fn pre_process_fee(&mut self, fee: &Fee) -> GenericResult<PreprocessedFee> {
+        self.same_currency &= fee.amount.currency == self.country.currency;
+
+        let amount = fee.amount.round();
+        let local_amount = self.converter.convert_to_cash_rounding(
+            fee.date, fee.amount, self.country.currency)?;
+
+        self.total_local_profit.sub_assign(local_amount).unwrap();
+        self.total_taxable_local_profit.sub_assign(local_amount).unwrap();
+        self.total_taxable_local_profit_by_year.entry(fee.date.year())
+            .and_modify(|total| total.sub_assign(local_amount).unwrap())
+            .or_insert(-local_amount);
+
+        Ok(PreprocessedFee {
+            date: fee.date,
+            amount, local_amount,
+            description: fee.local_description().to_owned(),
+        })
+    }
+
+    fn post_process_fee(&mut self, fee: PreprocessedFee) {
+        let mut row = self.trades_table.add_empty_row();
+        row.set_conclusion_date(fee.date);
+        row.set_security(fee.description);
+
+        if fee.amount.is_negative() {
+            row.set_revenue(-fee.amount);
+            row.set_local_revenue(-fee.local_amount);
+        } else {
+            row.set_commission(fee.amount);
+            row.set_local_commission(fee.local_amount);
+        }
+
+        row.set_local_profit(-fee.local_amount);
+        row.set_taxable_local_profit(-fee.local_amount);
+    }
+
+    fn process_trades(&mut self, mut tax_statement: Option<&'a mut TaxStatement>) -> EmptyResult {
+        let (mut fees, mut fees_by_year) = self.pre_process_fees()?;
+        let jurisdiction = self.broker_statement.broker.type_.jurisdiction();
+
+        for (trade_id, trade) in self.broker_statement.stock_sells.iter().enumerate() {
+            let (tax_year, _) = self.portfolio.tax_payment_day().get(trade.execution_date, true);
+
+            if let Some(year) = self.year {
+                if tax_year != year {
+                    continue;
+                }
+            }
+
+            while let Some(fee) = fees.front() {
+                if fee.date >= trade.conclusion_date {
+                    break;
+                }
+                self.post_process_fee(fees.pop_front().unwrap());
+            }
+
+            let details = trade.calculate(self.country, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
+            self.process_trade(trade_id, trade, &details)?;
+
+            if let Some(ref mut statement) = tax_statement {
+                if jurisdiction == Jurisdiction::Usa {
+                    let additional_fees = fees_by_year.remove(&tax_year).unwrap_or_default();
+                    self.add_income(statement, trade, &details, additional_fees)?;
+                } else {
+                    warn!(concat!(
+                        "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
+                        "Don't adding it to the tax statement."
+                    ));
+                    tax_statement = None;
+                }
+            }
+        }
+
+        for fee in fees {
+            self.post_process_fee(fee);
+        }
 
         Ok(())
     }
@@ -339,33 +398,26 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_fee(&mut self, fee: &Fee) -> EmptyResult {
-        self.same_currency &= fee.amount.currency == self.country.currency;
+    fn add_income(
+        &self, tax_statement: &mut TaxStatement, trade: &StockSell, details: &SellDetails,
+        additional_fees: Decimal,
+    ) -> EmptyResult {
+        assert_eq!(details.taxable_local_profit, details.local_profit);
 
-        let amount = fee.amount.round();
-        let local_amount = self.converter.convert_to_cash_rounding(
-            fee.date, fee.amount, self.country.currency)?;
+        let name = self.broker_statement.get_instrument_name(&trade.symbol);
+        let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
-        self.total_local_profit.sub_assign(local_amount).unwrap();
-        self.total_taxable_local_profit.sub_assign(local_amount).unwrap();
-        self.total_taxable_local_profit_by_year.entry(fee.date.year())
-            .and_modify(|total| total.sub_assign(local_amount).unwrap())
-            .or_insert(-local_amount);
+        let cost = details.total_local_cost.amount + additional_fees;
+        let precise_currency_rate = self.converter.precise_currency_rate(
+            trade.execution_date, details.revenue.currency, self.country.currency)?;
 
-        let mut row = self.trades_table.add_empty_row();
-        row.set_conclusion_date(fee.date);
-        row.set_security(fee.local_description());
-
-        if amount.is_negative() {
-            row.set_revenue(-amount);
-            row.set_local_revenue(-local_amount);
-        } else {
-            row.set_commission(amount);
-            row.set_local_commission(local_amount);
-        }
-
-        row.set_local_profit(-local_amount);
-        row.set_taxable_local_profit(-local_amount);
+        tax_statement.add_stock_income(
+            &description, trade.execution_date, details.revenue.currency, precise_currency_rate,
+            details.revenue.amount, details.local_revenue.amount, cost,
+        ).map_err(|e| format!(
+            "Unable to add income from selling {} on {} to the tax statement: {}",
+            trade.symbol, formatting::format_date(trade.execution_date), e
+        ))?;
 
         Ok(())
     }
@@ -385,6 +437,10 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn print(mut self, total_tax_to_pay: Option<Cash>) {
+        if self.trades_table.is_empty() {
+            return;
+        }
+
         if self.same_dates {
             self.trades_table.hide_execution_date();
             self.trades_table.rename_conclusion_currency_rate("Курс руб.");
@@ -427,6 +483,15 @@ impl<'a> TradesProcessor<'a> {
             "Расчет прибыли от продажи ценных бумаг, полученной через {}",
             self.broker_statement.broker.name));
 
-        self.fifo_table.print("Детализация расчета сделок по ФИФО");
+        if !self.fifo_table.is_empty() {
+            self.fifo_table.print("Детализация расчета сделок по ФИФО");
+        }
     }
+}
+
+struct PreprocessedFee {
+    date: Date,
+    amount: Cash,
+    local_amount: Cash,
+    description: String,
 }
