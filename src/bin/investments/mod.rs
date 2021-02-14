@@ -19,10 +19,7 @@ mod init;
 
 // TODO: Features to implement:
 // * Declare losses in tax statement: commissions and loss from previous years
-// * Tax agent support
 // * XLS for tax inspector
-// * Free commissions (considering monthly minimum fee)
-// * Tiered commissions support for BCS broker
 
 fn main() {
     let (action, config) = initialize();
