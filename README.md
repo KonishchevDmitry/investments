@@ -159,7 +159,7 @@ of reclassified taxes don't match dividend dates. To workaround such cases there
 using which you can manually map reclassified tax to date of its origin dividend.
 
 
-### БКС, Открытие Брокер and Тинькофф
+### БКС and Открытие Брокер
 
 Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
 example of how they are look like in the broker statements.
