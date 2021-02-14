@@ -1,6 +1,6 @@
 [package]
 name = "xls_table_derive"
-version = "0.3.11"
+version = "0.3.12"
 description = "Procedural macros for investments crate"
 
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
@@ -14,5 +14,5 @@ proc-macro = true
 [dependencies]
 darling = "0.12.0"
 proc-macro2 = "1.0.24"
-quote = "1.0.8"
+quote = "1.0.9"
 syn = "1.0.60"
