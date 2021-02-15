@@ -120,14 +120,14 @@ portfolios:
     #    ratio: 4:1
 
 # Tax rate is assumed to be 13% by default, but you can override it. For example the following setting sets tax rate to
-# 15% starting from 2023 year.
+# 15% starting from 2021 year.
 #tax_rates:
 #  trading:
-#    2023: 15
+#    2021: 15
 #  dividends:
-#    2023: 15
+#    2021: 15
 #  interest:
-#    2023: 15
+#    2021: 15
 
 # Your individual broker + bank account configuration. For now specifies your bank commissions for transferring funds
 # from your bank account to your broker account. Will be taken into account during portfolio performance analysis.
