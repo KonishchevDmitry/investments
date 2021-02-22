@@ -278,6 +278,8 @@ impl BrokerStatement {
             symbol, quantity, price, price * quantity, commission,
             conclusion_date, execution_date, false, true);
 
+        // FIXME(konishchev): Support multi-currency trades
+        //
         // This is a partial workaround for our current inability to work with multi-currency
         // trades.
         //

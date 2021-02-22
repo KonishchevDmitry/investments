@@ -13,6 +13,7 @@ use crate::taxes::IncomeType;
 use crate::types::Decimal;
 use crate::util;
 
+// FIXME(konishchev): Use base_currency only for simulated trade
 pub fn simulate_sell(
     country: &Country, portfolio: &PortfolioConfig, mut statement: BrokerStatement,
     converter: CurrencyConverterRc, quotes: &Quotes,
