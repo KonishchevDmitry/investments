@@ -186,7 +186,7 @@ impl StockSell {
             }
 
             let source_total_cost = source_details.total_cost(currency, converter)?;
-            purchase_cost.add_assign(source_total_cost)?;
+            purchase_cost.add_assign(source_total_cost).unwrap();
 
             purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
             if !source_details.tax_exemption_applied {
@@ -207,13 +207,12 @@ impl StockSell {
         let local_commission = local_conclusion(commission)?;
         let deductible_local_commission = local_conclusion(commission * taxable_ratio)?;
 
-        let total_cost = commission.add(purchase_cost).map_err(|e| format!(
-            "Sell and buy trade have different currency: {}", e))?;
-        let total_local_cost = local_commission.add(purchase_local_cost).unwrap();
-        let deductible_total_local_cost = deductible_local_commission.add(deductible_purchase_local_cost).unwrap();
+        let total_cost = purchase_cost.add(converter.convert_to_cash_rounding(
+            self.conclusion_date, commission, currency)?).unwrap();
+        let total_local_cost = purchase_local_cost.add(local_commission).unwrap();
+        let deductible_total_local_cost = deductible_purchase_local_cost.add(deductible_local_commission).unwrap();
 
-        let profit = revenue.sub(total_cost).map_err(|e| format!(
-            "Sell and buy trade have different currency: {}", e))?;
+        let profit = revenue.sub(total_cost).unwrap();
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
         let taxable_local_profit = taxable_local_revenue.sub(deductible_total_local_cost).unwrap();
 
@@ -231,7 +230,8 @@ impl StockSell {
         };
 
         let real_profit = profit.sub(converter.convert_to_cash_rounding(
-            self.execution_date, tax_to_pay, profit.currency)?)?;
+            self.execution_date, tax_to_pay, currency)?).unwrap();
+
         let real_profit_ratio = if purchase_cost.is_zero() {
             None
         } else {
