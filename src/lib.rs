@@ -5,22 +5,25 @@
 
 #[macro_use] pub mod core;
 #[macro_use] pub mod types;
+
 pub mod analysis;
-pub mod broker_statement;
-pub mod brokers;
 pub mod cash_flow;
-pub mod commissions;
 pub mod config;
-pub mod currency;
-pub mod db;
 pub mod deposits;
-pub mod formatting;
-pub mod localities;
 pub mod metrics;
 pub mod portfolio;
-pub mod quotes;
-pub mod rate_limiter;
 pub mod tax_statement;
-pub mod taxes;
 pub mod util;
-pub mod xls;
+
+mod broker_statement;
+mod brokers;
+mod commissions;
+mod currency;
+mod db;
+mod forex;
+mod formatting;
+mod localities;
+mod quotes;
+mod rate_limiter;
+mod taxes;
+mod xls;
