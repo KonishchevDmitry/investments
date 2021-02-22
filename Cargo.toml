@@ -47,9 +47,9 @@ prometheus = "0.11.0"
 quick-xml = { version = "0.21.0", features = [ "serialize" ] }
 rayon = "1.5.0"
 regex = "1.4.3"
-reqwest = { version = "0.11.0", features = ["blocking", "json"] }
-rust_decimal = "~1.10.2"
-rust_decimal_macros = "~1.10.2"
+reqwest = { version = "0.11.1", features = ["blocking", "json"] }
+rust_decimal = "~1.10.3"
+rust_decimal_macros = "~1.10.3"
 separator = "0.4.1"
 serde = { version = "1.0.123", features = ["derive"] }
 serde_json = "1.0.62"
@@ -63,8 +63,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.19.0", features = ["bundled"] }
 
-static_table_derive = "0.1.18"
-xls_table_derive = "0.3.11"
+static_table_derive = "0.1.20"
+xls_table_derive = "0.3.12"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
@@ -75,4 +75,4 @@ mockito = "0.29.0"
 qtrac-retest = "4.0.6"
 rstest = "0.6.4"
 tempfile = "3.2.0"
-url = "2.2.0"
+url = "2.2.1"
