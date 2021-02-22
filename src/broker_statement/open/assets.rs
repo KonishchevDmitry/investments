@@ -27,13 +27,19 @@ struct AccountSummaryItem {
 
 impl AccountSummary {
     pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        let mut has_starting_assets = None;
+
         for item in &self.items {
             if item.name == "Входящий остаток (факт)" {
-                statement.set_starting_assets(!item.amount.is_zero())?;
+                let has_assets = !item.amount.is_zero();
+                has_starting_assets.replace(has_starting_assets.unwrap_or_default() | has_assets);
             }
         }
 
-        Ok(())
+        let has_starting_assets = has_starting_assets.ok_or(
+            "Unable to find starting cash assets information")?;
+
+        statement.set_starting_assets(has_starting_assets)
     }
 }
 
