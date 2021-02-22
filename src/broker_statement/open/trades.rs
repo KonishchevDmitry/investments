@@ -6,7 +6,6 @@ use serde::Deserialize;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell, StockSource};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::Cash;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -37,19 +36,22 @@ struct ConcludedTrade {
     #[serde(rename = "sell_qnty")]
     sell_quantity: Option<Decimal>,
 
-    #[serde(rename = "price_currency_code")]
-    currency: String,
-
-    #[serde(rename = "accounting_currency_code")]
-    accounting_currency: String,
-
     price: Decimal,
+
+    #[serde(rename = "price_currency_code")]
+    price_currency: String,
 
     #[serde(rename="volume_currency")]
     volume: Decimal,
 
+    #[serde(rename = "accounting_currency_code")]
+    accounting_currency: String,
+
     #[serde(rename = "broker_commission")]
     commission: Decimal,
+
+    #[serde(rename = "broker_commission_currency_code")]
+    commission_currency: String,
 }
 
 impl ConcludedTrades {
@@ -59,23 +61,26 @@ impl ConcludedTrades {
     ) -> EmptyResult {
         for trade in &self.trades {
             let symbol = get_symbol(securities, &trade.security_name)?;
-            let price = util::validate_named_decimal(
-                "price", trade.price, DecimalRestrictions::StrictlyPositive)?.normalize();
-            let volume = util::validate_named_decimal(
-                "trade volume", trade.volume, DecimalRestrictions::StrictlyPositive)?.normalize();
-            let commission = util::validate_named_decimal(
-                "commission", trade.commission, DecimalRestrictions::PositiveOrZero)?;
 
             // Just don't know which one exactly is
-            if trade.currency != trade.accounting_currency {
+            if trade.price_currency != trade.accounting_currency {
                 return Err!(
                     "Trade currency for {} is not equal to accounting currency which is not supported yet",
                      symbol);
             }
 
-            let price = Cash::new(&trade.currency, price);
-            let volume = Cash::new(&trade.currency, volume);
-            let commission = Cash::new(&trade.accounting_currency, commission);
+            let price = util::validate_named_cash(
+                "price", &trade.price_currency, trade.price,
+                DecimalRestrictions::StrictlyPositive)?.normalize();
+
+            let volume = util::validate_named_cash(
+                "trade volume", &trade.price_currency, trade.volume,
+                DecimalRestrictions::StrictlyPositive)?.normalize();
+
+            let commission = util::validate_named_cash(
+                "commission", &trade.commission_currency, trade.commission,
+                DecimalRestrictions::PositiveOrZero)?;
+
             let execution_date = match trades_with_shifted_execution_date.remove(&trade.id) {
                 Some(execution_date) => {
                     warn!(concat!(
