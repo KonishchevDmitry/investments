@@ -139,12 +139,14 @@ impl StockSell {
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
+        let currency = self.price.currency;
+
         let local_conclusion = |value| converter.convert_to_cash_rounding(
             self.conclusion_date, value, country.currency);
         let local_execution = |value| converter.convert_to_cash_rounding(
             self.execution_date, value, country.currency);
 
-        let mut purchase_cost = Cash::new(self.price.currency, dec!(0));
+        let mut purchase_cost = Cash::new(currency, dec!(0));
         let mut purchase_local_cost = Cash::new(country.currency, dec!(0));
         let mut deductible_purchase_local_cost = Cash::new(country.currency, dec!(0));
 
@@ -154,7 +156,7 @@ impl StockSell {
 
         for source in &self.sources {
             let source_quantity = source.quantity * source.multiplier;
-            let mut source_details = source.calculate(country, converter)?;
+            let mut source_details = FifoDetails::new(source, country, converter)?;
 
             let mut tax_exemptible = false;
             for tax_exemption in tax_exemptions {
@@ -183,8 +185,9 @@ impl StockSell {
                 tax_free_quantity += source_quantity;
             }
 
-            purchase_cost.add_assign(source_details.total_cost).map_err(|e| format!(
-                "Sell and buy trades have different currency: {}", e))?;
+            let source_total_cost = source_details.total_cost(currency, converter)?;
+            purchase_cost.add_assign(source_total_cost)?;
+
             purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
             if !source_details.tax_exemption_applied {
                 deductible_purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
@@ -293,43 +296,6 @@ impl StockSellSource {
         self.commission = commission;
         Ok(())
     }
-
-    fn calculate(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        let cost = self.volume.round();
-        let local_cost = converter.convert_to_rounding(
-            self.execution_date, cost, country.currency)?;
-
-        let commission = self.commission.round();
-        let local_commission = converter.convert_to_rounding(
-            self.conclusion_date, commission, country.currency)?;
-
-        let mut total_cost = cost;
-        let mut total_local_cost = local_cost;
-
-        total_cost.add_assign(self.commission.round()).map_err(|e| format!(
-            "Trade and commission have different currency: {}", e))?;
-        total_local_cost += local_commission;
-
-        Ok(FifoDetails {
-            quantity: self.quantity,
-            multiplier: self.multiplier,
-
-            conclusion_date: self.conclusion_date,
-            execution_date: self.execution_date,
-
-            price: self.price,
-            commission: commission,
-            local_commission: Cash::new(country.currency, local_commission),
-
-            cost,
-            local_cost: Cash::new(country.currency, local_cost),
-
-            total_cost,
-            total_local_cost: Cash::new(country.currency, total_local_cost),
-
-            tax_exemption_applied: false,
-        })
-    }
 }
 
 pub struct SellDetails {
@@ -383,10 +349,45 @@ pub struct FifoDetails {
     // and:
     pub cost: Cash,
     pub local_cost: Cash,
-    pub total_cost: Cash,
     pub total_local_cost: Cash,
 
     pub tax_exemption_applied: bool,
+}
+
+impl FifoDetails {
+    fn new(source: &StockSellSource, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
+        let cost = source.volume.round();
+        let local_cost = converter.convert_to_cash_rounding(
+            source.execution_date, cost, country.currency)?;
+
+        let commission = source.commission.round();
+        let local_commission = converter.convert_to_cash_rounding(
+            source.conclusion_date, commission, country.currency)?;
+
+        Ok(FifoDetails {
+            quantity: source.quantity,
+            multiplier: source.multiplier,
+
+            conclusion_date: source.conclusion_date,
+            execution_date: source.execution_date,
+
+            price: source.price,
+            commission,
+            local_commission,
+
+            cost,
+            local_cost,
+            total_local_cost: local_cost.add(local_commission).unwrap(),
+
+            tax_exemption_applied: false,
+        })
+    }
+
+    pub fn total_cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let cost = converter.convert_to_cash_rounding(self.execution_date, self.cost, currency)?;
+        let commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
+        Ok(cost.add(commission).unwrap())
+    }
 }
 
 // FIXME(konishchev): Check all usage
