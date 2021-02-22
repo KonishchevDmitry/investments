@@ -394,6 +394,7 @@ pub struct FifoDetails {
     pub tax_exemption_applied: bool,
 }
 
+// FIXME(konishchev): Check all usage
 fn convert_trade(
     quantity: Decimal, mut volume: Cash, mut commission: Cash,
     conclusion_date: Date, execution_date: Date,
