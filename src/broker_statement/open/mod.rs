@@ -52,8 +52,7 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    // FIXME(konishchev): Add non-IIA account
-    #[rstest(name => ["iia", "inactive-with-forex"])]
+    #[rstest(name => ["my", "iia", "inactive-with-forex"])]
     fn parse_real(name: &str) {
         let broker = Broker::Open.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/open-broker/{}", name);
@@ -64,13 +63,13 @@ mod tests {
         assert!(!statement.cash_flows.is_empty());
         assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
 
-        assert!(!statement.fees.is_empty());
+        assert_eq!(statement.fees.is_empty(), name == "my");
         assert!(statement.idle_cash_interest.is_empty());
         assert!(statement.tax_agent_withholdings.is_empty());
 
-        assert_eq!(statement.forex_trades.is_empty(), name != "inactive-with-forex");
+        assert_eq!(statement.forex_trades.is_empty(), name == "iia");
         assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");
-        assert_eq!(statement.stock_sells.is_empty(), name == "inactive-with-forex");
+        assert_eq!(statement.stock_sells.is_empty(), name != "iia");
         assert!(statement.dividends.is_empty());
 
         assert_eq!(statement.open_positions.is_empty(), name == "inactive-with-forex");

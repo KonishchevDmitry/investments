@@ -35,10 +35,7 @@ for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
     investments main sync "$broker"
     investments main cash "$broker" "$cash"
 
-    # FIXME(konishchev): Enable after deposit
-    if [ "$broker" != open ]; then
-        rate-limited-investments main analyse "$broker"
-    fi
+    rate-limited-investments main analyse "$broker"
 done
 
 for portfolio in ib-complex ib-margin-rub ib-stock-split; do
