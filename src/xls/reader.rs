@@ -53,6 +53,7 @@ impl SheetReader {
         self.next_row_id = self.prev_row_id.take().unwrap();
     }
 
+    #[allow(dead_code)]
     pub fn skip_empty_rows(&mut self) {
         while let Some(row) = self.next_row() {
             if !is_empty_row(row) {
