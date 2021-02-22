@@ -247,10 +247,7 @@ impl StockSell {
             local_revenue,
             local_commission,
 
-            purchase_cost,
             purchase_local_cost,
-
-            total_cost,
             total_local_cost,
 
             profit,
@@ -342,9 +339,7 @@ pub struct SellDetails {
 
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
-    pub purchase_cost: Cash,
     pub purchase_local_cost: Cash,
-    pub total_cost: Cash,
     pub total_local_cost: Cash,
 
     pub profit: Cash,
