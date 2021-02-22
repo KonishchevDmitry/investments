@@ -9,7 +9,7 @@ use crate::types::Date;
 
 use super::assets::{AccountSummary, Assets, Securities};
 use super::cash_flows::CashFlows;
-use super::forex::ForexTrades;
+use super::forex::{CurrencyConversions, ForexTrades};
 use super::trades::{ConcludedTrades, ExecutedTrades};
 use super::common::deserialize_date;
 
@@ -21,14 +21,17 @@ pub struct BrokerReport {
     #[serde(deserialize_with = "deserialize_date")]
     date_to: Date,
 
-    #[serde(rename = "spot_account_totally")]
+    #[serde(alias = "spot_account_totally", alias = "unified_account_totally")]
     account_summary: AccountSummary,
 
-    #[serde(rename = "spot_assets")]
+    #[serde(alias = "spot_assets", alias = "unified_closing_assets")]
     assets: Option<Assets>,
 
-    #[serde(rename = "spot_nonstock_conversion_deals_conclusion")]
+    #[serde(rename = "made_deal")]
     forex_trades: Option<ForexTrades>,
+
+    #[serde(rename = "spot_nonstock_conversion_deals_conclusion")]
+    currency_conversions: Option<CurrencyConversions>,
 
     #[serde(rename = "spot_main_deals_conclusion")]
     concluded_trades: Option<ConcludedTrades>,
@@ -36,7 +39,7 @@ pub struct BrokerReport {
     #[serde(rename = "spot_main_deals_executed")]
     executed_trades: Option<ExecutedTrades>,
 
-    #[serde(rename = "spot_non_trade_money_operations")]
+    #[serde(alias = "spot_non_trade_money_operations", alias = "unified_non_trade_money_operations")]
     cash_flow: Option<CashFlows>,
 
     #[serde(rename = "spot_portfolio_security_params")]
@@ -60,6 +63,10 @@ impl BrokerReport {
 
         if let Some(ref trades) = self.forex_trades {
             trades.parse(statement)?;
+        }
+
+        if let Some(ref conversion) = self.currency_conversions {
+            conversion.parse(statement)?;
         }
 
         let mut trades_with_shifted_execution_date = if let Some(ref trades) = self.executed_trades {

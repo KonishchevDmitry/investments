@@ -80,7 +80,7 @@ impl SectionParser for TradesParser {
 
             match trade.operation.as_str() {
                 "Покупка" => {
-                    if let Ok((base, _quote)) = forex {
+                    if let Ok((base, _quote, _lot_size)) = forex {
                         parser.statement.forex_trades.push(ForexTrade {
                             from: volume,
                             to: Cash::new(base, Decimal::from_u32(quantity).unwrap()),
@@ -94,7 +94,7 @@ impl SectionParser for TradesParser {
                     }
                 },
                 "Продажа" => {
-                    if let Ok((base, _quote)) = forex {
+                    if let Ok((base, _quote, _lot_size)) = forex {
                         parser.statement.forex_trades.push(ForexTrade {
                             from: Cash::new(base, Decimal::from_u32(quantity).unwrap()),
                             to: volume,
