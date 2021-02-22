@@ -6,6 +6,7 @@ use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell, StockSour
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
+use crate::forex::parse_forex_code;
 use crate::formatting::format_date;
 use crate::types::{Date, Time, Decimal};
 use crate::util::DecimalRestrictions;
@@ -75,18 +76,14 @@ impl SectionParser for TradesParser {
                 ),
             };
 
-            let forex = match trade.symbol.as_str() {
-                "USD000000TOD" | "USD000UTSTOM" => Some("USD"),
-                "EUR_RUB__TOM" => Some("EUR"),
-                _ => None,
-            };
+            let forex = parse_forex_code(&trade.symbol);
 
             match trade.operation.as_str() {
                 "Покупка" => {
-                    if let Some(currency) = forex {
+                    if let Ok((base, _quote)) = forex {
                         parser.statement.forex_trades.push(ForexTrade {
                             from: volume,
-                            to: Cash::new(currency, Decimal::from_u32(quantity).unwrap()),
+                            to: Cash::new(base, Decimal::from_u32(quantity).unwrap()),
                             commission,
                             conclusion_date
                         })
@@ -97,9 +94,9 @@ impl SectionParser for TradesParser {
                     }
                 },
                 "Продажа" => {
-                    if let Some(currency) = forex {
+                    if let Ok((base, _quote)) = forex {
                         parser.statement.forex_trades.push(ForexTrade {
-                            from: Cash::new(currency, Decimal::from_u32(quantity).unwrap()),
+                            from: Cash::new(base, Decimal::from_u32(quantity).unwrap()),
                             to: volume,
                             commission,
                             conclusion_date
