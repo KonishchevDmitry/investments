@@ -26,4 +26,5 @@ mod localities;
 mod quotes;
 mod rate_limiter;
 mod taxes;
+mod trades;
 mod xls;

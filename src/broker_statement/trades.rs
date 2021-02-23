@@ -1,11 +1,10 @@
-use crate::core::{GenericResult, EmptyResult};
+use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{IncomeType, TaxExemption};
 use crate::types::{Date, Decimal};
-use crate::util;
 
 #[derive(Debug)]
 pub struct ForexTrade {
@@ -107,24 +106,6 @@ impl StockSell {
             self.quantity,
         );
         self.sources = sources;
-    }
-
-    // FIXME(konishchev): Check all usage
-    pub fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
-        let (price, volume, commission) = convert_trade(
-            self.quantity, self.volume, self.commission,
-            self.conclusion_date, self.execution_date,
-            currency, converter)?;
-
-        self.price = price;
-        self.volume = volume;
-        self.commission = commission;
-
-        for source in &mut self.sources {
-            source.convert(currency, converter)?;
-        }
-
-        Ok(())
     }
 
     pub fn calculate(
@@ -285,21 +266,6 @@ pub struct StockSellSource {
     pub execution_date: Date,
 }
 
-impl StockSellSource {
-    // FIXME(konishchev): Check all usage
-    fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
-        let (price, volume, commission) = convert_trade(
-            self.quantity, self.volume, self.commission,
-            self.conclusion_date, self.execution_date,
-            currency, converter)?;
-
-        self.price = price;
-        self.volume = volume;
-        self.commission = commission;
-        Ok(())
-    }
-}
-
 pub struct SellDetails {
     pub revenue: Cash,
     pub local_revenue: Cash,
@@ -390,39 +356,4 @@ impl FifoDetails {
         let commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
         Ok(cost.add(commission).unwrap())
     }
-}
-
-fn convert_trade(
-    quantity: Decimal, mut volume: Cash, mut commission: Cash,
-    conclusion_date: Date, execution_date: Date,
-    currency: &str, converter: &CurrencyConverter,
-) -> GenericResult<(Cash, Cash, Cash)> {
-    let orig_volume = volume;
-
-    let volume_precision = util::decimal_precision(volume.amount) + 2;
-    volume = converter.convert_to_cash(execution_date, volume, currency)?
-        .round_to(volume_precision).normalize();
-
-    let mut price = volume / quantity;
-    let mut price_precision = volume_precision;
-
-    loop {
-        let round_price = price.round_to(price_precision);
-
-        if (round_price * quantity).round_to(volume_precision) == volume {
-            price = round_price.normalize();
-            break;
-        }
-
-        if price_precision >= 20 {
-            return Err!(
-                "Unable to convert {} / {} trade to {} with reasonable precision",
-                orig_volume, quantity, currency);
-        }
-        price_precision += 1;
-    }
-
-    commission = converter.convert_to_cash_rounding(conclusion_date, commission, currency)?;
-
-    Ok((price, volume, commission))
 }

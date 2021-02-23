@@ -10,10 +10,10 @@ use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
 use crate::taxes::IncomeType;
+use crate::trades::convert_price;
 use crate::types::Decimal;
 use crate::util;
 
-// FIXME(konishchev): Use base_currency only for simulated trade
 pub fn simulate_sell(
     country: &Country, portfolio: &PortfolioConfig, mut statement: BrokerStatement,
     converter: CurrencyConverterRc, quotes: &Quotes,
@@ -43,7 +43,11 @@ pub fn simulate_sell(
                 "The portfolio has no open {:?} positions", symbol))?,
         };
 
-        let price = quotes.get(&symbol)?;
+        let mut price = quotes.get(&symbol)?;
+        if let Some(base_currency) = base_currency {
+            price = convert_price(price, quantity, base_currency, &converter)?;
+        }
+
         statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
     }
 
@@ -55,7 +59,7 @@ pub fn simulate_sell(
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(country, portfolio, stock_sells, additional_commissions, &converter, base_currency)
+    print_results(country, portfolio, stock_sells, additional_commissions, &converter)
 }
 
 #[derive(StaticTable)]
@@ -109,11 +113,11 @@ struct FifoRow {
 fn print_results(
     country: &Country, portfolio: &PortfolioConfig,
     stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
-    converter: &CurrencyConverter, base_currency: Option<&str>,
+    converter: &CurrencyConverter,
 ) -> EmptyResult {
     let same_currency = stock_sells.iter().all(|trade| {
-        base_currency.unwrap_or(trade.price.currency) == country.currency &&
-            base_currency.unwrap_or(trade.commission.currency) == country.currency
+        trade.price.currency == country.currency &&
+        trade.commission.currency == country.currency
     });
 
     let conclusion_date = util::today_trade_conclusion_date();
@@ -129,13 +133,8 @@ fn print_results(
     let mut total_commission = MultiCurrencyCashAccount::new();
     let mut total_tax_deduction = Cash::new(country.currency, dec!(0));
 
-    for mut commission in additional_commissions.iter() {
-        if let Some(base_currency) = base_currency {
-            commission = converter.convert_to_cash_rounding(conclusion_date, commission, base_currency)?;
-        } else {
-            commission = commission.round();
-        }
-        total_commission.deposit(commission);
+    for commission in additional_commissions.iter() {
+        total_commission.deposit(commission.round());
 
         let local_commission = converter.convert_to_cash_rounding(
             conclusion_date, commission, country.currency)?;
@@ -149,11 +148,7 @@ fn print_results(
     let mut fifo_table = FifoTable::new();
     let mut tax_exemptions = false;
 
-    for mut trade in stock_sells {
-        if let Some(base_currency) = base_currency {
-            trade.convert(base_currency, converter)?;
-        }
-
+    for trade in stock_sells {
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
         tax_exemptions |= details.tax_exemption_applied();
