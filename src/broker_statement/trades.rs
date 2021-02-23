@@ -109,6 +109,7 @@ impl StockSell {
         self.sources = sources;
     }
 
+    // FIXME(konishchev): Check all usage
     pub fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
         let (price, volume, commission) = convert_trade(
             self.quantity, self.volume, self.commission,
@@ -285,6 +286,7 @@ pub struct StockSellSource {
 }
 
 impl StockSellSource {
+    // FIXME(konishchev): Check all usage
     fn convert(&mut self, currency: &str, converter: &CurrencyConverter) -> EmptyResult {
         let (price, volume, commission) = convert_trade(
             self.quantity, self.volume, self.commission,
@@ -390,7 +392,6 @@ impl FifoDetails {
     }
 }
 
-// FIXME(konishchev): Check all usage
 fn convert_trade(
     quantity: Decimal, mut volume: Cash, mut commission: Cash,
     conclusion_date: Date, execution_date: Date,

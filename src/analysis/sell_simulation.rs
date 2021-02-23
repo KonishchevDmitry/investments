@@ -44,7 +44,7 @@ pub fn simulate_sell(
         };
 
         let price = quotes.get(&symbol)?;
-        statement.emulate_sell(&symbol, quantity, price, &mut commission_calc, &converter)?;
+        statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
     }
 
     statement.process_trades()?;
