@@ -37,7 +37,6 @@ pub fn trader() -> CommissionSpec {
         .build()
 }
 
-// FIXME(konishchev): Add test with real data
 pub fn premium() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .trade(TradeCommissionSpecBuilder::new()
@@ -146,5 +145,27 @@ mod tests {
             // Actually the date is the date of the first trade
             date!(1, 1, 2021) => MultiCurrencyCashAccount::new_from(Cash::new("RUB", dec!(290))),
         });
+    }
+
+    #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
+    fn premium(trade_type: TradeType) {
+        let converter = CurrencyConverter::mock();
+        let mut calc = CommissionCalc::new(
+            converter, super::premium(), Cash::new("RUB", dec!(0))).unwrap();
+
+        let date = date!(20, 2, 2021);
+
+        for &(currency, quantity, price, commission) in &[
+            ("RUB",   21, dec!( 4727), dec!( 24.82)),
+            ("RUB",   16, dec!( 2859), dec!( 11.44)),
+            ("RUB", 6000, dec!(73.81), dec!(110.72)),
+        ] {
+            assert_eq!(
+                calc.add_trade(date, trade_type, quantity.into(), Cash::new(currency, price)).unwrap(),
+                Cash::new(currency, commission),
+            );
+        }
+
+        assert!(calc.calculate().unwrap().is_empty());
     }
 }
