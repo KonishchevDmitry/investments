@@ -156,7 +156,7 @@ impl CurrencyRateCacheBackend {
 
     #[cfg(not(test))]
     fn get_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-        Ok(self.cbr.get_rates(currency, start_date, end_date).map_err(|e| format!(
+        Ok(self.cbr.get_currency_rates(currency, start_date, end_date).map_err(|e| format!(
             "Failed to get currency rates from the Central Bank of the Russian Federation: {}", e))?)
     }
 
