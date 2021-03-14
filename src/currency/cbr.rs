@@ -1,112 +1,120 @@
 use std::str::FromStr;
 
 #[cfg(test)] use indoc::indoc;
-use log::debug;
+use log::trace;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 use crate::core::GenericResult;
 use crate::currency::CurrencyRate;
-use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util;
 
 pub const BASE_CURRENCY: &str = "RUB";
 
-pub fn get_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    let currency_code = match currency {
-        "USD" => "R01235",
-        "EUR" => "R01239",
-        _ => return Err!("{} currency is not supported yet.", currency),
-    };
-
-    let date_format = "%d/%m/%Y";
-    let start_date_string = start_date.format(date_format).to_string();
-    let end_date_string = end_date.format(date_format).to_string();
-
-    #[cfg(not(test))]
-    let base_url = "http://www.cbr.ru";
-
-    #[cfg(test)]
-    let base_url = mockito::server_url();
-
-    let url = Url::parse_with_params(&format!("{}/scripts/XML_dynamic.asp", base_url), &[
-        ("date_req1", start_date_string.as_ref()),
-        ("date_req2", end_date_string.as_ref()),
-        ("VAL_NM_RQ", currency_code),
-    ])?;
-
-    let get = |url| -> GenericResult<Vec<CurrencyRate>> {
-        debug!("Getting {} currency rates for {} - {}...", currency,
-               formatting::format_date(start_date), formatting::format_date(end_date));
-
-        let response = Client::new().get(url).send()?;
-        if !response.status().is_success() {
-            return Err!("The server returned an error: {}", response.status());
-        }
-
-        Ok(parse_rates(start_date, end_date, &response.text()?).map_err(|e| format!(
-            "Rates info parsing error: {}", e))?)
-    };
-
-    Ok(get(url.as_str()).map_err(|e| format!(
-        "Failed to get currency rates from {}: {}", url, e))?)
+pub struct Cbr {
+    client: Client,
 }
 
-fn parse_rates(start_date: Date, end_date: Date, data: &str) -> GenericResult<Vec<CurrencyRate>> {
-    #[derive(Deserialize)]
-    struct Rate {
-        #[serde(rename = "Date")]
-        date: String,
-
-        #[serde(rename = "Nominal")]
-        lot: i32,
-
-        #[serde(rename = "Value")]
-        price: String,
+impl Cbr {
+    pub fn new() -> Cbr {
+        Cbr {
+            client: Client::new(),
+        }
     }
 
-    #[derive(Deserialize)]
-    struct Rates {
-        #[serde(rename = "DateRange1")]
-        start_date: String,
+    pub fn get_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
+        #[derive(Deserialize)]
+        struct Rate {
+            #[serde(rename = "Date")]
+            date: String,
 
-        #[serde(rename = "DateRange2")]
-        end_date: String,
+            #[serde(rename = "Nominal")]
+            lot: i32,
 
-        #[serde(rename = "Record", default)]
-        rates: Vec<Rate>
-    }
-
-    let date_format = "%d.%m.%Y";
-    let result: Rates = serde_xml_rs::from_str(data).map_err(|e| e.to_string())?;
-
-    if util::parse_date(&result.start_date, date_format)? != start_date ||
-        util::parse_date(&result.end_date, date_format)? != end_date {
-        return Err!("The server returned currency rates info for an invalid period");
-    }
-
-    let mut rates = Vec::with_capacity(result.rates.len());
-
-    for rate in result.rates {
-        let lot = rate.lot;
-        if lot <= 0 {
-            return Err!("Invalid lot: {}", lot);
+            #[serde(rename = "Value")]
+            price: String,
         }
 
-        let price = rate.price.replace(",", ".");
-        let price = Decimal::from_str(&price).map_err(|_| format!(
-            "Invalid price: {:?}", rate.price))?;
+        #[derive(Deserialize)]
+        struct Rates {
+            #[serde(rename = "DateRange1")]
+            start_date: String,
 
-        rates.push(CurrencyRate {
-            date: util::parse_date(&rate.date, date_format)?,
-            price: price / Decimal::from(lot),
+            #[serde(rename = "DateRange2")]
+            end_date: String,
+
+            #[serde(rename = "Record", default)]
+            rates: Vec<Rate>
+        }
+
+        let request_date_format = "%d/%m/%Y";
+        let start_date_string = start_date.format(request_date_format).to_string();
+        let end_date_string = end_date.format(request_date_format).to_string();
+
+        let result: Rates = self.query("currency rates", "XML_dynamic.asp", &[
+            ("date_req1", start_date_string.as_str()),
+            ("date_req2", end_date_string.as_str()),
+            ("VAL_NM_RQ", self.get_currency_code(currency)?),
+        ])?;
+
+        let response_date_format = "%d.%m.%Y";
+        if util::parse_date(&result.start_date, response_date_format)? != start_date ||
+            util::parse_date(&result.end_date, response_date_format)? != end_date {
+            return Err!("The server returned currency rates info for an invalid period");
+        }
+
+        let mut rates = Vec::with_capacity(result.rates.len());
+
+        for rate in result.rates {
+            let lot = rate.lot;
+            if lot <= 0 {
+                return Err!("Invalid lot: {}", lot);
+            }
+
+            let price = rate.price.replace(",", ".");
+            let price = Decimal::from_str(&price).map_err(|_| format!(
+                "Invalid price: {:?}", rate.price))?;
+
+            rates.push(CurrencyRate {
+                date: util::parse_date(&rate.date, response_date_format)?,
+                price: price / Decimal::from(lot),
+            })
+        }
+
+        Ok(rates)
+    }
+
+    fn get_currency_code(&self, currency: &str) -> GenericResult<&str> {
+        Ok(match currency {
+            "USD" => "R01235",
+            "EUR" => "R01239",
+            _ => return Err!("{} currency is not supported yet", currency),
         })
     }
 
-    Ok(rates)
+    fn query<T: DeserializeOwned>(&self, name: &str, method: &str, params: &[(&str, &str)]) -> GenericResult<T> {
+        #[cfg(not(test))] let base_url = "http://www.cbr.ru";
+        #[cfg(test)] let base_url = mockito::server_url();
+
+        let url = Url::parse_with_params(&format!("{}/scripts/{}", base_url, method), params)?;
+        let get = |url| -> GenericResult<T> {
+            trace!("Sending request to {}...", url);
+            let response = self.client.get(url).send()?;
+            trace!("Got response from {}.", url);
+
+            if !response.status().is_success() {
+                return Err!("The server returned an error: {}", response.status());
+            }
+
+            Ok(serde_xml_rs::from_str(&response.text()?)?)
+        };
+
+        Ok(get(url.as_str()).map_err(|e| format!("Failed to get {} from {}: {}", name, url, e))?)
+    }
 }
 
 #[cfg(test)]
@@ -115,6 +123,7 @@ mod tests {
 
     #[test]
     fn empty_rates() {
+        let cbr = Cbr::new();
         let _mock = mock_cbr_response(
             "/scripts/XML_dynamic.asp?date_req1=02%2F09%2F2018&date_req2=03%2F09%2F2018&VAL_NM_RQ=R01235",
             indoc!(r#"
@@ -124,11 +133,12 @@ mod tests {
             "#)
         );
 
-        assert_eq!(get_rates("USD", date!(2, 9, 2018), date!(3, 9, 2018)).unwrap(), vec![]);
+        assert_eq!(cbr.get_rates("USD", date!(2, 9, 2018), date!(3, 9, 2018)).unwrap(), vec![]);
     }
 
     #[test]
     fn rates() {
+        let cbr = Cbr::new();
         let _mock = mock_cbr_response(
             "/scripts/XML_dynamic.asp?date_req1=01%2F09%2F2018&date_req2=04%2F09%2F2018&VAL_NM_RQ=R01235",
             indoc!(r#"
@@ -147,7 +157,7 @@ mod tests {
         );
 
         assert_eq!(
-            get_rates("USD", date!(1, 9, 2018), date!(4, 9, 2018)).unwrap(),
+            cbr.get_rates("USD", date!(1, 9, 2018), date!(4, 9, 2018)).unwrap(),
             vec![CurrencyRate {
                 date: date!(1, 9, 2018),
                 price: dec!(68.0447),

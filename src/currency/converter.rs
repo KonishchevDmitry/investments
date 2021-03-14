@@ -114,6 +114,8 @@ pub trait CurrencyConverterBackend {
 }
 
 struct CurrencyRateCacheBackend {
+    #[cfg(not(test))]
+    cbr: cbr::Cbr,
     quotes: Option<Rc<Quotes>>,
     rate_cache: CurrencyRateCache,
     strict_mode: bool,
@@ -122,6 +124,8 @@ struct CurrencyRateCacheBackend {
 impl CurrencyRateCacheBackend {
     pub fn new(rate_cache: CurrencyRateCache, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> Box<dyn CurrencyConverterBackend> {
         Box::new(CurrencyRateCacheBackend {
+            #[cfg(not(test))]
+            cbr: cbr::Cbr::new(),
             quotes,
             rate_cache,
             strict_mode,
@@ -142,11 +146,45 @@ impl CurrencyRateCacheBackend {
                         currency, formatting::format_date(date));
                 }
 
-                let currency_rates = get_currency_rates(currency, start_date, end_date)?;
+                let currency_rates = self.get_rates(currency, start_date, end_date)?;
                 self.rate_cache.save(currency, start_date, end_date, currency_rates)?;
 
                 self.get_price(currency, date, true)?
             },
+        })
+    }
+
+    #[cfg(not(test))]
+    fn get_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
+        Ok(self.cbr.get_rates(currency, start_date, end_date).map_err(|e| format!(
+            "Failed to get currency rates from the Central Bank of the Russian Federation: {}", e))?)
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::unnecessary_wraps)]
+    fn get_rates(&self, currency: &str, _start_date: Date, _end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
+        Ok(match currency {
+            "USD" => vec![
+                CurrencyRate {
+                    date: date!(1, 9, 2018),
+                    price: dec!(68.0447),
+                },
+                CurrencyRate {
+                    date: date!(4, 9, 2018),
+                    price: dec!(67.7443),
+                },
+            ],
+            "EUR" => vec![
+                CurrencyRate {
+                    date: date!(1, 9, 2018),
+                    price: dec!(79.4966),
+                },
+                CurrencyRate {
+                    date: date!(4, 9, 2018),
+                    price: dec!(78.6376),
+                },
+            ],
+            _ => unreachable!(),
         })
     }
 }
@@ -227,40 +265,6 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackendMock {
     fn currency_rate(&self, from: &str, to: &str, _date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)> {
         Err!("Unsupported currency rate conversion: {} -> {}", from, to)
     }
-}
-
-#[cfg(not(test))]
-fn get_currency_rates(currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    Ok(cbr::get_rates(currency, start_date, end_date).map_err(|e| format!(
-        "Failed to get currency rates from the Central Bank of the Russian Federation: {}", e))?)
-}
-
-#[cfg(test)]
-#[allow(clippy::unnecessary_wraps)]
-fn get_currency_rates(currency: &str, _start_date: Date, _end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-    Ok(match currency {
-        "USD" => vec![
-            CurrencyRate {
-                date: date!(1, 9, 2018),
-                price: dec!(68.0447),
-            },
-            CurrencyRate {
-                date: date!(4, 9, 2018),
-                price: dec!(67.7443),
-            },
-        ],
-        "EUR" => vec![
-            CurrencyRate {
-                date: date!(1, 9, 2018),
-                price: dec!(79.4966),
-            },
-            CurrencyRate {
-                date: date!(4, 9, 2018),
-                price: dec!(78.6376),
-            },
-        ],
-        _ => unreachable!(),
-    })
 }
 
 #[cfg(test)]
