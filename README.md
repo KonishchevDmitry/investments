@@ -121,7 +121,7 @@ results for multiple portfolios opened in different brokers:
 
 ### Interactive Brokers
 
-The program expects Activity Statements in *.csv format (Reports -> Statements -> Activity).
+The program expects Activity Statements in \*.csv format for broker statements (`Reports -> Statements -> Activity`).
 
 #### Recommendations
       
