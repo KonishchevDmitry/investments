@@ -121,6 +121,8 @@ results for multiple portfolios opened in different brokers:
 
 ### Interactive Brokers
 
+The program expects Activity Statements in *.csv format (Reports -> Statements -> Activity).
+
 #### Recommendations
       
 Download broker statements periodically and run the tool against them to be sure that it's still able to parse them and
