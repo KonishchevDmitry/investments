@@ -2,7 +2,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType};
+use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
 #[cfg(test)] use crate::types::Decimal;
@@ -54,31 +54,32 @@ impl CorporateActionsParser {
                 }
             };
 
-            let (from, from_change, to) = match stock_split.action {
+            let (ratio, from_change) = match stock_split.action {
                 CorporateActionType::StockSplit {
-                    from, from_change: Some(from_change),
-                    to, to_change: None,
-                } => (from, from_change, to),
+                    ratio, from_change: Some(from_change), to_change: None,
+                } => (ratio, from_change),
                 _ => unreachable!(),
             };
 
             let to_change = match corporate_action.action {
                 CorporateActionType::StockSplit {
-                    from: second_from, from_change: None,
-                    to: second_to, to_change: Some(to_change),
+                    ratio: second_ratio, from_change: None, to_change: Some(to_change),
                 } if corporate_action.date == stock_split.date &&
                     corporate_action.symbol == stock_split.symbol &&
-                    second_from == from && second_to == to => {
+                    second_ratio == ratio => {
                     to_change
                 },
-                _ => return Err!(
-                    "Unsupported stock split: {} at {}",
-                    stock_split.symbol, format_date(stock_split.date)),
+                _ => {
+                    return Err!(
+                        "Unsupported stock split: {} at {}",
+                        stock_split.symbol, format_date(stock_split.date));
+                },
             };
 
             stock_split.action = CorporateActionType::StockSplit {
-                from, from_change: Some(from_change),
-                to, to_change: Some(to_change),
+                ratio,
+                from_change: Some(from_change),
+                to_change: Some(to_change),
             };
             parser.statement.corporate_actions.push(stock_split);
         }
@@ -119,6 +120,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
             "Split" => {
                 let from: u32 = captures.name("from").unwrap().as_str().parse()?;
                 let to: u32 = captures.name("to").unwrap().as_str().parse()?;
+                let ratio = StockSplitRatio::new(from, to);
 
                 let change = record.parse_amount("Quantity", DecimalRestrictions::NonZero)?;
                 let (from_change, to_change) = if change.is_sign_positive() {
@@ -129,7 +131,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
                 CorporateAction {
                     date: execution_date, symbol,
-                    action: CorporateActionType::StockSplit{from, from_change, to, to_change},
+                    action: CorporateActionType::StockSplit{ratio, from_change, to_change},
                 }
             },
             "Spinoff" => {
@@ -178,8 +180,9 @@ mod tests {
             date: date!(31, 8, 2020),
             symbol: s!("AAPL"),
             action: CorporateActionType::StockSplit{
-                from: 1, from_change: None,
-                to: 4, to_change: Some(dec!(111)),
+                ratio: StockSplitRatio::new(1, 4),
+                from_change: None,
+                to_change: Some(dec!(111)),
             },
         });
     }
@@ -205,8 +208,8 @@ mod tests {
             date: date!(3, 8, 2020),
             symbol: s!("VISL"),
             action: CorporateActionType::StockSplit{
-                from: 6, from_change,
-                to: 1, to_change,
+                ratio: StockSplitRatio::new(6, 1),
+                from_change, to_change,
             },
         });
     }

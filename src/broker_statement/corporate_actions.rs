@@ -25,14 +25,10 @@ pub struct CorporateAction {
 #[serde(tag = "type", rename_all="kebab-case")]
 pub enum CorporateActionType {
     StockSplit {
-        #[serde(skip)]
-        from: u32,
+        ratio: StockSplitRatio,
 
         #[serde(skip)]
         from_change: Option<Decimal>,
-
-        #[serde(rename = "ratio", deserialize_with = "deserialize_ratio")]
-        to: u32,
 
         #[serde(skip)]
         to_change: Option<Decimal>,
@@ -48,30 +44,36 @@ pub enum CorporateActionType {
     }
 }
 
-fn deserialize_ratio<'de, D>(deserializer: D) -> Result<u32, D::Error>
-    where D: Deserializer<'de>
-{
-    let ratio: String = Deserialize::deserialize(deserializer)?;
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct StockSplitRatio {
+    pub from: u32,
+    pub to: u32,
+}
 
-    lazy_static! {
-        static ref REGEX: Regex = Regex::new(r"^(?P<divisor>\d+):(?P<dividend>\d+)$").unwrap();
+impl StockSplitRatio {
+    pub fn new(from: u32, to: u32) -> StockSplitRatio {
+        StockSplitRatio {from, to}
     }
+}
 
-    let (divisor, dividend) = REGEX.captures(&ratio).and_then(|captures| {
-        let divisor = captures.name("divisor").unwrap().as_str().parse::<u32>().ok();
-        let dividend = captures.name("dividend").unwrap().as_str().parse::<u32>().ok();
+impl<'de> Deserialize<'de> for StockSplitRatio {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+        let ratio: String = Deserialize::deserialize(deserializer)?;
 
-        match (divisor, dividend) {
-            (Some(divisor), Some(dividend)) if divisor > 0 && dividend > 0 => Some((divisor, dividend)),
-            _ => None,
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new(r"^(?P<to>[1-9]\d*):(?P<from>[1-9]\d*)$").unwrap();
         }
-    }).ok_or_else(|| D::Error::custom(format!("Invalid stock split ratio: {:?}", ratio)))?;
 
-    if dividend != 1 {
-        return Err(D::Error::custom(format!("Unsupported stock split ratio: {:?}", ratio)));
+        Ok(REGEX.captures(&ratio).and_then(|captures| {
+            let from = captures.name("from").unwrap().as_str().parse::<u32>().ok();
+            let to = captures.name("to").unwrap().as_str().parse::<u32>().ok();
+
+            match (from, to) {
+                (Some(from), Some(to)) => Some(StockSplitRatio::new(from, to)),
+                _ => None,
+            }
+        }).ok_or_else(|| D::Error::custom(format!("Invalid stock split ratio: {:?}", ratio)))?)
     }
-
-    Ok(divisor)
 }
 
 #[derive(Default, Debug)]

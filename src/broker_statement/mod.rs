@@ -473,8 +473,9 @@ impl BrokerStatement {
     fn apply_corporate_action(&mut self, action: CorporateAction) -> EmptyResult {
         match action.action {
             // FIXME(konishchev): Support
-            CorporateActionType::StockSplit {to, ..} => {
-                self.stock_splits.add(action.date, &action.symbol, to)?;
+            CorporateActionType::StockSplit {ratio, ..} => {
+                assert_eq!(ratio.from, 1);
+                self.stock_splits.add(action.date, &action.symbol, ratio.to)?;
             }
             CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
                 let zero = Cash::new(&currency, dec!(0));
