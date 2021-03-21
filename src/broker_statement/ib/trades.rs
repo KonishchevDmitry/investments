@@ -83,11 +83,17 @@ fn parse_stock_record(
         DecimalRestrictions::StrictlyPositive
     })?;
     if cfg!(debug_assertions) {
-        let precision = match util::decimal_precision(quantity) {
-            0 => 4,
-            _ => 6,
-        };
-        debug_assert_eq!(volume, (price * -quantity).round_to(precision));
+        let mut ok = false;
+        let expected_volume = price * -quantity;
+
+        for precision in 4..=8 {
+            if expected_volume.round_to(precision) == volume {
+                ok = true;
+                break;
+            }
+        }
+
+        debug_assert!(ok, "Got an unexpected volume {} vs {}", volume, expected_volume);
     }
 
     if quantity.is_sign_positive() {
