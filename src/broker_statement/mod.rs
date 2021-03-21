@@ -92,7 +92,7 @@ impl BrokerStatement {
     fn new_from(
         broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>,
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
-        corporate_actions: &[CorporateAction],
+        manual_corporate_actions: &[CorporateAction],
     ) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
         let last_index = statements.len() - 1;
@@ -135,24 +135,31 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
-        statement.remap_symbols(symbol_remapping)?;
-
         let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
-            .map(|trade| trade.symbol.clone()).collect();
+            .map(|trade| &trade.symbol)
+            .collect();
 
-        for action in corporate_actions {
-            if portfolio_symbols.get(&action.symbol).is_none() {
+        for corporate_action in manual_corporate_actions {
+            if portfolio_symbols.get(&corporate_action.symbol).is_none() {
                 return Err!(
                     "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
-                    action.symbol);
+                    corporate_action.symbol);
             }
-            statement.apply_corporate_action(action.clone())?;
+            statement.corporate_actions.push(corporate_action.clone());
         }
 
-        statement.instrument_names.extend(
-            instrument_names.iter().map(|(symbol, name)| (symbol.clone(), name.clone())));
-
+        statement.remap_symbols(symbol_remapping)?;
+        statement.instrument_names.extend(instrument_names.iter().map(|(symbol, name)| {
+            (symbol.clone(), name.clone())
+        }));
         statement.validate()?;
+
+        let corporate_actions = statement.corporate_actions.drain(..).collect::<Vec<_>>();
+        for action in corporate_actions {
+            statement.apply_corporate_action(action)?;
+        }
+
+        statement.validate()?; // FIXME(konishchev): Do we need it?
         statement.process_trades()?;
 
         Ok(statement)
@@ -460,10 +467,7 @@ impl BrokerStatement {
         self.stock_sells.extend(statement.stock_sells.into_iter());
         self.dividends.extend(statement.dividends.into_iter());
 
-        for action in statement.corporate_actions {
-            self.apply_corporate_action(action)?;
-        }
-
+        self.corporate_actions.extend(statement.corporate_actions.into_iter());
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.into_iter());
 
@@ -522,6 +526,12 @@ impl BrokerStatement {
         for dividend in &mut self.dividends {
             if let Some(mapping) = remapping.get(&dividend.issuer) {
                 dividend.issuer = mapping.to_owned();
+            }
+        }
+
+        for corporate_action in &mut self.corporate_actions {
+            if let Some(mapping) = remapping.get(&corporate_action.symbol) {
+                corporate_action.symbol = mapping.to_owned();
             }
         }
 
