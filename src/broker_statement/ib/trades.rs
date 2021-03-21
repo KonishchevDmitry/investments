@@ -15,7 +15,7 @@ impl RecordParser for TradesParser {
         Some(&["SubTotal", "Total"])
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_value("DataDiscriminator", "Order")?;
 
         let asset_category = record.get_value("Asset Category")?;

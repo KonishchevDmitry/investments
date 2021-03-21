@@ -11,7 +11,7 @@ impl RecordParser for OpenPositionsParser {
         Some(&["Total"])
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_values(&[
             ("DataDiscriminator", "Summary"),
             ("Asset Category", "Stocks"),
@@ -33,7 +33,7 @@ pub struct FinancialInstrumentInformationParser {
 }
 
 impl RecordParser for FinancialInstrumentInformationParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let symbol = record.get_value("Symbol")?;
 
         if parser.statement.instrument_names.insert(

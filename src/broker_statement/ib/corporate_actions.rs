@@ -4,6 +4,7 @@ use regex::Regex;
 
 use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType};
 use crate::core::{EmptyResult, GenericResult};
+use crate::formatting::format_date;
 #[cfg(test)] use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
@@ -11,16 +12,83 @@ use super::StatementParser;
 use super::common::{Record, RecordParser, parse_date_time};
 #[cfg(test)] use super::common::RecordSpec;
 
-pub struct CorporateActionsParser {}
+pub struct CorporateActionsParser {
+    corporate_actions: Vec<CorporateAction>,
+}
 
 impl RecordParser for CorporateActionsParser {
     fn skip_totals(&self) -> bool {
         true
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        let corporate_action = parse(record)?;
-        parser.statement.corporate_actions.push(corporate_action);
+    fn parse(&mut self, _parser: &mut StatementParser, record: &Record) -> EmptyResult {
+        self.corporate_actions.push(parse(record)?);
+        Ok(())
+    }
+}
+
+impl CorporateActionsParser {
+    pub fn new() -> CorporateActionsParser {
+        CorporateActionsParser {
+            corporate_actions: Vec::new(),
+        }
+    }
+
+    pub fn commit(self, parser: &mut StatementParser) -> EmptyResult {
+        // Here we postprocess parsed corporate actions:
+        // * Complex stock splits are represented by two records, so we join them here
+
+        let mut stock_split: Option<CorporateAction> = None;
+
+        for corporate_action in self.corporate_actions {
+            let mut stock_split = match stock_split.take() {
+                Some(stock_split_part) => stock_split_part,
+                _ => {
+                    match corporate_action.action {
+                        CorporateActionType::StockSplit { from_change: Some(_), .. } => {
+                            assert!(stock_split.replace(corporate_action).is_none());
+                        }
+                        _ => parser.statement.corporate_actions.push(corporate_action),
+                    }
+                    continue;
+                }
+            };
+
+            let (from, from_change, to) = match stock_split.action {
+                CorporateActionType::StockSplit {
+                    from, from_change: Some(from_change),
+                    to, to_change: None,
+                } => (from, from_change, to),
+                _ => unreachable!(),
+            };
+
+            let to_change = match corporate_action.action {
+                CorporateActionType::StockSplit {
+                    from: second_from, from_change: None,
+                    to: second_to, to_change: Some(to_change),
+                } if corporate_action.date == stock_split.date &&
+                    corporate_action.symbol == stock_split.symbol &&
+                    second_from == from && second_to == to => {
+                    to_change
+                },
+                _ => return Err!(
+                    "Unsupported stock split: {} at {}",
+                    stock_split.symbol, format_date(stock_split.date)),
+            };
+
+            stock_split.action = CorporateActionType::StockSplit {
+                from, from_change: Some(from_change),
+                to, to_change: Some(to_change),
+            };
+            parser.statement.corporate_actions.push(stock_split);
+        }
+
+        if let Some(stock_split) = stock_split {
+            return Err!(
+                "Unsupported stock split: {} at {}",
+                stock_split.symbol, format_date(stock_split.date));
+        }
+
         Ok(())
     }
 }

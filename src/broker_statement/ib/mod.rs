@@ -114,6 +114,21 @@ impl<'a> StatementParser<'a> {
             .flexible(true)
             .from_path(path)?;
 
+        let mut statement_info_parser = summary::StatementInfoParser {};
+        let mut account_information_parser = summary::AccountInformationParser {};
+        let mut change_in_nav_parser = summary::ChangeInNavParser {};
+        let mut cash_report_parser = cash::CashReportParser {};
+        let mut open_positions_parser = instruments::OpenPositionsParser {};
+        let mut corporate_actions_parser = corporate_actions::CorporateActionsParser::new();
+        let mut trades_parser = trades::TradesParser {};
+        let mut deposits_and_withdrawals_parser = cash::DepositsAndWithdrawalsParser {};
+        let mut fees_parser = fees::FeesParser {};
+        let mut dividends_parser = dividends::DividendsParser {};
+        let mut withholding_tax_parser = taxes::WithholdingTaxParser {};
+        let mut interest_parser = interest::InterestParser {};
+        let mut financial_instrument_information_parser = instruments::FinancialInstrumentInformationParser {};
+        let mut unknown_record_parser = common::UnknownRecordParser {};
+
         let mut records = reader.records();
         let mut state = Some(State::None);
 
@@ -141,21 +156,21 @@ impl<'a> StatementParser<'a> {
                 },
                 State::Header(record) => {
                     let spec = parse_header(&record);
-                    let parser: Box<dyn RecordParser> = match spec.name {
-                        "Statement" => Box::new(summary::StatementInfoParser {}),
-                        "Account Information" => Box::new(summary::AccountInformationParser {}),
-                        "Change in NAV" => Box::new(summary::ChangeInNavParser {}),
-                        "Cash Report" => Box::new(cash::CashReportParser {}),
-                        "Open Positions" => Box::new(instruments::OpenPositionsParser {}),
-                        "Corporate Actions" => Box::new(corporate_actions::CorporateActionsParser {}),
-                        "Trades" => Box::new(trades::TradesParser {}),
-                        "Deposits & Withdrawals" => Box::new(cash::DepositsAndWithdrawalsParser {}),
-                        "Fees" => Box::new(fees::FeesParser {}),
-                        "Dividends" => Box::new(dividends::DividendsParser {}),
-                        "Withholding Tax" => Box::new(taxes::WithholdingTaxParser {}),
-                        "Interest" => Box::new(interest::InterestParser {}),
-                        "Financial Instrument Information" => Box::new(instruments::FinancialInstrumentInformationParser {}),
-                        _ => Box::new(common::UnknownRecordParser {}),
+                    let parser: &mut dyn RecordParser = match spec.name {
+                        "Statement" => &mut statement_info_parser,
+                        "Account Information" => &mut account_information_parser,
+                        "Change in NAV" => &mut change_in_nav_parser,
+                        "Cash Report" => &mut cash_report_parser,
+                        "Open Positions" => &mut open_positions_parser,
+                        "Corporate Actions" => &mut corporate_actions_parser,
+                        "Trades" => &mut trades_parser,
+                        "Deposits & Withdrawals" => &mut deposits_and_withdrawals_parser,
+                        "Fees" => &mut fees_parser,
+                        "Dividends" => &mut dividends_parser,
+                        "Withholding Tax" => &mut withholding_tax_parser,
+                        "Interest" => &mut interest_parser,
+                        "Financial Instrument Information" => &mut financial_instrument_information_parser,
+                        _ => &mut unknown_record_parser,
                     };
 
                     let data_types = parser.data_types();
@@ -221,6 +236,7 @@ impl<'a> StatementParser<'a> {
             self.statement.cash_assets.get_or_insert_with(Default::default).deposit(amount);
         }
 
+        corporate_actions_parser.commit(&mut self)?;
         self.statement.validate()
     }
 
@@ -333,6 +349,7 @@ mod tests {
         "complex",
 
         "simple-with-lse",
+        // "reverse-stock-split", // FIXME(konishchev): Support
     ])]
     fn parse_real_other(name: &str) {
         parse_full(name, None);
