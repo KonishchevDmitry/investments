@@ -51,11 +51,17 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
             "Split" => {
                 let from: u32 = captures.name("from").unwrap().as_str().parse()?;
                 let to: u32 = captures.name("to").unwrap().as_str().parse()?;
+
                 let change = record.parse_amount("Quantity", DecimalRestrictions::NonZero)?;
+                let (from_change, to_change) = if change.is_sign_positive() {
+                    (None, Some(change))
+                } else {
+                    (Some(-change), None)
+                };
 
                 CorporateAction {
                     date: execution_date, symbol,
-                    action: CorporateActionType::StockSplit{from, to, change: Some(change)},
+                    action: CorporateActionType::StockSplit{from, from_change, to, to_change},
                 }
             },
             "Spinoff" => {
@@ -103,23 +109,26 @@ mod tests {
         assert_eq!(parse(&record).unwrap(), CorporateAction {
             date: date!(31, 8, 2020),
             symbol: s!("AAPL"),
-            action: CorporateActionType::StockSplit{from: 1, to: 4, change: Some(dec!(111))},
+            action: CorporateActionType::StockSplit{
+                from: 1, from_change: None,
+                to: 4, to_change: Some(dec!(111)),
+            },
         });
     }
 
-    #[rstest(record, change,
+    #[rstest(record, from_change, to_change,
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y2019)",
             "-80", "0", "0", "0", "",
-        ], dec!(-80)),
+        ], Some(dec!(80)), None),
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y3009)",
             "13.3333", "0", "0", "0", "",
-        ], dec!(13.3333)),
+        ], None, Some(dec!(13.3333))),
     )]
-    fn reverse_stock_split_parsing(record: Vec<&str>, change: Decimal) {
+    fn reverse_stock_split_parsing(record: Vec<&str>, from_change: Option<Decimal>, to_change: Option<Decimal>) {
         let spec = RecordSpec::new("test", CORPORATE_ACTION_FIELDS.clone(), 0);
         let record = StringRecord::from(record);
         let record = Record::new(&spec, &record);
@@ -127,7 +136,10 @@ mod tests {
         assert_eq!(parse(&record).unwrap(), CorporateAction {
             date: date!(3, 8, 2020),
             symbol: s!("VISL"),
-            action: CorporateActionType::StockSplit{from: 6, to: 1, change: Some(change)},
+            action: CorporateActionType::StockSplit{
+                from: 6, from_change,
+                to: 1, to_change,
+            },
         });
     }
 
