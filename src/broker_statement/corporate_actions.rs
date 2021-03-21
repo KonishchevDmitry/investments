@@ -25,8 +25,11 @@ pub struct CorporateAction {
 #[serde(tag = "type", rename_all="kebab-case")]
 pub enum CorporateActionType {
     StockSplit {
+        #[serde(skip)]
+        from: u32,
+
         #[serde(rename = "ratio", deserialize_with = "deserialize_ratio")]
-        divisor: u32
+        to: u32,
     },
 
     // See https://github.com/KonishchevDmitry/investments/issues/20 for details
