@@ -30,6 +30,9 @@ pub enum CorporateActionType {
 
         #[serde(rename = "ratio", deserialize_with = "deserialize_ratio")]
         to: u32,
+
+        #[serde(skip)]
+        change: Option<Decimal>,
     },
 
     // See https://github.com/KonishchevDmitry/investments/issues/20 for details
