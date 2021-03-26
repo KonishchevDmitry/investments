@@ -181,6 +181,8 @@ struct TradeRow {
     _28: SkipCell,
     #[column(name="Дата дог.")]
     _29: SkipCell,
+    #[column(name="Тип расчета по сделке", optional=true)]
+    _30: Option<SkipCell>,
 }
 
 impl TableReader for TradeRow {
