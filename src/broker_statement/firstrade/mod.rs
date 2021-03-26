@@ -17,7 +17,7 @@ use crate::core::GenericResult;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-use self::parser::{StatementParser, OFX};
+use self::parser::{StatementParser, Ofx};
 
 pub struct StatementReader {
     warn_on_missing_dividend_details: bool,
@@ -41,7 +41,7 @@ impl BrokerStatementReader for StatementReader {
     }
 }
 
-fn read_statement(path: &str) -> GenericResult<OFX> {
+fn read_statement(path: &str) -> GenericResult<Ofx> {
     let file = File::open(path)?;
     let size: i64 = file.metadata()?.len().try_into().unwrap();
     let mut reader = BufReader::new(file);

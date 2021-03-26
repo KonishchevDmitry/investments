@@ -192,7 +192,7 @@ impl TaxStatementWriter {
         }
 
         let buffer = Rc::clone(&self.buffer);
-        Ok(self.write_data(&buffer)?)
+        self.write_data(&buffer)
     }
 
     pub fn write_data(&mut self, data: &str) -> EmptyResult {

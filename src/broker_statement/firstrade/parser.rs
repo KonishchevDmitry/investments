@@ -19,7 +19,7 @@ pub struct StatementParser<'a> {
 }
 
 impl<'a> StatementParser<'a> {
-    pub fn parse(reader: &mut StatementReader, statement: OFX, is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    pub fn parse(reader: &mut StatementReader, statement: Ofx, is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut parser = StatementParser {
             reader,
             statement: PartialBrokerStatement::new(false),
@@ -32,7 +32,7 @@ impl<'a> StatementParser<'a> {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct OFX {
+pub struct Ofx {
     #[serde(rename = "SIGNONMSGSRSV1")]
     _signon: Ignore,
 
@@ -78,7 +78,7 @@ struct Report {
     balance: Balance,
 }
 
-impl OFX {
+impl Ofx {
     pub fn parse(self, parser: &mut StatementParser) -> EmptyResult {
         // Attention:
         //

@@ -47,12 +47,12 @@ prettytable-rs = "0.8.0"
 prometheus = "0.12.0"
 quick-xml = { version = "0.22.0", features = [ "serialize" ] }
 rayon = "1.5.0"
-regex = "1.4.4"
+regex = "1.4.5"
 reqwest = { version = "0.11.2", features = ["blocking", "json"] }
 rust_decimal = "~1.10.3"
 rust_decimal_macros = "~1.10.3"
 separator = "0.4.1"
-serde = { version = "1.0.124", features = ["derive"] }
+serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"
 serde_yaml = "0.8.17"
 serde-xml-rs = "0.4.1"
@@ -65,15 +65,15 @@ diesel_migrations = "1.4.0"
 libsqlite3-sys = { version = ">=0.8.0, <0.19.0", features = ["bundled"] }
 
 static_table_derive = "0.1.22"
-xls_table_derive = "0.4"
+xls_table_derive = "0.4.0"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
 xls_table_derive = { path = "src/xls/xls_table_derive" }
 
 [dev-dependencies]
-mockito = "0.29.0"
+mockito = "0.30.0"
 qtrac-retest = "4.0.6"
-rstest = "0.6.4"
+rstest = "0.7.0"
 tempfile = "3.2.0"
 url = "2.2.1"

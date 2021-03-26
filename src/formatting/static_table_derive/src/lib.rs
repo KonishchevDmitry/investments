@@ -135,9 +135,9 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
             }
         }
 
-        impl ::std::convert::Into<#mod_ident::Row> for #row_ident {
-            fn into(self) -> #mod_ident::Row {
-                vec![#(self.#field_idents.into(),)*]
+        impl ::std::convert::From<#row_ident> for #mod_ident::Row {
+            fn from(row: #row_ident) -> #mod_ident::Row {
+                vec![#(row.#field_idents.into(),)*]
             }
         }
     }.into())
