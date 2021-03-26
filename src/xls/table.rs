@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use regex::{self, Regex};
 
 use crate::core::GenericResult;
@@ -46,12 +47,13 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
 pub struct TableColumn {
     name: &'static str,
     regex: bool,
+    aliases: &'static [&'static str],
     optional: bool,
 }
 
 impl TableColumn {
-    pub fn new(name: &'static str, regex: bool, optional: bool) -> TableColumn {
-        TableColumn {name, regex, optional}
+    pub fn new(name: &'static str, regex: bool, aliases: &'static [&'static str], optional: bool) -> TableColumn {
+        TableColumn {name, regex, aliases, optional}
     }
 
     fn find(&self, row: &[Cell]) -> GenericResult<Option<usize>> {
@@ -82,14 +84,25 @@ impl TableColumn {
     fn matches(&self, value: &str) -> GenericResult<bool> {
         let value = value.trim();
 
-        Ok(if self.regex {
+        let matches = if self.regex {
             let name_regex = Regex::new(self.name).map_err(|_| format!(
                 "Invalid column name regex: {:?}", self.name))?;
             name_regex.is_match(value)
         } else {
             let value_regex = format!("^{}$", regex::escape(value).replace('\r', "").replace("\n", " ?"));
             Regex::new(&value_regex).unwrap().is_match(self.name)
-        })
+        };
+        if matches {
+            return Ok(true);
+        }
+
+        for &alias in self.aliases {
+            if value == alias {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 }
 
@@ -173,7 +186,14 @@ pub fn map_columns(mut row: &[Cell], columns: &[TableColumn]) -> GenericResult<C
     }
 
     if !is_empty_row(row) {
-        return Err!("The table has more columns than expected")
+        return Err!(
+            "The table has more columns than expected: {:?}",
+            row.iter().filter_map(|cell| {
+                match cell {
+                    Cell::Empty => None,
+                    _ => Some(cell.to_string()),
+                }
+            }).format(", "))
     }
 
     Ok(ColumnsMapping { mapping })
