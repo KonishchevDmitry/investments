@@ -51,7 +51,7 @@ pub fn simulate_sell(
         statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
     }
 
-    statement.process_trades()?;
+    statement.process_trades(None)?;
     let additional_commissions = statement.emulate_commissions(commission_calc)?;
 
     let stock_sells = statement.stock_sells.iter()

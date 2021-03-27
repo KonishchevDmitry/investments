@@ -6,9 +6,13 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::core::EmptyResult;
+use crate::currency::Cash;
 use crate::formatting::format_date;
 use crate::types::{Date, Decimal};
 use crate::util::deserialize_date;
+
+use super::BrokerStatement;
+use super::trades::{StockBuy, StockSource};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -134,4 +138,53 @@ impl StockSplitController {
 
         multiplier
     }
+}
+
+pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult {
+    let corporate_actions = statement.corporate_actions.drain(..).collect::<Vec<_>>();
+
+    for action in corporate_actions {
+        process_corporate_action(statement, action)?;
+    }
+
+    Ok(())
+}
+
+fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
+    match action.action {
+        CorporateActionType::StockSplit {ratio, ..} => {
+            // FIXME(konishchev): Support
+            if false {
+                /*
+                self.process_trades(Some(action.date))?;
+
+                if false {
+                    self.stock_sells.push(StockSell::new(
+                        &action.symbol, from_change.unwrap(),
+                        Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
+                        action.date, action.date, false, false,
+                    ));
+                }
+                self.stock_buys.push(StockBuy::new(
+                    &action.symbol, to_change.unwrap(), StockSource::CorporateAction,
+                    Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
+                    action.date, action.date, false,
+                ));
+                */
+            } else {
+                assert_eq!(ratio.from, 1);
+                statement.stock_splits.add(action.date, &action.symbol, ratio.to)?;
+            }
+        }
+        CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
+            let zero = Cash::new(&currency, dec!(0));
+            statement.stock_buys.push(StockBuy::new(
+                &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
+                date, action.date, false,
+            ));
+        },
+    };
+
+    statement.corporate_actions.push(action);
+    Ok(())
 }

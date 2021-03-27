@@ -41,7 +41,8 @@ use self::reader::BrokerStatementReader;
 use self::taxes::{TaxId, TaxAccruals};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
-pub use self::corporate_actions::{CorporateAction, CorporateActionType, StockSplitController};
+pub use self::corporate_actions::{
+    CorporateAction, CorporateActionType, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
@@ -154,13 +155,9 @@ impl BrokerStatement {
         }));
         statement.validate()?;
 
-        let corporate_actions = statement.corporate_actions.drain(..).collect::<Vec<_>>();
-        for action in corporate_actions {
-            statement.apply_corporate_action(action)?;
-        }
-
+        process_corporate_actions(&mut statement)?;
         statement.validate()?; // FIXME(konishchev): Do we need it?
-        statement.process_trades()?;
+        statement.process_trades(None)?;
 
         Ok(statement)
     }
@@ -319,10 +316,16 @@ impl BrokerStatement {
         Ok(total)
     }
 
-    pub fn process_trades(&mut self) -> EmptyResult {
+    pub fn process_trades(&mut self, until_date: Option<Date>) -> EmptyResult {
         let mut unsold_buys: HashMap<String, Vec<usize>> = HashMap::new();
 
         for (index, stock_buy) in self.stock_buys.iter().enumerate().rev() {
+            if let Some(until_date) = until_date {
+                if stock_buy.conclusion_date >= until_date {
+                    continue;
+                }
+            }
+
             if stock_buy.is_sold() {
                 continue;
             }
@@ -336,6 +339,12 @@ impl BrokerStatement {
         }
 
         for stock_sell in &mut self.stock_sells {
+            if let Some(until_date) = until_date {
+                if stock_sell.conclusion_date >= until_date {
+                    continue;
+                }
+            }
+
             if stock_sell.is_processed() {
                 continue;
             }
@@ -397,7 +406,11 @@ impl BrokerStatement {
             stock_sell.process(sources);
         }
 
-        self.validate_open_positions()
+        if until_date.is_none() {
+            self.validate_open_positions()?;
+        }
+
+        Ok(())
     }
 
     pub fn merge_symbols(
@@ -471,26 +484,6 @@ impl BrokerStatement {
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.into_iter());
 
-        Ok(())
-    }
-
-    fn apply_corporate_action(&mut self, action: CorporateAction) -> EmptyResult {
-        match action.action {
-            // FIXME(konishchev): Support
-            CorporateActionType::StockSplit {ratio, ..} => {
-                assert_eq!(ratio.from, 1);
-                self.stock_splits.add(action.date, &action.symbol, ratio.to)?;
-            }
-            CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
-                let zero = Cash::new(&currency, dec!(0));
-                self.stock_buys.push(StockBuy::new(
-                    &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
-                    date, action.date, false,
-                ));
-            },
-        };
-
-        self.corporate_actions.push(action);
         Ok(())
     }
 

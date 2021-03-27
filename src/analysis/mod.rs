@@ -127,7 +127,7 @@ pub fn analyse(
             Ok(())
         })?;
 
-        statement.process_trades()?;
+        statement.process_trades(None)?;
 
         for trade in statement.stock_sells.iter().rev() {
             if !trade.emulation {
