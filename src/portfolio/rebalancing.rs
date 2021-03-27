@@ -563,15 +563,13 @@ fn get_best_trade(trade_type: TradeType, best_trade: Option<PossibleTrade>, trad
                 } else {
                     trade
                 }
+            } else if match trade_type {
+                TradeType::Sell => best_trade.result > trade.result,
+                TradeType::Buy => best_trade.result < trade.result,
+            } {
+                best_trade
             } else {
-                if match trade_type {
-                    TradeType::Sell => best_trade.result > trade.result,
-                    TradeType::Buy => best_trade.result < trade.result,
-                } {
-                    best_trade
-                } else {
-                    trade
-                }
+                trade
             }
         },
         None => trade,

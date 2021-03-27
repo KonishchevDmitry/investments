@@ -19,7 +19,7 @@ fn parse_date(date: &str) -> GenericResult<Date> {
 
 pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error> where D: Deserializer<'de> {
     let date: String = Deserialize::deserialize(deserializer)?;
-    Ok(parse_date(&date).map_err(D::Error::custom)?)
+    parse_date(&date).map_err(D::Error::custom)
 }
 
 pub fn deserialize_decimal<'de, D>(deserializer: D) -> Result<Decimal, D::Error> where D: Deserializer<'de> {

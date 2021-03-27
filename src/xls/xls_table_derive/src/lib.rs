@@ -13,6 +13,7 @@ struct Column {
     field: String,
     name: String,
     regex: bool,
+    aliases: Vec<String>,
     optional: bool,
 }
 
@@ -40,7 +41,8 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
         let name = &column.name;
         let regex = column.regex;
         let optional = column.optional;
-        quote!(#mod_ident::TableColumn::new(#name, #regex, #optional))
+        let aliases = column.aliases.iter().map(|alias| quote!(#alias));
+        quote!(#mod_ident::TableColumn::new(#name, #regex, &[#(#aliases,)*], #optional))
     });
 
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
@@ -95,6 +97,8 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         #[darling(default)]
         regex: bool,
         #[darling(default)]
+        alias: String,
+        #[darling(default)]
         optional: bool,
     }
     let column_attr_name = "column";
@@ -136,6 +140,8 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             field: field_name,
             name: column_params.name,
             regex: column_params.regex,
+            // darling doesn't support Vec<String> parsing yet, so use comma-separated list for now
+            aliases: column_params.alias.split(',').map(ToOwned::to_owned).collect(),
             optional: column_params.optional,
         })
     }

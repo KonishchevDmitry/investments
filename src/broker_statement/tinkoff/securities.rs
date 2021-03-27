@@ -27,7 +27,7 @@ struct SecuritiesInfoRow {
     symbol: String,
     #[column(name="ISIN")]
     _2: SkipCell,
-    #[column(name="Номер гос.регистрации")]
+    #[column(name="Код государственной регистрации", alias="Номер гос.регистрации")]
     _3: SkipCell,
     #[column(name="Наименование эмитента")]
     _4: SkipCell,

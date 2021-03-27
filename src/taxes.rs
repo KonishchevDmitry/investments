@@ -106,7 +106,7 @@ impl TaxPaymentDaySpec {
             return Ok(TaxPaymentDaySpec::OnClose(localities::nearest_possible_account_close_date()));
         }
 
-        Ok(Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {
+        Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {
             let day = captures.name("day").unwrap().as_str().parse::<u32>().ok();
             let month = captures.name("month").unwrap().as_str().parse::<u32>().ok();
             let (day, month) = match (day, month) {
@@ -119,7 +119,7 @@ impl TaxPaymentDaySpec {
             }
 
             Some(TaxPaymentDaySpec::Day {month, day})
-        }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))?)
+        }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))
     }
 }
 
