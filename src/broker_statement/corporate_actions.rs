@@ -64,7 +64,7 @@ impl<'de> Deserialize<'de> for StockSplitRatio {
             static ref REGEX: Regex = Regex::new(r"^(?P<to>[1-9]\d*):(?P<from>[1-9]\d*)$").unwrap();
         }
 
-        Ok(REGEX.captures(&ratio).and_then(|captures| {
+        REGEX.captures(&ratio).and_then(|captures| {
             let from = captures.name("from").unwrap().as_str().parse::<u32>().ok();
             let to = captures.name("to").unwrap().as_str().parse::<u32>().ok();
 
@@ -72,7 +72,7 @@ impl<'de> Deserialize<'de> for StockSplitRatio {
                 (Some(from), Some(to)) => Some(StockSplitRatio::new(from, to)),
                 _ => None,
             }
-        }).ok_or_else(|| D::Error::custom(format!("Invalid stock split ratio: {:?}", ratio)))?)
+        }).ok_or_else(|| D::Error::custom(format!("Invalid stock split ratio: {:?}", ratio)))
     }
 }
 
