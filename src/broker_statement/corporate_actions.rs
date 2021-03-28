@@ -7,14 +7,15 @@ use regex::{self, Regex};
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
-use crate::core::EmptyResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::formatting::format_date;
+use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
 use crate::util::deserialize_date;
 
 use super::BrokerStatement;
-use super::trades::{StockBuy, StockSellSource, StockSource};
+use super::trades::{StockBuy, StockSell, StockSellSource, StockSource};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -158,7 +159,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         CorporateActionType::StockSplit {ratio, ..} => {
             // FIXME(konishchev): Support
             // FIXME(konishchev): Tax exemptions
-            if false {
+            if true {
                 process_complex_stock_split(statement, action.date, &action.symbol, ratio)?;
             } else {
                 assert_eq!(ratio.from, 1);
@@ -202,7 +203,7 @@ fn process_complex_stock_split(
 
     if sell_sources.is_empty() {
         return Err!(
-            "Got {} stock split ({}) when portfolio has no open positions with it",
+            "Got {} stock split at {} when portfolio has no open positions with it",
             symbol, format_date(date));
     }
 
@@ -214,41 +215,50 @@ fn process_complex_stock_split(
     let new_quantity: Decimal = (ratio.to.to_u64().unwrap() * lots.to_u64().unwrap()).into();
     debug!("{} stock split: {} -> {}.", symbol, quantity, new_quantity);
 
-    convert_stocks(symbol, quantity, sell_sources)?;
-    // FIXME(konishchev): HERE
-    /*
-    if false {
-        self.stock_sells.push(StockSell::new(
-            &action.symbol, from_change.unwrap(),
-            Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
-            action.date, action.date, false, false,
-        ));
-    }
-    self.stock_buys.push(StockBuy::new(
-        &action.symbol, to_change.unwrap(), StockSource::CorporateAction,
-        Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
-        action.date, action.date, false,
-    ));
-    */
+    // FIXME(konishchev): Wrap error
+    let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources)?;
+    statement.stock_sells.push(sell);
+    statement.stock_buys.push(buy);
 
     Ok(())
 }
 
 fn convert_stocks(
-    symbol: &str, _old_quantity: Decimal, sell_sources: Vec<StockSellSource>,
-) -> EmptyResult {
+    date: Date, symbol: &str, old_quantity: Decimal, new_quantity: Decimal,
+    sell_sources: Vec<StockSellSource>,
+) -> GenericResult<(StockSell, StockBuy)> {
     let mut volume = Cash::new(sell_sources.first().unwrap().volume.currency, dec!(0));
     let mut commission = Cash::new(sell_sources.first().unwrap().commission.currency, dec!(0));
 
     for source in &sell_sources {
         volume.add_assign(source.volume).and_then(|_| {
             commission.add_assign(source.commission)
-        }).map_err(|_| format!("Unsupported {} stock split: buy trades have mixed currency", symbol))?;
+        }).map_err(|_| "Buy trades have mixed currency")?;
     }
 
-    // StockSell::new(symbol, old_quantity)
+    if commission.currency == volume.currency {
+        volume.amount += commission.amount;
+        commission.amount = dec!(0);
+    }
 
-    Ok(())
+    // FIXME(konishchev): Local cost
+    let sell_price = calculate_price(old_quantity, volume)?;
+    let mut sell = StockSell::new(
+        // FIXME(konishchev): Sell type
+        symbol, old_quantity, sell_price, volume, commission,
+        date, date, false, false,
+    );
+    sell.process(sell_sources);
+
+    // FIXME(konishchev): Local cost
+    let buy_price = calculate_price(new_quantity, volume)?;
+    let buy = StockBuy::new(
+        // FIXME(konishchev): Buy type
+        symbol, new_quantity, StockSource::CorporateAction,
+        buy_price, volume, commission, date, date, false,
+    );
+
+    Ok((sell, buy))
 }
 
 fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32> {
