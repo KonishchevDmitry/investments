@@ -66,6 +66,10 @@ impl<'a> Record<'a> {
         parse_date(self.get_value(field)?)
     }
 
+    pub fn parse_date_time(&self, field: &str) -> GenericResult<DateTime> {
+        parse_date_time(self.get_value(field)?)
+    }
+
     pub fn parse_amount(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let value = self.get_value(field)?;
         Ok(util::parse_decimal(&value.replace(',', ""), restrictions).map_err(|_| format!(

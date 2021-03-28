@@ -9,7 +9,7 @@ use crate::formatting::format_date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_date_time};
+use super::common::{Record, RecordParser};
 #[cfg(test)] use super::common::RecordSpec;
 
 pub struct CorporateActionsParser {
@@ -100,7 +100,8 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
         return Err!("Unsupported asset category of corporate action: {:?}", asset_category);
     }
 
-    let execution_date = record.parse_date("Report Date")?;
+    let date = record.parse_date_time("Date/Time")?.date();
+    let report_date = Some(record.parse_date("Report Date")?);
 
     let description = util::fold_spaces(record.get_value("Description")?);
     let description = description.as_ref();
@@ -130,19 +131,17 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 };
 
                 CorporateAction {
-                    date: execution_date, symbol,
+                    date, report_date, symbol,
                     action: CorporateActionType::StockSplit{ratio, from_change, to_change},
                 }
             },
             "Spinoff" => {
-                let conclusion_date = parse_date_time(record.get_value("Date/Time")?)?.date();
                 let quantity = record.parse_amount("Quantity", DecimalRestrictions::StrictlyPositive)?;
                 let currency = record.get_value("Currency")?.to_owned();
 
                 CorporateAction {
-                    date: execution_date, symbol,
+                    date, report_date, symbol,
                     action: CorporateActionType::Spinoff {
-                        date: conclusion_date,
                         symbol: captures.name("child_symbol").unwrap().as_str().to_owned(),
                         quantity, currency,
                     },
@@ -177,7 +176,9 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date: date!(31, 8, 2020),
+            date: date!(28, 8, 2020),
+            report_date: Some(date!(31, 8, 2020)),
+
             symbol: s!("AAPL"),
             action: CorporateActionType::StockSplit{
                 ratio: StockSplitRatio::new(1, 4),
@@ -205,7 +206,9 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date: date!(3, 8, 2020),
+            date: date!(31, 7, 2020),
+            report_date: Some(date!(3, 8, 2020)),
+
             symbol: s!("VISL"),
             action: CorporateActionType::StockSplit{
                 ratio: StockSplitRatio::new(6, 1),
@@ -225,10 +228,11 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date: date!(17, 11, 2020),
+            date: date!(16, 11, 2020),
+            report_date: Some(date!(17, 11, 2020)),
+
             symbol: s!("PFE"),
             action: CorporateActionType::Spinoff {
-                date: date!(16, 11, 2020),
                 symbol: s!("VTRS"),
                 quantity: dec!(9.3059),
                 currency: s!("USD"),

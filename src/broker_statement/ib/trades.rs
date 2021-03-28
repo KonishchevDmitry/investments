@@ -6,7 +6,7 @@ use crate::types::Date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_date_time};
+use super::common::{Record, RecordParser};
 
 pub struct TradesParser {}
 
@@ -20,7 +20,7 @@ impl RecordParser for TradesParser {
 
         let asset_category = record.get_value("Asset Category")?;
         let symbol = record.get_value("Symbol")?;
-        let conclusion_date = parse_date_time(record.get_value("Date/Time")?)?.date();
+        let conclusion_date = record.parse_date_time("Date/Time")?.date();
 
         match asset_category {
             "Forex" => parse_forex_record(parser, record, symbol, conclusion_date),

@@ -20,11 +20,24 @@ use super::trades::{StockBuy, StockSell, StockSellSource, StockSource};
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct CorporateAction {
+    // Date when the corporate action has occurred (assuming that the changes have been made at the
+    // end of trading day).
     #[serde(deserialize_with = "deserialize_date")]
     pub date: Date,
+
+    // Report date from IB statements. Typically, it's T+1 date, so use it as trade execution date.
+    #[serde(skip)]
+    pub report_date: Option<Date>,
+
     pub symbol: String,
     #[serde(flatten)]
     pub action: CorporateActionType,
+}
+
+impl CorporateAction {
+    fn execution_date(&self) -> Date {
+        self.report_date.unwrap_or_else(|| self.date.succ())
+    }
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -44,7 +57,6 @@ pub enum CorporateActionType {
     // See https://github.com/KonishchevDmitry/investments/issues/20 for details
     #[serde(skip)]
     Spinoff {
-        date: Date,
         symbol: String,
         quantity: Decimal,
         currency: String,
@@ -159,18 +171,18 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         CorporateActionType::StockSplit {ratio, ..} => {
             // FIXME(konishchev): Support
             // FIXME(konishchev): Tax exemptions
-            if true {
+            if false {
                 process_complex_stock_split(statement, action.date, &action.symbol, ratio)?;
             } else {
                 assert_eq!(ratio.from, 1);
                 statement.stock_splits.add(action.date, &action.symbol, ratio.to)?;
             }
         }
-        CorporateActionType::Spinoff {date, ref symbol, quantity, ref currency} => {
+        CorporateActionType::Spinoff {ref symbol, quantity, ref currency} => {
             let zero = Cash::new(&currency, dec!(0));
             statement.stock_buys.push(StockBuy::new(
                 &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
-                date, action.date, false,
+                action.date, action.execution_date(), false,
             ));
         },
     };
