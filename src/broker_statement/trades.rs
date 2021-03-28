@@ -14,17 +14,22 @@ pub struct ForexTrade {
     pub conclusion_date: Date,
 }
 
-#[derive(Debug)]
-pub enum StockSource {
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum StockBuyType {
+    // Ordinary trade
     Trade,
+
+    // FIXME(konishchev): HERE
+    // Emulated sell to convert position during stock split
+    // Conversion,
     CorporateAction,
 }
 
 #[derive(Debug)]
 pub struct StockBuy {
+    pub type_: StockBuyType,
     pub symbol: String,
     pub quantity: Decimal,
-    pub source: StockSource,
 
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
@@ -41,12 +46,12 @@ pub struct StockBuy {
 
 impl StockBuy {
     pub fn new(
-        symbol: &str, quantity: Decimal, source: StockSource,
+        type_: StockBuyType, symbol: &str, quantity: Decimal,
         price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(), quantity, source, price, volume, commission,
+            type_, symbol: symbol.to_owned(), quantity, price, volume, commission,
             conclusion_date, execution_date, margin, sold: dec!(0),
         }
     }
@@ -86,6 +91,15 @@ impl StockBuy {
     }
 }
 
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum StockSellType {
+    // Ordinary trade
+    Trade,
+
+    // Emulated sell to convert position during stock split
+    Conversion,
+}
+
 #[derive(Clone, Debug)]
 pub struct StockSell {
     pub type_: StockSellType,
@@ -102,15 +116,6 @@ pub struct StockSell {
 
     pub emulation: bool,
     sources: Vec<StockSellSource>,
-}
-
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub enum StockSellType {
-    // Ordinary trade
-    Trade,
-
-    // Emulated sell to convert position during stock split
-    Conversion,
 }
 
 impl StockSell {

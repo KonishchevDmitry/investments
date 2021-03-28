@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell, StockSellType, StockSource};
+use crate::broker_statement::trades::{ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType};
 use crate::core::EmptyResult;
 use crate::types::Date;
 use crate::util::{self, DecimalRestrictions};
@@ -98,7 +98,7 @@ fn parse_stock_record(
 
     if quantity.is_sign_positive() {
         parser.statement.stock_buys.push(StockBuy::new(
-            symbol, quantity, StockSource::Trade, price, -volume, commission,
+            StockBuyType::Trade, symbol, quantity, price, -volume, commission,
             conclusion_date, execution_date, false));
     } else {
         parser.statement.stock_sells.push(StockSell::new(

@@ -3,7 +3,7 @@ use num_traits::Zero;
 use serde::Deserialize;
 
 use crate::broker_statement::{
-    StockBuy, StockSell, StockSellType, StockSource, IdleCashInterest, Dividend};
+    StockBuy, StockBuyType, StockSell, StockSellType, IdleCashInterest, Dividend};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
@@ -235,7 +235,7 @@ impl StockTradeTransaction {
 
         if buy {
             parser.statement.stock_buys.push(StockBuy::new(
-                &symbol, quantity, StockSource::Trade, price, volume, commission,
+                StockBuyType::Trade, &symbol, quantity, price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date, false));
         } else {
             parser.statement.stock_sells.push(StockSell::new(

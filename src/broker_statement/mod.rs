@@ -49,7 +49,7 @@ pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::taxes::TaxWithholding;
 pub use self::trades::{
-    ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, SellDetails,
+    ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType, StockSellSource, SellDetails,
     FifoDetails};
 
 #[derive(Debug)]
