@@ -1,6 +1,8 @@
 use std::collections::{HashMap, BTreeMap, btree_map};
 
 use lazy_static::lazy_static;
+use log::debug;
+use num_traits::{ToPrimitive, Zero};
 use regex::{self, Regex};
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
@@ -154,23 +156,9 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
     match action.action {
         CorporateActionType::StockSplit {ratio, ..} => {
             // FIXME(konishchev): Support
+            // FIXME(konishchev): Tax exemptions
             if false {
-                /*
-                self.process_trades(Some(action.date))?;
-
-                if false {
-                    self.stock_sells.push(StockSell::new(
-                        &action.symbol, from_change.unwrap(),
-                        Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
-                        action.date, action.date, false, false,
-                    ));
-                }
-                self.stock_buys.push(StockBuy::new(
-                    &action.symbol, to_change.unwrap(), StockSource::CorporateAction,
-                    Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
-                    action.date, action.date, false,
-                ));
-                */
+                process_complex_stock_split(statement, action.date, &action.symbol, ratio)?;
             } else {
                 assert_eq!(ratio.from, 1);
                 statement.stock_splits.add(action.date, &action.symbol, ratio.to)?;
@@ -187,4 +175,67 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
 
     statement.corporate_actions.push(action);
     Ok(())
+}
+
+fn process_complex_stock_split(
+    statement: &mut BrokerStatement,
+    date: Date, symbol: &str, ratio: StockSplitRatio,
+) -> EmptyResult {
+    statement.process_trades(Some(date))?;
+
+    let mut quantity = dec!(0);
+    let mut sell_sources = Vec::new();
+
+    for stock_buy in &mut statement.stock_buys {
+        if stock_buy.symbol != symbol || stock_buy.is_sold() || stock_buy.conclusion_date >= date {
+            continue;
+        }
+
+        let multiplier = statement.stock_splits.get_multiplier(
+            symbol, stock_buy.conclusion_date, date);
+
+        let sell_source = stock_buy.sell(stock_buy.get_unsold(), multiplier);
+        quantity += sell_source.quantity * sell_source.multiplier;
+        sell_sources.push(sell_source);
+    }
+
+    let lots = get_stock_split_lots(quantity, ratio).ok_or_else(|| format!(
+        "Unsupported {} stock split from {}: {} for {} when portfolio has {} shares",
+        symbol, format_date(date), ratio.to, ratio.from, quantity,
+    ))?;
+
+    let new_quantity: Decimal = (ratio.to.to_u64().unwrap() * lots.to_u64().unwrap()).into();
+    debug!("{} stock split: {} -> {}.", symbol, quantity, new_quantity);
+
+    // FIXME(konishchev): HERE
+    /*
+    if false {
+        self.stock_sells.push(StockSell::new(
+            &action.symbol, from_change.unwrap(),
+            Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
+            action.date, action.date, false, false,
+        ));
+    }
+    self.stock_buys.push(StockBuy::new(
+        &action.symbol, to_change.unwrap(), StockSource::CorporateAction,
+        Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)), Cash::new("USD", dec!(0)),
+        action.date, action.date, false,
+    ));
+    */
+
+    Ok(())
+}
+
+fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32> {
+    if !quantity.fract().is_zero() {
+        return None;
+    }
+
+    quantity.to_u32().and_then(|quantity| {
+        if quantity % ratio.from == 0 {
+            Some(quantity / ratio.from)
+        } else {
+            None
+        }
+    })
 }

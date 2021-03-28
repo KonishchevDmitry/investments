@@ -59,9 +59,30 @@ impl StockBuy {
         self.quantity - self.sold
     }
 
-    pub fn sell(&mut self, quantity: Decimal) {
+    pub fn sell(&mut self, quantity: Decimal, multiplier: Decimal) -> StockSellSource {
         assert!(self.get_unsold() >= quantity);
         self.sold += quantity;
+
+        let (volume, commission) = if quantity == self.quantity {
+            (self.volume, self.commission)
+        } else {
+            (
+                self.price * quantity,
+                self.commission / self.quantity * quantity,
+            )
+        };
+
+        StockSellSource {
+            quantity,
+            multiplier,
+
+            price: self.price,
+            volume,
+            commission,
+
+            conclusion_date: self.conclusion_date,
+            execution_date: self.execution_date,
+        }
     }
 }
 
