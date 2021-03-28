@@ -129,6 +129,7 @@ pub fn analyse(
 
         statement.process_trades(None)?;
 
+        // FIXME(konishchev): HERE
         for trade in statement.stock_sells.iter().rev() {
             if !trade.emulation {
                 break;

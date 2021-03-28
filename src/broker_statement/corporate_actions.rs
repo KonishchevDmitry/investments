@@ -201,6 +201,7 @@ fn process_complex_stock_split(
     let mut quantity = dec!(0);
     let mut sell_sources = Vec::new();
 
+    // FIXME(konishchev): HERE
     for stock_buy in &mut statement.stock_buys {
         if stock_buy.symbol != symbol || stock_buy.is_sold() || stock_buy.conclusion_date >= date {
             continue;

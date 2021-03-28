@@ -41,10 +41,12 @@ impl CashFlowMapper {
             self.forex_trade(trade);
         }
 
+        // FIXME(konishchev): HERE
         for trade in &statement.stock_sells {
             self.stock_sell(&statement.get_instrument_name(&trade.symbol), trade);
         }
 
+        // FIXME(konishchev): HERE
         for trade in &statement.stock_buys {
             self.stock_buy(&statement.get_instrument_name(&trade.symbol), trade);
         }

@@ -137,6 +137,7 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
+        // FIXME(konishchev): HERE
         let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
             .map(|trade| &trade.symbol)
             .collect();
@@ -266,6 +267,7 @@ impl BrokerStatement {
         let conclusion_date = util::today_trade_conclusion_date();
         let mut execution_date = util::today_trade_execution_date();
 
+        // FIXME(konishchev): HERE
         for trade in self.stock_sells.iter().rev() {
             if trade.execution_date > execution_date {
                 execution_date = trade.execution_date;
@@ -320,6 +322,7 @@ impl BrokerStatement {
     pub fn process_trades(&mut self, until_date: Option<Date>) -> EmptyResult {
         let mut unsold_buys: HashMap<String, Vec<usize>> = HashMap::new();
 
+        // FIXME(konishchev): HERE
         for (index, stock_buy) in self.stock_buys.iter().enumerate().rev() {
             if let Some(until_date) = until_date {
                 if stock_buy.conclusion_date >= until_date {
@@ -339,6 +342,7 @@ impl BrokerStatement {
             symbol_buys.push(index);
         }
 
+        // FIXME(konishchev): HERE
         for stock_sell in &mut self.stock_sells {
             if let Some(until_date) = until_date {
                 if stock_sell.conclusion_date >= until_date {
@@ -397,7 +401,9 @@ impl BrokerStatement {
         &mut self, symbols_to_merge: &HashMap<String, HashSet<String>>, strict: bool,
     ) -> EmptyResult {
         assert!(self.open_positions.is_empty());
+        // FIXME(konishchev): HERE
         assert!(!self.stock_buys.iter().any(|stock_buy| !stock_buy.is_sold()));
+        // FIXME(konishchev): HERE
         assert!(!self.stock_sells.iter().any(|stock_sell| !stock_sell.is_processed()));
 
         let mut symbol_mapping: HashMap<&String, &String> = HashMap::new();
@@ -414,12 +420,14 @@ impl BrokerStatement {
             }
         }
 
+        // FIXME(konishchev): HERE
         for stock_buy in &mut self.stock_buys {
             if let Some(&symbol) = symbol_mapping.get(&stock_buy.symbol) {
                 stock_buy.symbol = symbol.clone();
             }
         }
 
+        // FIXME(konishchev): HERE
         for stock_sell in &mut self.stock_sells {
             if let Some(&symbol) = symbol_mapping.get(&stock_sell.symbol) {
                 stock_sell.symbol = symbol.clone();
@@ -484,12 +492,14 @@ impl BrokerStatement {
             }
         }
 
+        // FIXME(konishchev): HERE
         for stock_buy in &mut self.stock_buys {
             if let Some(mapping) = remapping.get(&stock_buy.symbol) {
                 stock_buy.symbol = mapping.to_owned();
             }
         }
 
+        // FIXME(konishchev): HERE
         for stock_sell in &mut self.stock_sells {
             if let Some(mapping) = remapping.get(&stock_sell.symbol) {
                 stock_sell.symbol = mapping.to_owned();
@@ -533,11 +543,13 @@ impl BrokerStatement {
         date_validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
+        // FIXME(konishchev): HERE
         if !self.stock_buys.is_empty() {
             sort_and_validate_trades("buy", &mut self.stock_buys)?;
             date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
         }
 
+        // FIXME(konishchev): HERE
         if !self.stock_sells.is_empty() {
             sort_and_validate_trades("sell", &mut self.stock_sells)?;
             date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
@@ -569,6 +581,7 @@ impl BrokerStatement {
     fn validate_open_positions(&self) -> EmptyResult {
         let mut open_positions: HashMap<&str, Decimal> = HashMap::new();
 
+        // FIXME(konishchev): HERE
         for stock_buy in &self.stock_buys {
             if stock_buy.is_sold() {
                 continue;

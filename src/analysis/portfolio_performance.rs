@@ -264,6 +264,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let mut taxes = NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day());
         let mut stock_taxes = HashMap::new();
 
+        // FIXME(konishchev): HERE
         for trade in &statement.stock_buys {
             let multiplier = statement.stock_splits.get_multiplier(
                 &trade.symbol, trade.conclusion_date, self.today);
@@ -281,6 +282,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             deposit_view.transaction(trade.conclusion_date, assets);
         }
 
+        // FIXME(konishchev): HERE
         for trade in &statement.stock_sells {
             let multiplier = statement.stock_splits.get_multiplier(
                 &trade.symbol, trade.conclusion_date, self.today);
