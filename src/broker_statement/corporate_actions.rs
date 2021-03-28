@@ -12,7 +12,7 @@ use crate::currency::Cash;
 use crate::formatting::format_date;
 use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
-use crate::util::deserialize_date;
+use crate::util::{self, deserialize_date};
 
 use super::BrokerStatement;
 use super::trades::{StockBuy, StockSell, StockSellSource, StockSource};
@@ -167,15 +167,15 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
-        // FIXME(konishchev): Support other fields
-        CorporateActionType::StockSplit {ratio, ..} => {
+        CorporateActionType::StockSplit {ratio, from_change, to_change} => {
             // FIXME(konishchev): Support
             // FIXME(konishchev): Tax exemptions
-            if false {
-                process_complex_stock_split(statement, action.date, &action.symbol, ratio)?;
-            } else {
-                assert_eq!(ratio.from, 1);
+            if ratio.from == 1 {
                 statement.stock_splits.add(action.date, &action.symbol, ratio.to)?;
+            } else {
+                process_complex_stock_split(
+                    statement, action.date, &action.symbol, ratio,
+                    from_change, to_change)?;
             }
         }
         CorporateActionType::Spinoff {ref symbol, quantity, ref currency} => {
@@ -194,6 +194,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
 fn process_complex_stock_split(
     statement: &mut BrokerStatement,
     date: Date, symbol: &str, ratio: StockSplitRatio,
+    from_change: Option<Decimal>, to_change: Option<Decimal>,
 ) -> EmptyResult {
     statement.process_trades(Some(date))?;
 
@@ -218,21 +219,70 @@ fn process_complex_stock_split(
             "Got {} stock split at {} when portfolio has no open positions with it",
             symbol, format_date(date));
     }
+    assert_ne!(quantity, dec!(0));
 
-    let lots = get_stock_split_lots(quantity, ratio).ok_or_else(|| format!(
-        "Unsupported {} stock split from {}: {} for {} when portfolio has {} shares",
-        symbol, format_date(date), ratio.to, ratio.from, quantity,
-    ))?;
-
-    let new_quantity: Decimal = (ratio.to.to_u64().unwrap() * lots.to_u64().unwrap()).into();
-    debug!("{} stock split: {} -> {}.", symbol, quantity, new_quantity);
+    let new_quantity = calculate_stock_split(date, symbol, quantity, ratio, from_change, to_change)?;
+    debug!("{} stock split from {}: {} -> {}.", symbol, format_date(date), quantity, new_quantity);
 
     // FIXME(konishchev): Wrap error
     let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources)?;
+    // FIXME(konishchev): Sort
     statement.stock_sells.push(sell);
     statement.stock_buys.push(buy);
 
     Ok(())
+}
+
+fn calculate_stock_split(
+    date: Date, symbol: &str, quantity: Decimal, ratio: StockSplitRatio,
+    from_change: Option<Decimal>, to_change: Option<Decimal>,
+) -> GenericResult<Decimal> {
+    Ok(if let Some(lots) = get_stock_split_lots(quantity, ratio) {
+        let new_quantity = (ratio.to.to_u64().unwrap() * lots.to_u64().unwrap()).into();
+
+        if from_change.is_some() || to_change.is_some() {
+            let from_change = from_change.unwrap_or_else(Decimal::zero);
+            let to_change = to_change.unwrap_or_else(Decimal::zero);
+
+            if quantity - from_change + to_change != new_quantity {
+                return Err!(
+                    "Got unexpected parameters for {} stock split from {}: {} - {} + {} != {}",
+                    symbol, format_date(date), quantity, from_change, to_change, new_quantity);
+            }
+        }
+
+        new_quantity
+    } else {
+        let new_quantity = match (from_change, to_change) {
+            (Some(from_change), Some(to_change)) if from_change == quantity => to_change,
+            _ => return Err!(
+                "Unsupported {} stock split from {}: {} for {} when portfolio has {} shares",
+                symbol, format_date(date), ratio.to, ratio.from, quantity),
+        };
+
+        let expected_quantity = quantity / Decimal::from(ratio.from) * Decimal::from(ratio.to);
+        if util::round(expected_quantity, 2) != util::round(new_quantity, 2) {
+            return Err!(
+                "Unexpected result of {} stock split from {}: {} / {} * {} = {} when {} is expected",
+                symbol, format_date(date), quantity, ratio.from, ratio.to, new_quantity, expected_quantity);
+        }
+
+        new_quantity
+    })
+}
+
+fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32> {
+    if !quantity.fract().is_zero() {
+        return None;
+    }
+
+    quantity.to_u32().and_then(|quantity| {
+        if quantity % ratio.from == 0 {
+            Some(quantity / ratio.from)
+        } else {
+            None
+        }
+    })
 }
 
 fn convert_stocks(
@@ -271,18 +321,4 @@ fn convert_stocks(
     );
 
     Ok((sell, buy))
-}
-
-fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32> {
-    if !quantity.fract().is_zero() {
-        return None;
-    }
-
-    quantity.to_u32().and_then(|quantity| {
-        if quantity % ratio.from == 0 {
-            Some(quantity / ratio.from)
-        } else {
-            None
-        }
-    })
 }

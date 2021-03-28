@@ -349,7 +349,7 @@ mod tests {
         "complex",
 
         "simple-with-lse",
-        // "reverse-stock-split", // FIXME(konishchev): Support
+        "reverse-stock-split",
     ])]
     fn parse_real_other(name: &str) {
         parse_full(name, None);
