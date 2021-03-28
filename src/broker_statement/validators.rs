@@ -7,8 +7,8 @@ use crate::types::Date;
 use super::{StockBuy, StockSell};
 
 pub struct DateValidator {
-    min_date: Date,
-    max_date: Date,
+    pub min_date: Date,
+    pub max_date: Date,
 }
 
 impl DateValidator {
@@ -17,17 +17,18 @@ impl DateValidator {
     }
 
     pub fn sort_and_validate<T>(&self, name: &str, objects: &mut [T], get_date: fn(&T) -> Date) -> EmptyResult {
-        if !objects.is_empty() {
-            objects.sort_by_key(get_date);
-            self.validate(name, objects, get_date)?;
-        }
-
+        objects.sort_by_key(get_date);
+        self.validate(name, objects, get_date)?;
         Ok(())
     }
 
     pub fn validate<T>(&self, name: &str, objects: &[T], get_date: fn(&T) -> Date) -> EmptyResult {
+        if objects.is_empty() {
+            return Ok(());
+        }
+
         let first_date = get_date(objects.first().unwrap());
-        let last_date = get_date(objects.first().unwrap());
+        let last_date = get_date(objects.last().unwrap());
 
         if first_date < self.min_date {
             return Err!("Got {} outside of statement period: {}",

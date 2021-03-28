@@ -184,6 +184,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
                 StockBuyType::CorporateAction, &symbol, quantity, zero, zero, zero,
                 action.date, action.execution_date(), false,
             ));
+            statement.sort_and_validate_stock_buys()?;
         },
     };
 
@@ -227,9 +228,12 @@ fn process_complex_stock_split(
 
     // FIXME(konishchev): Wrap error
     let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources)?;
-    // FIXME(konishchev): Sort
+
     statement.stock_sells.push(sell);
+    statement.sort_and_validate_stock_sells()?;
+
     statement.stock_buys.push(buy);
+    statement.sort_and_validate_stock_buys()?;
 
     Ok(())
 }

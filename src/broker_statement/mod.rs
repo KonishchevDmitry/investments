@@ -492,14 +492,12 @@ impl BrokerStatement {
             }
         }
 
-        // FIXME(konishchev): HERE
         for stock_buy in &mut self.stock_buys {
             if let Some(mapping) = remapping.get(&stock_buy.symbol) {
                 stock_buy.symbol = mapping.to_owned();
             }
         }
 
-        // FIXME(konishchev): HERE
         for stock_sell in &mut self.stock_sells {
             if let Some(mapping) = remapping.get(&stock_sell.symbol) {
                 stock_sell.symbol = mapping.to_owned();
@@ -522,16 +520,13 @@ impl BrokerStatement {
     }
 
     fn validate(&mut self) -> EmptyResult {
-        let max_date = self.last_date();
-        let date_validator = DateValidator::new(self.period.0, max_date);
+        let date_validator = self.date_validator();
 
         date_validator.sort_and_validate(
             "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
-        if !self.fees.is_empty() {
-            self.sort_and_alter_fees(max_date);
-            date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
-        }
+        self.sort_and_alter_fees(date_validator.max_date);
+        date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
         date_validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
@@ -543,27 +538,20 @@ impl BrokerStatement {
         date_validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
-        // FIXME(konishchev): HERE
-        if !self.stock_buys.is_empty() {
-            sort_and_validate_trades("buy", &mut self.stock_buys)?;
-            date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
-        }
+        self.sort_and_validate_stock_buys()?;
+        self.sort_and_validate_stock_sells()?;
 
-        // FIXME(konishchev): HERE
-        if !self.stock_sells.is_empty() {
-            sort_and_validate_trades("sell", &mut self.stock_sells)?;
-            date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
-        }
-
-        if !self.dividends.is_empty() {
-            self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
-            date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
-        }
+        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+        date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 
         date_validator.sort_and_validate(
             "a corporate action", &mut self.corporate_actions, |action| action.date)?;
 
         Ok(())
+    }
+
+    fn date_validator(&self) -> DateValidator {
+        DateValidator::new(self.period.0, self.last_date())
     }
 
     fn sort_and_alter_fees(&mut self, max_date: Date) {
@@ -576,6 +564,18 @@ impl BrokerStatement {
         }
 
         self.fees.sort_by_key(|fee| fee.date);
+    }
+
+    fn sort_and_validate_stock_buys(&mut self) -> EmptyResult {
+        let date_validator = self.date_validator();
+        sort_and_validate_trades("buy", &mut self.stock_buys)?;
+        date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)
+    }
+
+    fn sort_and_validate_stock_sells(&mut self) -> EmptyResult {
+        let date_validator = self.date_validator();
+        sort_and_validate_trades("sell", &mut self.stock_sells)?;
+        date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)
     }
 
     fn validate_open_positions(&self) -> EmptyResult {

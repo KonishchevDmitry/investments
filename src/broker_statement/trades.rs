@@ -19,9 +19,9 @@ pub enum StockBuyType {
     // Ordinary trade
     Trade,
 
-    // FIXME(konishchev): HERE
-    // Emulated sell to convert position during stock split
-    // Conversion,
+    // Non-trade operation due to a corporate action that doesn't affect cash balance:
+    // * Emulated buy to convert position during stock split
+    // * Spinoff or stock dividend
     CorporateAction,
 }
 
@@ -31,7 +31,7 @@ pub struct StockBuy {
     pub symbol: String,
     pub quantity: Decimal,
 
-    // Please note that all of the following values can be zero due to corporate actions or other
+    // Please note that all of the following values may be zero due to corporate actions or other
     // non-trade operations:
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
@@ -96,7 +96,8 @@ pub enum StockSellType {
     // Ordinary trade
     Trade,
 
-    // Emulated sell to convert position during stock split
+    // Non-trade operation due to a corporate action that doesn't affect cash balance:
+    // * Emulated sell to convert position during stock split
     Conversion,
 }
 
