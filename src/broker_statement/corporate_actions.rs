@@ -14,7 +14,7 @@ use crate::types::{Date, Decimal};
 use crate::util::deserialize_date;
 
 use super::BrokerStatement;
-use super::trades::{StockBuy, StockSource};
+use super::trades::{StockBuy, StockSellSource, StockSource};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -154,6 +154,7 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
+        // FIXME(konishchev): Support other fields
         CorporateActionType::StockSplit {ratio, ..} => {
             // FIXME(konishchev): Support
             // FIXME(konishchev): Tax exemptions
@@ -199,6 +200,12 @@ fn process_complex_stock_split(
         sell_sources.push(sell_source);
     }
 
+    if sell_sources.is_empty() {
+        return Err!(
+            "Got {} stock split ({}) when portfolio has no open positions with it",
+            symbol, format_date(date));
+    }
+
     let lots = get_stock_split_lots(quantity, ratio).ok_or_else(|| format!(
         "Unsupported {} stock split from {}: {} for {} when portfolio has {} shares",
         symbol, format_date(date), ratio.to, ratio.from, quantity,
@@ -207,6 +214,7 @@ fn process_complex_stock_split(
     let new_quantity: Decimal = (ratio.to.to_u64().unwrap() * lots.to_u64().unwrap()).into();
     debug!("{} stock split: {} -> {}.", symbol, quantity, new_quantity);
 
+    convert_stocks(symbol, quantity, sell_sources)?;
     // FIXME(konishchev): HERE
     /*
     if false {
@@ -222,6 +230,23 @@ fn process_complex_stock_split(
         action.date, action.date, false,
     ));
     */
+
+    Ok(())
+}
+
+fn convert_stocks(
+    symbol: &str, _old_quantity: Decimal, sell_sources: Vec<StockSellSource>,
+) -> EmptyResult {
+    let mut volume = Cash::new(sell_sources.first().unwrap().volume.currency, dec!(0));
+    let mut commission = Cash::new(sell_sources.first().unwrap().commission.currency, dec!(0));
+
+    for source in &sell_sources {
+        volume.add_assign(source.volume).and_then(|_| {
+            commission.add_assign(source.commission)
+        }).map_err(|_| format!("Unsupported {} stock split: buy trades have mixed currency", symbol))?;
+    }
+
+    // StockSell::new(symbol, old_quantity)
 
     Ok(())
 }
