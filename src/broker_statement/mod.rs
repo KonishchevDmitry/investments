@@ -49,7 +49,8 @@ pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::taxes::TaxWithholding;
 pub use self::trades::{
-    ForexTrade, StockBuy, StockSource, StockSell, StockSellSource, SellDetails, FifoDetails};
+    ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, SellDetails,
+    FifoDetails};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -279,7 +280,7 @@ impl BrokerStatement {
             conclusion_date, TradeType::Sell, quantity, price)?;
 
         let stock_sell = StockSell::new(
-            symbol, quantity, price, price * quantity, commission,
+            StockSellType::Trade, symbol, quantity, price, price * quantity, commission,
             conclusion_date, execution_date, false, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {

@@ -2,7 +2,7 @@ use num_traits::{FromPrimitive, Zero};
 
 use xls_table_derive::XlsTableRow;
 
-use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell, StockSource};
+use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell, StockSellType, StockSource};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
@@ -103,8 +103,8 @@ impl SectionParser for TradesParser {
                         })
                     } else {
                         parser.statement.stock_sells.push(StockSell::new(
-                            &trade.symbol, quantity.into(), price, volume, commission,
-                            conclusion_date, execution_date, false, false));
+                            StockSellType::Trade, &trade.symbol, quantity.into(), price, volume,
+                            commission, conclusion_date, execution_date, false, false));
                     }
                 },
                 _ => return Err!("Unsupported trade operation: {:?}", trade.operation),

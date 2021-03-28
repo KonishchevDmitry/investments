@@ -88,8 +88,10 @@ impl StockBuy {
 
 #[derive(Clone, Debug)]
 pub struct StockSell {
+    pub type_: StockSellType,
     pub symbol: String,
     pub quantity: Decimal,
+
     pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
@@ -102,13 +104,22 @@ pub struct StockSell {
     sources: Vec<StockSellSource>,
 }
 
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum StockSellType {
+    // Ordinary trade
+    Trade,
+
+    // Emulated sell to convert position during stock split
+    Conversion,
+}
+
 impl StockSell {
     pub fn new(
-        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
+        type_: StockSellType, symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool, emulation: bool,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
+            type_, symbol: symbol.to_owned(), quantity, price, volume, commission,
             conclusion_date, execution_date, margin,
             emulation, sources: Vec::new(),
         }

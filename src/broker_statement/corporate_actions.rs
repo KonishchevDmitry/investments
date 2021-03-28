@@ -15,7 +15,7 @@ use crate::types::{Date, Decimal};
 use crate::util::{self, deserialize_date};
 
 use super::BrokerStatement;
-use super::trades::{StockBuy, StockSell, StockSellSource, StockSource};
+use super::trades::{StockBuy, StockSell, StockSellType, StockSellSource, StockSource};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -307,7 +307,7 @@ fn convert_stocks(
     let sell_price = calculate_price(old_quantity, volume)?;
     let mut sell = StockSell::new(
         // FIXME(konishchev): Sell type
-        symbol, old_quantity, sell_price, volume, commission,
+        StockSellType::Conversion, symbol, old_quantity, sell_price, volume, commission,
         date, date, false, false,
     );
     sell.process(sell_sources);
