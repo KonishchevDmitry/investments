@@ -1,8 +1,8 @@
 use num_traits::Zero;
 
 use crate::broker_statement::{
-    BrokerStatement, ForexTrade, StockBuy, StockBuyType, StockSell, Dividend, Fee, IdleCashInterest,
-    TaxWithholding};
+    BrokerStatement, ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType, Dividend, Fee,
+    IdleCashInterest, TaxWithholding};
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
@@ -41,12 +41,10 @@ impl CashFlowMapper {
             self.forex_trade(trade);
         }
 
-        // FIXME(konishchev): HERE
         for trade in &statement.stock_sells {
             self.stock_sell(&statement.get_instrument_name(&trade.symbol), trade);
         }
 
-        // FIXME(konishchev): HERE
         for trade in &statement.stock_buys {
             self.stock_buy(&statement.get_instrument_name(&trade.symbol), trade);
         }
@@ -107,21 +105,23 @@ impl CashFlowMapper {
                     self.add(trade.conclusion_date, -trade.commission, description);
                 };
             },
-            StockBuyType::CorporateAction => {
-                assert!(trade.volume.amount.is_zero());
-                assert!(trade.commission.amount.is_zero());
-            },
-        }
+            StockBuyType::CorporateAction => {},
+        };
     }
 
     fn stock_sell(&mut self, name: &str, trade: &StockSell) {
-        let description = format!("Продажа {} {}", trade.quantity, name);
-        self.add(trade.conclusion_date, trade.volume, description);
+        match trade.type_ {
+            StockSellType::Trade => {
+                let description = format!("Продажа {} {}", trade.quantity, name);
+                self.add(trade.conclusion_date, trade.volume, description);
 
-        if !trade.commission.is_zero() {
-            let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
-            self.add(trade.conclusion_date, -trade.commission, description);
-        };
+                if !trade.commission.is_zero() {
+                    let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
+                    self.add(trade.conclusion_date, -trade.commission, description);
+                };
+            },
+            StockSellType::CorporateAction => {},
+        }
     }
 
     fn dividend(&mut self, name: &str, dividend: &Dividend) {
