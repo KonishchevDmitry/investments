@@ -346,6 +346,7 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
+    // FIXME(konishchev): HERE
     fn process_fifo(&mut self, security: &str, trade_id: usize, buy_trade: &FifoDetails, first: bool) -> EmptyResult {
         self.same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
         self.same_currency &= buy_trade.price.currency == self.country.currency &&
@@ -382,13 +383,15 @@ impl<'a> TradesProcessor<'a> {
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
 
-            cost: buy_trade.cost,
-            local_cost: buy_trade.local_cost,
+            // FIXME(konishchev): HERE
+            cost: buy_trade.cost(buy_trade.price.currency, self.converter)?,
+            local_cost: buy_trade.cost(self.country.currency, self.converter)?,
 
             commission: buy_trade.commission,
             local_commission: buy_trade.local_commission,
 
-            total_local_cost: buy_trade.total_local_cost,
+            // FIXME(konishchev): HERE
+            total_local_cost: buy_trade.total_cost(self.country.currency, self.converter)?,
             tax_free: if buy_trade.tax_exemption_applied {
                 Some("✔".to_owned())
             } else {

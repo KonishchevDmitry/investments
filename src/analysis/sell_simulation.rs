@@ -1,6 +1,6 @@
 use static_table_derive::StaticTable;
 
-use crate::broker_statement::{BrokerStatement, StockSell};
+use crate::broker_statement::{BrokerStatement, StockSell, StockSellType};
 use crate::commissions::CommissionCalc;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
@@ -149,6 +149,8 @@ fn print_results(
     let mut tax_exemptions = false;
 
     for trade in stock_sells {
+        assert_eq!(trade.type_, StockSellType::Trade);
+
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
         tax_exemptions |= details.tax_exemption_applied();
@@ -168,9 +170,9 @@ fn print_results(
         let price_precision = std::cmp::max(2, util::decimal_precision(trade.price.amount));
         let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
 
+        // FIXME(konishchev): HERE
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            purchase_cost.amount += converter.convert_to_rounding(
-                buy_trade.execution_date, buy_trade.cost, purchase_cost.currency)?;
+            purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
 
             fifo_table.add_row(FifoRow {
                 symbol: if index == 0 {

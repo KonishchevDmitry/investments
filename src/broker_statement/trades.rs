@@ -163,6 +163,7 @@ impl StockSell {
             self.symbol, formatting::format_date(self.conclusion_date), e))?)
     }
 
+    // FIXME(konishchev): Support corporate actions
     fn calculate_impl(
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
@@ -184,7 +185,10 @@ impl StockSell {
 
         for source in &self.sources {
             let source_quantity = source.quantity * source.multiplier;
+
             let mut source_details = FifoDetails::new(source, country, converter)?;
+            let source_total_cost = source_details.total_cost(currency, converter)?;
+            let source_total_local_cost = source_details.total_cost(country.currency, converter)?;
 
             let mut tax_exemptible = false;
             for tax_exemption in tax_exemptions {
@@ -203,7 +207,7 @@ impl StockSell {
 
                 let source_local_profit = source_local_revenue
                     .sub(source_local_commission).unwrap()
-                    .sub(source_details.total_local_cost).unwrap();
+                    .sub(source_total_local_cost).unwrap();
 
                 source_details.tax_exemption_applied = source_local_profit.is_positive();
             }
@@ -213,12 +217,10 @@ impl StockSell {
                 tax_free_quantity += source_quantity;
             }
 
-            let source_total_cost = source_details.total_cost(currency, converter)?;
             purchase_cost.add_assign(source_total_cost).unwrap();
-
-            purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
+            purchase_local_cost.add_assign(source_total_local_cost).unwrap();
             if !source_details.tax_exemption_applied {
-                deductible_purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
+                deductible_purchase_local_cost.add_assign(source_total_local_cost).unwrap();
             }
 
             fifo.push(source_details);
@@ -355,6 +357,7 @@ impl SellDetails {
 }
 
 pub struct FifoDetails {
+    pub type_: StockBuyType,
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
@@ -367,9 +370,7 @@ pub struct FifoDetails {
     pub commission: Cash,
     pub local_commission: Cash,
     // and:
-    pub cost: Cash,
-    pub local_cost: Cash,
-    pub total_local_cost: Cash,
+    cost: Cash,
 
     pub tax_exemption_applied: bool,
 }
@@ -377,14 +378,14 @@ pub struct FifoDetails {
 impl FifoDetails {
     fn new(source: &StockSellSource, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
         let cost = source.volume.round();
-        let local_cost = converter.convert_to_cash_rounding(
-            source.execution_date, cost, country.currency)?;
-
         let commission = source.commission.round();
         let local_commission = converter.convert_to_cash_rounding(
             source.conclusion_date, commission, country.currency)?;
 
+        // FIXME(konishchev): Purchase transactions
         Ok(FifoDetails {
+            // FIXME(konishchev): Fill
+            type_: StockBuyType::Trade,
             quantity: source.quantity,
             multiplier: source.multiplier,
 
@@ -396,15 +397,19 @@ impl FifoDetails {
             local_commission,
 
             cost,
-            local_cost,
-            total_local_cost: local_cost.add(local_commission).unwrap(),
 
             tax_exemption_applied: false,
         })
     }
 
+    // FIXME(konishchev): Purchase transactions
+    pub fn cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        converter.convert_to_cash_rounding(self.execution_date, self.cost, currency)
+    }
+
+    // FIXME(konishchev): Purchase transactions
     pub fn total_cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let cost = converter.convert_to_cash_rounding(self.execution_date, self.cost, currency)?;
+        let cost = self.cost(currency, converter)?;
         let commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
         Ok(cost.add(commission).unwrap())
     }
