@@ -1,5 +1,3 @@
-use num_traits::Zero;
-
 use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType, Dividend, Fee,
     IdleCashInterest, TaxWithholding};

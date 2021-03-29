@@ -317,6 +317,7 @@ fn convert_stocks(
     );
     sell.process(sell_sources);
 
+    // FIXME(konishchev): Ensure zero tax
     // FIXME(konishchev): Local cost
     let buy_price = calculate_price(new_quantity, volume)?;
     let buy = StockBuy::new(

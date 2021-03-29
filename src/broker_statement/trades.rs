@@ -37,6 +37,12 @@ pub struct StockBuy {
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
 
+    // On stock split we generate fake sell+buy transactions for position conversion, but it gets us
+    // into currency revaluation issues, so we have to keep original date+amount pairs for proper
+    // calculation in other currencies.
+    // FIXME(konishchev): When to fill?
+    purchase_transactions: Vec<PurchaseTransaction>,
+
     pub conclusion_date: Date,
     pub execution_date: Date,
     pub margin: bool,
@@ -52,7 +58,8 @@ impl StockBuy {
     ) -> StockBuy {
         StockBuy {
             type_, symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, margin, sold: dec!(0),
+            purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
+            sold: dec!(0),
         }
     }
 
@@ -303,6 +310,12 @@ pub struct StockSellSource {
 
     pub conclusion_date: Date,
     pub execution_date: Date,
+}
+
+#[derive(Clone, Debug)]
+struct PurchaseTransaction {
+    date: Date,
+    cost: Cash,
 }
 
 pub struct SellDetails {
