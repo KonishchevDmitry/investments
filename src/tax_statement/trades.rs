@@ -7,7 +7,7 @@ use log::warn;
 use static_table_derive::StaticTable;
 
 use crate::brokers::Broker;
-use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails, Fee};
+use crate::broker_statement::{BrokerStatement, StockBuyType, StockSell, SellDetails, FifoDetails, Fee};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -36,6 +36,7 @@ pub fn process_income(
 
         same_dates: true,
         same_currency: true,
+        non_trade_sources: false,
         stock_splits: false,
         tax_exemptions: false,
 
@@ -66,6 +67,7 @@ struct TradesProcessor<'a> {
 
     same_dates: bool,
     same_currency: bool,
+    non_trade_sources: bool,
     stock_splits: bool,
     tax_exemptions: bool,
 
@@ -128,7 +130,7 @@ struct FifoRow {
     #[column(name="Дата сделки")]
     conclusion_date: Date,
     #[column(name="Дата расчета")]
-    execution_date: Date,
+    execution_date: Option<Date>,
     #[column(name="Ценная бумага")]
     security: String,
     #[column(name="Кол.")]
@@ -151,6 +153,8 @@ struct FifoRow {
     local_commission: Cash,
     #[column(name="Общие затраты")]
     total_local_cost: Cash,
+    #[column(name="Источник", align="center")]
+    source: String,
     #[column(name="Льгота", align="center")]
     tax_free: Option<String>,
 }
@@ -346,25 +350,38 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    // FIXME(konishchev): HERE
     fn process_fifo(&mut self, security: &str, trade_id: usize, buy_trade: &FifoDetails, first: bool) -> EmptyResult {
-        self.same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
-        self.same_currency &= buy_trade.price.currency == self.country.currency &&
-            buy_trade.commission.currency == self.country.currency;
         self.stock_splits |= buy_trade.multiplier != dec!(1);
 
-        let conclusion_currency_rate = if buy_trade.commission.currency != self.country.currency {
-            Some(self.converter.precise_currency_rate(
-                buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?)
-        } else {
-            None
-        };
+        let mut execution_date = None;
+        let mut conclusion_currency_rate = None;
+        let mut execution_currency_rate = None;
 
-        let execution_currency_rate = if buy_trade.price.currency != self.country.currency {
-            Some(self.converter.precise_currency_rate(
-                buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?)
-        } else {
-            None
+        let source = match buy_trade.type_ {
+            StockBuyType::Trade => {
+                self.same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
+                self.same_currency &=
+                    buy_trade.price.currency == self.country.currency &&
+                    buy_trade.commission.currency == self.country.currency;
+
+                execution_date.replace(buy_trade.execution_date);
+
+                if buy_trade.commission.currency != self.country.currency {
+                    conclusion_currency_rate.replace(self.converter.precise_currency_rate(
+                        buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?);
+                };
+
+                if buy_trade.price.currency != self.country.currency {
+                    execution_currency_rate.replace(self.converter.precise_currency_rate(
+                        buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?);
+                };
+
+                "Покупка"
+            },
+            StockBuyType::CorporateAction => {
+                self.non_trade_sources = true;
+                "Корп. действие"
+            },
         };
 
         self.fifo_table.add_row(FifoRow {
@@ -374,14 +391,15 @@ impl<'a> TradesProcessor<'a> {
                 None
             },
             conclusion_date: buy_trade.conclusion_date,
-            execution_date: buy_trade.execution_date,
+            execution_date,
             security: security.to_owned(),
             quantity: buy_trade.quantity,
             multiplier: buy_trade.multiplier,
 
+            // FIXME(konishchev): HERE: All below
             price: buy_trade.price,
-            conclusion_currency_rate: conclusion_currency_rate,
-            execution_currency_rate: execution_currency_rate,
+            conclusion_currency_rate,
+            execution_currency_rate,
 
             // FIXME(konishchev): HERE
             cost: buy_trade.cost(buy_trade.price.currency, self.converter)?,
@@ -392,6 +410,7 @@ impl<'a> TradesProcessor<'a> {
 
             // FIXME(konishchev): HERE
             total_local_cost: buy_trade.total_cost(self.country.currency, self.converter)?,
+            source: source.to_owned(),
             tax_free: if buy_trade.tax_exemption_applied {
                 Some("✔".to_owned())
             } else {
@@ -466,8 +485,11 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.hide_local_cost();
             self.fifo_table.hide_local_commission();
         }
+        if !self.non_trade_sources {
+            self.fifo_table.hide_source();
+        }
         if !self.stock_splits {
-            self.fifo_table.hide_multiplier()
+            self.fifo_table.hide_multiplier();
         }
         if !self.tax_exemptions {
             self.trades_table.hide_taxable_local_profit();
