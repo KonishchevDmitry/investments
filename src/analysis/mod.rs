@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::brokers::Broker;
-use crate::broker_statement::BrokerStatement;
+use crate::broker_statement::{BrokerStatement, StockSellType};
 use crate::commissions::CommissionCalc;
 use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{GenericResult, EmptyResult};
@@ -129,12 +129,12 @@ pub fn analyse(
 
         statement.process_trades(None)?;
 
-        // FIXME(konishchev): HERE
         for trade in statement.stock_sells.iter().rev() {
             if !trade.emulation {
                 break;
             }
 
+            assert_eq!(trade.type_, StockSellType::Trade);
             let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 

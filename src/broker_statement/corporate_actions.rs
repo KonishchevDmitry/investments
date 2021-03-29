@@ -312,7 +312,7 @@ fn convert_stocks(
     let sell_price = calculate_price(old_quantity, volume)?;
     let mut sell = StockSell::new(
         // FIXME(konishchev): Sell type
-        StockSellType::Conversion, symbol, old_quantity, sell_price, volume, commission,
+        StockSellType::CorporateAction, symbol, old_quantity, sell_price, volume, commission,
         date, date, false, false,
     );
     sell.process(sell_sources);

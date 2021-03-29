@@ -54,7 +54,6 @@ pub fn simulate_sell(
     statement.process_trades(None)?;
     let additional_commissions = statement.emulate_commissions(commission_calc)?;
 
-    // FIXME(konishchev): HERE
     let stock_sells = statement.stock_sells.iter()
         .filter(|stock_sell| stock_sell.emulation)
         .cloned().collect::<Vec<_>>();

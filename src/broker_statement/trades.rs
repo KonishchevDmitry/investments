@@ -96,9 +96,10 @@ pub enum StockSellType {
     // Ordinary trade
     Trade,
 
-    // Non-trade operation due to a corporate action that doesn't affect cash balance:
+    // Non-trade operation due to a corporate action that doesn't affect cash balance and doesn't
+    // lead to any taxes:
     // * Emulated sell to convert position during stock split
-    Conversion,
+    CorporateAction,
 }
 
 #[derive(Clone, Debug)]
