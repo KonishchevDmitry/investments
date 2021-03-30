@@ -172,6 +172,7 @@ fn print_results(
 
         // FIXME(konishchev): HERE
         for (index, buy_trade) in details.fifo.iter().enumerate() {
+            let price = buy_trade.price(trade.price.currency, converter)?;
             purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
 
             fifo_table.add_row(FifoRow {
@@ -181,7 +182,7 @@ fn print_results(
                    None
                 },
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
-                price: (buy_trade.price / buy_trade.multiplier).normalize(),
+                price: (price / buy_trade.multiplier).normalize(),
                 tax_free: if buy_trade.tax_exemption_applied {
                     Some("✔".to_owned())
                 } else {

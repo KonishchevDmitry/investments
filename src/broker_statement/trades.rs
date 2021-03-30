@@ -383,8 +383,8 @@ pub struct FifoDetails {
     // FIXME(konishchev): Deprecated:
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
-    pub price: Cash,
-    pub commission: Cash,
+    price: Cash,
+    commission: Cash,
     // and:
     cost: Cash,
 
@@ -427,6 +427,11 @@ impl FifoDetails {
 
             tax_exemption_applied: false,
         })
+    }
+
+    // FIXME(konishchev): Implement
+    pub fn price(&self, _currency: &str, _converter: &CurrencyConverter) -> GenericResult<Cash> {
+        Ok(self.price)
     }
 
     // FIXME(konishchev): Purchase transactions
