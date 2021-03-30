@@ -5,6 +5,7 @@ use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{IncomeType, TaxExemption};
 use crate::types::{Date, Decimal};
+use crate::util;
 
 #[derive(Debug)]
 pub struct ForexTrade {
@@ -314,12 +315,6 @@ pub struct StockSellSource {
     pub execution_date: Date,
 }
 
-#[derive(Clone, Debug)]
-struct PurchaseTransaction {
-    date: Date,
-    cost: Cash,
-}
-
 pub struct SellDetails {
     pub revenue: Cash,
     pub local_revenue: Cash,
@@ -380,13 +375,12 @@ pub struct FifoDetails {
     pub execution_date: Date,
 
     pub type_: StockSourceDetails,
+    cost: PurchaseCost,
     // FIXME(konishchev): Deprecated:
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
     price: Cash,
-    commission: Cash,
-    // and:
-    cost: Cash,
+    simple_cost: Cash,
 
     pub tax_exemption_applied: bool,
 }
@@ -420,10 +414,9 @@ impl FifoDetails {
                 cost,
                 local_cost,
             },
+            cost: PurchaseCost::new(source.conclusion_date, source.execution_date, cost, commission),
             price: source.price,
-            commission,
-
-            cost,
+            simple_cost: cost,
 
             tax_exemption_applied: false,
         })
@@ -436,13 +429,66 @@ impl FifoDetails {
 
     // FIXME(konishchev): Purchase transactions
     pub fn cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        converter.convert_to_cash_rounding(self.execution_date, self.cost, currency)
+        converter.convert_to_cash_rounding(self.execution_date, self.simple_cost, currency)
     }
 
     // FIXME(konishchev): Purchase transactions
     pub fn total_cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let cost = self.cost(currency, converter)?;
-        let commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
-        Ok(cost.add(commission).unwrap())
+        self.cost.calculate(None, currency, converter)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PurchaseCost {
+    fractions: Vec<Decimal>,
+    transactions: Vec<PurchaseTransaction>,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum PurchaseCostType {
+    Trade,
+    Commission,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PurchaseTransaction {
+    date: Date,
+    type_: PurchaseCostType,
+    cost: Cash,
+}
+
+impl PurchaseTransaction {
+    fn new(date: Date, type_: PurchaseCostType, cost: Cash) -> PurchaseTransaction {
+        PurchaseTransaction {date, type_, cost}
+    }
+}
+
+impl PurchaseCost {
+    fn new(conclusion_date: Date, execution_date: Date, volume: Cash, commission: Cash) -> PurchaseCost {
+        PurchaseCost {
+            fractions: Vec::new(),
+            transactions: vec![
+                PurchaseTransaction::new(execution_date, PurchaseCostType::Trade, volume),
+                PurchaseTransaction::new(conclusion_date, PurchaseCostType::Commission, commission),
+            ],
+        }
+    }
+
+    fn calculate(&self, type_: Option<PurchaseCostType>, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let mut cost = dec!(0);
+
+        for transaction in &self.transactions {
+            match type_ {
+                Some(type_) if type_ != transaction.type_ => continue,
+                _ => {},
+            };
+            cost += converter.convert_to_rounding(transaction.date, transaction.cost, currency)?;
+        }
+
+        for fraction in &self.fractions {
+            cost = util::round(cost * fraction, 2)
+        }
+
+        Ok(Cash::new(currency, cost))
     }
 }
