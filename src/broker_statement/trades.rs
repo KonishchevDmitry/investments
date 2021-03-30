@@ -356,19 +356,35 @@ impl SellDetails {
     }
 }
 
+pub enum StockSourceDetails {
+    Trade {
+        price: Cash,
+        volume: Cash,
+
+        commission: Cash,
+        local_commission: Cash,
+
+        cost: Cash,
+        local_cost: Cash,
+    },
+    // FIXME(konishchev): Remove
+    #[allow(dead_code)]
+    CorporateAction,
+}
+
 pub struct FifoDetails {
-    pub type_: StockBuyType,
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
 
+    pub type_: StockSourceDetails,
+    // FIXME(konishchev): Deprecated:
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
     pub price: Cash,
     pub commission: Cash,
-    pub local_commission: Cash,
     // and:
     cost: Cash,
 
@@ -378,23 +394,34 @@ pub struct FifoDetails {
 impl FifoDetails {
     fn new(source: &StockSellSource, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
         let cost = source.volume.round();
+        let local_cost = converter.convert_to_cash_rounding(
+            source.execution_date, cost, country.currency)?;
+
         let commission = source.commission.round();
         let local_commission = converter.convert_to_cash_rounding(
             source.conclusion_date, commission, country.currency)?;
 
         // FIXME(konishchev): Purchase transactions
         Ok(FifoDetails {
-            // FIXME(konishchev): Fill
-            type_: StockBuyType::Trade,
             quantity: source.quantity,
             multiplier: source.multiplier,
 
             conclusion_date: source.conclusion_date,
             execution_date: source.execution_date,
 
+            // FIXME(konishchev): Fill
+            type_: StockSourceDetails::Trade {
+                price: source.price,
+                volume: cost,
+
+                commission,
+                local_commission,
+
+                cost,
+                local_cost,
+            },
             price: source.price,
             commission,
-            local_commission,
 
             cost,
 

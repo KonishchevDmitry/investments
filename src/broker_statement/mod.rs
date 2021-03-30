@@ -49,8 +49,8 @@ pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::taxes::TaxWithholding;
 pub use self::trades::{
-    ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType, StockSellSource, SellDetails,
-    FifoDetails};
+    ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType, StockSellSource, StockSourceDetails,
+    SellDetails, FifoDetails};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
