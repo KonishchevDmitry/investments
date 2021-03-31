@@ -366,7 +366,7 @@ impl<'a> TradesProcessor<'a> {
         let mut cost_cell = None;
         let mut local_cost_cell = None;
 
-        let source = match trade.type_ {
+        let source = match trade.source {
             StockSourceDetails::Trade {price, commission, local_commission, cost, local_cost, ..} => {
                 self.same_dates &= trade.execution_date == trade.conclusion_date;
                 self.same_currency &=

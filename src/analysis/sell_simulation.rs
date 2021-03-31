@@ -1,6 +1,6 @@
 use static_table_derive::StaticTable;
 
-use crate::broker_statement::{BrokerStatement, StockSell, StockSellType};
+use crate::broker_statement::{BrokerStatement, StockSell, StockSellType, StockSourceDetails};
 use crate::commissions::CommissionCalc;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
@@ -172,7 +172,15 @@ fn print_results(
 
         // FIXME(konishchev): HERE
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            let price = buy_trade.price(trade.price.currency, converter)?;
+            // FIXME(konishchev): Change currency?
+            let price = match buy_trade.source {
+                StockSourceDetails::Trade {price, ..} => {
+                    buy_trade.price(price.currency, converter)?
+                },
+                StockSourceDetails::CorporateAction => {
+                    buy_trade.price(trade.price.currency, converter)?
+                }
+            };
             purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
 
             fifo_table.add_row(FifoRow {

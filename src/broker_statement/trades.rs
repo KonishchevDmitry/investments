@@ -4,6 +4,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{IncomeType, TaxExemption};
+use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -89,9 +90,15 @@ impl StockBuy {
             quantity,
             multiplier,
 
-            price: self.price,
             volume,
             commission,
+            // FIXME(konishchev): Fill properly
+            type_: StockSource::Trade {
+                price: self.price,
+                volume,
+                commission,
+            },
+            cost: PurchaseCost::new(self.conclusion_date, self.execution_date, volume, commission),
 
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
@@ -164,13 +171,11 @@ impl StockSell {
             self.symbol, formatting::format_date(self.conclusion_date), e))?)
     }
 
-    // FIXME(konishchev): Support corporate actions
     fn calculate_impl(
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
         let currency = self.price.currency;
-
         let local_conclusion = |value| converter.convert_to_cash_rounding(
             self.conclusion_date, value, country.currency);
         let local_execution = |value| converter.convert_to_cash_rounding(
@@ -191,26 +196,29 @@ impl StockSell {
             let source_total_cost = source_details.total_cost(currency, converter)?;
             let source_total_local_cost = source_details.total_cost(country.currency, converter)?;
 
-            let mut tax_exemptible = false;
-            for tax_exemption in tax_exemptions {
-                let (exemptible, force) = tax_exemption.is_applicable();
-                tax_exemptible |= exemptible;
-                if force {
-                    source_details.tax_exemption_applied = true;
-                    break;
+            if let StockSellType::Trade = self.type_ {
+                let mut tax_exemptible = false;
+
+                for tax_exemption in tax_exemptions {
+                    let (exemptible, force) = tax_exemption.is_applicable();
+                    tax_exemptible |= exemptible;
+                    if force {
+                        source_details.tax_exemption_applied = true;
+                        break;
+                    }
                 }
-            }
 
-            if tax_exemptible && !source_details.tax_exemption_applied {
-                let source_local_revenue = local_execution(self.price * source_quantity)?;
-                let source_local_commission = local_conclusion(
-                    self.commission * source_quantity / self.quantity)?;
+                if tax_exemptible && !source_details.tax_exemption_applied {
+                    let source_local_revenue = local_execution(self.price * source_quantity)?;
+                    let source_local_commission = local_conclusion(
+                        self.commission * source_quantity / self.quantity)?;
 
-                let source_local_profit = source_local_revenue
-                    .sub(source_local_commission).unwrap()
-                    .sub(source_total_local_cost).unwrap();
+                    let source_local_profit = source_local_revenue
+                        .sub(source_local_commission).unwrap()
+                        .sub(source_total_local_cost).unwrap();
 
-                source_details.tax_exemption_applied = source_local_profit.is_positive();
+                    source_details.tax_exemption_applied = source_local_profit.is_positive();
+                }
             }
 
             total_quantity += source_quantity;
@@ -305,14 +313,28 @@ pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
+    // FIXME(konishchev): Deprecate
     // Please note that the following values can be zero due to corporate actions or other non-trade
     // operations:
-    pub price: Cash,
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
+    type_: StockSource,
+    cost: PurchaseCost,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum StockSource {
+    Trade {
+        price: Cash,
+        volume: Cash,
+        commission: Cash,
+    },
+    // FIXME(konishchev): Remove
+    #[allow(dead_code)]
+    CorporateAction,
 }
 
 pub struct SellDetails {
@@ -351,22 +373,6 @@ impl SellDetails {
     }
 }
 
-pub enum StockSourceDetails {
-    Trade {
-        price: Cash,
-        volume: Cash,
-
-        commission: Cash,
-        local_commission: Cash,
-
-        cost: Cash,
-        local_cost: Cash,
-    },
-    // FIXME(konishchev): Remove
-    #[allow(dead_code)]
-    CorporateAction,
-}
-
 pub struct FifoDetails {
     pub quantity: Decimal,
     pub multiplier: Decimal,
@@ -374,28 +380,50 @@ pub struct FifoDetails {
     pub conclusion_date: Date,
     pub execution_date: Date,
 
-    pub type_: StockSourceDetails,
+    pub source: StockSourceDetails,
     cost: PurchaseCost,
-    // FIXME(konishchev): Deprecated:
-    // Please note that all of the following values can be zero due to corporate actions or other
-    // non-trade operations:
-    price: Cash,
-    simple_cost: Cash,
 
     pub tax_exemption_applied: bool,
 }
 
+pub enum StockSourceDetails {
+    Trade {
+        price: Cash,
+
+        commission: Cash,
+        local_commission: Cash,
+
+        cost: Cash,
+        local_cost: Cash,
+    },
+    CorporateAction,
+}
+
 impl FifoDetails {
     fn new(source: &StockSellSource, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        let cost = source.volume.round();
-        let local_cost = converter.convert_to_cash_rounding(
-            source.execution_date, cost, country.currency)?;
+        let details = match source.type_ {
+            StockSource::Trade {price, volume, mut commission} => {
+                let cost = volume.round();
+                let local_cost = converter.convert_to_cash_rounding(
+                    source.execution_date, cost, country.currency)?;
 
-        let commission = source.commission.round();
-        let local_commission = converter.convert_to_cash_rounding(
-            source.conclusion_date, commission, country.currency)?;
+                commission = commission.round();
+                let local_commission = converter.convert_to_cash_rounding(
+                    source.conclusion_date, commission, country.currency)?;
 
-        // FIXME(konishchev): Purchase transactions
+                StockSourceDetails::Trade {
+                    price,
+
+                    commission,
+                    local_commission,
+
+                    cost,
+                    local_cost,
+                }
+            },
+            StockSource::CorporateAction => StockSourceDetails::CorporateAction,
+        };
+
         Ok(FifoDetails {
             quantity: source.quantity,
             multiplier: source.multiplier,
@@ -403,36 +431,30 @@ impl FifoDetails {
             conclusion_date: source.conclusion_date,
             execution_date: source.execution_date,
 
-            // FIXME(konishchev): Fill
-            type_: StockSourceDetails::Trade {
-                price: source.price,
-                volume: cost,
-
-                commission,
-                local_commission,
-
-                cost,
-                local_cost,
-            },
-            cost: PurchaseCost::new(source.conclusion_date, source.execution_date, cost, commission),
-            price: source.price,
-            simple_cost: cost,
+            source: details,
+            cost: source.cost.clone(),
 
             tax_exemption_applied: false,
         })
     }
 
-    // FIXME(konishchev): Implement
-    pub fn price(&self, _currency: &str, _converter: &CurrencyConverter) -> GenericResult<Cash> {
-        Ok(self.price)
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
+
+    pub fn price(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        Ok(match self.source {
+            StockSourceDetails::Trade {price, ..} if price.currency == currency => price,
+            _ => {
+                let cost = self.cost(currency, converter)?;
+                calculate_price(self.quantity, cost)?
+            },
+        })
     }
 
-    // FIXME(konishchev): Purchase transactions
     pub fn cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        converter.convert_to_cash_rounding(self.execution_date, self.simple_cost, currency)
+        self.cost.calculate(Some(PurchaseCostType::Trade), currency, converter)
     }
 
-    // FIXME(konishchev): Purchase transactions
     pub fn total_cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
         self.cost.calculate(None, currency, converter)
     }
