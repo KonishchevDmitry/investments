@@ -65,6 +65,17 @@ impl StockBuy {
         }
     }
 
+    pub fn new_trade(
+        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
+        conclusion_date: Date, execution_date: Date, margin: bool,
+    ) -> StockBuy {
+        StockBuy {
+            type_: StockBuyType::Trade, symbol: symbol.to_owned(), quantity, price, volume, commission,
+            purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
+            sold: dec!(0),
+        }
+    }
+
     pub fn is_sold(&self) -> bool {
         self.sold == self.quantity
     }

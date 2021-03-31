@@ -2,8 +2,7 @@ use log::warn;
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::broker_statement::{
-    StockBuy, StockBuyType, StockSell, StockSellType, IdleCashInterest, Dividend};
+use crate::broker_statement::{StockBuy, StockSell, StockSellType, IdleCashInterest, Dividend};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
@@ -234,8 +233,8 @@ impl StockTradeTransaction {
         debug_assert_eq!(volume, (price * quantity).round());
 
         if buy {
-            parser.statement.stock_buys.push(StockBuy::new(
-                StockBuyType::Trade, &symbol, quantity, price, volume, commission,
+            parser.statement.stock_buys.push(StockBuy::new_trade(
+                &symbol, quantity, price, volume, commission,
                 self.info.conclusion_date, self.info.execution_date, false));
         } else {
             parser.statement.stock_sells.push(StockSell::new(

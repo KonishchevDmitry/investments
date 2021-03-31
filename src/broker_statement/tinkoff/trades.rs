@@ -2,7 +2,7 @@ use num_traits::{FromPrimitive, Zero};
 
 use xls_table_derive::XlsTableRow;
 
-use crate::broker_statement::trades::{ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType};
+use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell, StockSellType};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
@@ -88,9 +88,9 @@ impl SectionParser for TradesParser {
                             conclusion_date
                         })
                     } else {
-                        parser.statement.stock_buys.push(StockBuy::new(
-                            StockBuyType::Trade, &trade.symbol, quantity.into(),
-                            price, volume, commission, conclusion_date, execution_date, false));
+                        parser.statement.stock_buys.push(StockBuy::new_trade(
+                            &trade.symbol, quantity.into(), price, volume, commission,
+                            conclusion_date, execution_date, false));
                     }
                 },
                 "Продажа" => {
