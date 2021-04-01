@@ -15,7 +15,7 @@ use crate::types::{Date, Decimal};
 use crate::util::{self, deserialize_date};
 
 use super::BrokerStatement;
-use super::trades::{StockBuy, StockBuyType, StockSell, StockSellType, StockSellSource};
+use super::trades::{StockBuy, StockSell, StockSellType, StockSellSource};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -180,8 +180,8 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         }
         CorporateActionType::Spinoff {ref symbol, quantity, ref currency} => {
             let zero = Cash::new(&currency, dec!(0));
-            statement.stock_buys.push(StockBuy::new(
-                StockBuyType::CorporateAction, &symbol, quantity, zero, zero, zero,
+            statement.stock_buys.push(StockBuy::new_corporate_action(
+                &symbol, quantity, zero, zero, zero,
                 action.date, action.execution_date(), false,
             ));
             statement.sort_and_validate_stock_buys()?;
@@ -320,10 +320,9 @@ fn convert_stocks(
     // FIXME(konishchev): Ensure zero tax
     // FIXME(konishchev): Local cost
     let buy_price = calculate_price(new_quantity, volume)?;
-    let buy = StockBuy::new(
+    let buy = StockBuy::new_corporate_action(
         // FIXME(konishchev): Buy type
-        StockBuyType::CorporateAction, symbol, new_quantity,
-        buy_price, volume, commission, date, date, false,
+        symbol, new_quantity, buy_price, volume, commission, date, date, false,
     );
 
     Ok((sell, buy))

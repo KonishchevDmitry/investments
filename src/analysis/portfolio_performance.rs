@@ -3,7 +3,7 @@ use std::collections::{HashMap, BTreeMap};
 use log::{self, log_enabled, trace};
 use num_traits::Zero;
 
-use crate::broker_statement::{BrokerStatement, StockBuyType, StockSellType};
+use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -270,12 +270,12 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let quantity = multiplier * trade.quantity;
 
             match trade.type_ {
-                StockBuyType::Trade => {
+                StockSource::Trade {volume, commission, ..} => {
                     let volume = self.converter.convert_to(
-                        trade.execution_date, trade.volume, self.currency)?;
+                        trade.execution_date, volume, self.currency)?;
 
                     let commission = self.converter.convert_to(
-                        trade.conclusion_date, trade.commission, self.currency)?;
+                        trade.conclusion_date, commission, self.currency)?;
                     self.income_structure.commissions += commission;
 
                     let deposit_view = self.get_deposit_view(&trade.symbol);
@@ -283,7 +283,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     deposit_view.transaction(trade.conclusion_date, volume);
                     deposit_view.transaction(trade.conclusion_date, commission);
                 },
-                StockBuyType::CorporateAction => {
+                StockSource::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
                     deposit_view.trade(trade.conclusion_date, quantity);
                 },

@@ -1,5 +1,5 @@
 use crate::broker_statement::{
-    BrokerStatement, ForexTrade, StockBuy, StockBuyType, StockSell, StockSellType, Dividend, Fee,
+    BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
     IdleCashInterest, TaxWithholding};
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
@@ -94,16 +94,16 @@ impl CashFlowMapper {
 
     fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
         match trade.type_ {
-            StockBuyType::Trade => {
+            StockSource::Trade {volume, commission, ..} => {
                 let description = format!("Покупка {} {}", trade.quantity, name);
-                self.add(trade.conclusion_date, -trade.volume, description);
+                self.add(trade.conclusion_date, -volume, description);
 
                 if !trade.commission.is_zero() {
                     let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
-                    self.add(trade.conclusion_date, -trade.commission, description);
+                    self.add(trade.conclusion_date, -commission, description);
                 };
             },
-            StockBuyType::CorporateAction => {},
+            StockSource::CorporateAction => {},
         };
     }
 

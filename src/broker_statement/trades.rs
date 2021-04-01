@@ -16,10 +16,14 @@ pub struct ForexTrade {
     pub conclusion_date: Date,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub enum StockBuyType {
+#[derive(Clone, Copy, Debug)]
+pub enum StockSource {
     // Ordinary trade
-    Trade,
+    Trade {
+        price: Cash,
+        volume: Cash,
+        commission: Cash,
+    },
 
     // Non-trade operation due to a corporate action that doesn't affect cash balance:
     // * Emulated buy to convert position during stock split
@@ -29,9 +33,9 @@ pub enum StockBuyType {
 
 #[derive(Debug)]
 pub struct StockBuy {
-    pub type_: StockBuyType,
     pub symbol: String,
     pub quantity: Decimal,
+    pub type_: StockSource,
 
     // Please note that all of the following values may be zero due to corporate actions or other
     // non-trade operations:
@@ -42,7 +46,7 @@ pub struct StockBuy {
     // On stock split we generate fake sell+buy transactions for position conversion, but it gets us
     // into currency revaluation issues, so we have to keep original date+amount pairs for proper
     // calculation in other currencies.
-    // FIXME(konishchev): When to fill?
+    // FIXME(konishchev): Fill
     purchase_transactions: Vec<PurchaseTransaction>,
 
     pub conclusion_date: Date,
@@ -53,24 +57,26 @@ pub struct StockBuy {
 }
 
 impl StockBuy {
-    pub fn new(
-        type_: StockBuyType, symbol: &str, quantity: Decimal,
-        price: Cash, volume: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date, margin: bool,
-    ) -> StockBuy {
-        StockBuy {
-            type_, symbol: symbol.to_owned(), quantity, price, volume, commission,
-            purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
-            sold: dec!(0),
-        }
-    }
-
     pub fn new_trade(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
-            type_: StockBuyType::Trade, symbol: symbol.to_owned(), quantity, price, volume, commission,
+            type_: StockSource::Trade {price, volume, commission},
+            symbol: symbol.to_owned(), quantity, price, volume, commission,
+            purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
+            sold: dec!(0),
+        }
+    }
+
+    // FIXME(konishchev): HERE
+    pub fn new_corporate_action(
+        symbol: &str, quantity: Decimal,
+        price: Cash, volume: Cash, commission: Cash,
+        conclusion_date: Date, execution_date: Date, margin: bool,
+    ) -> StockBuy {
+        StockBuy {
+            type_: StockSource::CorporateAction, symbol: symbol.to_owned(), quantity, price, volume, commission,
             purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
@@ -334,18 +340,6 @@ pub struct StockSellSource {
 
     pub conclusion_date: Date,
     pub execution_date: Date,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum StockSource {
-    Trade {
-        price: Cash,
-        volume: Cash,
-        commission: Cash,
-    },
-    // FIXME(konishchev): Remove
-    #[allow(dead_code)]
-    CorporateAction,
 }
 
 pub struct SellDetails {
