@@ -505,6 +505,7 @@ impl PurchaseTotalCost {
         for cost in &self.0 {
             let mut purchase_cost = dec!(0);
 
+            // FIXME(konishchev): HERE: Group by date + currency
             for transaction in &cost.transactions {
                 match type_ {
                     Some(type_) if type_ != transaction.type_ => continue,
@@ -516,18 +517,10 @@ impl PurchaseTotalCost {
                     transaction.date, transaction_cost, currency)?;
             }
 
-            // FIXME(konishchev): Rounding assertions?
-            // FIXME(konishchev): HERE
-            // if false {
-            //     purchase_cost = purchase_cost / fraction.1 * fraction.0
-            // }
-
             total_cost += purchase_cost;
         }
 
-        // FIXME(konishchev): HERE
-        // Ok(Cash::new(currency, total_cost))
-        Ok(Cash::new(currency, total_cost).round())
+        Ok(Cash::new(currency, total_cost.normalize()))
     }
 }
 

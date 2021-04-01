@@ -98,7 +98,7 @@ impl CashFlowMapper {
                 let description = format!("Покупка {} {}", trade.quantity, name);
                 self.add(trade.conclusion_date, -volume, description);
 
-                if !trade.commission.is_zero() {
+                if !commission.is_zero() {
                     let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
                     self.add(trade.conclusion_date, -commission, description);
                 };
