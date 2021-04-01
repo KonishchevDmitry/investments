@@ -15,7 +15,7 @@ use crate::types::{Date, Decimal};
 use crate::util::{self, deserialize_date};
 
 use super::BrokerStatement;
-use super::trades::{StockBuy, StockSell, StockSellType, StockSellSource};
+use super::trades::{StockBuy, StockSell, StockSellType, StockSellSource, PurchaseTotalCost};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -181,7 +181,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         CorporateActionType::Spinoff {ref symbol, quantity, ref currency} => {
             let zero = Cash::new(&currency, dec!(0));
             statement.stock_buys.push(StockBuy::new_corporate_action(
-                &symbol, quantity, zero, zero, zero,
+                &symbol, quantity, zero, zero, zero, PurchaseTotalCost::new(),
                 action.date, action.execution_date(), false,
             ));
             statement.sort_and_validate_stock_buys()?;
@@ -297,10 +297,13 @@ fn convert_stocks(
     let mut volume = Cash::new(sell_sources.first().unwrap().volume.currency, dec!(0));
     let mut commission = Cash::new(sell_sources.first().unwrap().commission.currency, dec!(0));
 
+    let mut cost = PurchaseTotalCost::new();
+
     for source in &sell_sources {
         volume.add_assign(source.volume).and_then(|_| {
             commission.add_assign(source.commission)
         }).map_err(|_| "Buy trades have mixed currency")?;
+        cost.add(&source.cost);
     }
 
     if commission.currency == volume.currency {
@@ -322,7 +325,7 @@ fn convert_stocks(
     let buy_price = calculate_price(new_quantity, volume)?;
     let buy = StockBuy::new_corporate_action(
         // FIXME(konishchev): Buy type
-        symbol, new_quantity, buy_price, volume, commission, date, date, false,
+        symbol, new_quantity, buy_price, volume, commission, cost, date, date, false,
     );
 
     Ok((sell, buy))

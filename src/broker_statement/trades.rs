@@ -47,7 +47,7 @@ pub struct StockBuy {
     // into currency revaluation issues, so we have to keep original date+amount pairs for proper
     // calculation in other currencies.
     // FIXME(konishchev): Fill
-    purchase_transactions: Vec<PurchaseTransaction>,
+    cost: PurchaseTotalCost,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
@@ -61,10 +61,13 @@ impl StockBuy {
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
+        let cost = PurchaseTotalCost::new_from_trade(
+            conclusion_date, execution_date, volume, commission);
+
         StockBuy {
             type_: StockSource::Trade {price, volume, commission},
             symbol: symbol.to_owned(), quantity, price, volume, commission,
-            purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
+            cost, conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
     }
@@ -72,12 +75,12 @@ impl StockBuy {
     // FIXME(konishchev): HERE
     pub fn new_corporate_action(
         symbol: &str, quantity: Decimal,
-        price: Cash, volume: Cash, commission: Cash,
+        price: Cash, volume: Cash, commission: Cash, cost: PurchaseTotalCost,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
             type_: StockSource::CorporateAction, symbol: symbol.to_owned(), quantity, price, volume, commission,
-            purchase_transactions: Vec::new(), conclusion_date, execution_date, margin,
+            cost, conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
     }
@@ -115,7 +118,7 @@ impl StockBuy {
                 volume,
                 commission,
             },
-            cost: PurchaseCost::new(self.conclusion_date, self.execution_date, volume, commission),
+            cost: PurchaseTotalCost::new_from_trade(self.conclusion_date, self.execution_date, volume, commission),
 
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
@@ -336,7 +339,7 @@ pub struct StockSellSource {
     pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
     pub commission: Cash,
     type_: StockSource,
-    cost: PurchaseCost,
+    pub cost: PurchaseTotalCost,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
@@ -386,7 +389,7 @@ pub struct FifoDetails {
     pub execution_date: Date,
 
     pub source: StockSourceDetails,
-    cost: PurchaseCost,
+    cost: PurchaseTotalCost,
 
     pub tax_exemption_applied: bool,
 }
@@ -466,6 +469,57 @@ impl FifoDetails {
 }
 
 #[derive(Clone, Debug)]
+pub struct PurchaseTotalCost(Vec<PurchaseCost>);
+
+impl PurchaseTotalCost {
+    pub fn new() -> PurchaseTotalCost {
+        PurchaseTotalCost(Vec::new())
+    }
+
+    fn new_from_trade(conclusion_date: Date, execution_date: Date, volume: Cash, commission: Cash) -> PurchaseTotalCost {
+        PurchaseTotalCost(vec![
+            PurchaseCost {
+                fractions: Vec::new(),
+                transactions: vec![
+                    PurchaseTransaction::new(execution_date, PurchaseCostType::Trade, volume),
+                    PurchaseTransaction::new(conclusion_date, PurchaseCostType::Commission, commission),
+                ],
+            }
+        ])
+    }
+
+    pub fn add(&mut self, cost: &PurchaseTotalCost) {
+        self.0.extend(cost.0.iter().map(Clone::clone))
+    }
+
+    fn calculate(&self, type_: Option<PurchaseCostType>, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let mut total_cost = dec!(0);
+
+        for cost in &self.0 {
+            let mut purchase_cost = dec!(0);
+
+            for transaction in &cost.transactions {
+                match type_ {
+                    Some(type_) if type_ != transaction.type_ => continue,
+                    _ => {},
+                };
+                purchase_cost += converter.convert_to_rounding(
+                    transaction.date, transaction.cost, currency)?;
+            }
+
+            // FIXME(konishchev): Rounding assertions?
+            for fraction in &cost.fractions {
+                purchase_cost = util::round(purchase_cost * fraction, 2)
+            }
+
+            total_cost += purchase_cost;
+        }
+
+        Ok(Cash::new(currency, total_cost))
+    }
+}
+
+#[derive(Clone, Debug)]
 struct PurchaseCost {
     fractions: Vec<Decimal>,
     transactions: Vec<PurchaseTransaction>,
@@ -487,35 +541,5 @@ struct PurchaseTransaction {
 impl PurchaseTransaction {
     fn new(date: Date, type_: PurchaseCostType, cost: Cash) -> PurchaseTransaction {
         PurchaseTransaction {date, type_, cost}
-    }
-}
-
-impl PurchaseCost {
-    fn new(conclusion_date: Date, execution_date: Date, volume: Cash, commission: Cash) -> PurchaseCost {
-        PurchaseCost {
-            fractions: Vec::new(),
-            transactions: vec![
-                PurchaseTransaction::new(execution_date, PurchaseCostType::Trade, volume),
-                PurchaseTransaction::new(conclusion_date, PurchaseCostType::Commission, commission),
-            ],
-        }
-    }
-
-    fn calculate(&self, type_: Option<PurchaseCostType>, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let mut cost = dec!(0);
-
-        for transaction in &self.transactions {
-            match type_ {
-                Some(type_) if type_ != transaction.type_ => continue,
-                _ => {},
-            };
-            cost += converter.convert_to_rounding(transaction.date, transaction.cost, currency)?;
-        }
-
-        for fraction in &self.fractions {
-            cost = util::round(cost * fraction, 2)
-        }
-
-        Ok(Cash::new(currency, cost))
     }
 }
