@@ -20,7 +20,7 @@ pub enum StockSource {
     // Ordinary trade
     Trade {
         price: Cash,
-        volume: Cash,
+        volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
         commission: Cash,
     },
 
@@ -34,18 +34,8 @@ pub enum StockSource {
 pub struct StockBuy {
     pub symbol: String,
     pub quantity: Decimal,
+
     pub type_: StockSource,
-
-    // Please note that all of the following values may be zero due to corporate actions or other
-    // non-trade operations:
-    pub price: Cash,
-    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
-    pub commission: Cash,
-
-    // On stock split we generate fake sell+buy transactions for position conversion, but it gets us
-    // into currency revaluation issues, so we have to keep original date+amount pairs for proper
-    // calculation in other currencies.
-    // FIXME(konishchev): Fill
     cost: PurchaseTotalCost,
 
     pub conclusion_date: Date,
@@ -64,22 +54,21 @@ impl StockBuy {
             conclusion_date, execution_date, volume, commission);
 
         StockBuy {
-            type_: StockSource::Trade {price, volume, commission},
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
-            cost, conclusion_date, execution_date, margin,
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSource::Trade {price, volume, commission}, cost,
+            conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
     }
 
-    // FIXME(konishchev): HERE
     pub fn new_corporate_action(
-        symbol: &str, quantity: Decimal,
-        price: Cash, volume: Cash, commission: Cash, cost: PurchaseTotalCost,
+        symbol: &str, quantity: Decimal, cost: PurchaseTotalCost,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
         StockBuy {
-            type_: StockSource::CorporateAction, symbol: symbol.to_owned(), quantity, price, volume, commission,
-            cost, conclusion_date, execution_date, margin,
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSource::CorporateAction, cost,
+            conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
     }
@@ -97,36 +86,27 @@ impl StockBuy {
         self.sold += quantity;
 
         let mut cost = self.cost.clone();
-
-        let (volume, commission) = if quantity == self.quantity {
-            (self.volume, self.commission)
+        let type_ = if quantity == self.quantity {
+            self.type_
         } else {
             for cost in &mut cost.0 {
                 cost.fraction.0 *= quantity;
                 cost.fraction.1 *= self.quantity;
             }
 
-            (
-                self.price * quantity,
-                self.commission / self.quantity * quantity,
-            )
+            match self.type_ {
+                StockSource::Trade {price, commission, ..} => StockSource::Trade {
+                    price,
+                    // FIXME(konishchev): HERE
+                    volume: price * quantity,
+                    commission: commission / self.quantity * quantity,
+                },
+                StockSource::CorporateAction => StockSource::CorporateAction,
+            }
         };
 
         StockSellSource {
-            quantity,
-            multiplier,
-
-            volume,
-            commission,
-            // FIXME(konishchev): Fill properly
-            type_: StockSource::Trade {
-                price: self.price,
-                volume,
-                commission,
-            },
-            cost,
-            // cost: PurchaseTotalCost::new_from_trade(self.conclusion_date, self.execution_date, volume, commission),
-
+            quantity, multiplier, type_, cost,
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
         }
@@ -340,12 +320,7 @@ pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
-    // FIXME(konishchev): Deprecate
-    // Please note that the following values can be zero due to corporate actions or other non-trade
-    // operations:
-    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
-    pub commission: Cash,
-    type_: StockSource,
+    pub type_: StockSource,
     pub cost: PurchaseTotalCost,
 
     pub conclusion_date: Date,
@@ -475,6 +450,11 @@ impl FifoDetails {
     }
 }
 
+// On stock split we generate fake sell+buy transactions for position conversion, but it gets us
+// into currency revaluation issues, so we have to keep original date+amount pairs for proper
+// calculation in other currencies.
+//
+// Please note that it may be zero due to corporate actions or other non-trade operations.
 #[derive(Clone, Debug)]
 pub struct PurchaseTotalCost(Vec<PurchaseCost>);
 
@@ -484,17 +464,28 @@ impl PurchaseTotalCost {
     }
 
     fn new_from_trade(conclusion_date: Date, execution_date: Date, volume: Cash, commission: Cash) -> PurchaseTotalCost {
+        let mut transactions = Vec::new();
+
+        if !volume.is_zero() {
+            transactions.push(PurchaseTransaction::new(
+                execution_date, PurchaseCostType::Trade, volume));
+        }
+
+        if !commission.is_zero() {
+            transactions.push(PurchaseTransaction::new(
+                conclusion_date, PurchaseCostType::Commission, commission));
+        }
+
         PurchaseTotalCost(vec![
             PurchaseCost {
-                transactions: vec![
-                    PurchaseTransaction::new(execution_date, PurchaseCostType::Trade, volume),
-                    PurchaseTransaction::new(conclusion_date, PurchaseCostType::Commission, commission),
-                ],
+                transactions: transactions,
                 fraction: Fraction(dec!(1), dec!(1)),
             }
         ])
     }
 
+    // FIXME(konishchev): HERE
+    #[allow(dead_code)]
     pub fn add(&mut self, cost: &PurchaseTotalCost) {
         self.0.extend(cost.0.iter().map(Clone::clone))
     }

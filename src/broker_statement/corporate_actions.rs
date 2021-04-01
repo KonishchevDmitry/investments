@@ -178,10 +178,9 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
                     from_change, to_change)?;
             }
         }
-        CorporateActionType::Spinoff {ref symbol, quantity, ref currency} => {
-            let zero = Cash::new(&currency, dec!(0));
+        CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
-                &symbol, quantity, zero, zero, zero, PurchaseTotalCost::new(),
+                &symbol, quantity, PurchaseTotalCost::new(),
                 action.date, action.execution_date(), false,
             ));
             statement.sort_and_validate_stock_buys()?;
@@ -294,22 +293,25 @@ fn convert_stocks(
     date: Date, symbol: &str, old_quantity: Decimal, new_quantity: Decimal,
     sell_sources: Vec<StockSellSource>,
 ) -> GenericResult<(StockSell, StockBuy)> {
-    let mut volume = Cash::new(sell_sources.first().unwrap().volume.currency, dec!(0));
-    let mut commission = Cash::new(sell_sources.first().unwrap().commission.currency, dec!(0));
+    // FIXME(konishchev): HERE
+    // let mut volume = Cash::new(sell_sources.first().unwrap().volume.currency, dec!(0));
+    // let mut commission = Cash::new(sell_sources.first().unwrap().commission.currency, dec!(0));
+    let volume = Cash::new("RUB", dec!(0));
+    let commission = Cash::new("RUB", dec!(0));
 
-    let mut cost = PurchaseTotalCost::new();
+    let cost = PurchaseTotalCost::new();
 
-    for source in &sell_sources {
-        volume.add_assign(source.volume).and_then(|_| {
-            commission.add_assign(source.commission)
-        }).map_err(|_| "Buy trades have mixed currency")?;
-        cost.add(&source.cost);
-    }
-
-    if commission.currency == volume.currency {
-        volume.amount += commission.amount;
-        commission.amount = dec!(0);
-    }
+    // for source in &sell_sources {
+    //     volume.add_assign(source.volume).and_then(|_| {
+    //         commission.add_assign(source.commission)
+    //     }).map_err(|_| "Buy trades have mixed currency")?;
+    //     cost.add(&source.cost);
+    // }
+    //
+    // if commission.currency == volume.currency {
+    //     volume.amount += commission.amount;
+    //     commission.amount = dec!(0);
+    // }
 
     // FIXME(konishchev): Local cost
     let sell_price = calculate_price(old_quantity, volume)?;
@@ -322,10 +324,10 @@ fn convert_stocks(
 
     // FIXME(konishchev): Ensure zero tax
     // FIXME(konishchev): Local cost
-    let buy_price = calculate_price(new_quantity, volume)?;
+    // let buy_price = calculate_price(new_quantity, volume)?;
     let buy = StockBuy::new_corporate_action(
         // FIXME(konishchev): Buy type
-        symbol, new_quantity, buy_price, volume, commission, cost, date, date, false,
+        symbol, new_quantity, cost, date, date, false,
     );
 
     Ok((sell, buy))
