@@ -6,7 +6,6 @@ use crate::localities::Country;
 use crate::taxes::{IncomeType, TaxExemption};
 use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 #[derive(Debug)]
 pub struct ForexTrade {
@@ -97,9 +96,16 @@ impl StockBuy {
         assert!(self.get_unsold() >= quantity);
         self.sold += quantity;
 
+        let mut cost = self.cost.clone();
+
         let (volume, commission) = if quantity == self.quantity {
             (self.volume, self.commission)
         } else {
+            for cost in &mut cost.0 {
+                cost.fraction.0 *= quantity;
+                cost.fraction.1 *= self.quantity;
+            }
+
             (
                 self.price * quantity,
                 self.commission / self.quantity * quantity,
@@ -118,7 +124,8 @@ impl StockBuy {
                 volume,
                 commission,
             },
-            cost: PurchaseTotalCost::new_from_trade(self.conclusion_date, self.execution_date, volume, commission),
+            cost,
+            // cost: PurchaseTotalCost::new_from_trade(self.conclusion_date, self.execution_date, volume, commission),
 
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
@@ -479,11 +486,11 @@ impl PurchaseTotalCost {
     fn new_from_trade(conclusion_date: Date, execution_date: Date, volume: Cash, commission: Cash) -> PurchaseTotalCost {
         PurchaseTotalCost(vec![
             PurchaseCost {
-                fractions: Vec::new(),
                 transactions: vec![
                     PurchaseTransaction::new(execution_date, PurchaseCostType::Trade, volume),
                     PurchaseTransaction::new(conclusion_date, PurchaseCostType::Commission, commission),
                 ],
+                fraction: Fraction(dec!(1), dec!(1)),
             }
         ])
     }
@@ -503,39 +510,47 @@ impl PurchaseTotalCost {
                     Some(type_) if type_ != transaction.type_ => continue,
                     _ => {},
                 };
+
+                let transaction_cost = transaction.cost / cost.fraction.1 * cost.fraction.0;
                 purchase_cost += converter.convert_to_rounding(
-                    transaction.date, transaction.cost, currency)?;
+                    transaction.date, transaction_cost, currency)?;
             }
 
             // FIXME(konishchev): Rounding assertions?
-            for fraction in &cost.fractions {
-                purchase_cost = util::round(purchase_cost * fraction, 2)
-            }
+            // FIXME(konishchev): HERE
+            // if false {
+            //     purchase_cost = purchase_cost / fraction.1 * fraction.0
+            // }
 
             total_cost += purchase_cost;
         }
 
-        Ok(Cash::new(currency, total_cost))
+        // FIXME(konishchev): HERE
+        // Ok(Cash::new(currency, total_cost))
+        Ok(Cash::new(currency, total_cost).round())
     }
 }
 
 #[derive(Clone, Debug)]
 struct PurchaseCost {
-    fractions: Vec<Decimal>,
     transactions: Vec<PurchaseTransaction>,
+    fraction: Fraction,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum PurchaseCostType {
-    Trade,
-    Commission,
-}
+#[derive(Clone, Copy, Debug)]
+struct Fraction(Decimal, Decimal);
 
 #[derive(Clone, Copy, Debug)]
 struct PurchaseTransaction {
     date: Date,
     type_: PurchaseCostType,
     cost: Cash,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum PurchaseCostType {
+    Trade,
+    Commission,
 }
 
 impl PurchaseTransaction {
