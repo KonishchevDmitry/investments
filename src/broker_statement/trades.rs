@@ -37,10 +37,10 @@ pub struct StockBuy {
 
     pub type_: StockSource,
     cost: PurchaseTotalCost,
+    pub margin: bool,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
-    pub margin: bool,
 
     sold: Decimal,
 }
@@ -63,12 +63,12 @@ impl StockBuy {
 
     pub fn new_corporate_action(
         symbol: &str, quantity: Decimal, cost: PurchaseTotalCost,
-        conclusion_date: Date, execution_date: Date, margin: bool,
+        conclusion_date: Date, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
-            type_: StockSource::CorporateAction, cost,
-            conclusion_date, execution_date, margin,
+            type_: StockSource::CorporateAction, cost, margin: false,
+            conclusion_date, execution_date,
             sold: dec!(0),
         }
     }
@@ -97,7 +97,6 @@ impl StockBuy {
             match self.type_ {
                 StockSource::Trade {price, commission, ..} => StockSource::Trade {
                     price,
-                    // FIXME(konishchev): HERE
                     volume: price * quantity,
                     commission: commission / self.quantity * quantity,
                 },
@@ -232,7 +231,6 @@ impl StockSell {
             }
 
             if tax_exemptible && !source_details.tax_exemption_applied {
-                // FIXME(konishchev): HERE
                 let source_local_revenue = local_execution(price * source_quantity)?;
                 let source_local_commission = local_conclusion(
                     commission * source_quantity / self.quantity)?;
@@ -499,8 +497,6 @@ impl PurchaseTotalCost {
         ])
     }
 
-    // FIXME(konishchev): HERE
-    #[allow(dead_code)]
     pub fn add(&mut self, cost: &PurchaseTotalCost) {
         self.0.extend(cost.0.iter().map(Clone::clone))
     }
@@ -511,7 +507,7 @@ impl PurchaseTotalCost {
         for cost in &self.0 {
             let mut purchase_cost = dec!(0);
 
-            // FIXME(konishchev): HERE: Group by date + currency
+            // FIXME(konishchev): Group by date + currency?
             for transaction in &cost.transactions {
                 match type_ {
                     Some(type_) if type_ != transaction.type_ => continue,

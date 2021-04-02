@@ -18,8 +18,10 @@ use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct CorporateAction {
-    // Date when the corporate action has occurred (assuming that the changes have been made at the
-    // end of trading day).
+    // Date when the corporate action has occurred, assuming:
+    // * The changes are made at the end of the trading day.
+    // * All trade operations from this day are assumed to be issued after the corporate action has
+    //   occurred and are actually a part of the corporate action.
     #[serde(deserialize_with = "deserialize_date")]
     pub date: Date,
 
@@ -99,7 +101,7 @@ pub struct StockSplitController {
 }
 
 impl StockSplitController {
-    pub fn add(&mut self, date: Date, symbol: &str, divisor: u32) -> EmptyResult {
+    pub fn add(&mut self, date: Date, symbol: &str, divisor: u32) -> GenericResult<EmptyResult> {
         let splits = self.symbols.entry(symbol.to_owned()).or_default();
 
         match splits.entry(date) {
@@ -117,11 +119,11 @@ impl StockSplitController {
 
             if dec!(1) / full_divisor * full_divisor != dec!(1) {
                 splits.remove(&date).unwrap();
-                return Err!("Got an unsupported stock split result divisor: {}", full_divisor);
+                return Ok(Err!("Got an unsupported stock split result divisor: {}", full_divisor));
             }
         }
 
-        Ok(())
+        Ok(Ok(()))
     }
 
     pub fn get_multiplier(&self, symbol: &str, from_date: Date, to_date: Date) -> Decimal {
@@ -166,11 +168,25 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
         CorporateActionType::StockSplit {ratio, from_change, to_change} => {
-            // FIXME(konishchev): Support
-            // FIXME(konishchev): Tax exemptions
-            if ratio.from == 1 {
-                statement.stock_splits.add(action.date, &action.symbol, ratio.to)?;
+            // We have two algorithms of handling stock split:
+            // * The first one is most straightforward, but can be applied only to simple splits
+            //   that don't produce complex stock fractions.
+            // * The second one is much complex (to write and to explain to tax inspector), loses
+            //   long term investment tax exemptions, but can be applied to any stock split.
+
+            let complex = if ratio.from == 1 {
+                match statement.stock_splits.add(action.date, &action.symbol, ratio.to)? {
+                    Ok(()) => false,
+                    Err(e) => {
+                        debug!("{}: {}. Using complex stock split algorithm.", action.symbol, e);
+                        true
+                    },
+                }
             } else {
+                true
+            };
+
+            if complex {
                 process_complex_stock_split(
                     statement, action.date, &action.symbol, ratio,
                     from_change, to_change)?;
@@ -179,7 +195,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
                 &symbol, quantity, PurchaseTotalCost::new(),
-                action.date, action.execution_date(), false,
+                action.date, action.execution_date(),
             ));
             statement.sort_and_validate_stock_buys()?;
         },
@@ -199,7 +215,6 @@ fn process_complex_stock_split(
     let mut quantity = dec!(0);
     let mut sell_sources = Vec::new();
 
-    // FIXME(konishchev): HERE
     for stock_buy in &mut statement.stock_buys {
         if stock_buy.symbol != symbol || stock_buy.is_sold() || stock_buy.conclusion_date >= date {
             continue;
@@ -218,12 +233,10 @@ fn process_complex_stock_split(
             "Got {} stock split at {} when portfolio has no open positions with it",
             symbol, format_date(date));
     }
-    assert_ne!(quantity, dec!(0));
 
     let new_quantity = calculate_stock_split(date, symbol, quantity, ratio, from_change, to_change)?;
     debug!("{} stock split from {}: {} -> {}.", symbol, format_date(date), quantity, new_quantity);
 
-    // FIXME(konishchev): Wrap error
     let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources);
 
     statement.stock_sells.push(sell);
@@ -291,32 +304,14 @@ fn convert_stocks(
     date: Date, symbol: &str, old_quantity: Decimal, new_quantity: Decimal,
     sell_sources: Vec<StockSellSource>,
 ) -> (StockSell, StockBuy) {
-    // FIXME(konishchev): HERE
-    let cost = PurchaseTotalCost::new();
+    let mut cost = PurchaseTotalCost::new();
+    for source in &sell_sources {
+        cost.add(&source.cost);
+    }
 
-    // for source in &sell_sources {
-    //     volume.add_assign(source.volume).and_then(|_| {
-    //         commission.add_assign(source.commission)
-    //     }).map_err(|_| "Buy trades have mixed currency")?;
-    //     cost.add(&source.cost);
-    // }
-    //
-    // if commission.currency == volume.currency {
-    //     volume.amount += commission.amount;
-    //     commission.amount = dec!(0);
-    // }
-
-    // FIXME(konishchev): Local cost
     let mut sell = StockSell::new_corporate_action(symbol, old_quantity, date, date);
     sell.process(sell_sources);
 
-    // FIXME(konishchev): Ensure zero tax
-    // FIXME(konishchev): Local cost
-    // let buy_price = calculate_price(new_quantity, volume)?;
-    let buy = StockBuy::new_corporate_action(
-        // FIXME(konishchev): Buy type
-        symbol, new_quantity, cost, date, date, false,
-    );
-
+    let buy = StockBuy::new_corporate_action(symbol, new_quantity, cost, date, date);
     (sell, buy)
 }

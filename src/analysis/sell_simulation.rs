@@ -174,16 +174,13 @@ fn print_results(
         let price_precision = std::cmp::max(2, util::decimal_precision(sell_price.amount));
         let mut purchase_cost = Cash::new(sell_price.currency, dec!(0));
 
-        // FIXME(konishchev): HERE
         for (index, buy_trade) in details.fifo.iter().enumerate() {
             // FIXME(konishchev): Change currency?
             let price = match buy_trade.source {
-                StockSourceDetails::Trade {price, ..} => {
-                    buy_trade.price(price.currency, converter)?
-                },
+                StockSourceDetails::Trade {price, ..} => price,
                 StockSourceDetails::CorporateAction => {
                     buy_trade.price(sell_price.currency, converter)?
-                }
+                },
             };
             purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
 

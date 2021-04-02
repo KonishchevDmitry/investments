@@ -244,10 +244,13 @@ impl<'a> TradesProcessor<'a> {
         let (mut fees, mut fees_by_year) = self.pre_process_fees()?;
         let jurisdiction = self.broker_statement.broker.type_.jurisdiction();
 
-        // FIXME(konishchev): HERE
         for (trade_id, trade) in self.broker_statement.stock_sells.iter().enumerate() {
-            let (tax_year, _) = self.portfolio.tax_payment_day().get(trade.execution_date, true);
+            match trade.type_ {
+                StockSellType::Trade {..} => (),
+                StockSellType::CorporateAction => continue,
+            };
 
+            let (tax_year, _) = self.portfolio.tax_payment_day().get(trade.execution_date, true);
             if let Some(year) = self.year {
                 if tax_year != year {
                     continue;
