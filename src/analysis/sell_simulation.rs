@@ -115,10 +115,7 @@ fn print_results(
     stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
     converter: &CurrencyConverter,
 ) -> EmptyResult {
-    let same_currency = stock_sells.iter().all(|trade| {
-        trade.price.currency == country.currency &&
-        trade.commission.currency == country.currency
-    });
+    let mut same_currency = true;
 
     let conclusion_date = util::today_trade_conclusion_date();
     let execution_date = util::today_trade_execution_date();
@@ -149,7 +146,17 @@ fn print_results(
     let mut tax_exemptions = false;
 
     for trade in stock_sells {
-        assert_eq!(trade.type_, StockSellType::Trade);
+        let (sell_price, commission) = match trade.type_ {
+            StockSellType::Trade {price, commission, ..} => {
+                same_currency &=
+                    price.currency == country.currency &&
+                    commission.currency == country.currency;
+
+                (price, commission.round())
+            },
+            _ => unreachable!(),
+        };
+        total_commission.deposit(commission);
 
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
@@ -158,17 +165,14 @@ fn print_results(
         total_revenue.deposit(details.revenue);
         total_local_revenue.add_assign(details.local_revenue).unwrap();
 
-        let commission = trade.commission.round();
-        total_commission.deposit(commission);
-
         total_profit.deposit(details.profit);
         total_local_profit.add_assign(details.local_profit).unwrap();
         total_taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
 
         total_tax_deduction.add_assign(details.tax_deduction).unwrap();
 
-        let price_precision = std::cmp::max(2, util::decimal_precision(trade.price.amount));
-        let mut purchase_cost = Cash::new(trade.price.currency, dec!(0));
+        let price_precision = std::cmp::max(2, util::decimal_precision(sell_price.amount));
+        let mut purchase_cost = Cash::new(sell_price.currency, dec!(0));
 
         // FIXME(konishchev): HERE
         for (index, buy_trade) in details.fifo.iter().enumerate() {
@@ -178,7 +182,7 @@ fn print_results(
                     buy_trade.price(price.currency, converter)?
                 },
                 StockSourceDetails::CorporateAction => {
-                    buy_trade.price(trade.price.currency, converter)?
+                    buy_trade.price(sell_price.currency, converter)?
                 }
             };
             purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
@@ -203,8 +207,8 @@ fn print_results(
             symbol: trade.symbol,
             quantity: trade.quantity,
             buy_price: (purchase_cost / trade.quantity).round_to(price_precision).normalize(),
-            sell_price: trade.price,
-            commission: commission,
+            sell_price,
+            commission,
 
             revenue: details.revenue,
             local_revenue: details.local_revenue,

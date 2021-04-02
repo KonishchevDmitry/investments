@@ -8,14 +8,12 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::Cash;
 use crate::formatting::format_date;
-use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
 use crate::util::{self, deserialize_date};
 
 use super::BrokerStatement;
-use super::trades::{StockBuy, StockSell, StockSellType, StockSellSource, PurchaseTotalCost};
+use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -226,7 +224,7 @@ fn process_complex_stock_split(
     debug!("{} stock split from {}: {} -> {}.", symbol, format_date(date), quantity, new_quantity);
 
     // FIXME(konishchev): Wrap error
-    let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources)?;
+    let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources);
 
     statement.stock_sells.push(sell);
     statement.sort_and_validate_stock_sells()?;
@@ -292,13 +290,8 @@ fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32
 fn convert_stocks(
     date: Date, symbol: &str, old_quantity: Decimal, new_quantity: Decimal,
     sell_sources: Vec<StockSellSource>,
-) -> GenericResult<(StockSell, StockBuy)> {
+) -> (StockSell, StockBuy) {
     // FIXME(konishchev): HERE
-    // let mut volume = Cash::new(sell_sources.first().unwrap().volume.currency, dec!(0));
-    // let mut commission = Cash::new(sell_sources.first().unwrap().commission.currency, dec!(0));
-    let volume = Cash::new("RUB", dec!(0));
-    let commission = Cash::new("RUB", dec!(0));
-
     let cost = PurchaseTotalCost::new();
 
     // for source in &sell_sources {
@@ -314,12 +307,7 @@ fn convert_stocks(
     // }
 
     // FIXME(konishchev): Local cost
-    let sell_price = calculate_price(old_quantity, volume)?;
-    let mut sell = StockSell::new(
-        // FIXME(konishchev): Sell type
-        StockSellType::CorporateAction, symbol, old_quantity, sell_price, volume, commission,
-        date, date, false, false,
-    );
+    let mut sell = StockSell::new_corporate_action(symbol, old_quantity, date, date);
     sell.process(sell_sources);
 
     // FIXME(konishchev): Ensure zero tax
@@ -330,5 +318,5 @@ fn convert_stocks(
         symbol, new_quantity, cost, date, date, false,
     );
 
-    Ok((sell, buy))
+    (sell, buy)
 }

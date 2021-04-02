@@ -134,14 +134,17 @@ pub fn analyse(
                 break;
             }
 
-            assert_eq!(trade.type_, StockSellType::Trade);
+            let (volume, commission) = match trade.type_ {
+                StockSellType::Trade {volume, commission, ..} => (volume, commission),
+                _ => unreachable!(),
+            };
             let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 
             statistics.process(|statistics| {
                 let currency = &statistics.currency;
-                let volume = converter.real_time_convert_to(trade.volume, currency)?;
-                let commission = converter.real_time_convert_to(trade.commission, currency)?;
+                let volume = converter.real_time_convert_to(volume, currency)?;
+                let commission = converter.real_time_convert_to(commission, currency)?;
                 let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
                 let tax_deduction = converter.real_time_convert_to(details.tax_deduction, currency)?;
 

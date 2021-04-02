@@ -1,7 +1,7 @@
 use num_traits::cast::ToPrimitive;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::broker_statement::trades::{StockBuy, StockSell, StockSellType};
+use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -129,8 +129,8 @@ impl TradesParser {
                 symbol, quantity.into(), price, volume, commission,
                 conclusion_date, execution_date, margin));
         } else {
-            statement.stock_sells.push(StockSell::new(
-                StockSellType::Trade, symbol, quantity.into(), price, volume, commission,
+            statement.stock_sells.push(StockSell::new_trade(
+                symbol, quantity.into(), price, volume, commission,
                 conclusion_date, execution_date, margin, false));
         }
 

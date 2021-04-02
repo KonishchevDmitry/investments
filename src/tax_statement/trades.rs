@@ -8,7 +8,7 @@ use static_table_derive::StaticTable;
 
 use crate::brokers::Broker;
 use crate::broker_statement::{
-    BrokerStatement, StockSell, SellDetails, FifoDetails, StockSourceDetails, Fee};
+    BrokerStatement, StockSell, StockSellType, SellDetails, FifoDetails, StockSourceDetails, Fee};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -287,10 +287,14 @@ impl<'a> TradesProcessor<'a> {
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
         let security = self.broker_statement.get_instrument_name(&trade.symbol);
+        let (price, commission) = match trade.type_ {
+            StockSellType::Trade {price, commission, ..} => (price, commission),
+            _ => unreachable!(),
+        };
 
         self.same_dates &= trade.execution_date == trade.conclusion_date;
-        self.same_currency &= trade.price.currency == self.country.currency &&
-            trade.commission.currency == self.country.currency;
+        self.same_currency &= price.currency == self.country.currency &&
+            commission.currency == self.country.currency;
         self.tax_exemptions |= details.tax_exemption_applied();
 
         self.total_local_profit.add_assign(details.local_profit).unwrap();
@@ -300,16 +304,16 @@ impl<'a> TradesProcessor<'a> {
             .or_insert(details.taxable_local_profit);
         self.total_tax_deduction.add_assign(details.tax_deduction).unwrap();
 
-        let conclusion_currency_rate = if trade.commission.currency != self.country.currency {
+        let conclusion_currency_rate = if commission.currency != self.country.currency {
             Some(self.converter.precise_currency_rate(
-                trade.conclusion_date, trade.commission.currency, self.country.currency)?)
+                trade.conclusion_date, commission.currency, self.country.currency)?)
         } else {
             None
         };
 
-        let execution_currency_rate = if trade.price.currency != self.country.currency {
+        let execution_currency_rate = if price.currency != self.country.currency {
             Some(self.converter.precise_currency_rate(
-                trade.execution_date, trade.price.currency, self.country.currency)?)
+                trade.execution_date, price.currency, self.country.currency)?)
         } else {
             None
         };
@@ -321,14 +325,14 @@ impl<'a> TradesProcessor<'a> {
             security: security.to_owned(),
             quantity: trade.quantity,
 
-            price: trade.price,
+            price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
 
             revenue: details.revenue,
             local_revenue: details.local_revenue,
 
-            commission: trade.commission.round(),
+            commission: commission.round(),
             local_commission: details.local_commission,
 
             purchase_local_cost: details.purchase_local_cost,

@@ -113,10 +113,14 @@ impl StockBuy {
     }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum StockSellType {
     // Ordinary trade
-    Trade,
+    Trade {
+        price: Cash,
+        volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
+        commission: Cash,
+    },
 
     // Non-trade operation due to a corporate action that doesn't affect cash balance and doesn't
     // lead to any taxes:
@@ -126,31 +130,40 @@ pub enum StockSellType {
 
 #[derive(Clone, Debug)]
 pub struct StockSell {
-    pub type_: StockSellType,
     pub symbol: String,
     pub quantity: Decimal,
 
-    pub price: Cash,
-    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
-    pub commission: Cash,
+    pub type_: StockSellType,
+    pub margin: bool,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
-    pub margin: bool,
 
     pub emulation: bool,
     sources: Vec<StockSellSource>,
 }
 
 impl StockSell {
-    pub fn new(
-        type_: StockSellType, symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
+    pub fn new_trade(
+        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool, emulation: bool,
     ) -> StockSell {
         StockSell {
-            type_, symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, margin,
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSellType::Trade {price, volume, commission}, margin,
+            conclusion_date, execution_date,
             emulation, sources: Vec::new(),
+        }
+    }
+
+    pub fn new_corporate_action(
+        symbol: &str, quantity: Decimal, conclusion_date: Date, execution_date: Date,
+    ) -> StockSell {
+        StockSell {
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSellType::CorporateAction, margin: false,
+            conclusion_date, execution_date,
+            emulation: false, sources: Vec::new(),
         }
     }
 
@@ -182,7 +195,12 @@ impl StockSell {
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
-        let currency = self.price.currency;
+        let (price, volume, commission) = match self.type_ {
+            StockSellType::Trade {price, volume, commission} => (price, volume, commission),
+            _ => unreachable!(),
+        };
+
+        let currency = price.currency;
         let local_conclusion = |value| converter.convert_to_cash_rounding(
             self.conclusion_date, value, country.currency);
         let local_execution = |value| converter.convert_to_cash_rounding(
@@ -203,29 +221,27 @@ impl StockSell {
             let source_total_cost = source_details.total_cost(currency, converter)?;
             let source_total_local_cost = source_details.total_cost(country.currency, converter)?;
 
-            if let StockSellType::Trade = self.type_ {
-                let mut tax_exemptible = false;
-
-                for tax_exemption in tax_exemptions {
-                    let (exemptible, force) = tax_exemption.is_applicable();
-                    tax_exemptible |= exemptible;
-                    if force {
-                        source_details.tax_exemption_applied = true;
-                        break;
-                    }
+            let mut tax_exemptible = false;
+            for tax_exemption in tax_exemptions {
+                let (exemptible, force) = tax_exemption.is_applicable();
+                tax_exemptible |= exemptible;
+                if force {
+                    source_details.tax_exemption_applied = true;
+                    break;
                 }
+            }
 
-                if tax_exemptible && !source_details.tax_exemption_applied {
-                    let source_local_revenue = local_execution(self.price * source_quantity)?;
-                    let source_local_commission = local_conclusion(
-                        self.commission * source_quantity / self.quantity)?;
+            if tax_exemptible && !source_details.tax_exemption_applied {
+                // FIXME(konishchev): HERE
+                let source_local_revenue = local_execution(price * source_quantity)?;
+                let source_local_commission = local_conclusion(
+                    commission * source_quantity / self.quantity)?;
 
-                    let source_local_profit = source_local_revenue
-                        .sub(source_local_commission).unwrap()
-                        .sub(source_total_local_cost).unwrap();
+                let source_local_profit = source_local_revenue
+                    .sub(source_local_commission).unwrap()
+                    .sub(source_total_local_cost).unwrap();
 
-                    source_details.tax_exemption_applied = source_local_profit.is_positive();
-                }
+                source_details.tax_exemption_applied = source_local_profit.is_positive();
             }
 
             total_quantity += source_quantity;
@@ -245,11 +261,10 @@ impl StockSell {
         assert_eq!(total_quantity, self.quantity);
         let taxable_ratio = (total_quantity - tax_free_quantity) / total_quantity;
 
-        let revenue = self.volume.round();
+        let revenue = volume.round();
         let local_revenue = local_execution(revenue)?;
         let taxable_local_revenue = local_execution(revenue * taxable_ratio)?;
 
-        let commission = self.commission.round();
         let local_commission = local_conclusion(commission)?;
         let deductible_local_commission = local_conclusion(commission * taxable_ratio)?;
 

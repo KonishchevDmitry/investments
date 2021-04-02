@@ -4,7 +4,7 @@ use log::warn;
 use serde::Deserialize;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::broker_statement::trades::{StockBuy, StockSell, StockSellType};
+use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
@@ -106,8 +106,8 @@ impl ConcludedTrades {
                     let quantity = parse_quantity(quantity, false)?;
                     debug_assert_eq!(volume, price * quantity);
 
-                    statement.stock_sells.push(StockSell::new(
-                        StockSellType::Trade, symbol, quantity.into(), price, volume, commission,
+                    statement.stock_sells.push(StockSell::new_trade(
+                        symbol, quantity.into(), price, volume, commission,
                         trade.conclusion_date, execution_date, false, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")

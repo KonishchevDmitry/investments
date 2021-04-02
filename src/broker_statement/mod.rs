@@ -275,11 +275,12 @@ impl BrokerStatement {
             }
         }
 
+        let volume = price * quantity;
         let commission = commission_calc.add_trade(
             conclusion_date, TradeType::Sell, quantity, price)?;
 
-        let stock_sell = StockSell::new(
-            StockSellType::Trade, symbol, quantity, price, price * quantity, commission,
+        let stock_sell = StockSell::new_trade(
+            symbol, quantity, price, volume, commission,
             conclusion_date, execution_date, false, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
@@ -296,8 +297,8 @@ impl BrokerStatement {
             return Err!("The portfolio has no open {} position", symbol);
         }
 
-        self.cash_assets.deposit(stock_sell.volume);
-        self.cash_assets.withdraw(stock_sell.commission);
+        self.cash_assets.deposit(volume);
+        self.cash_assets.withdraw(commission);
         self.stock_sells.push(stock_sell);
 
         Ok(())
