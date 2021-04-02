@@ -244,7 +244,9 @@ impl<'a> TradesProcessor<'a> {
         let (mut fees, mut fees_by_year) = self.pre_process_fees()?;
         let jurisdiction = self.broker_statement.broker.type_.jurisdiction();
 
-        for (trade_id, trade) in self.broker_statement.stock_sells.iter().enumerate() {
+        let mut trade_id = 0;
+
+        for trade in &self.broker_statement.stock_sells {
             match trade.type_ {
                 StockSellType::Trade {..} => (),
                 StockSellType::CorporateAction => continue,
@@ -266,6 +268,7 @@ impl<'a> TradesProcessor<'a> {
 
             let details = trade.calculate(self.country, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
             self.process_trade(trade_id, trade, &details)?;
+            trade_id += 1;
 
             if let Some(ref mut statement) = tax_statement {
                 if jurisdiction == Jurisdiction::Usa {
