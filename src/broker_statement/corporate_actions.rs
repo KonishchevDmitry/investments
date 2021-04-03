@@ -9,8 +9,9 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
+use crate::time::deserialize_date;
 use crate::types::{Date, Decimal};
-use crate::util::{self, deserialize_date};
+use crate::util;
 
 use super::BrokerStatement;
 use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};

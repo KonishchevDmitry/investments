@@ -8,6 +8,7 @@ use log::{self, debug, error};
 
 use investments::config::Config;
 use investments::core::GenericResult;
+use investments::time;
 use investments::types::{Date, Decimal};
 use investments::util::{self, DecimalRestrictions};
 
@@ -226,7 +227,7 @@ pub fn initialize() -> (Action, Config) {
 
 fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<Action> {
     if let Some(expire_time) = matches.value_of("cache_expire_time") {
-        config.cache_expire_time = util::parse_duration(expire_time).map_err(|_| format!(
+        config.cache_expire_time = time::parse_duration(expire_time).map_err(|_| format!(
             "Invalid cache expire time: {:?}", expire_time))?;
     };
 
@@ -236,8 +237,8 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<A
     match command {
         "deposits" => {
             let date = match matches.value_of("date") {
-                Some(date) => util::parse_date(date, "%d.%m.%Y")?,
-                None => util::today(),
+                Some(date) => time::parse_date(date, "%d.%m.%Y")?,
+                None => time::today(),
             };
 
             return Ok(Action::Deposits {

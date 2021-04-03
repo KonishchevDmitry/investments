@@ -13,6 +13,7 @@ pub mod deposits;
 pub mod metrics;
 pub mod portfolio;
 pub mod tax_statement;
+pub mod time;
 pub mod util;
 
 mod broker_statement;

@@ -10,8 +10,9 @@ use crate::db;
 use crate::formatting;
 use crate::localities;
 use crate::quotes::{Quotes, get_currency_pair};
+use crate::time;
 use crate::types::{Date, Decimal};
-use crate::util;
+#[cfg(test)] use crate::util;
 
 // Official CBR currency rate is calculated as following:
 // 1. Every weekday a weighted average price is calculated for 10:00 - 11:30 period.
@@ -105,7 +106,7 @@ impl CurrencyConverter {
     }
 
     pub fn real_time_date(&self) -> Date {
-        util::today_trade_execution_date()
+        time::today_trade_execution_date()
     }
 }
 

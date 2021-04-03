@@ -13,7 +13,8 @@ use regex::Regex;
 #[cfg(test)] use tempfile::NamedTempFile;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::util;
+use crate::time;
+#[cfg(test)] use crate::util;
 
 use super::TaxStatement;
 use super::record::{Record, UnknownRecord, is_record_name};
@@ -37,7 +38,7 @@ impl TaxStatementReader {
             .and_then(|captures| captures.get(1).unwrap().as_str().parse::<i32>().ok())
             .ok_or("Invalid tax statement file extension: *.dcX is expected")?;
 
-        let (mut decade, current_short_year) = util::today().year().div_mod_floor(&10);
+        let (mut decade, current_short_year) = time::today().year().div_mod_floor(&10);
         if short_year > current_short_year + 1 {
             decade -= 1;
         }

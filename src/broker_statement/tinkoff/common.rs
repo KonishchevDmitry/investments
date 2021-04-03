@@ -1,15 +1,16 @@
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
 use crate::xls::{SheetReader, Cell};
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%d.%m.%Y")
+    time::parse_date(date, "%d.%m.%Y")
 }
 
 pub fn parse_time(time: &str) -> GenericResult<Time> {
-    util::parse_time(time, "%H:%M:%S")
+    time::parse_time(time, "%H:%M:%S")
 }
 
 pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {

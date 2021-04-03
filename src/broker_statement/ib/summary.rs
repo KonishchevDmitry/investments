@@ -4,8 +4,8 @@ use log::warn;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
+use crate::time;
 use crate::types::Date;
-use crate::util;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser};
@@ -79,14 +79,14 @@ fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
         2 => {
             let start = parse_period_date(dates[0])?;
             let end = parse_period_date(dates[1])?;
-            util::parse_period(start, end)?
+            time::parse_period(start, end)?
         },
         _ => return Err!("Invalid date: {:?}", period),
     })
 }
 
 fn parse_period_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%B %d, %Y")
+    time::parse_date(date, "%B %d, %Y")
 }
 
 #[cfg(test)]

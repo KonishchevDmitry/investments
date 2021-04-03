@@ -9,8 +9,8 @@ use crate::analysis::{self, PortfolioCurrencyStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError};
 use crate::currency::converter::CurrencyConverter;
+use crate::time;
 use crate::types::Decimal;
-use crate::util;
 
 lazy_static! {
     static ref UPDATE_TIME: Gauge = register_simple_metric(
@@ -54,7 +54,7 @@ pub fn collect(config: &Config, path: &str) -> EmptyResult {
     let (statistics, converter) = analysis::analyse(
         config, None, false, Some(&config.metrics.merge_performance), false)?;
 
-    UPDATE_TIME.set(cast::f64(util::utc_now().timestamp()));
+    UPDATE_TIME.set(cast::f64(time::utc_now().timestamp()));
 
     for statistics in statistics.currencies {
         collect_portfolio_metrics(&statistics);

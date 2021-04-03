@@ -10,8 +10,8 @@ use crate::core::EmptyResult;
 use crate::currency;
 use crate::formatting::format_date;
 use crate::localities::{self, Country, Jurisdiction};
+use crate::time;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IncomeType {
@@ -114,7 +114,7 @@ impl TaxPaymentDaySpec {
                 _ => return None,
             };
 
-            if Date::from_ymd_opt(util::today().year(), month, day).is_none() || (day, month) == (29, 2) {
+            if Date::from_ymd_opt(time::today().year(), month, day).is_none() || (day, month) == (29, 2) {
                 return None;
             }
 

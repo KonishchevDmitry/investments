@@ -13,8 +13,9 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country, Jurisdiction};
 use crate::taxes::{TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
+use crate::time::{self, deserialize_date};
 use crate::types::{Date, Decimal};
-use crate::util::{self, DecimalRestrictions, deserialize_date};
+use crate::util::{self, DecimalRestrictions};
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -252,7 +253,7 @@ impl PortfolioConfig {
     }
 
     pub fn close_date() -> Date {
-        util::today()
+        time::today()
     }
 }
 
@@ -384,7 +385,7 @@ fn deserialize_cash_flows<'de, D>(deserializer: D) -> Result<Vec<(Date, Decimal)
     let mut cash_flows = Vec::new();
 
     for (date, amount) in deserialized {
-        let date = util::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?;
+        let date = time::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?;
         let amount = util::parse_decimal(&amount, DecimalRestrictions::StrictlyPositive).map_err(|_|
             D::Error::custom(format!("Invalid amount: {:?}", amount)))?;
 

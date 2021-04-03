@@ -4,8 +4,8 @@ use regex::{self, Regex};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting;
+use crate::time;
 use crate::types::Date;
-use crate::util;
 use crate::xls;
 
 use super::common::parse_date;
@@ -60,7 +60,7 @@ fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
     let captures = PERIOD_REGEX.captures(value).ok_or_else(|| format!(
         "Invalid period: {:?}", value))?;
 
-    util::parse_period(
+    time::parse_period(
         parse_date(captures.name("start").unwrap().as_str())?,
         parse_date(captures.name("end").unwrap().as_str())?,
     )

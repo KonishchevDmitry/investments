@@ -11,8 +11,8 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
+use crate::time;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
@@ -40,7 +40,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         include_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
-            today: util::today(),
+            today: time::today(),
             country,
             currency,
             converter,

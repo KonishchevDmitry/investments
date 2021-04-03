@@ -12,8 +12,8 @@ use serde::de::DeserializeOwned;
 
 use crate::core::GenericResult;
 use crate::currency::CurrencyRate;
+use crate::time;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 pub const BASE_CURRENCY: &str = "RUB";
 
@@ -66,8 +66,8 @@ impl Cbr {
         ])?;
 
         let response_date_format = "%d.%m.%Y";
-        if util::parse_date(&result.start_date, response_date_format)? != start_date ||
-            util::parse_date(&result.end_date, response_date_format)? != end_date {
+        if time::parse_date(&result.start_date, response_date_format)? != start_date ||
+            time::parse_date(&result.end_date, response_date_format)? != end_date {
             return Err!("The server returned currency rates info for an invalid period");
         }
 
@@ -84,7 +84,7 @@ impl Cbr {
                 "Invalid price: {:?}", rate.price))?;
 
             rates.push(CurrencyRate {
-                date: util::parse_date(&rate.date, response_date_format)?,
+                date: time::parse_date(&rate.date, response_date_format)?,
                 price: price / Decimal::from(lot),
             })
         }

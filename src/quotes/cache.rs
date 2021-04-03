@@ -8,6 +8,7 @@ use diesel::{self, prelude::*};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::db::{self, schema::quotes, models};
+use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
 pub struct Cache {
@@ -42,7 +43,7 @@ impl Cache {
             }
         }
 
-        let expire_time = util::now() - self.expire_time;
+        let expire_time = time::now() - self.expire_time;
         let result = quotes::table
             .select((quotes::currency, quotes::price))
             .filter(quotes::symbol.eq(symbol))
@@ -73,7 +74,7 @@ impl Cache {
         diesel::replace_into(quotes::table)
             .values(models::NewQuote {
                 symbol: symbol,
-                time: util::now(),
+                time: time::now(),
                 currency: price.currency,
                 price: price.amount.to_string(),
             })
@@ -100,7 +101,7 @@ mod tests {
         diesel::replace_into(quotes::table)
             .values(models::NewQuote {
                 symbol: symbol,
-                time: util::now() - cache.expire_time,
+                time: time::now() - cache.expire_time,
                 currency: "EUR",
                 price: s!("12.34"),
             })

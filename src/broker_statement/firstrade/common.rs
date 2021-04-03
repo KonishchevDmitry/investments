@@ -2,8 +2,8 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::time;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 #[derive(Deserialize)]
 pub struct Ignore {
@@ -14,7 +14,7 @@ fn parse_date(date: &str) -> GenericResult<Date> {
         14 => "%Y%m%d000000",
         _ => "%Y%m%d",
     };
-    util::parse_date(date, format)
+    time::parse_date(date, format)
 }
 
 pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error> where D: Deserializer<'de> {

@@ -32,6 +32,7 @@ use crate::formatting;
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
+use crate::time;
 use crate::types::{Date, Decimal, TradeType};
 use crate::util;
 
@@ -200,7 +201,7 @@ impl BrokerStatement {
     }
 
     pub fn check_date(&self) {
-        let days = (util::today() - self.last_date()).num_days();
+        let days = (time::today() - self.last_date()).num_days();
         let months = Decimal::from(days) / dec!(30);
 
         if months >= dec!(1) {
@@ -262,8 +263,8 @@ impl BrokerStatement {
         &mut self, symbol: &str, quantity: Decimal, price: Cash,
         commission_calc: &mut CommissionCalc,
     ) -> EmptyResult {
-        let conclusion_date = util::today_trade_conclusion_date();
-        let mut execution_date = util::today_trade_execution_date();
+        let conclusion_date = time::today_trade_conclusion_date();
+        let mut execution_date = time::today_trade_execution_date();
 
         for trade in self.stock_sells.iter().rev() {
             if trade.execution_date > execution_date {

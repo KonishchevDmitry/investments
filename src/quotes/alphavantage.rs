@@ -11,6 +11,7 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesMap, QuotesProvider};
@@ -94,13 +95,13 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     }
 
     let response: Response = response.json()?;
-    let timezone = util::parse_timezone(&response.metadata.timezone)?;
+    let timezone = time::parse_timezone(&response.metadata.timezone)?;
 
     let mut quotes = HashMap::new();
     let mut outdated = Vec::new();
 
     for quote in response.quotes {
-        let time = util::parse_tz_date_time(&quote.time, "%Y-%m-%d %H:%M:%S", timezone, true)?;
+        let time = time::parse_tz_date_time(&quote.time, "%Y-%m-%d %H:%M:%S", timezone, true)?;
 
         // A special case for quotes that are returned by API but don't updated and have zero price
         if time.timestamp() == 0 {

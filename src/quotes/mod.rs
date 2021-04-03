@@ -10,7 +10,7 @@ use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::db;
-#[cfg(not(test))] use crate::util;
+#[cfg(not(test))] use crate::time;
 
 use self::cache::Cache;
 use self::finnhub::Finnhub;
@@ -181,7 +181,7 @@ fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
 
 #[cfg(not(test))]
 fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>) -> bool {
-    (util::utc_now() - date_time.naive_utc()).num_days() >= 5
+    (time::utc_now() - date_time.naive_utc()).num_days() >= 5
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@ use csv::StringRecord;
 use crate::broker_statement::ib::StatementParser;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
+use crate::time;
 use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -110,11 +111,11 @@ pub fn format_record<'a, I>(iter: I) -> String
 }
 
 fn parse_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%Y-%m-%d")
+    time::parse_date(date, "%Y-%m-%d")
 }
 
 pub fn parse_date_time(date_time: &str) -> GenericResult<DateTime> {
-    util::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S")
+    time::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S")
 }
 
 #[cfg(test)]

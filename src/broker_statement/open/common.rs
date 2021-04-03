@@ -4,8 +4,8 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::core::GenericResult;
+use crate::time;
 use crate::types::{Date, Decimal};
-use crate::util;
 
 pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
     where D: Deserializer<'de>
@@ -15,7 +15,7 @@ pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
 }
 
 fn parse_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%Y-%m-%dT00:00:00")
+    time::parse_date(date, "%Y-%m-%dT00:00:00")
 }
 
 pub fn parse_quantity(decimal_quantity: Decimal, allow_zero: bool) -> GenericResult<u32> {

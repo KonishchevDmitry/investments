@@ -13,6 +13,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
+use crate::time;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
@@ -147,7 +148,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
         None => return Ok(None),
     };
 
-    let time = util::parse_tz_date_time(&value.datetime, "%Y-%m-%d %H:%M:%S", Utc, true)?;
+    let time = time::parse_tz_date_time(&value.datetime, "%Y-%m-%d %H:%M:%S", Utc, true)?;
     if is_outdated(time) {
         debug!("{}: Got outdated quotes: {}.", symbol, time);
         return Ok(None);

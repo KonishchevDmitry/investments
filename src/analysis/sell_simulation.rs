@@ -11,6 +11,7 @@ use crate::localities::Country;
 use crate::quotes::Quotes;
 use crate::taxes::IncomeType;
 use crate::trades::convert_price;
+use crate::time;
 use crate::types::Decimal;
 use crate::util;
 
@@ -117,8 +118,8 @@ fn print_results(
 ) -> EmptyResult {
     let mut same_currency = true;
 
-    let conclusion_date = util::today_trade_conclusion_date();
-    let execution_date = util::today_trade_execution_date();
+    let conclusion_date = time::today_trade_conclusion_date();
+    let execution_date = time::today_trade_execution_date();
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_local_revenue = Cash::new(country.currency, dec!(0));

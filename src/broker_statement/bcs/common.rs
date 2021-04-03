@@ -2,15 +2,15 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::GenericResult;
+use crate::time;
 use crate::types::Date;
-use crate::util;
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%d.%m.%Y")
+    time::parse_date(date, "%d.%m.%Y")
 }
 
 pub fn parse_short_date(date: &str) -> GenericResult<Date> {
-    util::parse_date(date, "%d.%m.%y")
+    time::parse_date(date, "%d.%m.%y")
 }
 
 pub fn map_currency(name: &str) -> Option<&'static str> {

@@ -11,8 +11,8 @@ use serde::de::{Deserializer, Error};
 use crate::core::GenericResult;
 use crate::currency::Cash;
 #[cfg(not(test))] use crate::localities;
+use crate::time;
 use crate::types::{Decimal, Date};
-use crate::util;
 
 use super::{QuotesMap, QuotesProvider};
 
@@ -161,7 +161,7 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
             _ => return Err!("{} is nominated in an unsupported currency: {}", symbol, currency),
         };
 
-        let prev_date = util::parse_date(&prev_date, "%Y-%m-%d")?;
+        let prev_date = time::parse_date(&prev_date, "%Y-%m-%d")?;
         if prev_price.is_zero() || prev_price.is_sign_negative() {
             return Err!("Invalid price: {}", prev_price);
         }
@@ -177,7 +177,7 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
     for row in market_data {
         let symbol = get_value(row.symbol)?;
 
-        let date = util::parse_date_time(&get_value(row.time)?, "%Y-%m-%d %H:%M:%S")?.date();
+        let date = time::parse_date_time(&get_value(row.time)?, "%Y-%m-%d %H:%M:%S")?.date();
         if is_outdated(date) {
             outdated.push(symbol);
             continue;
@@ -227,7 +227,7 @@ fn get_value<T>(value: Option<T>) -> GenericResult<T> {
 
 #[cfg(not(test))]
 fn is_outdated(date: Date) -> bool {
-    date < localities::get_russian_stock_exchange_min_last_working_day(util::today())
+    date < localities::get_russian_stock_exchange_min_last_working_day(time::today())
 }
 
 #[cfg(test)]
