@@ -5,7 +5,7 @@ use regex::Regex;
 use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
-#[cfg(test)] use crate::types::Decimal;
+#[cfg(test)] use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
@@ -110,7 +110,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
         static ref REGEX: Regex = Regex::new(concat!(
             r"^(?P<symbol>[A-Z]+) ?\([A-Z0-9]+\) (?P<action>Split|Spinoff) ",
             r"(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
-            r"\((?P<child_symbol>[A-Z]+), [^,)]+, [A-Z0-9]+\)$",
+            r"\((?P<child_symbol>[A-Z.]+), [^,)]+, [A-Z0-9]+\)$",
         )).unwrap();
     }
 
@@ -165,53 +165,45 @@ mod tests {
             .split(',').collect();
     }
 
-    #[test]
-    fn stock_split_parsing() {
-        let spec = RecordSpec::new("test", CORPORATE_ACTION_FIELDS.clone(), 0);
-        let record = StringRecord::from(vec![
+    #[rstest(record, symbol, date, report_date, to, from, from_change, to_change,
+        case(vec![
             "Stocks", "USD", "2020-08-31", "2020-08-28, 20:25:00",
             "AAPL(US0378331005) Split 4 for 1 (AAPL, APPLE INC, US0378331005)",
             "111", "0", "0", "0", "",
-        ]);
-        let record = Record::new(&spec, &record);
+        ], "AAPL", date!(28, 8, 2020), date!(31, 8, 2020), 4, 1, None, Some(dec!(111))),
 
-        assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date: date!(28, 8, 2020),
-            report_date: Some(date!(31, 8, 2020)),
+        case(vec![
+            "Stocks", "USD", "2021-01-21", "2021-01-20, 20:25:00",
+            "SLG(US78440X1019) Split 100000 for 102918 (SLG.OLD, SL GREEN REALTY CORP, US78440X1019)",
+            "-7", "0", "0", "0", "",
+        ], "SLG", date!(20, 1, 2021), date!(21, 1, 2021), 100000, 102918, Some(dec!(7)), None),
 
-            symbol: s!("AAPL"),
-            action: CorporateActionType::StockSplit{
-                ratio: StockSplitRatio::new(1, 4),
-                from_change: None,
-                to_change: Some(dec!(111)),
-            },
-        });
-    }
-
-    #[rstest(record, from_change, to_change,
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y2019)",
             "-80", "0", "0", "0", "",
-        ], Some(dec!(80)), None),
+        ], "VISL", date!(31, 7, 2020), date!(3, 8, 2020), 1, 6, Some(dec!(80)), None),
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y3009)",
             "13.3333", "0", "0", "0", "",
-        ], None, Some(dec!(13.3333))),
+        ], "VISL", date!(31, 7, 2020), date!(3, 8, 2020), 1, 6, None, Some(dec!(13.3333))),
     )]
-    fn reverse_stock_split_parsing(record: Vec<&str>, from_change: Option<Decimal>, to_change: Option<Decimal>) {
+    fn stock_split_parsing(
+        record: Vec<&str>, symbol: &str, date: Date, report_date: Date, to: u32, from: u32,
+        from_change: Option<Decimal>, to_change: Option<Decimal>,
+    ) {
         let spec = RecordSpec::new("test", CORPORATE_ACTION_FIELDS.clone(), 0);
         let record = StringRecord::from(record);
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date: date!(31, 7, 2020),
-            report_date: Some(date!(3, 8, 2020)),
+            date,
+            report_date: Some(report_date),
 
-            symbol: s!("VISL"),
+            symbol: symbol.to_owned(),
             action: CorporateActionType::StockSplit{
-                ratio: StockSplitRatio::new(6, 1),
+                ratio: StockSplitRatio::new(from, to),
                 from_change, to_change,
             },
         });
