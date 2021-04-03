@@ -13,6 +13,7 @@ wait-api-rate-limits() {
 
 investments() {
     local config="testdata/configs/$1"; shift
+    echo "$@"
     cargo run --quiet -- --config "$config" "$@" > /dev/null
 }
 
@@ -38,10 +39,15 @@ for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
     rate-limited-investments main analyse "$broker"
 done
 
-for portfolio in ib-complex ib-margin-rub ib-stock-split; do
-    rate-limited-investments other tax-statement "$portfolio"
+for portfolio in ib-margin-rub ib-complex ib-stock-split ib-reverse-stock-split; do
+    investments other tax-statement "$portfolio"
 done
 
-wait-api-rate-limits 60 && investments other analyse ib-complex --all
-rate-limited-investments other simulate-sell ib-complex 1 VTRS
+wait-api-rate-limits 60
+    investments other analyse ib-complex --all
+    rate-limited-investments other simulate-sell ib-complex 1 VTRS
+wait-api-rate-limits 60
+
 rate-limited-investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX
+rate-limited-investments other simulate-sell ib-stock-split all AAPL
+rate-limited-investments other simulate-sell ib-reverse-stock-split all AAPL all VISL
