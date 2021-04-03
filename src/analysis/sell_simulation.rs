@@ -1,6 +1,6 @@
 use static_table_derive::StaticTable;
 
-use crate::broker_statement::{BrokerStatement, StockSell, StockSellType, StockSourceDetails};
+use crate::broker_statement::{BrokerStatement, StockSell, StockSellType};
 use crate::commissions::CommissionCalc;
 use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
@@ -175,13 +175,7 @@ fn print_results(
         let mut purchase_cost = Cash::new(sell_price.currency, dec!(0));
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            // FIXME(konishchev): Change currency?
-            let price = match buy_trade.source {
-                StockSourceDetails::Trade {price, ..} => price,
-                StockSourceDetails::CorporateAction => {
-                    buy_trade.price(sell_price.currency, converter)?
-                },
-            };
+            let buy_price = buy_trade.price(sell_price.currency, converter)?;
             purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
 
             fifo_table.add_row(FifoRow {
@@ -191,7 +185,7 @@ fn print_results(
                    None
                 },
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
-                price: (price / buy_trade.multiplier).normalize(),
+                price: (buy_price / buy_trade.multiplier).normalize(),
                 tax_free: if buy_trade.tax_exemption_applied {
                     Some("✔".to_owned())
                 } else {
