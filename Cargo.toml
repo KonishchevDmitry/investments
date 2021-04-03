@@ -62,10 +62,10 @@ diesel = { version = "1.4.6", features = ["sqlite", "chrono"] }
 diesel-derive-enum = { version = "1.1.0", features = ["sqlite"] }
 diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
-libsqlite3-sys = { version = ">=0.8.0, <0.19.0", features = ["bundled"] }
+libsqlite3-sys = { version = ">=0.8.0, <0.21.0", features = ["bundled"] }
 
-static_table_derive = "0.1.22"
-xls_table_derive = "0.4.0"
+static_table_derive = "0.1.23"
+xls_table_derive = "0.4.1"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
