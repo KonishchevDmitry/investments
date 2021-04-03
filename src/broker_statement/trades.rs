@@ -507,7 +507,6 @@ impl PurchaseTotalCost {
         for cost in &self.0 {
             let mut purchase_cost = dec!(0);
 
-            // FIXME(konishchev): Group by date + currency?
             for transaction in &cost.transactions {
                 match type_ {
                     Some(type_) if type_ != transaction.type_ => continue,
