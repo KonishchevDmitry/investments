@@ -8,7 +8,7 @@ use super::common::{Record, RecordParser};
 pub struct CashReportParser {}
 
 impl RecordParser for CashReportParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Currency Summary")? != "Ending Cash" {
             return Ok(());
         }
@@ -43,7 +43,7 @@ impl RecordParser for DepositsAndWithdrawalsParser {
         true
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Settle Date")?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;

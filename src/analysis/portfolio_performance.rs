@@ -3,7 +3,7 @@ use std::collections::{HashMap, BTreeMap};
 use log::{self, log_enabled, trace};
 use num_traits::Zero;
 
-use crate::broker_statement::BrokerStatement;
+use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -267,54 +267,74 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         for trade in &statement.stock_buys {
             let multiplier = statement.stock_splits.get_multiplier(
                 &trade.symbol, trade.conclusion_date, self.today);
+            let quantity = multiplier * trade.quantity;
 
-            let commission = self.converter.convert_to(
-                trade.conclusion_date, trade.commission, self.currency)?;
-            self.income_structure.commissions += commission;
+            match trade.type_ {
+                StockSource::Trade {volume, commission, ..} => {
+                    let volume = self.converter.convert_to(
+                        trade.execution_date, volume, self.currency)?;
 
-            let mut assets = self.converter.convert_to(
-                trade.execution_date, trade.volume, self.currency)?;
-            assets += commission;
+                    let commission = self.converter.convert_to(
+                        trade.conclusion_date, commission, self.currency)?;
+                    self.income_structure.commissions += commission;
 
-            let deposit_view = self.get_deposit_view(&trade.symbol);
-            deposit_view.trade(trade.conclusion_date, multiplier * trade.quantity);
-            deposit_view.transaction(trade.conclusion_date, assets);
+                    let deposit_view = self.get_deposit_view(&trade.symbol);
+                    deposit_view.trade(trade.conclusion_date, quantity);
+                    deposit_view.transaction(trade.conclusion_date, volume);
+                    deposit_view.transaction(trade.conclusion_date, commission);
+                },
+                StockSource::CorporateAction => {
+                    let deposit_view = self.get_deposit_view(&trade.symbol);
+                    deposit_view.trade(trade.conclusion_date, quantity);
+                },
+            };
         }
 
         for trade in &statement.stock_sells {
             let multiplier = statement.stock_splits.get_multiplier(
                 &trade.symbol, trade.conclusion_date, self.today);
+            let quantity = multiplier * trade.quantity;
 
-            let assets = self.converter.convert_to(
-                trade.execution_date, trade.volume, self.currency)?;
+            match trade.type_ {
+                StockSellType::Trade {volume, commission, ..} => {
+                    let volume = self.converter.convert_to(
+                        trade.execution_date, volume, self.currency)?;
 
-            let commission = self.converter.convert_to(
-                trade.conclusion_date, trade.commission, self.currency)?;
-            self.income_structure.commissions += commission;
+                    let commission = self.converter.convert_to(
+                        trade.conclusion_date, commission, self.currency)?;
+                    self.income_structure.commissions += commission;
 
-            {
-                let deposit_view = self.get_deposit_view(&trade.symbol);
+                    {
+                        let deposit_view = self.get_deposit_view(&trade.symbol);
 
-                deposit_view.trade(trade.conclusion_date, multiplier * -trade.quantity);
-                deposit_view.transaction(trade.conclusion_date, -assets);
-                deposit_view.transaction(trade.conclusion_date, commission);
+                        deposit_view.trade(trade.conclusion_date, -quantity);
+                        deposit_view.transaction(trade.conclusion_date, -volume);
+                        deposit_view.transaction(trade.conclusion_date, commission);
 
-                deposit_view.last_sell_volume.replace(assets);
-                if trade.emulation {
-                    deposit_view.closed = false;
-                }
-            }
+                        deposit_view.last_sell_volume.replace(volume);
+                        if trade.emulation {
+                            deposit_view.closed = false;
+                        }
+                    }
 
-            let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-            let details = trade.calculate(&self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
-            let local_profit = details.local_profit.amount;
-            let taxable_local_profit = details.taxable_local_profit.amount;
+                    let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
+                    let details = trade.calculate(
+                        &self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
 
-            stock_taxes.entry(&trade.symbol)
-                .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
-                .add_profit(trade.execution_date, local_profit, taxable_local_profit);
+                    let local_profit = details.local_profit.amount;
+                    let taxable_local_profit = details.taxable_local_profit.amount;
 
-            taxes.add_profit(trade.execution_date, local_profit, taxable_local_profit);
+                    stock_taxes.entry(&trade.symbol)
+                        .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
+                        .add_profit(trade.execution_date, local_profit, taxable_local_profit);
+
+                    taxes.add_profit(trade.execution_date, local_profit, taxable_local_profit);
+                },
+                StockSellType::CorporateAction => {
+                    let deposit_view = self.get_deposit_view(&trade.symbol);
+                    deposit_view.trade(trade.conclusion_date, -quantity);
+                },
+            };
         }
 
         for (&symbol, symbol_taxes) in stock_taxes.iter() {

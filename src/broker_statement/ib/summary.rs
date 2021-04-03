@@ -13,7 +13,7 @@ use super::common::{Record, RecordParser};
 pub struct StatementInfoParser {}
 
 impl RecordParser for StatementInfoParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Period" {
             let period = record.get_value("Field Value")?;
             let period = parse_period(period)?;
@@ -27,7 +27,7 @@ impl RecordParser for StatementInfoParser {
 pub struct AccountInformationParser {}
 
 impl RecordParser for AccountInformationParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let name = record.get_value("Field Name")?;
         let value = record.get_value("Field Value")?;
 
@@ -57,7 +57,7 @@ impl RecordParser for AccountInformationParser {
 pub struct ChangeInNavParser {}
 
 impl RecordParser for ChangeInNavParser {
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Starting Value" {
             let currency = parser.base_currency()?;
             let amount = Cash::new_from_string(currency, record.get_value("Field Value")?)?;

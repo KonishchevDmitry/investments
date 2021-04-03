@@ -1,8 +1,6 @@
-use num_traits::Zero;
-
 use crate::broker_statement::{
-    BrokerStatement, ForexTrade, StockBuy, StockSell, StockSource, Dividend, Fee, IdleCashInterest,
-    TaxWithholding};
+    BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
+    IdleCashInterest, TaxWithholding};
 use crate::currency::{Cash, CashAssets};
 use crate::types::Date;
 
@@ -95,31 +93,33 @@ impl CashFlowMapper {
     }
 
     fn stock_buy(&mut self, name: &str, trade: &StockBuy) {
-        match trade.source {
-            StockSource::Trade => {
+        match trade.type_ {
+            StockSource::Trade {volume, commission, ..} => {
                 let description = format!("Покупка {} {}", trade.quantity, name);
-                self.add(trade.conclusion_date, -trade.volume, description);
+                self.add(trade.conclusion_date, -volume, description);
 
-                if !trade.commission.is_zero() {
+                if !commission.is_zero() {
                     let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
-                    self.add(trade.conclusion_date, -trade.commission, description);
+                    self.add(trade.conclusion_date, -commission, description);
                 };
             },
-            StockSource::CorporateAction => {
-                assert!(trade.volume.amount.is_zero());
-                assert!(trade.commission.amount.is_zero());
-            },
-        }
+            StockSource::CorporateAction => {},
+        };
     }
 
     fn stock_sell(&mut self, name: &str, trade: &StockSell) {
-        let description = format!("Продажа {} {}", trade.quantity, name);
-        self.add(trade.conclusion_date, trade.volume, description);
+        match trade.type_ {
+            StockSellType::Trade {volume, commission, ..} => {
+                let description = format!("Продажа {} {}", trade.quantity, name);
+                self.add(trade.conclusion_date, volume, description);
 
-        if !trade.commission.is_zero() {
-            let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
-            self.add(trade.conclusion_date, -trade.commission, description);
-        };
+                if !commission.is_zero() {
+                    let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
+                    self.add(trade.conclusion_date, -commission, description);
+                };
+            },
+            StockSellType::CorporateAction => {},
+        }
     }
 
     fn dividend(&mut self, name: &str, dividend: &Dividend) {

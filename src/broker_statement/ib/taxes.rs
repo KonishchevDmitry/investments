@@ -28,7 +28,7 @@ impl RecordParser for WithholdingTaxParser {
         true
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let description = record.get_value("Description")?;
         let date = parser.tax_remapping.map(record.parse_date("Date")?, description);

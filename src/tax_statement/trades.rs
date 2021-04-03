@@ -7,7 +7,8 @@ use log::warn;
 use static_table_derive::StaticTable;
 
 use crate::brokers::Broker;
-use crate::broker_statement::{BrokerStatement, StockSell, SellDetails, FifoDetails, Fee};
+use crate::broker_statement::{
+    BrokerStatement, StockSell, StockSellType, SellDetails, FifoDetails, StockSourceDetails, Fee};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -36,6 +37,7 @@ pub fn process_income(
 
         same_dates: true,
         same_currency: true,
+        non_trade_sources: false,
         stock_splits: false,
         tax_exemptions: false,
 
@@ -66,6 +68,7 @@ struct TradesProcessor<'a> {
 
     same_dates: bool,
     same_currency: bool,
+    non_trade_sources: bool,
     stock_splits: bool,
     tax_exemptions: bool,
 
@@ -128,7 +131,7 @@ struct FifoRow {
     #[column(name="Дата сделки")]
     conclusion_date: Date,
     #[column(name="Дата расчета")]
-    execution_date: Date,
+    execution_date: Option<Date>,
     #[column(name="Ценная бумага")]
     security: String,
     #[column(name="Кол.")]
@@ -136,21 +139,23 @@ struct FifoRow {
     #[column(name="Мул.")]
     multiplier: Decimal,
     #[column(name="Цена")]
-    price: Cash,
+    price: Option<Cash>,
     #[column(name="Курс руб.\nдата сделки")]
     conclusion_currency_rate: Option<Decimal>,
     #[column(name="Курс руб.\nдата расчета")]
     execution_currency_rate: Option<Decimal>,
     #[column(name="Расходы")]
-    cost: Cash,
+    cost: Option<Cash>,
     #[column(name="Расходы (руб)")]
-    local_cost: Cash,
+    local_cost: Option<Cash>,
     #[column(name="Комиссия")]
-    commission: Cash,
+    commission: Option<Cash>,
     #[column(name="Комиссия\n(руб)")]
-    local_commission: Cash,
+    local_commission: Option<Cash>,
     #[column(name="Общие затраты")]
     total_local_cost: Cash,
+    #[column(name="Источник", align="center")]
+    source: String,
     #[column(name="Льгота", align="center")]
     tax_free: Option<String>,
 }
@@ -239,9 +244,15 @@ impl<'a> TradesProcessor<'a> {
         let (mut fees, mut fees_by_year) = self.pre_process_fees()?;
         let jurisdiction = self.broker_statement.broker.type_.jurisdiction();
 
-        for (trade_id, trade) in self.broker_statement.stock_sells.iter().enumerate() {
-            let (tax_year, _) = self.portfolio.tax_payment_day().get(trade.execution_date, true);
+        let mut trade_id = 0;
 
+        for trade in &self.broker_statement.stock_sells {
+            match trade.type_ {
+                StockSellType::Trade {..} => (),
+                StockSellType::CorporateAction => continue,
+            };
+
+            let (tax_year, _) = self.portfolio.tax_payment_day().get(trade.execution_date, true);
             if let Some(year) = self.year {
                 if tax_year != year {
                     continue;
@@ -257,6 +268,7 @@ impl<'a> TradesProcessor<'a> {
 
             let details = trade.calculate(self.country, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
             self.process_trade(trade_id, trade, &details)?;
+            trade_id += 1;
 
             if let Some(ref mut statement) = tax_statement {
                 if jurisdiction == Jurisdiction::Usa {
@@ -281,10 +293,14 @@ impl<'a> TradesProcessor<'a> {
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
         let security = self.broker_statement.get_instrument_name(&trade.symbol);
+        let (price, commission) = match trade.type_ {
+            StockSellType::Trade {price, commission, ..} => (price, commission),
+            _ => unreachable!(),
+        };
 
         self.same_dates &= trade.execution_date == trade.conclusion_date;
-        self.same_currency &= trade.price.currency == self.country.currency &&
-            trade.commission.currency == self.country.currency;
+        self.same_currency &= price.currency == self.country.currency &&
+            commission.currency == self.country.currency;
         self.tax_exemptions |= details.tax_exemption_applied();
 
         self.total_local_profit.add_assign(details.local_profit).unwrap();
@@ -294,16 +310,16 @@ impl<'a> TradesProcessor<'a> {
             .or_insert(details.taxable_local_profit);
         self.total_tax_deduction.add_assign(details.tax_deduction).unwrap();
 
-        let conclusion_currency_rate = if trade.commission.currency != self.country.currency {
+        let conclusion_currency_rate = if commission.currency != self.country.currency {
             Some(self.converter.precise_currency_rate(
-                trade.conclusion_date, trade.commission.currency, self.country.currency)?)
+                trade.conclusion_date, commission.currency, self.country.currency)?)
         } else {
             None
         };
 
-        let execution_currency_rate = if trade.price.currency != self.country.currency {
+        let execution_currency_rate = if price.currency != self.country.currency {
             Some(self.converter.precise_currency_rate(
-                trade.execution_date, trade.price.currency, self.country.currency)?)
+                trade.execution_date, price.currency, self.country.currency)?)
         } else {
             None
         };
@@ -315,14 +331,14 @@ impl<'a> TradesProcessor<'a> {
             security: security.to_owned(),
             quantity: trade.quantity,
 
-            price: trade.price,
+            price,
             conclusion_currency_rate: conclusion_currency_rate,
             execution_currency_rate: execution_currency_rate,
 
             revenue: details.revenue,
             local_revenue: details.local_revenue,
 
-            commission: trade.commission.round(),
+            commission: commission.round(),
             local_commission: details.local_commission,
 
             purchase_local_cost: details.purchase_local_cost,
@@ -345,24 +361,53 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_fifo(&mut self, security: &str, trade_id: usize, buy_trade: &FifoDetails, first: bool) -> EmptyResult {
-        self.same_dates &= buy_trade.execution_date == buy_trade.conclusion_date;
-        self.same_currency &= buy_trade.price.currency == self.country.currency &&
-            buy_trade.commission.currency == self.country.currency;
-        self.stock_splits |= buy_trade.multiplier != dec!(1);
+    fn process_fifo(&mut self, security: &str, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
+        self.stock_splits |= trade.multiplier != dec!(1);
 
-        let conclusion_currency_rate = if buy_trade.commission.currency != self.country.currency {
-            Some(self.converter.precise_currency_rate(
-                buy_trade.conclusion_date, buy_trade.commission.currency, self.country.currency)?)
-        } else {
-            None
-        };
+        let mut execution_date_cell = None;
 
-        let execution_currency_rate = if buy_trade.price.currency != self.country.currency {
-            Some(self.converter.precise_currency_rate(
-                buy_trade.execution_date, buy_trade.price.currency, self.country.currency)?)
-        } else {
-            None
+        let mut price_cell = None;
+        let mut execution_currency_rate_cell = None;
+
+        let mut commission_cell = None;
+        let mut local_commission_cell = None;
+        let mut conclusion_currency_rate_cell = None;
+
+        let mut cost_cell = None;
+        let mut local_cost_cell = None;
+
+        let source = match trade.source {
+            StockSourceDetails::Trade {price, commission, local_commission, cost, local_cost, ..} => {
+                self.same_dates &= trade.execution_date == trade.conclusion_date;
+                self.same_currency &=
+                    price.currency == self.country.currency &&
+                    commission.currency == self.country.currency;
+
+                execution_date_cell.replace(trade.execution_date);
+                price_cell.replace(price);
+
+                commission_cell.replace(commission);
+                local_commission_cell.replace(local_commission);
+
+                cost_cell.replace(cost);
+                local_cost_cell.replace(local_cost);
+
+                if commission.currency != self.country.currency {
+                    conclusion_currency_rate_cell.replace(self.converter.precise_currency_rate(
+                        trade.conclusion_date, commission.currency, self.country.currency)?);
+                };
+
+                if price.currency != self.country.currency {
+                    execution_currency_rate_cell.replace(self.converter.precise_currency_rate(
+                        trade.execution_date, price.currency, self.country.currency)?);
+                };
+
+                "Покупка"
+            },
+            StockSourceDetails::CorporateAction => {
+                self.non_trade_sources = true;
+                "Корп. действие"
+            },
         };
 
         self.fifo_table.add_row(FifoRow {
@@ -371,24 +416,25 @@ impl<'a> TradesProcessor<'a> {
             } else {
                 None
             },
-            conclusion_date: buy_trade.conclusion_date,
-            execution_date: buy_trade.execution_date,
+            conclusion_date: trade.conclusion_date,
+            execution_date: execution_date_cell,
             security: security.to_owned(),
-            quantity: buy_trade.quantity,
-            multiplier: buy_trade.multiplier,
+            quantity: trade.quantity,
+            multiplier: trade.multiplier,
 
-            price: buy_trade.price,
-            conclusion_currency_rate: conclusion_currency_rate,
-            execution_currency_rate: execution_currency_rate,
+            price: price_cell,
+            conclusion_currency_rate: conclusion_currency_rate_cell,
+            execution_currency_rate: execution_currency_rate_cell,
 
-            cost: buy_trade.cost,
-            local_cost: buy_trade.local_cost,
+            cost: cost_cell,
+            local_cost: local_cost_cell,
 
-            commission: buy_trade.commission,
-            local_commission: buy_trade.local_commission,
+            commission: commission_cell,
+            local_commission: local_commission_cell,
 
-            total_local_cost: buy_trade.total_local_cost,
-            tax_free: if buy_trade.tax_exemption_applied {
+            total_local_cost: trade.total_cost(self.country.currency, self.converter)?,
+            source: source.to_owned(),
+            tax_free: if trade.tax_exemption_applied {
                 Some("✔".to_owned())
             } else {
                 None
@@ -462,8 +508,11 @@ impl<'a> TradesProcessor<'a> {
             self.fifo_table.hide_local_cost();
             self.fifo_table.hide_local_commission();
         }
+        if !self.non_trade_sources {
+            self.fifo_table.hide_source();
+        }
         if !self.stock_splits {
-            self.fifo_table.hide_multiplier()
+            self.fifo_table.hide_multiplier();
         }
         if !self.tax_exemptions {
             self.trades_table.hide_taxable_local_profit();

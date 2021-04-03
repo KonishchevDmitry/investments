@@ -1,12 +1,12 @@
 use std::ops::Deref;
 
-use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell, StockSource};
+use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
 use crate::types::Date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_date_time};
+use super::common::{Record, RecordParser};
 
 pub struct TradesParser {}
 
@@ -15,12 +15,12 @@ impl RecordParser for TradesParser {
         Some(&["SubTotal", "Total"])
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         record.check_value("DataDiscriminator", "Order")?;
 
         let asset_category = record.get_value("Asset Category")?;
         let symbol = record.get_value("Symbol")?;
-        let conclusion_date = parse_date_time(record.get_value("Date/Time")?)?.date();
+        let conclusion_date = record.parse_date_time("Date/Time")?.date();
 
         match asset_category {
             "Forex" => parse_forex_record(parser, record, symbol, conclusion_date),
@@ -83,19 +83,25 @@ fn parse_stock_record(
         DecimalRestrictions::StrictlyPositive
     })?;
     if cfg!(debug_assertions) {
-        let precision = match util::decimal_precision(quantity) {
-            0 => 4,
-            _ => 6,
-        };
-        debug_assert_eq!(volume, (price * -quantity).round_to(precision));
+        let mut ok = false;
+        let expected_volume = price * -quantity;
+
+        for precision in 4..=8 {
+            if expected_volume.round_to(precision) == volume {
+                ok = true;
+                break;
+            }
+        }
+
+        debug_assert!(ok, "Got an unexpected volume {} vs {}", volume, expected_volume);
     }
 
     if quantity.is_sign_positive() {
-        parser.statement.stock_buys.push(StockBuy::new(
-            symbol, quantity, StockSource::Trade, price, -volume, commission,
+        parser.statement.stock_buys.push(StockBuy::new_trade(
+            symbol, quantity, price, -volume, commission,
             conclusion_date, execution_date, false));
     } else {
-        parser.statement.stock_sells.push(StockSell::new(
+        parser.statement.stock_sells.push(StockSell::new_trade(
             symbol, -quantity, price, volume, commission,
             conclusion_date, execution_date, false, false));
     }

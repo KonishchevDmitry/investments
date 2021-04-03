@@ -4,6 +4,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{IncomeType, TaxExemption};
+use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
 
 #[derive(Debug)]
@@ -14,9 +15,18 @@ pub struct ForexTrade {
     pub conclusion_date: Date,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum StockSource {
-    Trade,
+    // Ordinary trade
+    Trade {
+        price: Cash,
+        volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
+        commission: Cash,
+    },
+
+    // Non-trade operation due to a corporate action that doesn't affect cash balance:
+    // * Emulated buy to convert position during stock split
+    // * Spinoff or stock dividend
     CorporateAction,
 }
 
@@ -24,30 +34,42 @@ pub enum StockSource {
 pub struct StockBuy {
     pub symbol: String,
     pub quantity: Decimal,
-    pub source: StockSource,
 
-    // Please note that all of the following values can be zero due to corporate actions or other
-    // non-trade operations:
-    pub price: Cash,
-    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
-    pub commission: Cash,
+    pub type_: StockSource,
+    cost: PurchaseTotalCost,
+    pub margin: bool,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
-    pub margin: bool,
 
     sold: Decimal,
 }
 
 impl StockBuy {
-    pub fn new(
-        symbol: &str, quantity: Decimal, source: StockSource,
-        price: Cash, volume: Cash, commission: Cash,
+    pub fn new_trade(
+        symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool,
     ) -> StockBuy {
+        let cost = PurchaseTotalCost::new_from_trade(
+            conclusion_date, execution_date, volume, commission);
+
         StockBuy {
-            symbol: symbol.to_owned(), quantity, source, price, volume, commission,
-            conclusion_date, execution_date, margin, sold: dec!(0),
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSource::Trade {price, volume, commission}, cost,
+            conclusion_date, execution_date, margin,
+            sold: dec!(0),
+        }
+    }
+
+    pub fn new_corporate_action(
+        symbol: &str, quantity: Decimal, cost: PurchaseTotalCost,
+        conclusion_date: Date, execution_date: Date,
+    ) -> StockBuy {
+        StockBuy {
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSource::CorporateAction, cost, margin: false,
+            conclusion_date, execution_date,
+            sold: dec!(0),
         }
     }
 
@@ -59,37 +81,88 @@ impl StockBuy {
         self.quantity - self.sold
     }
 
-    pub fn sell(&mut self, quantity: Decimal) {
+    pub fn sell(&mut self, quantity: Decimal, multiplier: Decimal) -> StockSellSource {
         assert!(self.get_unsold() >= quantity);
         self.sold += quantity;
+
+        let mut cost = self.cost.clone();
+        let type_ = if quantity == self.quantity {
+            self.type_
+        } else {
+            for cost in &mut cost.0 {
+                cost.fraction.0 *= quantity;
+                cost.fraction.1 *= self.quantity;
+            }
+
+            match self.type_ {
+                StockSource::Trade {price, commission, ..} => StockSource::Trade {
+                    price,
+                    volume: price * quantity,
+                    commission: commission / self.quantity * quantity,
+                },
+                StockSource::CorporateAction => StockSource::CorporateAction,
+            }
+        };
+
+        StockSellSource {
+            quantity, multiplier, type_, cost,
+            conclusion_date: self.conclusion_date,
+            execution_date: self.execution_date,
+        }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum StockSellType {
+    // Ordinary trade
+    Trade {
+        price: Cash,
+        volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
+        commission: Cash,
+    },
+
+    // Non-trade operation due to a corporate action that doesn't affect cash balance and doesn't
+    // lead to any taxes:
+    // * Emulated sell to convert position during stock split
+    CorporateAction,
 }
 
 #[derive(Clone, Debug)]
 pub struct StockSell {
     pub symbol: String,
     pub quantity: Decimal,
-    pub price: Cash,
-    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
-    pub commission: Cash,
+
+    pub type_: StockSellType,
+    pub margin: bool,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
-    pub margin: bool,
 
     pub emulation: bool,
     sources: Vec<StockSellSource>,
 }
 
 impl StockSell {
-    pub fn new(
+    pub fn new_trade(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
         conclusion_date: Date, execution_date: Date, margin: bool, emulation: bool,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(), quantity, price, volume, commission,
-            conclusion_date, execution_date, margin,
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSellType::Trade {price, volume, commission}, margin,
+            conclusion_date, execution_date,
             emulation, sources: Vec::new(),
+        }
+    }
+
+    pub fn new_corporate_action(
+        symbol: &str, quantity: Decimal, conclusion_date: Date, execution_date: Date,
+    ) -> StockSell {
+        StockSell {
+            symbol: symbol.to_owned(), quantity,
+            type_: StockSellType::CorporateAction, margin: false,
+            conclusion_date, execution_date,
+            emulation: false, sources: Vec::new(),
         }
     }
 
@@ -121,8 +194,12 @@ impl StockSell {
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
-        let currency = self.price.currency;
+        let (price, volume, commission) = match self.type_ {
+            StockSellType::Trade {price, volume, commission} => (price, volume, commission),
+            _ => unreachable!(),
+        };
 
+        let currency = price.currency;
         let local_conclusion = |value| converter.convert_to_cash_rounding(
             self.conclusion_date, value, country.currency);
         let local_execution = |value| converter.convert_to_cash_rounding(
@@ -138,7 +215,10 @@ impl StockSell {
 
         for source in &self.sources {
             let source_quantity = source.quantity * source.multiplier;
+
             let mut source_details = FifoDetails::new(source, country, converter)?;
+            let source_total_cost = source_details.total_cost(currency, converter)?;
+            let source_total_local_cost = source_details.total_cost(country.currency, converter)?;
 
             let mut tax_exemptible = false;
             for tax_exemption in tax_exemptions {
@@ -151,13 +231,13 @@ impl StockSell {
             }
 
             if tax_exemptible && !source_details.tax_exemption_applied {
-                let source_local_revenue = local_execution(self.price * source_quantity)?;
+                let source_local_revenue = local_execution(price * source_quantity)?;
                 let source_local_commission = local_conclusion(
-                    self.commission * source_quantity / self.quantity)?;
+                    commission * source_quantity / self.quantity)?;
 
                 let source_local_profit = source_local_revenue
                     .sub(source_local_commission).unwrap()
-                    .sub(source_details.total_local_cost).unwrap();
+                    .sub(source_total_local_cost).unwrap();
 
                 source_details.tax_exemption_applied = source_local_profit.is_positive();
             }
@@ -167,12 +247,10 @@ impl StockSell {
                 tax_free_quantity += source_quantity;
             }
 
-            let source_total_cost = source_details.total_cost(currency, converter)?;
             purchase_cost.add_assign(source_total_cost).unwrap();
-
-            purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
+            purchase_local_cost.add_assign(source_total_local_cost).unwrap();
             if !source_details.tax_exemption_applied {
-                deductible_purchase_local_cost.add_assign(source_details.total_local_cost).unwrap();
+                deductible_purchase_local_cost.add_assign(source_total_local_cost).unwrap();
             }
 
             fifo.push(source_details);
@@ -181,11 +259,10 @@ impl StockSell {
         assert_eq!(total_quantity, self.quantity);
         let taxable_ratio = (total_quantity - tax_free_quantity) / total_quantity;
 
-        let revenue = self.volume.round();
+        let revenue = volume.round();
         let local_revenue = local_execution(revenue)?;
         let taxable_local_revenue = local_execution(revenue * taxable_ratio)?;
 
-        let commission = self.commission.round();
         let local_commission = local_conclusion(commission)?;
         let deductible_local_commission = local_conclusion(commission * taxable_ratio)?;
 
@@ -256,11 +333,8 @@ pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
-    // Please note that the following values can be zero due to corporate actions or other non-trade
-    // operations:
-    pub price: Cash,
-    pub volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
-    pub commission: Cash,
+    pub type_: StockSource,
+    pub cost: PurchaseTotalCost,
 
     pub conclusion_date: Date,
     pub execution_date: Date,
@@ -309,28 +383,49 @@ pub struct FifoDetails {
     pub conclusion_date: Date,
     pub execution_date: Date,
 
-    // Please note that all of the following values can be zero due to corporate actions or other
-    // non-trade operations:
-    pub price: Cash,
-    pub commission: Cash,
-    pub local_commission: Cash,
-    // and:
-    pub cost: Cash,
-    pub local_cost: Cash,
-    pub total_local_cost: Cash,
+    pub source: StockSourceDetails,
+    cost: PurchaseTotalCost,
 
     pub tax_exemption_applied: bool,
 }
 
+pub enum StockSourceDetails {
+    Trade {
+        price: Cash,
+
+        commission: Cash,
+        local_commission: Cash,
+
+        cost: Cash,
+        local_cost: Cash,
+    },
+    CorporateAction,
+}
+
 impl FifoDetails {
     fn new(source: &StockSellSource, country: &Country, converter: &CurrencyConverter) -> GenericResult<FifoDetails> {
-        let cost = source.volume.round();
-        let local_cost = converter.convert_to_cash_rounding(
-            source.execution_date, cost, country.currency)?;
+        let details = match source.type_ {
+            StockSource::Trade {price, volume, mut commission} => {
+                let cost = volume.round();
+                let local_cost = converter.convert_to_cash_rounding(
+                    source.execution_date, cost, country.currency)?;
 
-        let commission = source.commission.round();
-        let local_commission = converter.convert_to_cash_rounding(
-            source.conclusion_date, commission, country.currency)?;
+                commission = commission.round();
+                let local_commission = converter.convert_to_cash_rounding(
+                    source.conclusion_date, commission, country.currency)?;
+
+                StockSourceDetails::Trade {
+                    price,
+
+                    commission,
+                    local_commission,
+
+                    cost,
+                    local_cost,
+                }
+            },
+            StockSource::CorporateAction => StockSourceDetails::CorporateAction,
+        };
 
         Ok(FifoDetails {
             quantity: source.quantity,
@@ -339,21 +434,122 @@ impl FifoDetails {
             conclusion_date: source.conclusion_date,
             execution_date: source.execution_date,
 
-            price: source.price,
-            commission,
-            local_commission,
-
-            cost,
-            local_cost,
-            total_local_cost: local_cost.add(local_commission).unwrap(),
+            source: details,
+            cost: source.cost.clone(),
 
             tax_exemption_applied: false,
         })
     }
 
+    // Please note that all of the following values can be zero due to corporate actions or other
+    // non-trade operations:
+
+    pub fn price(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        Ok(match self.source {
+            StockSourceDetails::Trade {price, ..} if price.currency == currency => price,
+            _ => {
+                let cost = self.cost(currency, converter)?;
+                calculate_price(self.quantity, cost)?
+            },
+        })
+    }
+
+    pub fn cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        self.cost.calculate(Some(PurchaseCostType::Trade), currency, converter)
+    }
+
     pub fn total_cost(&self, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let cost = converter.convert_to_cash_rounding(self.execution_date, self.cost, currency)?;
-        let commission = converter.convert_to_cash_rounding(self.conclusion_date, self.commission, currency)?;
-        Ok(cost.add(commission).unwrap())
+        self.cost.calculate(None, currency, converter)
+    }
+}
+
+// On stock split we generate fake sell+buy transactions for position conversion, but it gets us
+// into currency revaluation issues, so we have to keep original date+amount pairs for proper
+// calculation in other currencies.
+//
+// Please note that it may be zero due to corporate actions or other non-trade operations.
+#[derive(Clone, Debug)]
+pub struct PurchaseTotalCost(Vec<PurchaseCost>);
+
+impl PurchaseTotalCost {
+    pub fn new() -> PurchaseTotalCost {
+        PurchaseTotalCost(Vec::new())
+    }
+
+    fn new_from_trade(conclusion_date: Date, execution_date: Date, volume: Cash, commission: Cash) -> PurchaseTotalCost {
+        let mut transactions = Vec::new();
+
+        if !volume.is_zero() {
+            transactions.push(PurchaseTransaction::new(
+                execution_date, PurchaseCostType::Trade, volume));
+        }
+
+        if !commission.is_zero() {
+            transactions.push(PurchaseTransaction::new(
+                conclusion_date, PurchaseCostType::Commission, commission));
+        }
+
+        PurchaseTotalCost(vec![
+            PurchaseCost {
+                transactions: transactions,
+                fraction: Fraction(dec!(1), dec!(1)),
+            }
+        ])
+    }
+
+    pub fn add(&mut self, cost: &PurchaseTotalCost) {
+        self.0.extend(cost.0.iter().map(Clone::clone))
+    }
+
+    fn calculate(&self, type_: Option<PurchaseCostType>, currency: &str, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let mut total_cost = dec!(0);
+
+        for cost in &self.0 {
+            let mut purchase_cost = dec!(0);
+
+            // FIXME(konishchev): Group by date + currency?
+            for transaction in &cost.transactions {
+                match type_ {
+                    Some(type_) if type_ != transaction.type_ => continue,
+                    _ => {},
+                };
+
+                let transaction_cost = transaction.cost / cost.fraction.1 * cost.fraction.0;
+                purchase_cost += converter.convert_to_rounding(
+                    transaction.date, transaction_cost, currency)?;
+            }
+
+            total_cost += purchase_cost;
+        }
+
+        Ok(Cash::new(currency, total_cost.normalize()))
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PurchaseCost {
+    transactions: Vec<PurchaseTransaction>,
+    fraction: Fraction,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Fraction(Decimal, Decimal);
+
+#[derive(Clone, Copy, Debug)]
+struct PurchaseTransaction {
+    date: Date,
+    type_: PurchaseCostType,
+    cost: Cash,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum PurchaseCostType {
+    Trade,
+    Commission,
+}
+
+impl PurchaseTransaction {
+    fn new(date: Date, type_: PurchaseCostType, cost: Cash) -> PurchaseTransaction {
+        PurchaseTransaction {date, type_, cost}
     }
 }

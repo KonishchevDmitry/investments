@@ -66,6 +66,10 @@ impl<'a> Record<'a> {
         parse_date(self.get_value(field)?)
     }
 
+    pub fn parse_date_time(&self, field: &str) -> GenericResult<DateTime> {
+        parse_date_time(self.get_value(field)?)
+    }
+
     pub fn parse_amount(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let value = self.get_value(field)?;
         Ok(util::parse_decimal(&value.replace(',', ""), restrictions).map_err(|_| format!(
@@ -81,7 +85,7 @@ pub trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
     fn skip_data_types(&self) -> Option<&'static [&'static str]> { None }
     fn skip_totals(&self) -> bool { false }
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult;
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult;
 }
 
 pub struct UnknownRecordParser {}
@@ -91,7 +95,7 @@ impl RecordParser for UnknownRecordParser {
         None
     }
 
-    fn parse(&self, _parser: &mut StatementParser, _record: &Record) -> EmptyResult {
+    fn parse(&mut self, _parser: &mut StatementParser, _record: &Record) -> EmptyResult {
         Ok(())
     }
 }

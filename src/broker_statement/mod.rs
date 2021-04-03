@@ -41,14 +41,16 @@ use self::reader::BrokerStatementReader;
 use self::taxes::{TaxId, TaxAccruals};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
-pub use self::corporate_actions::{CorporateAction, CorporateActionType, StockSplitController};
+pub use self::corporate_actions::{
+    CorporateAction, CorporateActionType, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::taxes::TaxWithholding;
 pub use self::trades::{
-    ForexTrade, StockBuy, StockSource, StockSell, StockSellSource, SellDetails, FifoDetails};
+    ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, StockSourceDetails,
+    SellDetails, FifoDetails};
 
 #[derive(Debug)]
 pub struct BrokerStatement {
@@ -92,7 +94,7 @@ impl BrokerStatement {
     fn new_from(
         broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>,
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
-        corporate_actions: &[CorporateAction],
+        manual_corporate_actions: &[CorporateAction],
     ) -> GenericResult<BrokerStatement> {
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
         let last_index = statements.len() - 1;
@@ -135,25 +137,27 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
         }
 
-        statement.remap_symbols(symbol_remapping)?;
-
         let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
-            .map(|trade| trade.symbol.clone()).collect();
+            .map(|trade| &trade.symbol)
+            .collect();
 
-        for action in corporate_actions {
-            if portfolio_symbols.get(&action.symbol).is_none() {
+        for corporate_action in manual_corporate_actions {
+            if portfolio_symbols.get(&corporate_action.symbol).is_none() {
                 return Err!(
                     "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
-                    action.symbol);
+                    corporate_action.symbol);
             }
-            statement.apply_corporate_action(action.clone())?;
+            statement.corporate_actions.push(corporate_action.clone());
         }
 
-        statement.instrument_names.extend(
-            instrument_names.iter().map(|(symbol, name)| (symbol.clone(), name.clone())));
-
+        statement.remap_symbols(symbol_remapping)?;
+        statement.instrument_names.extend(instrument_names.iter().map(|(symbol, name)| {
+            (symbol.clone(), name.clone())
+        }));
         statement.validate()?;
-        statement.process_trades()?;
+
+        process_corporate_actions(&mut statement)?;
+        statement.process_trades(None)?;
 
         Ok(statement)
     }
@@ -271,11 +275,12 @@ impl BrokerStatement {
             }
         }
 
+        let volume = price * quantity;
         let commission = commission_calc.add_trade(
             conclusion_date, TradeType::Sell, quantity, price)?;
 
-        let stock_sell = StockSell::new(
-            symbol, quantity, price, price * quantity, commission,
+        let stock_sell = StockSell::new_trade(
+            symbol, quantity, price, volume, commission,
             conclusion_date, execution_date, false, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
@@ -292,8 +297,8 @@ impl BrokerStatement {
             return Err!("The portfolio has no open {} position", symbol);
         }
 
-        self.cash_assets.deposit(stock_sell.volume);
-        self.cash_assets.withdraw(stock_sell.commission);
+        self.cash_assets.deposit(volume);
+        self.cash_assets.withdraw(commission);
         self.stock_sells.push(stock_sell);
 
         Ok(())
@@ -312,10 +317,16 @@ impl BrokerStatement {
         Ok(total)
     }
 
-    pub fn process_trades(&mut self) -> EmptyResult {
+    pub fn process_trades(&mut self, until_date: Option<Date>) -> EmptyResult {
         let mut unsold_buys: HashMap<String, Vec<usize>> = HashMap::new();
 
         for (index, stock_buy) in self.stock_buys.iter().enumerate().rev() {
+            if let Some(until_date) = until_date {
+                if stock_buy.conclusion_date >= until_date {
+                    continue;
+                }
+            }
+
             if stock_buy.is_sold() {
                 continue;
             }
@@ -329,6 +340,12 @@ impl BrokerStatement {
         }
 
         for stock_sell in &mut self.stock_sells {
+            if let Some(until_date) = until_date {
+                if stock_sell.conclusion_date >= until_date {
+                    continue;
+                }
+            }
+
             if stock_sell.is_processed() {
                 continue;
             }
@@ -358,29 +375,8 @@ impl BrokerStatement {
                 let source_quantity = (sell_quantity / multiplier).normalize();
                 assert_eq!(source_quantity * multiplier, sell_quantity);
 
-                let (volume, commission) = if source_quantity == stock_buy.quantity {
-                    (stock_buy.volume, stock_buy.commission)
-                } else {
-                    (
-                        stock_buy.price * source_quantity,
-                        stock_buy.commission / stock_buy.quantity * source_quantity,
-                    )
-                };
-
-                sources.push(StockSellSource {
-                    quantity: source_quantity,
-                    multiplier: multiplier,
-
-                    price: stock_buy.price,
-                    volume,
-                    commission,
-
-                    conclusion_date: stock_buy.conclusion_date,
-                    execution_date: stock_buy.execution_date,
-                });
-
+                sources.push(stock_buy.sell(source_quantity, multiplier));
                 remaining_quantity -= sell_quantity;
-                stock_buy.sell(source_quantity);
 
                 if stock_buy.is_sold() {
                     symbol_buys.pop();
@@ -390,7 +386,11 @@ impl BrokerStatement {
             stock_sell.process(sources);
         }
 
-        self.validate_open_positions()
+        if until_date.is_none() {
+            self.validate_open_positions()?;
+        }
+
+        Ok(())
     }
 
     pub fn merge_symbols(
@@ -460,31 +460,10 @@ impl BrokerStatement {
         self.stock_sells.extend(statement.stock_sells.into_iter());
         self.dividends.extend(statement.dividends.into_iter());
 
-        for action in statement.corporate_actions {
-            self.apply_corporate_action(action)?;
-        }
-
+        self.corporate_actions.extend(statement.corporate_actions.into_iter());
         self.open_positions = statement.open_positions;
         self.instrument_names.extend(statement.instrument_names.into_iter());
 
-        Ok(())
-    }
-
-    fn apply_corporate_action(&mut self, action: CorporateAction) -> EmptyResult {
-        match action.action {
-            CorporateActionType::StockSplit{divisor} => {
-                self.stock_splits.add(action.date, &action.symbol, divisor)?;
-            }
-            CorporateActionType::Spinoff{date, ref symbol, quantity, ref currency} => {
-                let zero = Cash::new(&currency, dec!(0));
-                self.stock_buys.push(StockBuy::new(
-                    &symbol, quantity, StockSource::CorporateAction, zero, zero, zero,
-                    date, action.date, false,
-                ));
-            },
-        };
-
-        self.corporate_actions.push(action);
         Ok(())
     }
 
@@ -523,20 +502,23 @@ impl BrokerStatement {
             }
         }
 
+        for corporate_action in &mut self.corporate_actions {
+            if let Some(mapping) = remapping.get(&corporate_action.symbol) {
+                corporate_action.symbol = mapping.to_owned();
+            }
+        }
+
         Ok(())
     }
 
     fn validate(&mut self) -> EmptyResult {
-        let max_date = self.last_date();
-        let date_validator = DateValidator::new(self.period.0, max_date);
+        let date_validator = self.date_validator();
 
         date_validator.sort_and_validate(
             "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
-        if !self.fees.is_empty() {
-            self.sort_and_alter_fees(max_date);
-            date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
-        }
+        self.sort_and_alter_fees(date_validator.max_date);
+        date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
         date_validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
@@ -548,25 +530,20 @@ impl BrokerStatement {
         date_validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
 
-        if !self.stock_buys.is_empty() {
-            sort_and_validate_trades("buy", &mut self.stock_buys)?;
-            date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)?;
-        }
+        self.sort_and_validate_stock_buys()?;
+        self.sort_and_validate_stock_sells()?;
 
-        if !self.stock_sells.is_empty() {
-            sort_and_validate_trades("sell", &mut self.stock_sells)?;
-            date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)?;
-        }
-
-        if !self.dividends.is_empty() {
-            self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
-            date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
-        }
+        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+        date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 
         date_validator.sort_and_validate(
             "a corporate action", &mut self.corporate_actions, |action| action.date)?;
 
         Ok(())
+    }
+
+    fn date_validator(&self) -> DateValidator {
+        DateValidator::new(self.period.0, self.last_date())
     }
 
     fn sort_and_alter_fees(&mut self, max_date: Date) {
@@ -579,6 +556,18 @@ impl BrokerStatement {
         }
 
         self.fees.sort_by_key(|fee| fee.date);
+    }
+
+    fn sort_and_validate_stock_buys(&mut self) -> EmptyResult {
+        let date_validator = self.date_validator();
+        sort_and_validate_trades("buy", &mut self.stock_buys)?;
+        date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)
+    }
+
+    fn sort_and_validate_stock_sells(&mut self) -> EmptyResult {
+        let date_validator = self.date_validator();
+        sort_and_validate_trades("sell", &mut self.stock_sells)?;
+        date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)
     }
 
     fn validate_open_positions(&self) -> EmptyResult {

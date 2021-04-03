@@ -15,7 +15,7 @@ impl RecordParser for DividendsParser {
         true
     }
 
-    fn parse(&self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;
         let issuer = parse_dividend_description(record.get_value("Description")?)?;

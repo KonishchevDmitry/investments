@@ -69,8 +69,8 @@ APP: tests/investments
      BND
 
 [8]
-NAME: Simulate sell in USD
-STDOUT: simulate-sell-in-usd
+NAME: Simulate sell in other currency
+STDOUT: simulate-sell-in-other-currency
 APP: tests/investments
      main
      simulate-sell
@@ -79,6 +79,28 @@ APP: tests/investments
      USD
 
 [9]
+NAME: Simulate sell after stock split
+STDOUT: simulate-sell-after-stock-split
+APP: tests/investments
+     other
+     simulate-sell
+     ib-stock-split
+     all
+     AAPL
+
+[10]
+NAME: Simulate sell after reverse stock split
+STDOUT: simulate-sell-after-reverse-stock-split
+APP: tests/investments
+     other
+     simulate-sell
+     ib-reverse-stock-split
+     all
+     AAPL
+     all
+     VISL
+
+[11]
 NAME: Simulate sell zero cost position
 STDOUT: simulate-sell-zero-cost-position
 APP: tests/investments
@@ -90,7 +112,7 @@ APP: tests/investments
      125
      VTRS
 
-[10]
+[12]
 NAME: Simulate sell with mixed currency
 STDOUT: simulate-sell-with-mixed-currency
 APP: tests/investments
@@ -102,7 +124,7 @@ APP: tests/investments
      all
      VTBX
 
-[11]
+[13]
 NAME: IB complex tax statement
 STDOUT: ib-complex-tax-statement
 APP: tests/investments
@@ -110,7 +132,7 @@ APP: tests/investments
      tax-statement
      ib-complex
 
-[12]
+[14]
 NAME: IB stock split tax statement
 STDOUT: ib-stock-split-tax-statement
 APP: tests/investments
@@ -118,7 +140,15 @@ APP: tests/investments
      tax-statement
      ib-stock-split
 
-[13]
+[15]
+NAME: IB reverse stock split tax statement
+STDOUT: ib-reverse-stock-split-tax-statement
+APP: tests/investments
+     other
+     tax-statement
+     ib-reverse-stock-split
+
+[16]
 NAME: IB simple with LSE tax statement
 STDOUT: ib-simple-with-lse-tax-statement
 APP: tests/investments
@@ -126,7 +156,7 @@ APP: tests/investments
      tax-statement
      ib-simple-with-lse
 
-[14]
+[17]
 NAME: Tinkoff complex tax statement
 STDOUT: tinkoff-complex-tax-statement
 APP: tests/investments
@@ -134,7 +164,7 @@ APP: tests/investments
      tax-statement
      tinkoff-complex
 
-[15]
+[18]
 NAME: IB margin RUB cash flow
 STDOUT: ib-margin-rub-cash-flow
 APP: tests/investments
@@ -142,7 +172,7 @@ APP: tests/investments
      cash-flow
      ib-margin-rub
 
-[16]
+[19]
 NAME: IB stock split cash flow
 STDOUT: ib-stock-split-cash-flow
 APP: tests/investments
@@ -150,7 +180,15 @@ APP: tests/investments
      cash-flow
      ib-stock-split
 
-[17]
+[20]
+NAME: IB reverse stock split cash flow
+STDOUT: ib-reverse-stock-split-cash-flow
+APP: tests/investments
+     other
+     cash-flow
+     ib-reverse-stock-split
+
+[21]
 NAME: IB simple with LSE cash flow
 STDOUT: ib-simple-with-lse-cash-flow
 APP: tests/investments
@@ -158,7 +196,7 @@ APP: tests/investments
      cash-flow
      ib-simple-with-lse
 
-[18]
+[22]
 NAME: Open inactive with forex trades cash flow
 STDOUT: open-inactive-with-forex-trades-cash-flow
 APP: tests/investments
@@ -166,7 +204,7 @@ APP: tests/investments
      cash-flow
      open-inactive-with-forex
 
-[19]
+[23]
 NAME: Tinkoff complex cash flow
 STDOUT: tinkoff-complex-cash-flow
 APP: tests/investments
@@ -174,14 +212,14 @@ APP: tests/investments
      cash-flow
      tinkoff-complex
 
-[20]
+[24]
 NAME: Metrics
 APP: tests/investments
      main
      metrics
      $OUT_PATH/metrics
 
-[21]
+[25]
 NAME: Rebalance IB
 STDOUT: rebalance-ib
 APP: tests/investments
@@ -189,7 +227,7 @@ APP: tests/investments
      rebalance
      ib
 
-[22]
+[26]
 NAME: Simulate sell IB
 STDOUT: simulate-sell-ib
 APP: tests/investments
@@ -197,7 +235,7 @@ APP: tests/investments
      simulate-sell
      ib
 
-[23]
+[27]
 NAME: IB tax statement 2018
 STDOUT: ib-tax-statement-2018
 APP: tests/investments
@@ -206,7 +244,7 @@ APP: tests/investments
      ib
      2018
 
-[24]
+[28]
 NAME: IB tax statement generation 2018
 APP: tests/test-tax-statement
      main
@@ -215,7 +253,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/ib-tax-statement-2018.dc8
 DIFF: rt-binary
 
-[25]
+[29]
 NAME: IB cash flow 2018
 STDOUT: ib-cash-flow-2018
 APP: tests/investments
@@ -224,7 +262,7 @@ APP: tests/investments
      ib
      2018
 
-[26]
+[30]
 NAME: IB tax statement 2019
 STDOUT: ib-tax-statement-2019
 APP: tests/investments
@@ -233,7 +271,7 @@ APP: tests/investments
      ib
      2019
 
-[27]
+[31]
 NAME: IB tax statement generation 2019
 APP: tests/test-tax-statement
      main
@@ -242,7 +280,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/ib-tax-statement-2019.dc9
 DIFF: rt-binary
 
-[28]
+[32]
 NAME: IB cash flow 2019
 STDOUT: ib-cash-flow-2019
 APP: tests/investments
@@ -251,7 +289,7 @@ APP: tests/investments
      ib
      2019
 
-[29]
+[33]
 NAME: IB tax statement 2020
 STDOUT: ib-tax-statement-2020
 APP: tests/investments
@@ -260,7 +298,7 @@ APP: tests/investments
      ib
      2020
 
-[30]
+[34]
 NAME: IB tax statement generation 2020
 APP: tests/test-tax-statement
      main
@@ -269,7 +307,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/ib-tax-statement-2020.dc0
 DIFF: rt-binary
 
-[31]
+[35]
 NAME: IB cash flow 2020
 STDOUT: ib-cash-flow-2020
 APP: tests/investments
@@ -278,7 +316,7 @@ APP: tests/investments
      ib
      2020
 
-[32]
+[36]
 NAME: IB tax statement 2021
 STDOUT: ib-tax-statement-2021
 APP: tests/investments
@@ -287,7 +325,7 @@ APP: tests/investments
      ib
      2021
 
-[33]
+[37]
 NAME: IB tax statement generation 2021
 APP: tests/test-tax-statement
      main
@@ -296,7 +334,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/ib-tax-statement-2021.dc1
 DIFF: rt-binary
 
-[34]
+[38]
 NAME: IB cash flow 2021
 STDOUT: ib-cash-flow-2021
 APP: tests/investments
@@ -305,7 +343,7 @@ APP: tests/investments
      ib
      2021
 
-[35]
+[39]
 NAME: Rebalance Firstrade
 STDOUT: rebalance-firstrade
 APP: tests/investments
@@ -313,7 +351,7 @@ APP: tests/investments
      rebalance
      firstrade
 
-[36]
+[40]
 NAME: Simulate sell Firstrade
 STDOUT: simulate-sell-firstrade
 APP: tests/investments
@@ -321,7 +359,7 @@ APP: tests/investments
      simulate-sell
      firstrade
 
-[37]
+[41]
 NAME: Firstrade tax statement 2020
 STDOUT: firstrade-tax-statement-2020
 APP: tests/investments
@@ -330,7 +368,7 @@ APP: tests/investments
      firstrade
      2020
 
-[38]
+[42]
 NAME: Firstrade tax statement generation 2020
 APP: tests/test-tax-statement
      main
@@ -339,7 +377,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/firstrade-tax-statement-2020.dc0
 DIFF: rt-binary
 
-[39]
+[43]
 NAME: Firstrade cash flow 2020
 STDOUT: firstrade-cash-flow-2020
 APP: tests/investments
@@ -348,7 +386,7 @@ APP: tests/investments
      firstrade
      2020
 
-[40]
+[44]
 NAME: Firstrade tax statement 2021
 STDOUT: firstrade-tax-statement-2021
 APP: tests/investments
@@ -357,7 +395,7 @@ APP: tests/investments
      firstrade
      2021
 
-[41]
+[45]
 NAME: Firstrade tax statement generation 2021
 APP: tests/test-tax-statement
      main
@@ -366,7 +404,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/firstrade-tax-statement-2021.dc1
 DIFF: rt-binary
 
-[42]
+[46]
 NAME: Firstrade cash flow 2021
 STDOUT: firstrade-cash-flow-2021
 APP: tests/investments
@@ -375,7 +413,7 @@ APP: tests/investments
      firstrade
      2021
 
-[43]
+[47]
 NAME: Rebalance IIA
 STDOUT: rebalance-iia
 APP: tests/investments
@@ -383,7 +421,7 @@ APP: tests/investments
      rebalance
      iia
 
-[44]
+[48]
 NAME: Simulate sell IIA
 STDOUT: simulate-sell-iia
 APP: tests/investments
@@ -391,7 +429,7 @@ APP: tests/investments
      simulate-sell
      iia
 
-[45]
+[49]
 NAME: IIA tax statement
 STDOUT: iia-tax-statement
 APP: tests/investments
@@ -399,7 +437,7 @@ APP: tests/investments
      tax-statement
      iia
 
-[46]
+[50]
 NAME: IIA cash flow
 STDOUT: iia-cash-flow
 APP: tests/investments
@@ -407,7 +445,7 @@ APP: tests/investments
      cash-flow
      iia
 
-[47]
+[51]
 NAME: Rebalance BCS
 STDOUT: rebalance-bcs
 APP: tests/investments
@@ -415,7 +453,7 @@ APP: tests/investments
      rebalance
      bcs
 
-[48]
+[52]
 NAME: Simulate sell BCS
 STDOUT: simulate-sell-bcs
 APP: tests/investments
@@ -423,7 +461,7 @@ APP: tests/investments
      simulate-sell
      bcs
 
-[49]
+[53]
 NAME: BCS tax statement
 STDOUT: bcs-tax-statement
 APP: tests/investments
@@ -431,7 +469,7 @@ APP: tests/investments
      tax-statement
      bcs
 
-[50]
+[54]
 NAME: BCS cash flow
 STDOUT: bcs-cash-flow
 APP: tests/investments
@@ -439,7 +477,7 @@ APP: tests/investments
      cash-flow
      bcs
 
-[51]
+[55]
 NAME: Rebalance Open
 STDOUT: rebalance-open
 APP: tests/investments
@@ -447,7 +485,7 @@ APP: tests/investments
      rebalance
      open
 
-[52]
+[56]
 NAME: Simulate sell Open
 STDOUT: simulate-sell-open
 APP: tests/investments
@@ -455,7 +493,7 @@ APP: tests/investments
      simulate-sell
      open
 
-[53]
+[57]
 NAME: Open tax statement
 STDOUT: open-tax-statement
 APP: tests/investments
@@ -463,7 +501,7 @@ APP: tests/investments
      tax-statement
      open
 
-[54]
+[58]
 NAME: Open cash flow
 STDOUT: open-cash-flow
 APP: tests/investments
@@ -471,7 +509,7 @@ APP: tests/investments
      cash-flow
      open
 
-[55]
+[59]
 NAME: Rebalance Tinkoff
 STDOUT: rebalance-tinkoff
 APP: tests/investments
@@ -479,7 +517,7 @@ APP: tests/investments
      rebalance
      tinkoff
 
-[56]
+[60]
 NAME: Simulate sell Tinkoff
 STDOUT: simulate-sell-tinkoff
 APP: tests/investments
@@ -487,7 +525,7 @@ APP: tests/investments
      simulate-sell
      tinkoff
 
-[57]
+[61]
 NAME: Tinkoff tax statement
 STDOUT: tinkoff-tax-statement
 APP: tests/investments
@@ -495,7 +533,7 @@ APP: tests/investments
      tax-statement
      tinkoff
 
-[58]
+[62]
 NAME: Tinkoff cash flow
 STDOUT: tinkoff-cash-flow
 APP: tests/investments
@@ -503,7 +541,7 @@ APP: tests/investments
      cash-flow
      tinkoff
 
-[59]
+[63]
 NAME: Rebalance Kate
 STDOUT: rebalance-kate
 APP: tests/investments
@@ -511,7 +549,7 @@ APP: tests/investments
      rebalance
      kate
 
-[60]
+[64]
 NAME: Simulate sell Kate
 STDOUT: simulate-sell-kate
 APP: tests/investments
@@ -519,7 +557,7 @@ APP: tests/investments
      simulate-sell
      kate
 
-[61]
+[65]
 NAME: Kate tax statement
 STDOUT: kate-tax-statement
 APP: tests/investments
@@ -527,7 +565,7 @@ APP: tests/investments
      tax-statement
      kate
 
-[62]
+[66]
 NAME: Kate cash flow
 STDOUT: kate-cash-flow
 APP: tests/investments
@@ -535,7 +573,7 @@ APP: tests/investments
      cash-flow
      kate
 
-[63]
+[67]
 NAME: Rebalance Kate IIA
 STDOUT: rebalance-kate-iia
 APP: tests/investments
@@ -543,7 +581,7 @@ APP: tests/investments
      rebalance
      kate-iia
 
-[64]
+[68]
 NAME: Simulate sell Kate IIA
 STDOUT: simulate-sell-kate-iia
 APP: tests/investments
@@ -551,7 +589,7 @@ APP: tests/investments
      simulate-sell
      kate-iia
 
-[65]
+[69]
 NAME: Kate IIA tax statement
 STDOUT: kate-iia-tax-statement
 APP: tests/investments
@@ -559,7 +597,7 @@ APP: tests/investments
      tax-statement
      kate-iia
 
-[66]
+[70]
 NAME: Kate IIA cash flow
 STDOUT: kate-iia-cash-flow
 APP: tests/investments
