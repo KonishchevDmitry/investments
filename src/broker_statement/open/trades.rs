@@ -6,10 +6,11 @@ use serde::Deserialize;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
-use crate::types::{Date, Decimal};
+use crate::types::{Date, DateTime};
+use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::{deserialize_date, parse_quantity, get_symbol};
+use super::common::{deserialize_date, deserialize_date_time, parse_quantity, get_symbol};
 
 #[derive(Deserialize)]
 pub struct ConcludedTrades {
@@ -24,8 +25,8 @@ struct ConcludedTrade {
 
     security_name: String,
 
-    #[serde(deserialize_with = "deserialize_date")]
-    conclusion_date: Date,
+    #[serde(deserialize_with = "deserialize_date_time")]
+    conclusion_time: DateTime,
 
     #[serde(deserialize_with = "deserialize_date")]
     execution_date: Date,
@@ -100,7 +101,7 @@ impl ConcludedTrades {
 
                     statement.stock_buys.push(StockBuy::new_trade(
                         symbol, quantity.into(), price, volume, commission,
-                        trade.conclusion_date, execution_date, false));
+                        trade.conclusion_time.into(), execution_date, false));
                 },
                 (None, Some(quantity)) => {
                     let quantity = parse_quantity(quantity, false)?;
@@ -108,7 +109,7 @@ impl ConcludedTrades {
 
                     statement.stock_sells.push(StockSell::new_trade(
                         symbol, quantity.into(), price, volume, commission,
-                        trade.conclusion_date, execution_date, false, false));
+                        trade.conclusion_time.date(), execution_date, false, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };

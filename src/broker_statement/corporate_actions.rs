@@ -202,7 +202,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
                 &symbol, quantity, PurchaseTotalCost::new(),
-                action.time.date, action.execution_date(),
+                action.time, action.execution_date(),
             ));
             statement.sort_and_validate_stock_buys()?;
         },
@@ -326,7 +326,7 @@ fn convert_stocks(
     sell.process(sell_sources);
 
     let buy = StockBuy::new_corporate_action(
-        symbol, new_quantity, cost, conclusion_time.date, execution_date);
+        symbol, new_quantity, cost, conclusion_time, execution_date);
 
     (sell, buy)
 }

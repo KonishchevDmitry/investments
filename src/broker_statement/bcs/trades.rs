@@ -5,13 +5,14 @@ use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
+use crate::time::{DateTime, DateOptTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 use crate::xls::{self, SheetReader, TableRow, SkipCell, ColumnsMapping};
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_short_date, parse_currency, parse_symbol};
+use super::common::{parse_short_date, parse_time, parse_currency, parse_symbol};
 
 pub struct TradesParser {
 }
@@ -69,10 +70,10 @@ impl TradesParser {
             Some(trade_type) if trade_type == "Репо ч.1" || trade_type == "Репо ч.2");
 
         let execution_date = parse_short_date(&trade.execution_date)?;
-        let conclusion_date = match trade.conclusion_date.as_ref() {
-            Some(date) => parse_short_date(date)?,
-            None if margin => execution_date,
-            _ => return Err!("The trade has no conclusion date"),
+        let conclusion_time: DateOptTime = match (trade.conclusion_date.as_ref(), trade.conclusion_time.as_ref()) {
+            (Some(date), Some(time)) => DateTime::new(parse_short_date(date)?, parse_time(time)?).into(),
+            (None, None) if margin => execution_date.into(),
+            _ => return Err!("The trade has no conclusion date/time"),
         };
 
         if trade.date != trade.execution_date {
@@ -127,11 +128,11 @@ impl TradesParser {
         if buy {
             statement.stock_buys.push(StockBuy::new_trade(
                 symbol, quantity.into(), price, volume, commission,
-                conclusion_date, execution_date, margin));
+                conclusion_time, execution_date, margin));
         } else {
             statement.stock_sells.push(StockSell::new_trade(
                 symbol, quantity.into(), price, volume, commission,
-                conclusion_date, execution_date, margin, false));
+                conclusion_time.date, execution_date, margin, false));
         }
 
         Ok(())
@@ -165,7 +166,7 @@ struct TradeRow {
     #[column(name="Дата соверш.")]
     conclusion_date: Option<String>,
     #[column(name="Время соверш.")]
-    _12: SkipCell,
+    conclusion_time: Option<String>,
     #[column(name="Тип сделки")]
     trade_type: Option<String>,
     #[column(name="Оплата (факт)")]

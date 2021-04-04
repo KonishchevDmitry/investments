@@ -56,29 +56,29 @@ pub struct StockBuy {
 impl StockBuy {
     pub fn new_trade(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date, margin: bool,
+        conclusion_time: DateOptTime, execution_date: Date, margin: bool,
     ) -> StockBuy {
         let cost = PurchaseTotalCost::new_from_trade(
-            conclusion_date, execution_date, volume, commission);
+            conclusion_time.date, execution_date, volume, commission);
 
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
-            // FIXME(konishchev): Switch to DateOptTime
-            conclusion_time: conclusion_date.into(), execution_date, margin,
+            // FIXME(konishchev): Drop into
+            conclusion_time: conclusion_time.date.into(), execution_date, margin,
             sold: dec!(0),
         }
     }
 
     pub fn new_corporate_action(
         symbol: &str, quantity: Decimal, cost: PurchaseTotalCost,
-        conclusion_date: Date, execution_date: Date,
+        conclusion_time: DateOptTime, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::CorporateAction, cost, margin: false,
-            // FIXME(konishchev): Switch to DateOptTime
-            conclusion_time: conclusion_date.into(), execution_date,
+            // FIXME(konishchev): Drop into
+            conclusion_time: conclusion_time.date.into(), execution_date,
             sold: dec!(0),
         }
     }

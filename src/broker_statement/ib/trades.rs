@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
-use crate::time::{Date, DateTime};
+use crate::time::DateTime;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
@@ -24,7 +24,7 @@ impl RecordParser for TradesParser {
 
         match asset_category {
             "Forex" => parse_forex_record(parser, record, symbol, conclusion_time),
-            "Stocks" => parse_stock_record(parser, record, symbol, conclusion_time.date()),
+            "Stocks" => parse_stock_record(parser, record, symbol, conclusion_time),
             _ => return Err!("Unsupported asset category: {}", asset_category)
         }
     }
@@ -67,12 +67,12 @@ fn parse_forex_record(
 }
 
 fn parse_stock_record(
-    parser: &mut StatementParser, record: &Record, symbol: &str, conclusion_date: Date,
+    parser: &mut StatementParser, record: &Record, symbol: &str, conclusion_time: DateTime,
 ) -> EmptyResult {
     let currency = record.get_value("Currency")?;
     let price = record.parse_cash("T. Price", currency, DecimalRestrictions::StrictlyPositive)?;
     let commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
-    let execution_date = parser.get_execution_date(symbol, conclusion_date);
+    let execution_date = parser.get_execution_date(symbol, conclusion_time.date());
 
     let quantity = record.get_value("Quantity")?;
     let quantity = util::parse_decimal(quantity, DecimalRestrictions::NonZero).map_err(|_| format!(
@@ -100,11 +100,11 @@ fn parse_stock_record(
     if quantity.is_sign_positive() {
         parser.statement.stock_buys.push(StockBuy::new_trade(
             symbol, quantity, price, -volume, commission,
-            conclusion_date, execution_date, false));
+            conclusion_time.into(), execution_date, false));
     } else {
         parser.statement.stock_sells.push(StockSell::new_trade(
             symbol, -quantity, price, volume, commission,
-            conclusion_date, execution_date, false, false));
+            conclusion_time.date(), execution_date, false, false));
     }
 
     Ok(())
