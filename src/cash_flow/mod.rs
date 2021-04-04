@@ -93,7 +93,7 @@ fn generate_details_report(
 
     for cash_flow in cash_flows {
         let mut row = Vec::with_capacity(2 + summaries.len());
-        row.push(cash_flow.date.into());
+        row.push(cash_flow.time.date.into());
         row.push(cash_flow.description.into());
 
         let mut matched = 0;

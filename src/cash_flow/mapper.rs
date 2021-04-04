@@ -1,11 +1,14 @@
+use std::cmp::Ordering;
+
 use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
     IdleCashInterest, TaxWithholding};
 use crate::currency::{Cash, CashAssets};
-use crate::time::{Date, DateOptTime};
+use crate::time::DateOptTime;
 
 pub struct CashFlow {
-    pub date: Date,
+    pub time: DateOptTime,
+    operation: Operation,
     pub amount: Cash,
     pub sibling_amount: Option<Cash>,
     pub description: String,
@@ -21,9 +24,7 @@ struct CashFlowMapper {
 
 impl CashFlowMapper {
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
-        for deposit in statement.cash_flows.iter().filter(|cash_flow|
-            !cash_flow.cash.is_negative()
-        ) {
+        for deposit in &statement.cash_flows {
             self.deposit_or_withdrawal(deposit)
         }
 
@@ -51,17 +52,11 @@ impl CashFlowMapper {
             self.fee(fee);
         }
 
-        for withdrawal in statement.cash_flows.iter().filter(|cash_flow|
-            cash_flow.cash.is_negative()
-        ) {
-            self.deposit_or_withdrawal(withdrawal)
-        }
-
         for withholding in &statement.tax_agent_withholdings {
             self.tax_agent_withholding(withholding);
         }
 
-        self.cash_flows.sort_by_key(|cash_flow| cash_flow.date);
+        self.cash_flows.sort_by(cash_flow_comparator);
         self.cash_flows
     }
 
@@ -144,17 +139,15 @@ impl CashFlowMapper {
         self.add(time, operation, amount, description.to_owned())
     }
 
-    fn add(&mut self, time: DateOptTime, _operation: Operation, amount: Cash, description: String) -> &mut CashFlow {
-        let date = time.date; // FIXME(konishchev): Deprecate
-        self.cash_flows.push(CashFlow{date, amount, sibling_amount: None, description});
+    fn add(&mut self, time: DateOptTime, operation: Operation, amount: Cash, description: String) -> &mut CashFlow {
+        self.cash_flows.push(CashFlow{time, operation, amount, sibling_amount: None, description});
         self.cash_flows.last_mut().unwrap()
     }
 }
 
+#[derive(Ord, PartialOrd, Eq, PartialEq)]
 enum Operation {
     Deposit,
-    Withdrawal,
-
     Interest,
     Dividend,
 
@@ -164,4 +157,13 @@ enum Operation {
 
     Fee,
     Tax,
+    Withdrawal,
+}
+
+fn cash_flow_comparator(a: &CashFlow, b: &CashFlow) -> Ordering {
+    if a.time.date != b.time.date || a.time.time.is_some() && b.time.time.is_some() && a.time != b.time {
+        return a.time.cmp(&b.time);
+    }
+
+    a.operation.cmp(&b.operation)
 }

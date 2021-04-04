@@ -64,17 +64,17 @@ impl<'a> Calculator<'a> {
         let mut end_index = None;
 
         for (index, cash_flow) in cash_flows.iter().enumerate() {
-            if cash_flow.date < self.start_date {
+            if cash_flow.time.date < self.start_date {
                 begin_index.replace(index);
-            } else if end_index.is_none() && self.end_date <= cash_flow.date {
+            } else if end_index.is_none() && self.end_date <= cash_flow.time.date {
                 end_index.replace(index);
             }
 
-            self.process_date(cash_flow.date);
+            self.process_date(cash_flow.time.date);
 
-            self.process_cash_flow(cash_flow.date, cash_flow.amount);
+            self.process_cash_flow(cash_flow.time.date, cash_flow.amount);
             if let Some(amount) = cash_flow.sibling_amount {
-                self.process_cash_flow(cash_flow.date, amount);
+                self.process_cash_flow(cash_flow.time.date, amount);
             }
         }
 
