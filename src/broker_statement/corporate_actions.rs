@@ -9,7 +9,7 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
-use crate::time::{Date, DateOptTime, deserialize_date};
+use crate::time::{Date, DateOptTime, deserialize_date_opt_time};
 use crate::types::Decimal;
 use crate::util;
 
@@ -19,12 +19,13 @@ use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct CorporateAction {
-    // Date when the corporate action has occurred, assuming:
+    // Time when the corporate action has occurred. If time is not present, assuming:
     // * The changes are made at the end of the trading day.
     // * All trade operations from this day are assumed to be issued after the corporate action has
     //   occurred and are actually a part of the corporate action.
-    #[serde(deserialize_with = "deserialize_date")]
-    pub date: Date,
+    // FIXME(konishchev): Init with time
+    #[serde(rename="date", deserialize_with = "deserialize_date_opt_time")]
+    pub time: DateOptTime,
 
     // Report date from IB statements. Typically, it's T+1 date, so use it as trade execution date.
     #[serde(skip)]
@@ -36,13 +37,8 @@ pub struct CorporateAction {
 }
 
 impl CorporateAction {
-    // FIXME(konishchev): Turn into field
-    pub fn time(&self) -> DateOptTime {
-        self.date.into()
-    }
-
     fn execution_date(&self) -> Date {
-        self.report_date.unwrap_or_else(|| self.date.succ())
+        self.report_date.unwrap_or_else(|| self.time.date.succ())
     }
 }
 
@@ -107,14 +103,15 @@ pub struct StockSplitController {
 }
 
 impl StockSplitController {
-    pub fn add(&mut self, date: Date, symbol: &str, divisor: u32) -> GenericResult<EmptyResult> {
+    pub fn add(&mut self, time: DateOptTime, symbol: &str, divisor: u32) -> GenericResult<EmptyResult> {
+        let date = time.date; // FIXME(konishchev): Use time precision?
         let splits = self.symbols.entry(symbol.to_owned()).or_default();
 
         match splits.entry(date) {
             btree_map::Entry::Vacant(entry) => entry.insert(divisor),
             btree_map::Entry::Occupied(_) => return Err!(
                 "Got a duplicated {} stock split for {}",
-                 symbol, format_date(date),
+                symbol, format_date(date),
             ),
         };
 
@@ -185,7 +182,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
             //   long term investment tax exemptions, but can be applied to any stock split.
 
             let complex = if ratio.from == 1 {
-                match statement.stock_splits.add(action.date, &action.symbol, ratio.to)? {
+                match statement.stock_splits.add(action.time, &action.symbol, ratio.to)? {
                     Ok(()) => false,
                     Err(e) => {
                         debug!("{}: {}. Using complex stock split algorithm.", action.symbol, e);
@@ -199,13 +196,13 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
             if complex {
                 process_complex_stock_split(
                     statement, &action.symbol, ratio, from_change, to_change,
-                    action.time(), action.execution_date())?;
+                    action.time, action.execution_date())?;
             }
         }
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
                 &symbol, quantity, PurchaseTotalCost::new(),
-                action.date, action.execution_date(),
+                action.time.date, action.execution_date(),
             ));
             statement.sort_and_validate_stock_buys()?;
         },

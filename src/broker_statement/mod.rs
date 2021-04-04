@@ -538,7 +538,7 @@ impl BrokerStatement {
         date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 
         date_validator.sort_and_validate(
-            "a corporate action", &mut self.corporate_actions, |action| action.date)?;
+            "a corporate action", &mut self.corporate_actions, |action| action.time)?;
 
         Ok(())
     }

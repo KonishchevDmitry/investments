@@ -44,7 +44,7 @@ impl CorporateActionsParser {
             match action.action {
                 CorporateActionType::StockSplit {..} => {
                     if let Some(last) = stock_splits.last() {
-                        if action.date == last.date && action.symbol == last.symbol {
+                        if action.time == last.time && action.symbol == last.symbol {
                             stock_splits.push(action);
                         } else {
                             parser.statement.corporate_actions.push(join_stock_splits(stock_splits)?);
@@ -103,7 +103,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 };
 
                 CorporateAction {
-                    date, report_date, symbol,
+                    time: date.into(), report_date, symbol,
                     action: CorporateActionType::StockSplit{ratio, from_change, to_change},
                 }
             },
@@ -112,7 +112,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 let currency = record.get_value("Currency")?.to_owned();
 
                 CorporateAction {
-                    date, report_date, symbol,
+                    time: date.into(), report_date, symbol,
                     action: CorporateActionType::Spinoff {
                         symbol: captures.name("child_symbol").unwrap().as_str().to_owned(),
                         quantity, currency,
@@ -140,7 +140,7 @@ fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<Corpora
             let action = actions.first().unwrap();
             return Err!(
                 "Unsupported stock split: {} at {}",
-                action.symbol, format_date(action.date));
+                action.symbol, format_date(action.time.date));
         },
     };
 
@@ -164,7 +164,7 @@ fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<Corpora
         _ => {
             return Err!(
                 "Unsupported stock split: {} at {}",
-                action.symbol, format_date(action.date));
+                action.symbol, format_date(action.time.date));
         },
     };
 
@@ -220,7 +220,7 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date,
+            time: date.into(),
             report_date: Some(report_date),
 
             symbol: symbol.to_owned(),
@@ -242,7 +242,7 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            date: date!(16, 11, 2020),
+            time: date!(16, 11, 2020).into(),
             report_date: Some(date!(17, 11, 2020)),
 
             symbol: s!("PFE"),
