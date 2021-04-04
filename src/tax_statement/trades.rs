@@ -379,7 +379,7 @@ impl<'a> TradesProcessor<'a> {
 
         let source = match trade.source {
             StockSourceDetails::Trade {price, commission, local_commission, cost, local_cost, ..} => {
-                self.same_dates &= trade.execution_date == trade.conclusion_date;
+                self.same_dates &= trade.execution_date == trade.conclusion_time.date;
                 self.same_currency &=
                     price.currency == self.country.currency &&
                     commission.currency == self.country.currency;
@@ -395,7 +395,7 @@ impl<'a> TradesProcessor<'a> {
 
                 if commission.currency != self.country.currency {
                     conclusion_currency_rate_cell.replace(self.converter.precise_currency_rate(
-                        trade.conclusion_date, commission.currency, self.country.currency)?);
+                        trade.conclusion_time.date, commission.currency, self.country.currency)?);
                 };
 
                 if price.currency != self.country.currency {
@@ -417,7 +417,7 @@ impl<'a> TradesProcessor<'a> {
             } else {
                 None
             },
-            conclusion_date: trade.conclusion_date,
+            conclusion_date: trade.conclusion_time.date,
             execution_date: execution_date_cell,
             security: security.to_owned(),
             quantity: trade.quantity,

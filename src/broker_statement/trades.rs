@@ -18,6 +18,7 @@ pub struct ForexTrade {
 
 impl ForexTrade {
     pub fn new(date: Date, from: Cash, to: Cash, commission: Cash) -> ForexTrade {
+        // FIXME(konishchev): Switch to DateOptTime
         ForexTrade {from, to, commission, conclusion_time: date.into()}
     }
 }
@@ -63,6 +64,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
+            // FIXME(konishchev): Switch to DateOptTime
             conclusion_time: conclusion_date.into(), execution_date, margin,
             sold: dec!(0),
         }
@@ -75,6 +77,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::CorporateAction, cost, margin: false,
+            // FIXME(konishchev): Switch to DateOptTime
             conclusion_time: conclusion_date.into(), execution_date,
             sold: dec!(0),
         }
@@ -113,8 +116,7 @@ impl StockBuy {
 
         StockSellSource {
             quantity, multiplier, type_, cost,
-            conclusion: self.conclusion_time,
-            conclusion_date: self.conclusion_time.date,
+            conclusion_time: self.conclusion_time,
             execution_date: self.execution_date,
         }
     }
@@ -158,6 +160,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::Trade {price, volume, commission}, margin,
+            // FIXME(konishchev): Switch to DateOptTime
             conclusion_time: conclusion_date.into(), execution_date,
             emulation, sources: Vec::new(),
         }
@@ -169,6 +172,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::CorporateAction, margin: false,
+            // FIXME(konishchev): Switch to DateOptTime
             conclusion_time: conclusion_date.into(), execution_date,
             emulation: false, sources: Vec::new(),
         }
@@ -344,8 +348,7 @@ pub struct StockSellSource {
     pub type_: StockSource,
     pub cost: PurchaseTotalCost,
 
-    pub conclusion: DateOptTime,
-    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
+    pub conclusion_time: DateOptTime,
     pub execution_date: Date,
 }
 
@@ -389,8 +392,7 @@ pub struct FifoDetails {
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
-    pub conclusion: DateOptTime,
-    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
+    pub conclusion_time: DateOptTime,
     pub execution_date: Date,
 
     pub source: StockSourceDetails,
@@ -422,7 +424,7 @@ impl FifoDetails {
 
                 commission = commission.round();
                 let local_commission = converter.convert_to_cash_rounding(
-                    source.conclusion_date, commission, country.currency)?;
+                    source.conclusion_time.date, commission, country.currency)?;
 
                 StockSourceDetails::Trade {
                     price,
@@ -441,8 +443,7 @@ impl FifoDetails {
             quantity: source.quantity,
             multiplier: source.multiplier,
 
-            conclusion: source.conclusion,
-            conclusion_date: source.conclusion_date,
+            conclusion_time: source.conclusion_time,
             execution_date: source.execution_date,
 
             source: details,
