@@ -181,7 +181,7 @@ impl<'a> TradesProcessor<'a> {
 
                 if index < count && fee.amount.is_positive() {
                     let next_fee = &self.broker_statement.fees[index];
-                    if next_fee.time == fee.time && next_fee.amount == -fee.amount {
+                    if next_fee.date == fee.date && next_fee.amount == -fee.amount {
                         index += 1;
                         continue;
                     }
@@ -189,7 +189,7 @@ impl<'a> TradesProcessor<'a> {
             }
 
             if let Some(year) = self.year {
-                let (tax_year, _) = self.portfolio.tax_payment_day().get(fee.time.date, true);
+                let (tax_year, _) = self.portfolio.tax_payment_day().get(fee.date, true);
                 if tax_year != year {
                     continue;
                 }
@@ -209,11 +209,11 @@ impl<'a> TradesProcessor<'a> {
 
         let amount = fee.amount.round();
         let local_amount = self.converter.convert_to_cash_rounding(
-            fee.time.date, fee.amount, self.country.currency)?;
+            fee.date, fee.amount, self.country.currency)?;
 
         self.total_local_profit.sub_assign(local_amount).unwrap();
         self.total_taxable_local_profit.sub_assign(local_amount).unwrap();
-        self.total_taxable_local_profit_by_year.entry(fee.time.date.year())
+        self.total_taxable_local_profit_by_year.entry(fee.date.year())
             .and_modify(|total| total.sub_assign(local_amount).unwrap())
             .or_insert(-local_amount);
 

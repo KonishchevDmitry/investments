@@ -151,6 +151,7 @@ impl fmt::Display for Cash {
 #[derive(Debug, Clone, Copy)]
 pub struct CashAssets {
     pub time: DateOptTime,
+    pub date: Date, // FIXME(konishchev): Deprecate
     pub cash: Cash,
 }
 
@@ -160,8 +161,7 @@ impl CashAssets {
     }
 
     pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
-        // FIXME(konishchev): Switch to DateOptTime
-        CashAssets {time: date.into(), cash}
+        CashAssets {time: date.into(), date, cash}
     }
 }
 
