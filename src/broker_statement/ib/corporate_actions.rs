@@ -38,56 +38,28 @@ impl CorporateActionsParser {
         // Here we postprocess parsed corporate actions:
         // * Complex stock splits are represented by two records, so we join them here
 
-        let mut stock_split: Option<CorporateAction> = None;
+        let mut stock_splits = Vec::<CorporateAction>::new();
 
-        for corporate_action in self.corporate_actions {
-            let mut stock_split = match stock_split.take() {
-                Some(stock_split_part) => stock_split_part,
-                _ => {
-                    match corporate_action.action {
-                        CorporateActionType::StockSplit { from_change: Some(_), .. } => {
-                            assert!(stock_split.replace(corporate_action).is_none());
+        for action in self.corporate_actions {
+            match action.action {
+                CorporateActionType::StockSplit {..} => {
+                    if let Some(last) = stock_splits.last() {
+                        if action.date == last.date && action.symbol == last.symbol {
+                            stock_splits.push(action);
+                        } else {
+                            parser.statement.corporate_actions.push(join_stock_splits(stock_splits)?);
+                            stock_splits = vec![action];
                         }
-                        _ => parser.statement.corporate_actions.push(corporate_action),
+                    } else {
+                        stock_splits.push(action);
                     }
-                    continue;
-                }
-            };
-
-            let (ratio, from_change) = match stock_split.action {
-                CorporateActionType::StockSplit {
-                    ratio, from_change: Some(from_change), to_change: None,
-                } => (ratio, from_change),
-                _ => unreachable!(),
-            };
-
-            let to_change = match corporate_action.action {
-                CorporateActionType::StockSplit {
-                    ratio: second_ratio, from_change: None, to_change: Some(to_change),
-                } if corporate_action.date == stock_split.date &&
-                    corporate_action.symbol == stock_split.symbol &&
-                    second_ratio == ratio => {
-                    to_change
                 },
-                _ => {
-                    return Err!(
-                        "Unsupported stock split: {} at {}",
-                        stock_split.symbol, format_date(stock_split.date));
-                },
-            };
-
-            stock_split.action = CorporateActionType::StockSplit {
-                ratio,
-                from_change: Some(from_change),
-                to_change: Some(to_change),
-            };
-            parser.statement.corporate_actions.push(stock_split);
+                _ => parser.statement.corporate_actions.push(action),
+            }
         }
 
-        if let Some(stock_split) = stock_split {
-            return Err!(
-                "Unsupported stock split: {} at {}",
-                stock_split.symbol, format_date(stock_split.date));
+        if !stock_splits.is_empty() {
+            parser.statement.corporate_actions.push(join_stock_splits(stock_splits)?);
         }
 
         Ok(())
@@ -110,7 +82,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
         static ref REGEX: Regex = Regex::new(concat!(
             r"^(?P<symbol>[A-Z]+) ?\([A-Z0-9]+\) (?P<action>Split|Spinoff) ",
             r"(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
-            r"\((?P<child_symbol>[A-Z.]+), [^,)]+, [A-Z0-9]+\)$",
+            r"\((?P<child_symbol>[A-Z]+)(\.OLD)?, [^,)]+, [A-Z0-9]+\)$",
         )).unwrap();
     }
 
@@ -152,6 +124,56 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
     } else {
         return Err!("Unsupported corporate action: {:?}", description);
     })
+}
+
+fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<CorporateAction> {
+    match actions.len() {
+        0 => unreachable!(),
+        1 => {
+            // Simple stock split
+            return Ok(actions.pop().unwrap())
+        },
+        2 => {
+            // Complex stock splits are represented by two records
+        },
+        _ => {
+            let action = actions.first().unwrap();
+            return Err!(
+                "Unsupported stock split: {} at {}",
+                action.symbol, format_date(action.date));
+        },
+    };
+
+    let supplementary_action = actions.pop().unwrap();
+    let mut action = actions.pop().unwrap();
+
+    let (ratio, from_change, to_change) = match (action.action, supplementary_action.action) {
+        // It looks like the records may have an arbitrary order
+        (
+            CorporateActionType::StockSplit {ratio: first_ratio, from_change: Some(from_change), to_change: None},
+            CorporateActionType::StockSplit {ratio: second_ratio, from_change: None, to_change: Some(to_change)},
+        ) if first_ratio == second_ratio => {
+            (first_ratio, from_change, to_change)
+        },
+        (
+            CorporateActionType::StockSplit {ratio: first_ratio, from_change: None, to_change: Some(to_change)},
+            CorporateActionType::StockSplit {ratio: second_ratio, from_change: Some(from_change), to_change: None},
+        ) if first_ratio == second_ratio => {
+            (first_ratio, from_change, to_change)
+        },
+        _ => {
+            return Err!(
+                "Unsupported stock split: {} at {}",
+                action.symbol, format_date(action.date));
+        },
+    };
+
+    action.action = CorporateActionType::StockSplit {
+        ratio,
+        from_change: Some(from_change),
+        to_change: Some(to_change),
+    };
+    Ok(action)
 }
 
 #[cfg(test)]

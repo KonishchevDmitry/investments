@@ -350,6 +350,7 @@ mod tests {
 
         "simple-with-lse",
         "reverse-stock-split",
+        "reverse-stock-split-reverse-order",
     ])]
     fn parse_real_other(name: &str) {
         parse_full(name, None);
