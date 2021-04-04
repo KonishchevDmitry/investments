@@ -277,7 +277,6 @@ impl BrokerStatement {
         }
 
         let volume = price * quantity;
-        // FIXME(konishchev): Use DateOptTime?
         let commission = commission_calc.add_trade(
             conclusion_time.date, TradeType::Sell, quantity, price)?;
 
