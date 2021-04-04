@@ -322,7 +322,7 @@ fn convert_stocks(
     }
 
     let mut sell = StockSell::new_corporate_action(
-        symbol, old_quantity, conclusion_time.date, execution_date);
+        symbol, old_quantity, conclusion_time, execution_date);
     sell.process(sell_sources);
 
     let buy = StockBuy::new_corporate_action(

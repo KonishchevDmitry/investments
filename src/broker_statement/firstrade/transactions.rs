@@ -239,7 +239,7 @@ impl StockTradeTransaction {
         } else {
             parser.statement.stock_sells.push(StockSell::new_trade(
                 &symbol, quantity, price, volume, commission,
-                self.info.conclusion_date, self.info.execution_date, false, false));
+                self.info.conclusion_date.into(), self.info.execution_date, false, false));
         }
 
         Ok(())

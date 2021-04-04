@@ -155,25 +155,25 @@ pub struct StockSell {
 impl StockSell {
     pub fn new_trade(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
-        conclusion_date: Date, execution_date: Date, margin: bool, emulation: bool,
+        conclusion_time: DateOptTime, execution_date: Date, margin: bool, emulation: bool,
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::Trade {price, volume, commission}, margin,
-            // FIXME(konishchev): Switch to DateOptTime
-            conclusion_time: conclusion_date.into(), execution_date,
+            // FIXME(konishchev): Drop into
+            conclusion_time: conclusion_time.date.into(), execution_date,
             emulation, sources: Vec::new(),
         }
     }
 
     pub fn new_corporate_action(
-        symbol: &str, quantity: Decimal, conclusion_date: Date, execution_date: Date,
+        symbol: &str, quantity: Decimal, conclusion_time: DateOptTime, execution_date: Date,
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::CorporateAction, margin: false,
-            // FIXME(konishchev): Switch to DateOptTime
-            conclusion_time: conclusion_date.into(), execution_date,
+            // FIXME(konishchev): Drop into
+            conclusion_time: conclusion_time.date.into(), execution_date,
             emulation: false, sources: Vec::new(),
         }
     }

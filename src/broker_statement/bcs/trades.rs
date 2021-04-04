@@ -132,7 +132,7 @@ impl TradesParser {
         } else {
             statement.stock_sells.push(StockSell::new_trade(
                 symbol, quantity.into(), price, volume, commission,
-                conclusion_time.date, execution_date, margin, false));
+                conclusion_time, execution_date, margin, false));
         }
 
         Ok(())

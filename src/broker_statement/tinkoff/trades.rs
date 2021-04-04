@@ -94,7 +94,7 @@ impl SectionParser for TradesParser {
                     } else {
                         parser.statement.stock_sells.push(StockSell::new_trade(
                             &trade.symbol, quantity.into(), price, volume,
-                            commission, conclusion_time.date(), execution_date, false, false));
+                            commission, conclusion_time.into(), execution_date, false, false));
                     }
                 },
                 _ => return Err!("Unsupported trade operation: {:?}", trade.operation),

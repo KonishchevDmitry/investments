@@ -104,7 +104,7 @@ fn parse_stock_record(
     } else {
         parser.statement.stock_sells.push(StockSell::new_trade(
             symbol, -quantity, price, volume, commission,
-            conclusion_time.date(), execution_date, false, false));
+            conclusion_time.into(), execution_date, false, false));
     }
 
     Ok(())

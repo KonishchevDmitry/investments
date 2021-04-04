@@ -118,7 +118,7 @@ fn print_results(
 ) -> EmptyResult {
     let mut same_currency = true;
 
-    let conclusion_date = time::today_trade_conclusion_date();
+    let conclusion_time = time::today_trade_conclusion_time();
     let execution_date = time::today_trade_execution_date();
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
@@ -135,7 +135,7 @@ fn print_results(
         total_commission.deposit(commission.round());
 
         let local_commission = converter.convert_to_cash_rounding(
-            conclusion_date, commission, country.currency)?;
+            conclusion_time.date, commission, country.currency)?;
 
         total_profit.withdraw(commission);
         total_local_profit.sub_assign(local_commission).unwrap();

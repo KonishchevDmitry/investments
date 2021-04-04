@@ -109,7 +109,7 @@ impl ConcludedTrades {
 
                     statement.stock_sells.push(StockSell::new_trade(
                         symbol, quantity.into(), price, volume, commission,
-                        trade.conclusion_time.date(), execution_date, false, false));
+                        trade.conclusion_time.into(), execution_date, false, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };

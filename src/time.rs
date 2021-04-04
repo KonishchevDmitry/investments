@@ -122,8 +122,8 @@ pub fn today() -> Date {
     tz_now().date().naive_local()
 }
 
-pub fn today_trade_conclusion_date() -> Date {
-    today()
+pub fn today_trade_conclusion_time() -> DateOptTime {
+    now().into()
 }
 
 pub fn today_trade_execution_date() -> Date {

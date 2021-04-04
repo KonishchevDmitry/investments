@@ -263,7 +263,7 @@ impl BrokerStatement {
         &mut self, symbol: &str, quantity: Decimal, price: Cash,
         commission_calc: &mut CommissionCalc,
     ) -> EmptyResult {
-        let conclusion_date = time::today_trade_conclusion_date();
+        let conclusion_time = time::today_trade_conclusion_time();
         let mut execution_date = time::today_trade_execution_date();
 
         for trade in self.stock_sells.iter().rev() {
@@ -277,12 +277,13 @@ impl BrokerStatement {
         }
 
         let volume = price * quantity;
+        // FIXME(konishchev): Use DateOptTime?
         let commission = commission_calc.add_trade(
-            conclusion_date, TradeType::Sell, quantity, price)?;
+            conclusion_time.date, TradeType::Sell, quantity, price)?;
 
         let stock_sell = StockSell::new_trade(
             symbol, quantity, price, volume, commission,
-            conclusion_date, execution_date, false, true);
+            conclusion_time, execution_date, false, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = open_position.get_mut();
