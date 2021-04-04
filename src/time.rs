@@ -30,6 +30,15 @@ impl From<Date> for DateOptTime {
     }
 }
 
+impl From<DateTime> for DateOptTime {
+    fn from(time: DateTime) -> Self {
+        DateOptTime {
+            date: time.date(),
+            time: Some(time.time()),
+        }
+    }
+}
+
 pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
     let period = (start, end.succ());
 

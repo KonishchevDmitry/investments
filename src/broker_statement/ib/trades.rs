@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
-use crate::types::Date;
+use crate::time::{Date, DateTime};
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
@@ -20,18 +20,18 @@ impl RecordParser for TradesParser {
 
         let asset_category = record.get_value("Asset Category")?;
         let symbol = record.get_value("Symbol")?;
-        let conclusion_date = record.parse_date_time("Date/Time")?.date();
+        let conclusion_time = record.parse_date_time("Date/Time")?;
 
         match asset_category {
-            "Forex" => parse_forex_record(parser, record, symbol, conclusion_date),
-            "Stocks" => parse_stock_record(parser, record, symbol, conclusion_date),
+            "Forex" => parse_forex_record(parser, record, symbol, conclusion_time),
+            "Stocks" => parse_stock_record(parser, record, symbol, conclusion_time.date()),
             _ => return Err!("Unsupported asset category: {}", asset_category)
         }
     }
 }
 
 fn parse_forex_record(
-    parser: &mut StatementParser, record: &Record, symbol: &str, conclusion_date: Date
+    parser: &mut StatementParser, record: &Record, symbol: &str, conclusion_date: DateTime
 ) -> EmptyResult {
     let pair: Vec<&str> = symbol.split('.').collect();
     if pair.len() != 2 {
@@ -60,7 +60,10 @@ fn parse_forex_record(
         &format!("Comm in {}", commission_currency),
         commission_currency, DecimalRestrictions::NegativeOrZero)?;
 
-    Ok(parser.statement.forex_trades.push(ForexTrade::new(conclusion_date, from, to, commission)))
+    parser.statement.forex_trades.push(ForexTrade::new(
+        conclusion_date.into(), from, to, commission));
+
+    Ok(())
 }
 
 fn parse_stock_record(

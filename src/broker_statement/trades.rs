@@ -17,9 +17,9 @@ pub struct ForexTrade {
 }
 
 impl ForexTrade {
-    pub fn new(date: Date, from: Cash, to: Cash, commission: Cash) -> ForexTrade {
-        // FIXME(konishchev): Switch to DateOptTime
-        ForexTrade {from, to, commission, conclusion_time: date.into()}
+    pub fn new(time: DateOptTime, from: Cash, to: Cash, commission: Cash) -> ForexTrade {
+        // FIXME(konishchev): Drop into()
+        ForexTrade {from, to, commission, conclusion_time: time.date.into()}
     }
 }
 

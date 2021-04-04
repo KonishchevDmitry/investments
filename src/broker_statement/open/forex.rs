@@ -4,10 +4,11 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::ForexTrade;
 use crate::core::EmptyResult;
 use crate::forex::parse_forex_code;
-use crate::types::{Date, Decimal};
+use crate::time::{Date, Time, DateTime};
+use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::deserialize_date;
+use super::common::{deserialize_date, deserialize_time, deserialize_date_time};
 
 #[derive(Deserialize)]
 pub struct ForexTrades {
@@ -19,6 +20,9 @@ pub struct ForexTrades {
 struct ForexTradeInfo {
     #[serde(rename = "deal_date", deserialize_with = "deserialize_date")]
     conclusion_date: Date,
+
+    #[serde(rename = "deal_time", deserialize_with = "deserialize_time")]
+    conclusion_time: Time,
 
     #[serde(rename = "contract_code")]
     code: String,
@@ -48,6 +52,8 @@ struct ForexTradeInfo {
 impl ForexTrades {
     pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         for trade in &self.trades {
+            let time = DateTime::new(trade.conclusion_date, trade.conclusion_time);
+
             let (base, quote, lot_size) = parse_forex_code(&trade.code)?;
             if quote != trade.currency {
                 return Err!(
@@ -85,7 +91,7 @@ impl ForexTrades {
                 "commission", parse_currency(&trade.commission_currency), trade.commission,
                 DecimalRestrictions::PositiveOrZero)?.normalize();
 
-            statement.forex_trades.push(ForexTrade::new(trade.conclusion_date, from, to, commission));
+            statement.forex_trades.push(ForexTrade::new(time.into(), from, to, commission));
         }
 
         Ok(())
@@ -102,8 +108,8 @@ pub struct CurrencyConversions {
 // It's actually T+1 currency conversion trade. But for now consider it as T+0 forex trade.
 #[derive(Deserialize)]
 struct CurrencyConversionInfo {
-    #[serde(deserialize_with = "deserialize_date")]
-    conclusion_date: Date,
+    #[serde(deserialize_with = "deserialize_date_time")]
+    conclusion_time: DateTime,
 
     #[serde(rename = "currency_1")]
     from_currency: String,
@@ -139,7 +145,8 @@ impl CurrencyConversions {
                 "commission", parse_currency(&trade.commission_currency), trade.commission,
                 DecimalRestrictions::PositiveOrZero)?.normalize();
 
-            statement.forex_trades.push(ForexTrade::new(trade.conclusion_date, from, to, commission));
+            statement.forex_trades.push(ForexTrade::new(
+                trade.conclusion_time.into(), from, to, commission));
         }
 
         Ok(())

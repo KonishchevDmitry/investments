@@ -8,7 +8,8 @@ use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::forex::parse_forex_code;
 use crate::formatting::format_date;
-use crate::types::{Date, Time, Decimal};
+use crate::time::DateTime;
+use crate::types::Decimal;
 use crate::util::DecimalRestrictions;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 
@@ -21,22 +22,15 @@ impl SectionParser for TradesParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let mut trades = Vec::new();
 
-        struct Trade {
-            date: Date,
-            time: Time,
-            info: TradeRow,
-        }
-
         for trade in xls::read_table::<TradeRow>(&mut parser.sheet)? {
-            trades.push(Trade {
-                date: parse_date(&trade.date)?,
-                time: parse_time(&trade.time)?,
-                info: trade,
-            });
+            trades.push((
+                DateTime::new(parse_date(&trade.date)?, parse_time(&trade.time)?),
+                trade,
+            ));
         }
-        trades.sort_by_key(|trade| (trade.date, trade.time));
+        trades.sort_by_key(|(conclusion_time, _trade)| *conclusion_time);
 
-        for Trade {date: conclusion_date, info: trade, ..} in trades {
+        for (conclusion_time, trade) in trades {
             let accumulated_coupon_income = parse_decimal(
                 &trade.accumulated_coupon_income, DecimalRestrictions::No)?;
 
@@ -72,7 +66,7 @@ impl SectionParser for TradesParser {
                 },
                 None => return Err!(
                     "Got {} trade at {} without commission currency",
-                    trade.symbol, format_date(conclusion_date),
+                    trade.symbol, format_date(conclusion_time),
                 ),
             };
 
@@ -84,11 +78,11 @@ impl SectionParser for TradesParser {
                         let from = volume;
                         let to = Cash::new(base, Decimal::from_u32(quantity).unwrap());
                         parser.statement.forex_trades.push(ForexTrade::new(
-                            conclusion_date, from, to, commission));
+                            conclusion_time.into(), from, to, commission));
                     } else {
                         parser.statement.stock_buys.push(StockBuy::new_trade(
                             &trade.symbol, quantity.into(), price, volume, commission,
-                            conclusion_date, execution_date, false));
+                            conclusion_time.date(), execution_date, false));
                     }
                 },
                 "Продажа" => {
@@ -96,11 +90,11 @@ impl SectionParser for TradesParser {
                         let from = Cash::new(base, Decimal::from_u32(quantity).unwrap());
                         let to = volume;
                         parser.statement.forex_trades.push(ForexTrade::new(
-                            conclusion_date, from, to, commission));
+                            conclusion_time.into(), from, to, commission));
                     } else {
                         parser.statement.stock_sells.push(StockSell::new_trade(
                             &trade.symbol, quantity.into(), price, volume,
-                            commission, conclusion_date, execution_date, false, false));
+                            commission, conclusion_time.date(), execution_date, false, false));
                     }
                 },
                 _ => return Err!("Unsupported trade operation: {:?}", trade.operation),
