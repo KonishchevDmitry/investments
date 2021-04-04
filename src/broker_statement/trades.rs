@@ -14,12 +14,11 @@ pub struct ForexTrade {
     pub to: Cash,
     pub commission: Cash,
     pub conclusion_time: DateOptTime,
-    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
 }
 
 impl ForexTrade {
     pub fn new(date: Date, from: Cash, to: Cash, commission: Cash) -> ForexTrade {
-        ForexTrade {from, to, commission, conclusion_time: date.into(), conclusion_date: date}
+        ForexTrade {from, to, commission, conclusion_time: date.into()}
     }
 }
 
@@ -145,7 +144,6 @@ pub struct StockSell {
     pub margin: bool,
 
     pub conclusion_time: DateOptTime,
-    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
     pub emulation: bool,
@@ -160,7 +158,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::Trade {price, volume, commission}, margin,
-            conclusion_time: conclusion_date.into(), conclusion_date, execution_date,
+            conclusion_time: conclusion_date.into(), execution_date,
             emulation, sources: Vec::new(),
         }
     }
@@ -171,7 +169,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::CorporateAction, margin: false,
-            conclusion_time: conclusion_date.into(), conclusion_date, execution_date,
+            conclusion_time: conclusion_date.into(), execution_date,
             emulation: false, sources: Vec::new(),
         }
     }
@@ -197,7 +195,7 @@ impl StockSell {
     ) -> GenericResult<SellDetails> {
         Ok(self.calculate_impl(country, tax_year, tax_exemptions, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
-            self.symbol, formatting::format_date(self.conclusion_date), e))?)
+            self.symbol, formatting::format_date(self.conclusion_time), e))?)
     }
 
     fn calculate_impl(
@@ -211,7 +209,7 @@ impl StockSell {
 
         let currency = price.currency;
         let local_conclusion = |value| converter.convert_to_cash_rounding(
-            self.conclusion_date, value, country.currency);
+            self.conclusion_time.date, value, country.currency);
         let local_execution = |value| converter.convert_to_cash_rounding(
             self.execution_date, value, country.currency);
 
@@ -277,7 +275,7 @@ impl StockSell {
         let deductible_local_commission = local_conclusion(commission * taxable_ratio)?;
 
         let total_cost = purchase_cost.add(converter.convert_to_cash_rounding(
-            self.conclusion_date, commission, currency)?).unwrap();
+            self.conclusion_time.date, commission, currency)?).unwrap();
         let total_local_cost = purchase_local_cost.add(local_commission).unwrap();
         let deductible_total_local_cost = deductible_purchase_local_cost.add(deductible_local_commission).unwrap();
 

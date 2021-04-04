@@ -529,7 +529,7 @@ impl BrokerStatement {
             |withholding| withholding.date)?;
 
         date_validator.sort_and_validate(
-            "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_date)?;
+            "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_time)?;
 
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;

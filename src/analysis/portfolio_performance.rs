@@ -301,7 +301,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                         trade.execution_date, volume, self.currency)?;
 
                     let commission = self.converter.convert_to(
-                        trade.conclusion_date, commission, self.currency)?;
+                        trade.conclusion_time.date, commission, self.currency)?;
                     self.income_structure.commissions += commission;
 
                     {

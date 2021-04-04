@@ -16,7 +16,8 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{IncomeType, TaxPaymentDaySpec};
-use crate::types::{Date, Decimal};
+use crate::time::{Date, DateOptTime};
+use crate::types::Decimal;
 
 use super::statement::TaxStatement;
 
@@ -195,7 +196,7 @@ impl<'a> TradesProcessor<'a> {
             }
 
             let fee = self.pre_process_fee(fee)?;
-            fees_by_year.entry(fee.date.year()).or_default()
+            fees_by_year.entry(fee.time.date.year()).or_default()
                 .add_assign(fee.local_amount.amount);
             fees.push_back(fee);
         }
@@ -217,7 +218,7 @@ impl<'a> TradesProcessor<'a> {
             .or_insert(-local_amount);
 
         Ok(PreprocessedFee {
-            date: fee.date,
+            time: fee.time,
             amount, local_amount,
             description: fee.local_description().to_owned(),
         })
@@ -225,7 +226,7 @@ impl<'a> TradesProcessor<'a> {
 
     fn post_process_fee(&mut self, fee: PreprocessedFee) {
         let mut row = self.trades_table.add_empty_row();
-        row.set_conclusion_date(fee.date);
+        row.set_conclusion_date(fee.time.date);
         row.set_security(fee.description);
 
         if fee.amount.is_negative() {
@@ -260,7 +261,7 @@ impl<'a> TradesProcessor<'a> {
             }
 
             while let Some(fee) = fees.front() {
-                if fee.date >= trade.conclusion_date {
+                if fee.time >= trade.conclusion_time {
                     break;
                 }
                 self.post_process_fee(fees.pop_front().unwrap());
@@ -298,7 +299,7 @@ impl<'a> TradesProcessor<'a> {
             _ => unreachable!(),
         };
 
-        self.same_dates &= trade.execution_date == trade.conclusion_date;
+        self.same_dates &= trade.execution_date == trade.conclusion_time.date;
         self.same_currency &= price.currency == self.country.currency &&
             commission.currency == self.country.currency;
         self.tax_exemptions |= details.tax_exemption_applied();
@@ -312,7 +313,7 @@ impl<'a> TradesProcessor<'a> {
 
         let conclusion_currency_rate = if commission.currency != self.country.currency {
             Some(self.converter.precise_currency_rate(
-                trade.conclusion_date, commission.currency, self.country.currency)?)
+                trade.conclusion_time.date, commission.currency, self.country.currency)?)
         } else {
             None
         };
@@ -326,7 +327,7 @@ impl<'a> TradesProcessor<'a> {
 
         self.trades_table.add_row(TradeRow {
             id: trade_id,
-            conclusion_date: trade.conclusion_date,
+            conclusion_date: trade.conclusion_time.date,
             execution_date: trade.execution_date,
             security: security.to_owned(),
             quantity: trade.quantity,
@@ -539,7 +540,7 @@ impl<'a> TradesProcessor<'a> {
 }
 
 struct PreprocessedFee {
-    date: Date,
+    time: DateOptTime,
     amount: Cash,
     local_amount: Cash,
     description: String,
