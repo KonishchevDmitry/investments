@@ -18,6 +18,12 @@ pub struct DateOptTime {
     pub time: Option<Time>,
 }
 
+impl DateOptTime {
+    pub fn new_max_time(date: Date) -> DateOptTime {
+        DateOptTime {date, time: Some(Time::from_hms_nano(23, 59, 59, 999_999_999))}
+    }
+}
+
 impl From<Date> for DateOptTime {
     fn from(date: Date) -> Self {
         DateOptTime {date, time: None}

@@ -32,8 +32,8 @@ use crate::formatting;
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
-use crate::time;
-use crate::types::{Date, Decimal, TradeType};
+use crate::time::{self, Date, DateOptTime};
+use crate::types::{Decimal, TradeType};
 use crate::util;
 
 use self::dividends::{DividendAccruals, process_dividend_accruals};
@@ -367,7 +367,7 @@ impl BrokerStatement {
 
                 let stock_buy = &mut self.stock_buys[index];
                 let multiplier = self.stock_splits.get_multiplier(
-                    &stock_sell.symbol, stock_buy.conclusion_date, stock_sell.conclusion_date);
+                    &stock_sell.symbol, stock_buy.conclusion_time, stock_sell.conclusion_time);
 
                 let unsold_quantity = multiplier * stock_buy.get_unsold();
                 let sell_quantity = std::cmp::min(remaining_quantity, unsold_quantity);
@@ -580,7 +580,8 @@ impl BrokerStatement {
             }
 
             let multiplier = self.stock_splits.get_multiplier(
-                &stock_buy.symbol, stock_buy.conclusion_date, self.last_date());
+                &stock_buy.symbol, stock_buy.conclusion_time,
+                DateOptTime::new_max_time(self.last_date()));
 
             let quantity = multiplier * stock_buy.get_unsold();
 

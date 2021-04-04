@@ -40,7 +40,7 @@ pub struct StockBuy {
     cost: PurchaseTotalCost,
     pub margin: bool,
 
-    pub conclusion: DateOptTime,
+    pub conclusion_time: DateOptTime,
     pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
@@ -58,7 +58,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
-            conclusion: conclusion_date.into(), conclusion_date, execution_date, margin,
+            conclusion_time: conclusion_date.into(), conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
     }
@@ -70,7 +70,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::CorporateAction, cost, margin: false,
-            conclusion: conclusion_date.into(), conclusion_date, execution_date,
+            conclusion_time: conclusion_date.into(), conclusion_date, execution_date,
             sold: dec!(0),
         }
     }
@@ -108,7 +108,7 @@ impl StockBuy {
 
         StockSellSource {
             quantity, multiplier, type_, cost,
-            conclusion: self.conclusion,
+            conclusion: self.conclusion_time,
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
         }
@@ -138,7 +138,7 @@ pub struct StockSell {
     pub type_: StockSellType,
     pub margin: bool,
 
-    pub conclusion: DateOptTime,
+    pub conclusion_time: DateOptTime,
     pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
@@ -154,7 +154,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::Trade {price, volume, commission}, margin,
-            conclusion: conclusion_date.into(), conclusion_date, execution_date,
+            conclusion_time: conclusion_date.into(), conclusion_date, execution_date,
             emulation, sources: Vec::new(),
         }
     }
@@ -165,7 +165,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::CorporateAction, margin: false,
-            conclusion: conclusion_date.into(), conclusion_date, execution_date,
+            conclusion_time: conclusion_date.into(), conclusion_date, execution_date,
             emulation: false, sources: Vec::new(),
         }
     }

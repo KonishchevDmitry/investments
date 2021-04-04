@@ -11,8 +11,8 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::NetTaxCalculator;
-use crate::time;
-use crate::types::{Date, Decimal};
+use crate::time::{self, Date, DateOptTime};
+use crate::types::Decimal;
 
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
@@ -266,7 +266,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         for trade in &statement.stock_buys {
             let multiplier = statement.stock_splits.get_multiplier(
-                &trade.symbol, trade.conclusion_date, self.today);
+                &trade.symbol, trade.conclusion_time, DateOptTime::new_max_time(self.today));
             let quantity = multiplier * trade.quantity;
 
             match trade.type_ {
@@ -275,24 +275,24 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                         trade.execution_date, volume, self.currency)?;
 
                     let commission = self.converter.convert_to(
-                        trade.conclusion_date, commission, self.currency)?;
+                        trade.conclusion_time.date, commission, self.currency)?;
                     self.income_structure.commissions += commission;
 
                     let deposit_view = self.get_deposit_view(&trade.symbol);
-                    deposit_view.trade(trade.conclusion_date, quantity);
-                    deposit_view.transaction(trade.conclusion_date, volume);
-                    deposit_view.transaction(trade.conclusion_date, commission);
+                    deposit_view.trade(trade.conclusion_time, quantity);
+                    deposit_view.transaction(trade.conclusion_time, volume);
+                    deposit_view.transaction(trade.conclusion_time, commission);
                 },
                 StockSource::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
-                    deposit_view.trade(trade.conclusion_date, quantity);
+                    deposit_view.trade(trade.conclusion_time, quantity);
                 },
             };
         }
 
         for trade in &statement.stock_sells {
             let multiplier = statement.stock_splits.get_multiplier(
-                &trade.symbol, trade.conclusion_date, self.today);
+                &trade.symbol, trade.conclusion_time, DateOptTime::new_max_time(self.today));
             let quantity = multiplier * trade.quantity;
 
             match trade.type_ {
@@ -307,9 +307,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     {
                         let deposit_view = self.get_deposit_view(&trade.symbol);
 
-                        deposit_view.trade(trade.conclusion_date, -quantity);
-                        deposit_view.transaction(trade.conclusion_date, -volume);
-                        deposit_view.transaction(trade.conclusion_date, commission);
+                        deposit_view.trade(trade.conclusion_time, -quantity);
+                        deposit_view.transaction(trade.conclusion_time, -volume);
+                        deposit_view.transaction(trade.conclusion_time, commission);
 
                         deposit_view.last_sell_volume.replace(volume);
                         if trade.emulation {
@@ -332,7 +332,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 },
                 StockSellType::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
-                    deposit_view.trade(trade.conclusion_date, -quantity);
+                    deposit_view.trade(trade.conclusion_time, -quantity);
                 },
             };
         }
@@ -343,7 +343,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     trace!("* {} selling {} tax: {}",
                            symbol, formatting::format_date(tax_payment_date), amount);
 
-                    self.get_deposit_view(symbol).transaction(tax_payment_date, amount);
+                    self.get_deposit_view(symbol).transaction(tax_payment_date.into(), amount);
                 }
             }
         }
@@ -371,7 +371,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 dividend.description(), e))?;
 
             let income = self.converter.convert_to(dividend.date, income, self.currency)?;
-            self.get_deposit_view(&dividend.issuer).transaction(dividend.date, -income);
+            self.get_deposit_view(&dividend.issuer).transaction(dividend.date.into(), -income);
             self.income_structure.dividends += income;
 
             let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
@@ -382,7 +382,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                        dividend.issuer, formatting::format_date(dividend.date),
                        formatting::format_date(tax_payment_date), amount);
 
-                self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date, amount);
+                self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date.into(), amount);
                 self.transaction(tax_payment_date, amount);
                 self.income_structure.taxes += amount;
             }
@@ -491,17 +491,17 @@ impl StockDepositView {
         }
     }
 
-    fn trade(&mut self, date: Date, quantity: Decimal) {
-        self.trades.entry(date)
+    fn trade(&mut self, time: DateOptTime, quantity: Decimal) {
+        self.trades.entry(time.date)
             .and_modify(|total| *total += quantity)
             .or_insert(quantity);
     }
 
-    fn transaction(&mut self, date: Date, amount: Decimal) {
+    fn transaction(&mut self, time: DateOptTime, amount: Decimal) {
         // Some assets can be acquired for free due to corporate actions or other non-trading
         // operations.
         if !amount.is_zero() {
-            self.transactions.push(Transaction::new(date, amount))
+            self.transactions.push(Transaction::new(time.date, amount))
         }
     }
 }

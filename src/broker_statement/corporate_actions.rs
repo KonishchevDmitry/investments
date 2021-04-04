@@ -132,8 +132,12 @@ impl StockSplitController {
         Ok(Ok(()))
     }
 
-    pub fn get_multiplier(&self, symbol: &str, from_date: Date, to_date: Date) -> Decimal {
+    pub fn get_multiplier(&self, symbol: &str, from_time: DateOptTime, to_time: DateOptTime) -> Decimal {
         let mut multiplier = dec!(1);
+
+        // FIXME(konishchev): Use time precision?
+        let from_date = from_time.date;
+        let to_date = to_time.date;
 
         let (start, end, divide) = if from_date < to_date {
             (from_date.succ(), to_date, false)
@@ -226,8 +230,9 @@ fn process_complex_stock_split(
             continue;
         }
 
+        // FIXME(konishchev): DateOptTime
         let multiplier = statement.stock_splits.get_multiplier(
-            symbol, stock_buy.conclusion_date, date);
+            symbol, stock_buy.conclusion_time, date.into());
 
         let sell_source = stock_buy.sell(stock_buy.get_unsold(), multiplier);
         quantity += sell_source.quantity * sell_source.multiplier;
