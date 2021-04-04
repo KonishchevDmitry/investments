@@ -516,10 +516,10 @@ impl BrokerStatement {
         let date_validator = self.date_validator();
 
         date_validator.sort_and_validate(
-            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
+            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.time)?;
 
         self.sort_and_alter_fees(date_validator.max_date);
-        date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
+        date_validator.validate("a fee", &self.fees, |fee| fee.time)?;
 
         date_validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
@@ -550,13 +550,17 @@ impl BrokerStatement {
     fn sort_and_alter_fees(&mut self, max_date: Date) {
         if self.broker.allow_future_fees {
             for fee in &mut self.fees {
-                if fee.date > max_date && localities::is_valid_execution_date(max_date, fee.date) {
-                    fee.date = max_date;
+                if fee.time.date > max_date && localities::is_valid_execution_date(max_date, fee.time.date) {
+                    if fee.time.time.is_some() {
+                        fee.time = DateOptTime::new_max_time(max_date);
+                    } else {
+                        fee.time = max_date.into();
+                    }
                 }
             }
         }
 
-        self.fees.sort_by_key(|fee| fee.date);
+        self.fees.sort_by_key(|fee| fee.time);
     }
 
     fn sort_and_validate_stock_buys(&mut self) -> EmptyResult {

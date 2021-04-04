@@ -246,15 +246,16 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 cash_flow.cash.amount += statement.broker.get_deposit_commission(cash_flow)?;
             }
 
-            let amount = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.currency)?;
+            let amount = self.converter.convert_to(
+                cash_flow.time.date, cash_flow.cash, self.currency)?;
 
             trace!("* {} {}: {}", if amount.is_sign_positive() {
                 "Deposit"
             } else {
                 "Withdrawal"
-            }, formatting::format_date(cash_flow.date), amount.normalize());
+            }, formatting::format_date(cash_flow.time.date), amount.normalize());
 
-            self.transaction(cash_flow.date, amount);
+            self.transaction(cash_flow.time, amount);
         }
 
         Ok(())
@@ -351,7 +352,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         for (&tax_payment_date, &(tax_to_pay, tax_deduction)) in taxes.get_taxes().iter() {
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* Stock selling {} tax: {}", formatting::format_date(tax_payment_date), amount);
-                self.transaction(tax_payment_date, amount);
+                self.transaction(tax_payment_date.into(), amount);
                 self.income_structure.taxes += amount;
             }
 
@@ -383,7 +384,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                        formatting::format_date(tax_payment_date), amount);
 
                 self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date.into(), amount);
-                self.transaction(tax_payment_date, amount);
+                self.transaction(tax_payment_date.into(), amount);
                 self.income_structure.taxes += amount;
             }
         }
@@ -404,7 +405,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                        formatting::format_date(interest.date),
                        formatting::format_date(tax_payment_date), amount);
 
-                self.transaction(tax_payment_date, amount);
+                self.transaction(tax_payment_date.into(), amount);
                 self.income_structure.taxes += amount;
             }
         }
@@ -416,7 +417,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         for withholding in &statement.tax_agent_withholdings {
             let amount = self.converter.convert_to(withholding.date, withholding.amount, self.currency)?;
             trace!("* Tax withholding {}: {}", formatting::format_date(withholding.date), amount);
-            self.transaction(withholding.date, -amount);
+            self.transaction(withholding.date.into(), -amount);
         }
 
         Ok(())
@@ -426,7 +427,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         for &(date, amount) in &portfolio.tax_deductions {
             let amount = self.converter.convert(self.country.currency, self.currency, date, amount)?;
             trace!("* Tax deduction {}: {}", formatting::format_date(date), amount);
-            self.transaction(date, -amount);
+            self.transaction(date.into(), -amount);
             self.income_structure.tax_deductions += amount;
         }
 
@@ -445,8 +446,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             .or_insert_with(StockDepositView::new)
     }
 
-    fn transaction(&mut self, date: Date, amount: Decimal) {
-        self.transactions.push(Transaction::new(date, amount));
+    fn transaction(&mut self, time: DateOptTime, amount: Decimal) {
+        self.transactions.push(Transaction::new(time.date, amount));
     }
 
     fn map_tax_to_deposit_amount(&self, tax_payment_date: Date, tax_to_pay: Decimal) -> GenericResult<Option<Decimal>> {
