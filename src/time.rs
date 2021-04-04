@@ -9,7 +9,20 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::GenericResult;
 use crate::formatting;
-use crate::types::{Date, Time, DateTime};
+
+pub use crate::types::{Date, Time, DateTime};
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub struct DateOptTime {
+    pub date: Date,
+    pub time: Option<Time>,
+}
+
+impl From<Date> for DateOptTime {
+    fn from(date: Date) -> Self {
+        DateOptTime {date, time: None}
+    }
+}
 
 pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
     let period = (start, end.succ());

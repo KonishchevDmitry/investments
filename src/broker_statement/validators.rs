@@ -2,7 +2,7 @@ use std::collections::{HashMap, hash_map::Entry};
 
 use crate::core::EmptyResult;
 use crate::formatting;
-use crate::types::Date;
+use crate::time::{DateOptTime, Date};
 
 use super::{StockBuy, StockSell};
 
@@ -16,19 +16,23 @@ impl DateValidator {
         DateValidator {min_date, max_date}
     }
 
-    pub fn sort_and_validate<T>(&self, name: &str, objects: &mut [T], get_date: fn(&T) -> Date) -> EmptyResult {
-        objects.sort_by_key(get_date);
+    pub fn sort_and_validate<T, D>(
+        &self, name: &str, objects: &mut [T], get_date: fn(&T) -> D,
+    ) -> EmptyResult where D: Into<DateOptTime> {
+        objects.sort_by_key(|object| get_date(object).into());
         self.validate(name, objects, get_date)?;
         Ok(())
     }
 
-    pub fn validate<T>(&self, name: &str, objects: &[T], get_date: fn(&T) -> Date) -> EmptyResult {
+    pub fn validate<T, D>(
+        &self, name: &str, objects: &[T], get_date: fn(&T) -> D,
+    ) -> EmptyResult where D: Into<DateOptTime> {
         if objects.is_empty() {
             return Ok(());
         }
 
-        let first_date = get_date(objects.first().unwrap());
-        let last_date = get_date(objects.last().unwrap());
+        let first_date = get_date(objects.first().unwrap()).into().date;
+        let last_date = get_date(objects.last().unwrap()).into().date;
 
         if first_date < self.min_date {
             return Err!("Got {} outside of statement period: {}",

@@ -4,6 +4,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{IncomeType, TaxExemption};
+use crate::time::DateOptTime;
 use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
 
@@ -39,7 +40,8 @@ pub struct StockBuy {
     cost: PurchaseTotalCost,
     pub margin: bool,
 
-    pub conclusion_date: Date,
+    pub conclusion: DateOptTime,
+    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
     sold: Decimal,
@@ -56,7 +58,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
-            conclusion_date, execution_date, margin,
+            conclusion: conclusion_date.into(), conclusion_date, execution_date, margin,
             sold: dec!(0),
         }
     }
@@ -68,7 +70,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::CorporateAction, cost, margin: false,
-            conclusion_date, execution_date,
+            conclusion: conclusion_date.into(), conclusion_date, execution_date,
             sold: dec!(0),
         }
     }
@@ -106,6 +108,7 @@ impl StockBuy {
 
         StockSellSource {
             quantity, multiplier, type_, cost,
+            conclusion: self.conclusion,
             conclusion_date: self.conclusion_date,
             execution_date: self.execution_date,
         }
@@ -135,7 +138,8 @@ pub struct StockSell {
     pub type_: StockSellType,
     pub margin: bool,
 
-    pub conclusion_date: Date,
+    pub conclusion: DateOptTime,
+    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
     pub emulation: bool,
@@ -150,7 +154,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::Trade {price, volume, commission}, margin,
-            conclusion_date, execution_date,
+            conclusion: conclusion_date.into(), conclusion_date, execution_date,
             emulation, sources: Vec::new(),
         }
     }
@@ -161,7 +165,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::CorporateAction, margin: false,
-            conclusion_date, execution_date,
+            conclusion: conclusion_date.into(), conclusion_date, execution_date,
             emulation: false, sources: Vec::new(),
         }
     }
@@ -336,7 +340,8 @@ pub struct StockSellSource {
     pub type_: StockSource,
     pub cost: PurchaseTotalCost,
 
-    pub conclusion_date: Date,
+    pub conclusion: DateOptTime,
+    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 }
 
@@ -380,7 +385,8 @@ pub struct FifoDetails {
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
-    pub conclusion_date: Date,
+    pub conclusion: DateOptTime,
+    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
     pub source: StockSourceDetails,
@@ -431,6 +437,7 @@ impl FifoDetails {
             quantity: source.quantity,
             multiplier: source.multiplier,
 
+            conclusion: source.conclusion,
             conclusion_date: source.conclusion_date,
             execution_date: source.execution_date,
 
