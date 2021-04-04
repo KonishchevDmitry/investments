@@ -50,7 +50,7 @@ impl DateValidator {
 
 pub struct TradeInfo<'a> {
     symbol: &'a str,
-    conclusion_date: Date,
+    conclusion_time: DateOptTime,
     execution_date: Date,
     margin: bool,
 }
@@ -63,7 +63,7 @@ impl StockTrade for StockBuy {
     fn info(&self) -> TradeInfo {
         TradeInfo {
             symbol: &self.symbol,
-            conclusion_date: self.conclusion_date,
+            conclusion_time: self.conclusion_time,
             execution_date: self.execution_date,
             margin: self.margin,
         }
@@ -74,7 +74,7 @@ impl StockTrade for StockSell {
     fn info(&self) -> TradeInfo {
         TradeInfo {
             symbol: &self.symbol,
-            conclusion_date: self.conclusion_date,
+            conclusion_time: self.conclusion_time,
             execution_date: self.execution_date,
             margin: self.margin,
         }
@@ -89,7 +89,7 @@ pub fn sort_and_validate_trades<T: StockTrade>(name: &str, trades: &mut [T]) -> 
 
     trades.sort_by_key(|trade| {
         let trade = trade.info();
-        (trade.conclusion_date, trade.execution_date)
+        (trade.conclusion_time, trade.execution_date)
     });
 
     let mut symbols: HashMap<&str, TradeInfo> = HashMap::new();
@@ -105,9 +105,9 @@ pub fn sort_and_validate_trades<T: StockTrade>(name: &str, trades: &mut [T]) -> 
                     return Err!(
                         "Got an unexpected execution order of {} trades for {}: {} -> {}, {} -> {}",
                         name, trade.symbol,
-                        formatting::format_date(prev.conclusion_date),
+                        formatting::format_date(prev.conclusion_time),
                         formatting::format_date(prev.execution_date),
-                        formatting::format_date(trade.conclusion_date),
+                        formatting::format_date(trade.conclusion_time),
                         formatting::format_date(trade.execution_date));
                 }
 

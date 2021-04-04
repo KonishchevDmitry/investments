@@ -85,10 +85,7 @@ impl ForexTrades {
                 "commission", parse_currency(&trade.commission_currency), trade.commission,
                 DecimalRestrictions::PositiveOrZero)?.normalize();
 
-            statement.forex_trades.push(ForexTrade {
-                from, to, commission,
-                conclusion_date: trade.conclusion_date
-            })
+            statement.forex_trades.push(ForexTrade::new(trade.conclusion_date, from, to, commission));
         }
 
         Ok(())
@@ -142,10 +139,7 @@ impl CurrencyConversions {
                 "commission", parse_currency(&trade.commission_currency), trade.commission,
                 DecimalRestrictions::PositiveOrZero)?.normalize();
 
-            statement.forex_trades.push(ForexTrade {
-                from, to, commission,
-                conclusion_date: trade.conclusion_date
-            })
+            statement.forex_trades.push(ForexTrade::new(trade.conclusion_date, from, to, commission));
         }
 
         Ok(())

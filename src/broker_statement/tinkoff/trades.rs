@@ -81,12 +81,10 @@ impl SectionParser for TradesParser {
             match trade.operation.as_str() {
                 "Покупка" => {
                     if let Ok((base, _quote, _lot_size)) = forex {
-                        parser.statement.forex_trades.push(ForexTrade {
-                            from: volume,
-                            to: Cash::new(base, Decimal::from_u32(quantity).unwrap()),
-                            commission,
-                            conclusion_date
-                        })
+                        let from = volume;
+                        let to = Cash::new(base, Decimal::from_u32(quantity).unwrap());
+                        parser.statement.forex_trades.push(ForexTrade::new(
+                            conclusion_date, from, to, commission));
                     } else {
                         parser.statement.stock_buys.push(StockBuy::new_trade(
                             &trade.symbol, quantity.into(), price, volume, commission,
@@ -95,12 +93,10 @@ impl SectionParser for TradesParser {
                 },
                 "Продажа" => {
                     if let Ok((base, _quote, _lot_size)) = forex {
-                        parser.statement.forex_trades.push(ForexTrade {
-                            from: Cash::new(base, Decimal::from_u32(quantity).unwrap()),
-                            to: volume,
-                            commission,
-                            conclusion_date
-                        })
+                        let from = Cash::new(base, Decimal::from_u32(quantity).unwrap());
+                        let to = volume;
+                        parser.statement.forex_trades.push(ForexTrade::new(
+                            conclusion_date, from, to, commission));
                     } else {
                         parser.statement.stock_sells.push(StockSell::new_trade(
                             &trade.symbol, quantity.into(), price, volume,

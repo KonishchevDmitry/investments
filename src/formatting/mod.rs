@@ -1,9 +1,15 @@
-use crate::types::Date;
+use crate::time::{Date, DateTime, DateOptTime};
 
 pub mod table;
 
-pub fn format_date(date: Date) -> String {
-    date.format("%d.%m.%Y").to_string()
+pub fn format_date<T>(date: T) -> String where T: Into<DateOptTime> {
+    let date = date.into();
+
+    if let Some(time) = date.time {
+        DateTime::new(date.date, time).format("%d.%m.%Y %H:%M:%S")
+    } else {
+        date.date.format("%d.%m.%Y")
+    }.to_string()
 }
 
 pub fn format_period(period: (Date, Date)) -> String {

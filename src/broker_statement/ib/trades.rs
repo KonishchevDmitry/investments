@@ -60,9 +60,7 @@ fn parse_forex_record(
         &format!("Comm in {}", commission_currency),
         commission_currency, DecimalRestrictions::NegativeOrZero)?;
 
-    parser.statement.forex_trades.push(ForexTrade{from, to, commission, conclusion_date});
-
-    Ok(())
+    Ok(parser.statement.forex_trades.push(ForexTrade::new(conclusion_date, from, to, commission)))
 }
 
 fn parse_stock_record(

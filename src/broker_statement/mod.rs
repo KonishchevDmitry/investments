@@ -562,13 +562,13 @@ impl BrokerStatement {
     fn sort_and_validate_stock_buys(&mut self) -> EmptyResult {
         let date_validator = self.date_validator();
         sort_and_validate_trades("buy", &mut self.stock_buys)?;
-        date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_date)
+        date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_time)
     }
 
     fn sort_and_validate_stock_sells(&mut self) -> EmptyResult {
         let date_validator = self.date_validator();
         sort_and_validate_trades("sell", &mut self.stock_sells)?;
-        date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_date)
+        date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_time)
     }
 
     fn validate_open_positions(&self) -> EmptyResult {

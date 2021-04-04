@@ -318,9 +318,9 @@ mod tests {
 
         let mut has_buys = false;
         for trade in &statement.stock_buys {
-            if trade.conclusion_date.year() < current_year {
+            if trade.conclusion_time.date.year() < current_year {
                 has_buys = true;
-                assert_ne!(trade.execution_date, trade.conclusion_date);
+                assert_ne!(trade.execution_date, trade.conclusion_time.date);
             }
         }
         assert!(has_buys);

@@ -13,7 +13,14 @@ pub struct ForexTrade {
     pub from: Cash,
     pub to: Cash,
     pub commission: Cash,
-    pub conclusion_date: Date,
+    pub conclusion_time: DateOptTime,
+    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
+}
+
+impl ForexTrade {
+    pub fn new(date: Date, from: Cash, to: Cash, commission: Cash) -> ForexTrade {
+        ForexTrade {from, to, commission, conclusion_time: date.into(), conclusion_date: date}
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

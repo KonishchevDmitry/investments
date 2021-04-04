@@ -2,7 +2,7 @@ use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
     IdleCashInterest, TaxWithholding};
 use crate::currency::{Cash, CashAssets};
-use crate::types::Date;
+use crate::time::{Date, DateOptTime};
 
 pub struct CashFlow {
     pub date: Date,
@@ -66,11 +66,11 @@ impl CashFlowMapper {
     }
 
     fn fee(&mut self, fee: &Fee) {
-        self.add_static(fee.date, -fee.amount, fee.local_description());
+        self.add_static(fee.time, -fee.amount, fee.local_description());
     }
 
     fn deposit_or_withdrawal(&mut self, assets: &CashAssets) {
-        self.add_static(assets.date, assets.cash, if assets.cash.is_positive() {
+        self.add_static(assets.time, assets.cash, if assets.cash.is_positive() {
             "Ввод денежных средств"
         } else {
             "Вывод денежных средств"
@@ -78,17 +78,17 @@ impl CashFlowMapper {
     }
 
     fn interest(&mut self, interest: &IdleCashInterest) {
-        self.add_static(interest.date, interest.amount, "Проценты на остаток по счету");
+        self.add_static(interest.date.into(), interest.amount, "Проценты на остаток по счету");
     }
 
     fn forex_trade(&mut self, trade: &ForexTrade) {
         let description = format!("Конвертация {} -> {}", trade.from, trade.to);
-        let cash_flow = self.add(trade.conclusion_date, -trade.from, description);
+        let cash_flow = self.add(trade.conclusion_time, -trade.from, description);
         cash_flow.sibling_amount.replace(trade.to);
 
         if !trade.commission.is_zero() {
             let description = format!("Комиссия за конвертацию {} -> {}", trade.from, trade.to);
-            self.add(trade.conclusion_date, -trade.commission, description);
+            self.add(trade.conclusion_time, -trade.commission, description);
         };
     }
 
@@ -96,11 +96,11 @@ impl CashFlowMapper {
         match trade.type_ {
             StockSource::Trade {volume, commission, ..} => {
                 let description = format!("Покупка {} {}", trade.quantity, name);
-                self.add(trade.conclusion_date, -volume, description);
+                self.add(trade.conclusion_time, -volume, description);
 
                 if !commission.is_zero() {
                     let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
-                    self.add(trade.conclusion_date, -commission, description);
+                    self.add(trade.conclusion_time, -commission, description);
                 };
             },
             StockSource::CorporateAction => {},
@@ -111,11 +111,11 @@ impl CashFlowMapper {
         match trade.type_ {
             StockSellType::Trade {volume, commission, ..} => {
                 let description = format!("Продажа {} {}", trade.quantity, name);
-                self.add(trade.conclusion_date, volume, description);
+                self.add(trade.conclusion_time, volume, description);
 
                 if !commission.is_zero() {
                     let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
-                    self.add(trade.conclusion_date, -commission, description);
+                    self.add(trade.conclusion_time, -commission, description);
                 };
             },
             StockSellType::CorporateAction => {},
@@ -124,24 +124,25 @@ impl CashFlowMapper {
 
     fn dividend(&mut self, name: &str, dividend: &Dividend) {
         let description = format!("Дивиденд от {}", name);
-        self.add(dividend.date, dividend.amount, description);
+        self.add(dividend.date.into(), dividend.amount, description);
 
         if !dividend.paid_tax.is_zero() {
             let description = format!("Налог, удержанный с дивиденда от {}", name);
-            self.add(dividend.date, -dividend.paid_tax, description);
+            self.add(dividend.date.into(), -dividend.paid_tax, description);
         };
     }
 
     fn tax_agent_withholding(&mut self, withholding: &TaxWithholding) {
         let description = format!("Удержание налога за {} год", withholding.year);
-        self.add(withholding.date, -withholding.amount, description);
+        self.add(withholding.date.into(), -withholding.amount, description);
     }
 
-    fn add_static(&mut self, date: Date, amount: Cash, description: &str) -> &mut CashFlow {
-        self.add(date, amount, description.to_owned())
+    fn add_static(&mut self, time: DateOptTime, amount: Cash, description: &str) -> &mut CashFlow {
+        self.add(time, amount, description.to_owned())
     }
 
-    fn add(&mut self, date: Date, amount: Cash, description: String) -> &mut CashFlow {
+    fn add(&mut self, time: DateOptTime, amount: Cash, description: String) -> &mut CashFlow {
+        let date = time.date; // FIXME(konishchev): Deprecate
         self.cash_flows.push(CashFlow{date, amount, sibling_amount: None, description});
         self.cash_flows.last_mut().unwrap()
     }
