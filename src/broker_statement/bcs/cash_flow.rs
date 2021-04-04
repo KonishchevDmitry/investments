@@ -54,16 +54,13 @@ impl CashFlowParser {
             "Комиссия за перенос позиции" |
             "Фиксированное вознаграждение по тарифу" |
             "Вознаграждение за обслуживание счета депо" => {
+                let amount = Cash::new(currency, cash_flow.withdrawal);
                 withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
 
                 let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
                 let description = format!("Комиссия брокера: {}", formatting::untitle(description));
 
-                parser.statement.fees.push(Fee {
-                    date,
-                    amount: Cash::new(currency, cash_flow.withdrawal),
-                    description: Some(description),
-                });
+                parser.statement.fees.push(Fee::new(date, amount, Some(description)));
             },
             "НДФЛ" => {
                 let withheld_tax = Cash::new(currency, cash_flow.withdrawal);

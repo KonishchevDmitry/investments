@@ -1,14 +1,19 @@
 use crate::currency::Cash;
-use crate::types::Date;
+use crate::time::{Date, DateOptTime};
 
 #[derive(Debug)]
 pub struct Fee {
-    pub date: Date,
+    pub time: DateOptTime,
+    pub date: Date, // FIXME(konishchev): Deprecate
     pub amount: Cash, // The amount is positive for commission and negative for refund
     pub description: Option<String>,
 }
 
 impl Fee {
+    pub fn new(date: Date, amount: Cash, description: Option<String>) -> Fee {
+        Fee {time: date.into(), date, amount, description}
+    }
+
     pub fn local_description(&self) -> &str {
         match self.description.as_ref() {
             Some(description) => &description,

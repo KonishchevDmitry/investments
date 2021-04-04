@@ -9,8 +9,8 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
-use crate::time::deserialize_date;
-use crate::types::{Date, Decimal};
+use crate::time::{Date, DateOptTime, deserialize_date};
+use crate::types::Decimal;
 use crate::util;
 
 use super::BrokerStatement;
@@ -36,6 +36,11 @@ pub struct CorporateAction {
 }
 
 impl CorporateAction {
+    // FIXME(konishchev): Turn into field
+    pub fn time(&self) -> DateOptTime {
+        self.date.into()
+    }
+
     fn execution_date(&self) -> Date {
         self.report_date.unwrap_or_else(|| self.date.succ())
     }

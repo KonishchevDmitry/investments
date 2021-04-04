@@ -69,6 +69,14 @@ pub fn parse_tz_date_time<T: TimeZone>(
     Ok(date_time)
 }
 
+pub fn deserialize_date_opt_time<'de, D>(deserializer: D) -> Result<DateOptTime, D::Error>
+    where D: Deserializer<'de>
+{
+    let date: String = Deserialize::deserialize(deserializer)?;
+    // FIXME(konishchev): Parse time
+    Ok(parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?.into())
+}
+
 pub fn parse_timezone(timezone: &str) -> GenericResult<Tz> {
     Ok(timezone.parse().map_err(|_| format!("Invalid time zone: {:?}", timezone))?)
 }

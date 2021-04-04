@@ -9,7 +9,8 @@ use num_traits::ToPrimitive;
 use separator::Separatable;
 
 use crate::core::{GenericResult, EmptyResult};
-use crate::types::{Date, Decimal};
+use crate::time::{Date, DateOptTime};
+use crate::types::Decimal;
 use crate::util;
 
 use self::converter::CurrencyConverter;
@@ -149,7 +150,8 @@ impl fmt::Display for Cash {
 
 #[derive(Debug, Clone, Copy)]
 pub struct CashAssets {
-    pub date: Date,
+    pub time: DateOptTime,
+    pub date: Date, // FIXME(konishchev): Deprecate
     pub cash: Cash,
 }
 
@@ -159,7 +161,7 @@ impl CashAssets {
     }
 
     pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
-        CashAssets {date, cash}
+        CashAssets {time: date.into(), date, cash}
     }
 }
 

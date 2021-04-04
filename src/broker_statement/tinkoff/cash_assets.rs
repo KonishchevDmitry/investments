@@ -196,11 +196,11 @@ fn parse_cash_flow(
         },
 
         "Покупка/продажа" | "Комиссия за сделки" => {},
-        "Комиссия по тарифу" => statement.fees.push(Fee {
-            date,
-            amount: check_amount(withdrawal)?,
-            description: Some(operation.clone()),
-        }),
+        "Комиссия по тарифу" => {
+            let amount = check_amount(withdrawal)?;
+            let description = operation.clone();
+            statement.fees.push(Fee::new(date, amount, Some(description)));
+        },
 
         // The issuer here is company short name, not its symbol. We'll postprocess the accruals
         // later and replace company name with symbol when this mapping will be available.

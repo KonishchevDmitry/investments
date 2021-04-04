@@ -51,14 +51,9 @@ impl CashFlows {
                 },
 
                 CashFlowType::Fee(description) => {
-                    let amount = -util::validate_named_decimal(
-                        "fee amount", amount, DecimalRestrictions::StrictlyNegative)?;
-
-                    statement.fees.push(Fee {
-                        date,
-                        amount: Cash::new(currency, amount),
-                        description: Some(description),
-                    });
+                    let amount = -util::validate_named_cash(
+                        "fee amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
+                    statement.fees.push(Fee::new(date, amount, Some(description)));
                 },
             };
         }
