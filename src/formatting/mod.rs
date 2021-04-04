@@ -6,7 +6,7 @@ pub fn format_date<T>(date: T) -> String where T: Into<DateOptTime> {
     let date = date.into();
 
     if let Some(time) = date.time {
-        DateTime::new(date.date, time).format("%d.%m.%Y %H:%M:%S")
+        DateTime::new(date.date, time).format("%H:%M:%S %d.%m.%Y")
     } else {
         date.date.format("%d.%m.%Y")
     }.to_string()

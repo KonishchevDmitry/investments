@@ -318,12 +318,12 @@ impl BrokerStatement {
         Ok(total)
     }
 
-    pub fn process_trades(&mut self, until_date: Option<Date>) -> EmptyResult {
+    pub fn process_trades(&mut self, until: Option<DateOptTime>) -> EmptyResult {
         let mut unsold_buys: HashMap<String, Vec<usize>> = HashMap::new();
 
         for (index, stock_buy) in self.stock_buys.iter().enumerate().rev() {
-            if let Some(until_date) = until_date {
-                if stock_buy.conclusion_date >= until_date {
+            if let Some(time) = until {
+                if stock_buy.conclusion_time >= time {
                     continue;
                 }
             }
@@ -341,8 +341,8 @@ impl BrokerStatement {
         }
 
         for stock_sell in &mut self.stock_sells {
-            if let Some(until_date) = until_date {
-                if stock_sell.conclusion_date >= until_date {
+            if let Some(time) = until {
+                if stock_sell.conclusion_time >= time {
                     continue;
                 }
             }
@@ -387,7 +387,7 @@ impl BrokerStatement {
             stock_sell.process(sources);
         }
 
-        if until_date.is_none() {
+        if until.is_none() {
             self.validate_open_positions()?;
         }
 

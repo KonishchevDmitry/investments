@@ -48,7 +48,6 @@ pub struct StockBuy {
     pub margin: bool,
 
     pub conclusion_time: DateOptTime,
-    pub conclusion_date: Date, // FIXME(konishchev): Deprecate
     pub execution_date: Date,
 
     sold: Decimal,
@@ -65,7 +64,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
-            conclusion_time: conclusion_date.into(), conclusion_date, execution_date, margin,
+            conclusion_time: conclusion_date.into(), execution_date, margin,
             sold: dec!(0),
         }
     }
@@ -77,7 +76,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::CorporateAction, cost, margin: false,
-            conclusion_time: conclusion_date.into(), conclusion_date, execution_date,
+            conclusion_time: conclusion_date.into(), execution_date,
             sold: dec!(0),
         }
     }
@@ -116,7 +115,7 @@ impl StockBuy {
         StockSellSource {
             quantity, multiplier, type_, cost,
             conclusion: self.conclusion_time,
-            conclusion_date: self.conclusion_date,
+            conclusion_date: self.conclusion_time.date,
             execution_date: self.execution_date,
         }
     }

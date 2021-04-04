@@ -198,8 +198,8 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
 
             if complex {
                 process_complex_stock_split(
-                    statement, action.date, &action.symbol, ratio,
-                    from_change, to_change)?;
+                    statement, &action.symbol, ratio, from_change, to_change,
+                    action.time(), action.execution_date())?;
             }
         }
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
@@ -217,22 +217,21 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
 
 fn process_complex_stock_split(
     statement: &mut BrokerStatement,
-    date: Date, symbol: &str, ratio: StockSplitRatio,
-    from_change: Option<Decimal>, to_change: Option<Decimal>,
+    symbol: &str, ratio: StockSplitRatio, from_change: Option<Decimal>, to_change: Option<Decimal>,
+    split_time: DateOptTime, execution_date: Date,
 ) -> EmptyResult {
-    statement.process_trades(Some(date))?;
+    statement.process_trades(Some(split_time))?;
 
     let mut quantity = dec!(0);
     let mut sell_sources = Vec::new();
 
     for stock_buy in &mut statement.stock_buys {
-        if stock_buy.symbol != symbol || stock_buy.is_sold() || stock_buy.conclusion_date >= date {
+        if stock_buy.symbol != symbol || stock_buy.is_sold() || stock_buy.conclusion_time >= split_time {
             continue;
         }
 
-        // FIXME(konishchev): DateOptTime
         let multiplier = statement.stock_splits.get_multiplier(
-            symbol, stock_buy.conclusion_time, date.into());
+            symbol, stock_buy.conclusion_time, split_time);
 
         let sell_source = stock_buy.sell(stock_buy.get_unsold(), multiplier);
         quantity += sell_source.quantity * sell_source.multiplier;
@@ -242,13 +241,17 @@ fn process_complex_stock_split(
     if sell_sources.is_empty() {
         return Err!(
             "Got {} stock split at {} when portfolio has no open positions with it",
-            symbol, format_date(date));
+            symbol, format_date(split_time));
     }
 
-    let new_quantity = calculate_stock_split(date, symbol, quantity, ratio, from_change, to_change)?;
-    debug!("{} stock split from {}: {} -> {}.", symbol, format_date(date), quantity, new_quantity);
+    let new_quantity = calculate_stock_split(
+        split_time.date, symbol, quantity, ratio, from_change, to_change)?;
 
-    let (sell, buy) = convert_stocks(date, symbol, quantity, new_quantity, sell_sources);
+    debug!("{} stock split from {}: {} -> {}.",
+           symbol, format_date(split_time.date), quantity, new_quantity);
+
+    let (sell, buy) = convert_stocks(
+        symbol, quantity, new_quantity, split_time, execution_date, sell_sources);
 
     statement.stock_sells.push(sell);
     statement.sort_and_validate_stock_sells()?;
@@ -312,7 +315,8 @@ fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32
 }
 
 fn convert_stocks(
-    date: Date, symbol: &str, old_quantity: Decimal, new_quantity: Decimal,
+    symbol: &str, old_quantity: Decimal, new_quantity: Decimal,
+    conclusion_time: DateOptTime, execution_date: Date,
     sell_sources: Vec<StockSellSource>,
 ) -> (StockSell, StockBuy) {
     let mut cost = PurchaseTotalCost::new();
@@ -320,9 +324,12 @@ fn convert_stocks(
         cost.add(&source.cost);
     }
 
-    let mut sell = StockSell::new_corporate_action(symbol, old_quantity, date, date);
+    let mut sell = StockSell::new_corporate_action(
+        symbol, old_quantity, conclusion_time.date, execution_date);
     sell.process(sell_sources);
 
-    let buy = StockBuy::new_corporate_action(symbol, new_quantity, cost, date, date);
+    let buy = StockBuy::new_corporate_action(
+        symbol, new_quantity, cost, conclusion_time.date, execution_date);
+
     (sell, buy)
 }
