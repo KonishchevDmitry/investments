@@ -22,6 +22,13 @@ impl DateOptTime {
     pub fn new_max_time(date: Date) -> DateOptTime {
         DateOptTime {date, time: Some(Time::from_hms_nano(23, 59, 59, 999_999_999))}
     }
+
+    pub fn or_min_time(&self) -> DateTime {
+        DateTime::new(self.date, match self.time {
+            Some(time) => time,
+            None => Time::from_hms(0, 0, 0),
+        })
+    }
 }
 
 impl From<Date> for DateOptTime {

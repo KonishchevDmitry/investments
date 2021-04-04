@@ -1,4 +1,5 @@
 use std::collections::{HashMap, BTreeMap, btree_map};
+use std::ops::Bound;
 
 use lazy_static::lazy_static;
 use log::debug;
@@ -9,7 +10,7 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
-use crate::time::{Date, DateOptTime, deserialize_date_opt_time};
+use crate::time::{Date, DateTime, DateOptTime, deserialize_date_opt_time};
 use crate::types::Decimal;
 use crate::util;
 
@@ -99,19 +100,19 @@ impl<'de> Deserialize<'de> for StockSplitRatio {
 
 #[derive(Default, Debug)]
 pub struct StockSplitController {
-    symbols: HashMap<String, BTreeMap<Date, u32>>
+    symbols: HashMap<String, BTreeMap<DateTime, u32>>
 }
 
 impl StockSplitController {
     pub fn add(&mut self, time: DateOptTime, symbol: &str, divisor: u32) -> GenericResult<EmptyResult> {
-        let date = time.date; // FIXME(konishchev): Use time precision?
+        let split_time = time.or_min_time();
         let splits = self.symbols.entry(symbol.to_owned()).or_default();
 
-        match splits.entry(date) {
+        match splits.entry(split_time) {
             btree_map::Entry::Vacant(entry) => entry.insert(divisor),
             btree_map::Entry::Occupied(_) => return Err!(
                 "Got a duplicated {} stock split for {}",
-                symbol, format_date(date),
+                symbol, format_date(time),
             ),
         };
 
@@ -121,7 +122,7 @@ impl StockSplitController {
             full_divisor *= Decimal::from(cur_divisor);
 
             if dec!(1) / full_divisor * full_divisor != dec!(1) {
-                splits.remove(&date).unwrap();
+                splits.remove(&split_time).unwrap();
                 return Ok(Err!("Got an unsupported stock split result divisor: {}", full_divisor));
             }
         }
@@ -130,16 +131,14 @@ impl StockSplitController {
     }
 
     pub fn get_multiplier(&self, symbol: &str, from_time: DateOptTime, to_time: DateOptTime) -> Decimal {
+        let from_time = from_time.or_min_time();
+        let to_time = to_time.or_min_time();
         let mut multiplier = dec!(1);
 
-        // FIXME(konishchev): Use time precision?
-        let from_date = from_time.date;
-        let to_date = to_time.date;
-
-        let (start, end, divide) = if from_date < to_date {
-            (from_date.succ(), to_date, false)
-        } else if to_date < from_date {
-            (to_date.succ(), from_date, true)
+        let (start, end, divide) = if from_time < to_time {
+            (from_time, to_time, false)
+        } else if to_time < from_time {
+            (to_time, from_time, true)
         } else {
             return multiplier;
         };
@@ -149,7 +148,7 @@ impl StockSplitController {
             None => return multiplier,
         };
 
-        for (_, &divisor) in splits.range(start..=end) {
+        for (_, &divisor) in splits.range((Bound::Excluded(start), Bound::Included(end))) {
             multiplier *= Decimal::from(divisor);
         }
 
