@@ -66,11 +66,11 @@ impl CashFlowMapper {
     }
 
     fn fee(&mut self, fee: &Fee) {
-        self.add_static(fee.time, -fee.amount, fee.local_description());
+        self.add_static(fee.date.into(), -fee.amount, fee.local_description());
     }
 
     fn deposit_or_withdrawal(&mut self, assets: &CashAssets) {
-        self.add_static(assets.time, assets.cash, if assets.cash.is_positive() {
+        self.add_static(assets.date.into(), assets.cash, if assets.cash.is_positive() {
             "Ввод денежных средств"
         } else {
             "Вывод денежных средств"

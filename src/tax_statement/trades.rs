@@ -16,7 +16,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{IncomeType, TaxPaymentDaySpec};
-use crate::time::{Date, DateOptTime};
+use crate::time::Date;
 use crate::types::Decimal;
 
 use super::statement::TaxStatement;
@@ -196,7 +196,7 @@ impl<'a> TradesProcessor<'a> {
             }
 
             let fee = self.pre_process_fee(fee)?;
-            fees_by_year.entry(fee.time.date.year()).or_default()
+            fees_by_year.entry(fee.date.year()).or_default()
                 .add_assign(fee.local_amount.amount);
             fees.push_back(fee);
         }
@@ -218,7 +218,7 @@ impl<'a> TradesProcessor<'a> {
             .or_insert(-local_amount);
 
         Ok(PreprocessedFee {
-            time: fee.time,
+            date: fee.date,
             amount, local_amount,
             description: fee.local_description().to_owned(),
         })
@@ -226,7 +226,7 @@ impl<'a> TradesProcessor<'a> {
 
     fn post_process_fee(&mut self, fee: PreprocessedFee) {
         let mut row = self.trades_table.add_empty_row();
-        row.set_conclusion_date(fee.time.date);
+        row.set_conclusion_date(fee.date);
         row.set_security(fee.description);
 
         if fee.amount.is_negative() {
@@ -261,7 +261,7 @@ impl<'a> TradesProcessor<'a> {
             }
 
             while let Some(fee) = fees.front() {
-                if fee.time >= trade.conclusion_time {
+                if fee.date >= trade.conclusion_time.date {
                     break;
                 }
                 self.post_process_fee(fees.pop_front().unwrap());
@@ -540,7 +540,7 @@ impl<'a> TradesProcessor<'a> {
 }
 
 struct PreprocessedFee {
-    time: DateOptTime,
+    date: Date,
     amount: Cash,
     local_amount: Cash,
     description: String,
