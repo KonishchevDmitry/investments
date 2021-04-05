@@ -52,7 +52,7 @@ pub struct TradeInfo<'a> {
     symbol: &'a str,
     conclusion_time: DateOptTime,
     execution_date: Date,
-    margin: bool,
+    out_of_order_execution: bool,
 }
 
 pub trait StockTrade {
@@ -65,7 +65,7 @@ impl StockTrade for StockBuy {
             symbol: &self.symbol,
             conclusion_time: self.conclusion_time,
             execution_date: self.execution_date,
-            margin: self.margin,
+            out_of_order_execution: self.out_of_order_execution,
         }
     }
 }
@@ -76,7 +76,7 @@ impl StockTrade for StockSell {
             symbol: &self.symbol,
             conclusion_time: self.conclusion_time,
             execution_date: self.execution_date,
-            margin: self.margin,
+            out_of_order_execution: self.out_of_order_execution,
         }
     }
 }
@@ -96,12 +96,15 @@ pub fn sort_and_validate_trades<T: StockTrade>(name: &str, trades: &mut [T]) -> 
 
     for trade in trades {
         let trade = trade.info();
+        if trade.out_of_order_execution {
+            continue;
+        }
 
         match symbols.entry(trade.symbol) {
             Entry::Occupied(mut entry) => {
                 let prev = entry.get_mut();
 
-                if trade.execution_date < prev.execution_date && !trade.margin {
+                if trade.execution_date < prev.execution_date {
                     return Err!(
                         "Got an unexpected execution order of {} trades for {}: {} -> {}, {} -> {}",
                         name, trade.symbol,

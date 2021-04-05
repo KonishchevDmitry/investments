@@ -44,10 +44,10 @@ pub struct StockBuy {
 
     pub type_: StockSource,
     cost: PurchaseTotalCost,
-    pub margin: bool,
 
     pub conclusion_time: DateOptTime,
     pub execution_date: Date,
+    pub out_of_order_execution: bool,
 
     sold: Decimal,
 }
@@ -63,7 +63,8 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
-            conclusion_time, execution_date, margin, sold: dec!(0),
+            conclusion_time, execution_date, out_of_order_execution: margin,
+            sold: dec!(0),
         }
     }
 
@@ -73,7 +74,7 @@ impl StockBuy {
     ) -> StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
-            type_: StockSource::CorporateAction, cost, margin: false,
+            type_: StockSource::CorporateAction, cost, out_of_order_execution: true,
             conclusion_time, execution_date, sold: dec!(0),
         }
     }
@@ -136,12 +137,11 @@ pub enum StockSellType {
 pub struct StockSell {
     pub symbol: String,
     pub quantity: Decimal,
-
     pub type_: StockSellType,
-    pub margin: bool,
 
     pub conclusion_time: DateOptTime,
     pub execution_date: Date,
+    pub out_of_order_execution: bool,
 
     pub emulation: bool,
     sources: Vec<StockSellSource>,
@@ -154,8 +154,9 @@ impl StockSell {
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
-            type_: StockSellType::Trade {price, volume, commission}, margin,
-            conclusion_time, execution_date, emulation, sources: Vec::new(),
+            type_: StockSellType::Trade {price, volume, commission},
+            conclusion_time, execution_date, out_of_order_execution: margin,
+            emulation, sources: Vec::new(),
         }
     }
 
@@ -164,8 +165,9 @@ impl StockSell {
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
-            type_: StockSellType::CorporateAction, margin: false,
-            conclusion_time, execution_date, emulation: false, sources: Vec::new(),
+            type_: StockSellType::CorporateAction,
+            conclusion_time, execution_date, out_of_order_execution: true,
+            emulation: false, sources: Vec::new(),
         }
     }
 

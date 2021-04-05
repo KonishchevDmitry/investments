@@ -171,7 +171,6 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 }
 
 // FIXME(konishchev): Insert into beginning
-// FIXME(konishchev): Mark trades out of order
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
         CorporateActionType::StockSplit {ratio, from_change, to_change} => {
