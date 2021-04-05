@@ -18,8 +18,7 @@ pub struct ForexTrade {
 
 impl ForexTrade {
     pub fn new(time: DateOptTime, from: Cash, to: Cash, commission: Cash) -> ForexTrade {
-        // FIXME(konishchev): Drop into()
-        ForexTrade {from, to, commission, conclusion_time: time.date.into()}
+        ForexTrade {from, to, commission, conclusion_time: time}
     }
 }
 
@@ -64,9 +63,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::Trade {price, volume, commission}, cost,
-            // FIXME(konishchev): Drop into
-            conclusion_time: conclusion_time.date.into(), execution_date, margin,
-            sold: dec!(0),
+            conclusion_time, execution_date, margin, sold: dec!(0),
         }
     }
 
@@ -77,9 +74,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), quantity,
             type_: StockSource::CorporateAction, cost, margin: false,
-            // FIXME(konishchev): Drop into
-            conclusion_time: conclusion_time.date.into(), execution_date,
-            sold: dec!(0),
+            conclusion_time, execution_date, sold: dec!(0),
         }
     }
 
@@ -160,9 +155,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::Trade {price, volume, commission}, margin,
-            // FIXME(konishchev): Drop into
-            conclusion_time: conclusion_time.date.into(), execution_date,
-            emulation, sources: Vec::new(),
+            conclusion_time, execution_date, emulation, sources: Vec::new(),
         }
     }
 
@@ -172,9 +165,7 @@ impl StockSell {
         StockSell {
             symbol: symbol.to_owned(), quantity,
             type_: StockSellType::CorporateAction, margin: false,
-            // FIXME(konishchev): Drop into
-            conclusion_time: conclusion_time.date.into(), execution_date,
-            emulation: false, sources: Vec::new(),
+            conclusion_time, execution_date, emulation: false, sources: Vec::new(),
         }
     }
 

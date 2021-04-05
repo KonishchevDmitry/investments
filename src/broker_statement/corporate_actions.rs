@@ -24,7 +24,6 @@ pub struct CorporateAction {
     // * The changes are made at the end of the trading day.
     // * All trade operations from this day are assumed to be issued after the corporate action has
     //   occurred and are actually a part of the corporate action.
-    // FIXME(konishchev): Init with time
     #[serde(rename="date", deserialize_with = "deserialize_date_opt_time")]
     pub time: DateOptTime,
 
@@ -171,6 +170,8 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
     Ok(())
 }
 
+// FIXME(konishchev): Insert into beginning
+// FIXME(konishchev): Mark trades out of order
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
         CorporateActionType::StockSplit {ratio, from_change, to_change} => {

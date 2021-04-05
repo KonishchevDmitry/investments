@@ -5,7 +5,7 @@ use regex::Regex;
 use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
-#[cfg(test)] use crate::types::{Date, Decimal};
+#[cfg(test)] use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
@@ -72,7 +72,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
         return Err!("Unsupported asset category of corporate action: {:?}", asset_category);
     }
 
-    let date = record.parse_date_time("Date/Time")?.date();
+    let time = record.parse_date_time("Date/Time")?;
     let report_date = Some(record.parse_date("Report Date")?);
 
     let description = util::fold_spaces(record.get_value("Description")?);
@@ -103,7 +103,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 };
 
                 CorporateAction {
-                    time: date.into(), report_date, symbol,
+                    time: time.into(), report_date, symbol,
                     action: CorporateActionType::StockSplit{ratio, from_change, to_change},
                 }
             },
@@ -112,7 +112,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 let currency = record.get_value("Currency")?.to_owned();
 
                 CorporateAction {
-                    time: date.into(), report_date, symbol,
+                    time: time.into(), report_date, symbol,
                     action: CorporateActionType::Spinoff {
                         symbol: captures.name("child_symbol").unwrap().as_str().to_owned(),
                         quantity, currency,
@@ -187,32 +187,32 @@ mod tests {
             .split(',').collect();
     }
 
-    #[rstest(record, symbol, date, report_date, to, from, from_change, to_change,
+    #[rstest(record, symbol, time, report_date, to, from, from_change, to_change,
         case(vec![
             "Stocks", "USD", "2020-08-31", "2020-08-28, 20:25:00",
             "AAPL(US0378331005) Split 4 for 1 (AAPL, APPLE INC, US0378331005)",
             "111", "0", "0", "0", "",
-        ], "AAPL", date!(28, 8, 2020), date!(31, 8, 2020), 4, 1, None, Some(dec!(111))),
+        ], "AAPL", date_time!(20, 25, 00, 28, 8, 2020), date!(31, 8, 2020), 4, 1, None, Some(dec!(111))),
 
         case(vec![
             "Stocks", "USD", "2021-01-21", "2021-01-20, 20:25:00",
             "SLG(US78440X1019) Split 100000 for 102918 (SLG.OLD, SL GREEN REALTY CORP, US78440X1019)",
             "-7", "0", "0", "0", "",
-        ], "SLG", date!(20, 1, 2021), date!(21, 1, 2021), 100000, 102918, Some(dec!(7)), None),
+        ], "SLG", date_time!(20, 25, 00, 20, 1, 2021), date!(21, 1, 2021), 100000, 102918, Some(dec!(7)), None),
 
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y2019)",
             "-80", "0", "0", "0", "",
-        ], "VISL", date!(31, 7, 2020), date!(3, 8, 2020), 1, 6, Some(dec!(80)), None),
+        ], "VISL", date_time!(20, 25, 00, 31, 7, 2020), date!(3, 8, 2020), 1, 6, Some(dec!(80)), None),
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y3009)",
             "13.3333", "0", "0", "0", "",
-        ], "VISL", date!(31, 7, 2020), date!(3, 8, 2020), 1, 6, None, Some(dec!(13.3333))),
+        ], "VISL", date_time!(20, 25, 00, 31, 7, 2020), date!(3, 8, 2020), 1, 6, None, Some(dec!(13.3333))),
     )]
     fn stock_split_parsing(
-        record: Vec<&str>, symbol: &str, date: Date, report_date: Date, to: u32, from: u32,
+        record: Vec<&str>, symbol: &str, time: DateTime, report_date: Date, to: u32, from: u32,
         from_change: Option<Decimal>, to_change: Option<Decimal>,
     ) {
         let spec = RecordSpec::new("test", CORPORATE_ACTION_FIELDS.clone(), 0);
@@ -220,7 +220,7 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            time: date.into(),
+            time: time.into(),
             report_date: Some(report_date),
 
             symbol: symbol.to_owned(),
@@ -242,7 +242,7 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            time: date!(16, 11, 2020).into(),
+            time: date_time!(20, 25, 00, 16, 11, 2020).into(),
             report_date: Some(date!(17, 11, 2020)),
 
             symbol: s!("PFE"),
