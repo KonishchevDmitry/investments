@@ -3,7 +3,7 @@ use std::ops::Deref;
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
 use crate::time::DateTime;
-use crate::util::{self, DecimalRestrictions};
+use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser};
@@ -73,10 +73,7 @@ fn parse_stock_record(
     let price = record.parse_cash("T. Price", currency, DecimalRestrictions::StrictlyPositive)?;
     let commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
     let execution_date = parser.get_execution_date(symbol, conclusion_time.date());
-
-    let quantity = record.get_value("Quantity")?;
-    let quantity = util::parse_decimal(quantity, DecimalRestrictions::NonZero).map_err(|_| format!(
-        "Got an unexpected {} trade quantity: {}", symbol, quantity))?.normalize();
+    let quantity = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
 
     let volume = record.parse_cash("Proceeds", currency, if quantity.is_sign_positive() {
         DecimalRestrictions::StrictlyNegative

@@ -2,6 +2,8 @@ use std::iter::Iterator;
 use std::str::FromStr;
 
 use csv::StringRecord;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::broker_statement::ib::StatementParser;
 use crate::core::{EmptyResult, GenericResult};
@@ -71,10 +73,15 @@ impl<'a> Record<'a> {
         parse_date_time(self.get_value(field)?)
     }
 
+    pub fn parse_quantity(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
+        let quantity = parse_quantity(self.get_value(field)?)?;
+        util::validate_named_decimal("quantity", quantity, restrictions)
+    }
+
     pub fn parse_amount(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let value = self.get_value(field)?;
-        Ok(util::parse_decimal(&value.replace(',', ""), restrictions).map_err(|_| format!(
-            "Invalid amount: {:?}", value))?)
+        let amount = parse_quantity(value).map_err(|_| format!("Invalid amount: {:?}", value))?;
+        util::validate_named_decimal("amount", amount, restrictions)
     }
 
     pub fn parse_cash(&self, field: &str, currency: &str, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
@@ -118,9 +125,30 @@ pub fn parse_date_time(date_time: &str) -> GenericResult<DateTime> {
     time::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S")
 }
 
+fn parse_quantity(quantity: &str) -> GenericResult<Decimal> {
+    // See https://github.com/KonishchevDmitry/investments/issues/34
+
+    lazy_static! {
+        static ref DECIMAL_SEPARATOR_REGEX: Regex = Regex::new(
+            r"([1-9]0*),(\d{3})(,|\.|$)").unwrap();
+    }
+    let mut stripped = quantity.to_owned();
+
+    while stripped.contains(',') {
+        let new = DECIMAL_SEPARATOR_REGEX.replace_all(&stripped, "$1$2$3");
+        if new == stripped {
+            return Err!("Invalid quantity: {:?}", quantity)
+        }
+        stripped = new.into_owned();
+    }
+
+    Ok(Decimal::from_str(&stripped).map_err(|_| format!("Invalid quantity: {:?}", quantity))?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn date_parsing() {
@@ -130,5 +158,31 @@ mod tests {
     #[test]
     fn time_parsing() {
         assert_eq!(parse_date_time("2018-07-31, 13:09:47").unwrap(), date!(31, 7, 2018).and_hms(13, 9, 47));
+    }
+
+    #[rstest(value, expected,
+        case("1020", Some(dec!(1020))),
+        case("1,020", Some(dec!(1020))),
+        case("1,020,304.05", Some(dec!(1_020_304.05))),
+        case("-1,020,304.05", Some(dec!(-1_020_304.05))),
+        case("1,000,000.05", Some(dec!(1_000_000.05))),
+        case("-1,000,000.05", Some(dec!(-1_000_000.05))),
+
+        case(",102", None),
+        case("102,", None),
+        case("0,102", None),
+        case("10,20", None),
+        case("10,20.3", None),
+        case("1,0203", None),
+    )]
+    fn quantity_parsing(value: &str, expected: Option<Decimal>) {
+        if let Some(expected) = expected {
+            assert_eq!(parse_quantity(value).unwrap(), expected);
+        } else {
+            assert_eq!(
+                parse_quantity(value).unwrap_err().to_string(),
+                format!("Invalid quantity: {:?}", value),
+            );
+        }
     }
 }

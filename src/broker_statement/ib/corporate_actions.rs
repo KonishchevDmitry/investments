@@ -95,7 +95,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 let to: u32 = captures.name("to").unwrap().as_str().parse()?;
                 let ratio = StockSplitRatio::new(from, to);
 
-                let change = record.parse_amount("Quantity", DecimalRestrictions::NonZero)?;
+                let change = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
                 let (from_change, to_change) = if change.is_sign_positive() {
                     (None, Some(change))
                 } else {
@@ -108,7 +108,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 }
             },
             "Spinoff" => {
-                let quantity = record.parse_amount("Quantity", DecimalRestrictions::StrictlyPositive)?;
+                let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
                 let currency = record.get_value("Currency")?.to_owned();
 
                 CorporateAction {

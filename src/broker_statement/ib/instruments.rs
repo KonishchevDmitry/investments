@@ -1,5 +1,5 @@
 use crate::core::EmptyResult;
-use crate::util::{self, DecimalRestrictions};
+use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser};
@@ -19,11 +19,7 @@ impl RecordParser for OpenPositionsParser {
         ])?;
 
         let symbol = record.get_value("Symbol")?;
-
-        let quantity = record.get_value("Quantity")?;
-        let quantity = util::parse_decimal(
-            quantity, DecimalRestrictions::StrictlyPositive
-        ).map_err(|_| format!("Got an unexpected {} quantity: {}", symbol, quantity))?;
+        let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
 
         parser.statement.add_open_position(symbol, quantity)
     }
