@@ -9,7 +9,7 @@ use crate::formatting::format_date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{Record, RecordParser};
+use super::common::{self, Record, RecordParser};
 #[cfg(test)] use super::common::RecordSpec;
 
 pub struct CorporateActionsParser {
@@ -79,11 +79,11 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
     let description = description.as_ref();
 
     lazy_static! {
-        static ref REGEX: Regex = Regex::new(concat!(
-            r"^(?P<symbol>[A-Z]+) ?\([A-Z0-9]+\) (?P<action>Split|Spinoff) ",
+        static ref REGEX: Regex = Regex::new(&format!(concat!(
+            r"^(?P<symbol>{symbol}) ?\({id}\) (?P<action>Split|Spinoff) ",
             r"(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
-            r"\((?P<child_symbol>[A-Z]+)(\.OLD)?, [^,)]+, [A-Z0-9]+\)$",
-        )).unwrap();
+            r"\((?P<child_symbol>{symbol})(?:\.OLD)?, [^,)]+, {id}\)$",
+        ), symbol=common::STOCK_SYMBOL_REGEX, id=common::STOCK_ID_REGEX)).unwrap();
     }
 
     Ok(if let Some(captures) = REGEX.captures(description) {

@@ -6,7 +6,7 @@ use crate::broker_statement::dividends::DividendId;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser};
+use super::common::{self, Record, RecordParser};
 
 pub struct DividendsParser {}
 
@@ -36,8 +36,9 @@ impl RecordParser for DividendsParser {
 
 fn parse_dividend_description(description: &str) -> GenericResult<String> {
     lazy_static! {
-        static ref DESCRIPTION_REGEX: Regex = Regex::new(
-            r"^(?P<issuer>[A-Z]+) ?\([A-Z0-9]+\) ").unwrap();
+        static ref DESCRIPTION_REGEX: Regex = Regex::new(&format!(
+            r"^(?P<issuer>{symbol}) ?\({id}\) ",
+            symbol=common::STOCK_SYMBOL_REGEX, id=common::STOCK_ID_REGEX)).unwrap();
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
@@ -58,6 +59,7 @@ mod tests {
         case("BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)", "BND"),
         case("VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital)", "VNQ"),
 
+        case("EXH4(DE000A0H08J9) Cash Dividend EUR 0.013046 per Share (Mixed Income)", "EXH4"),
         case("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND"),
         case("BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)", "BND"),
 
