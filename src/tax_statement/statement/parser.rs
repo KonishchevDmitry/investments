@@ -260,27 +260,37 @@ mod tests {
         assert_eq!(incomes.len(), 4);
 
         let date = date!(1, 1, year);
-        let currency = "USD"; // 840 - Доллар США
-
-        let currency_rate = dec!(61.9057);
         let amount = dec!(100);
-        let local_amount = amount * currency_rate;
         let paid_tax = dec!(10);
-        let local_paid_tax = util::round(paid_tax * currency_rate, 2);
         let purchase_local_cost = dec!(10);
 
-        // 1010 - Дивиденды
-        statement.add_dividend_income(
-            "Дивиденд", date, currency, currency_rate,
-            amount, paid_tax, local_amount, local_paid_tax).unwrap();
+        {
+            let currency = "USD"; // 840 - Доллар США
+            let currency_rate = dec!(61.9057);
 
-        // 1530 - (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)
-        statement.add_stock_income(
-            "Акции", date, currency, currency_rate, amount, local_amount, purchase_local_cost).unwrap();
+            let local_amount = amount * currency_rate;
+            let local_paid_tax = util::round(paid_tax * currency_rate, 2);
 
-        // 1011 - Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)
-        statement.add_interest_income(
-            "Проценты", date, currency, currency_rate, amount, local_amount).unwrap();
+            // 1010 - Дивиденды
+            statement.add_dividend_income(
+                "Дивиденд", date, currency, currency_rate,
+                amount, paid_tax, local_amount, local_paid_tax).unwrap();
+
+            // 1530 - (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)
+            statement.add_stock_income(
+                "Акции", date, currency, currency_rate, amount, local_amount,
+                purchase_local_cost).unwrap();
+        }
+
+        {
+            let currency = "EUR"; // 978 - Евро
+            let currency_rate = dec!(69.3777);
+            let local_amount = amount * currency_rate;
+
+            // 1011 - Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)
+            statement.add_interest_income(
+                "Проценты", date, currency, currency_rate, amount, local_amount).unwrap();
+        }
 
         // 1011 - Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)
         // 643 - Российский рубль

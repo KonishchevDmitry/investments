@@ -88,6 +88,7 @@ impl CurrencyInfo {
         let (currency_code, currency_name, currency_rate_units) = match currency {
             "RUB" => (643, "Российский рубль", 1000),
             "USD" => (840, "Доллар США", 100),
+            "EUR" => (978, "Евро", 100),
             _ => return Err!("{} currency is not supported yet", currency),
         };
         let currency_rate = currency::round(precise_currency_rate * Decimal::from(currency_rate_units));
