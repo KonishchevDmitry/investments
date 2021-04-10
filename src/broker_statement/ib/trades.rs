@@ -6,7 +6,7 @@ use crate::time::DateTime;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser};
+use super::common::{Record, RecordParser, parse_symbol};
 
 pub struct TradesParser {}
 
@@ -69,10 +69,11 @@ fn parse_forex_record(
 fn parse_stock_record(
     parser: &mut StatementParser, record: &Record, symbol: &str, conclusion_time: DateTime,
 ) -> EmptyResult {
+    let symbol = parse_symbol(symbol)?;
     let currency = record.get_value("Currency")?;
     let price = record.parse_cash("T. Price", currency, DecimalRestrictions::StrictlyPositive)?;
     let commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
-    let execution_date = parser.get_execution_date(symbol, conclusion_time.date());
+    let execution_date = parser.get_execution_date(&symbol, conclusion_time.date());
     let quantity = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
 
     let volume = record.parse_cash("Proceeds", currency, if quantity.is_sign_positive() {
@@ -96,11 +97,11 @@ fn parse_stock_record(
 
     if quantity.is_sign_positive() {
         parser.statement.stock_buys.push(StockBuy::new_trade(
-            symbol, quantity, price, -volume, commission,
+            &symbol, quantity, price, -volume, commission,
             conclusion_time.into(), execution_date, false));
     } else {
         parser.statement.stock_sells.push(StockSell::new_trade(
-            symbol, -quantity, price, volume, commission,
+            &symbol, -quantity, price, volume, commission,
             conclusion_time.into(), execution_date, false, false));
     }
 

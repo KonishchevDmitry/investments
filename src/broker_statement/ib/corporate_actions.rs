@@ -9,7 +9,7 @@ use crate::formatting::format_date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{self, Record, RecordParser};
+use super::common::{self, Record, RecordParser, parse_symbol};
 #[cfg(test)] use super::common::RecordSpec;
 
 pub struct CorporateActionsParser {
@@ -87,7 +87,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
     }
 
     Ok(if let Some(captures) = REGEX.captures(description) {
-        let symbol = captures.name("symbol").unwrap().as_str().to_owned();
+        let symbol = parse_symbol(captures.name("symbol").unwrap().as_str())?;
 
         match captures.name("action").unwrap().as_str() {
             "Split" => {
@@ -114,7 +114,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
                 CorporateAction {
                     time: time.into(), report_date, symbol,
                     action: CorporateActionType::Spinoff {
-                        symbol: captures.name("child_symbol").unwrap().as_str().to_owned(),
+                        symbol: parse_symbol(captures.name("child_symbol").unwrap().as_str())?,
                         quantity, currency,
                     },
                 }

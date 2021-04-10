@@ -39,7 +39,9 @@ for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
     rate-limited-investments main analyse "$broker"
 done
 
-for portfolio in ib-margin-rub ib-complex ib-stock-split ib-reverse-stock-split; do
+for portfolio in \
+    ib-margin-rub ib-complex ib-stock-split ib-reverse-stock-split ib-reverse-stock-split-reverse-order \
+    ib-simple-with-lse ib-symbol-with-space tinkoff-complex; do
     investments other tax-statement "$portfolio"
 done
 

@@ -6,7 +6,7 @@ use crate::broker_statement::dividends::DividendId;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{self, Record, RecordParser};
+use super::common::{self, Record, RecordParser, parse_symbol};
 
 pub struct DividendsParser {}
 
@@ -44,7 +44,7 @@ fn parse_dividend_description(description: &str) -> GenericResult<String> {
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
         "Unexpected dividend description: {:?}", description))?;
 
-    Ok(captures.name("issuer").unwrap().as_str().to_owned())
+    parse_symbol(captures.name("issuer").unwrap().as_str())
 }
 
 #[cfg(test)]
@@ -62,10 +62,11 @@ mod tests {
         case("EXH4(DE000A0H08J9) Cash Dividend EUR 0.013046 per Share (Mixed Income)", "EXH4"),
         case("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND"),
         case("BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)", "BND"),
+        case("RDS B(US7802591070) Cash Dividend USD 0.32 per Share (Ordinary Dividend)", "RDS-B"),
 
         case("UNIT(US91325V1089) Payment in Lieu of Dividend (Ordinary Dividend)", "UNIT"),
     )]
     fn dividend_parsing(description: &str, symbol: &str) {
-        assert_eq!(parse_dividend_description(description).unwrap(), symbol.to_owned());
+        assert_eq!(parse_dividend_description(description).unwrap(), symbol);
     }
 }

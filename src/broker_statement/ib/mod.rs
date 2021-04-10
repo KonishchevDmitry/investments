@@ -348,9 +348,11 @@ mod tests {
         "margin-rub",
         "complex",
 
-        "simple-with-lse",
         "reverse-stock-split",
         "reverse-stock-split-reverse-order",
+
+        "simple-with-lse",
+        "symbol-with-space",
     ])]
     fn parse_real_other(name: &str) {
         parse_full(name, None);

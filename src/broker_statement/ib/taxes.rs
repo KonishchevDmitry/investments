@@ -6,7 +6,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{self, Record, RecordParser};
+use super::common::{self, Record, RecordParser, parse_symbol};
 
 // Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US
 // accounts) to reflect dividend reclassifications. This is typically done in February the following
@@ -63,7 +63,7 @@ fn parse_tax_description(description: &str) -> GenericResult<String> {
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
         "Unexpected tax description: {:?}", description))?;
 
-    Ok(captures.name("issuer").unwrap().as_str().to_owned())
+    parse_symbol(captures.name("issuer").unwrap().as_str())
 }
 
 #[cfg(test)]

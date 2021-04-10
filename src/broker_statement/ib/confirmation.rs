@@ -49,12 +49,12 @@ pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> Gener
             continue;
         }
 
-        let symbol = record.get_value("Symbol")?;
+        let symbol = record.parse_symbol("Symbol")?;
         let conclusion_date = record.parse_date("TradeDate")?;
         let execution_date = record.parse_date("SettleDate")?;
 
         match execution_dates.insert(OrderId {
-            symbol: symbol.to_owned(),
+            symbol: symbol.clone(),
             date: conclusion_date,
         }, execution_date) {
             Some(other_date) if other_date != execution_date => {

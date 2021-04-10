@@ -35,6 +35,7 @@ fn generate_regression_tests() {
     t.add("IB reverse stock split tax statement", "tax-statement ib-reverse-stock-split").config("other");
     t.add("IB reverse stock split with reverse order tax statement", "tax-statement ib-reverse-stock-split-reverse-order").config("other");
     t.add("IB simple with LSE tax statement", "tax-statement ib-simple-with-lse").config("other");
+    t.add("IB symbol with space tax statement", "tax-statement ib-symbol-with-space").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
 
     // cash-flow

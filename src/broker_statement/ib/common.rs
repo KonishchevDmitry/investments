@@ -13,7 +13,7 @@ use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
 pub const STOCK_ID_REGEX: &str = "[A-Z0-9]+?";
-pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?";
+pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?(:? [A-Z0-9]+)?";
 
 pub struct RecordSpec<'a> {
     pub name: &'a str,
@@ -76,6 +76,10 @@ impl<'a> Record<'a> {
         parse_date_time(self.get_value(field)?)
     }
 
+    pub fn parse_symbol(&self, field: &str) -> GenericResult<String> {
+        parse_symbol(self.get_value(field)?)
+    }
+
     pub fn parse_quantity(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let quantity = parse_quantity(self.get_value(field)?)?;
         util::validate_named_decimal("quantity", quantity, restrictions)
@@ -126,6 +130,20 @@ fn parse_date(date: &str) -> GenericResult<Date> {
 
 pub fn parse_date_time(date_time: &str) -> GenericResult<DateTime> {
     time::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S")
+}
+
+pub fn parse_symbol(symbol: &str) -> GenericResult<String> {
+    lazy_static! {
+        static ref SYMBOL_REGEX: Regex = Regex::new(&format!(
+            r"^{}$", STOCK_SYMBOL_REGEX)).unwrap();
+    }
+
+    if !SYMBOL_REGEX.is_match(symbol) {
+        return Err!("Got a stock symbol with an unsupported format: {:?}", symbol);
+    }
+
+    // See https://github.com/KonishchevDmitry/investments/issues/28
+    Ok(symbol.replace(' ', "-"))
 }
 
 fn parse_quantity(quantity: &str) -> GenericResult<Decimal> {
