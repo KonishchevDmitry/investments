@@ -14,6 +14,7 @@ struct Column {
     name: String,
     regex: bool,
     aliases: Vec<String>,
+    parse_with: Option<String>,
     optional: bool,
 }
 
@@ -49,9 +50,15 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
         let field = Ident::new(&column.field, span);
         let name = &column.name;
 
-        let parse_code = quote! {
-            #mod_ident::CellType::parse(cell).map_err(|e| format!(
-                "Column {:?}: {}", #name, e))?
+        let mut parse_code = match column.parse_with {
+            Some(ref parse_func) => {
+                let parse_func = Ident::new(&parse_func, span);
+                quote!(#parse_func(cell))
+            },
+            None => quote!(#mod_ident::CellType::parse(cell)),
+        };
+        parse_code = quote! {
+            #parse_code.map_err(|e| format!("Column {:?}: {}", #name, e))?
         };
 
         let parser_code = if column.optional {
@@ -97,7 +104,9 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         #[darling(default)]
         regex: bool,
         #[darling(default)]
-        alias: String,
+        alias: Option<String>,
+        #[darling(default)]
+        parse_with: Option<String>,
         #[darling(default)]
         optional: bool,
     }
@@ -136,12 +145,17 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             "Column name is not specified for {:?} field", field_name
         ))?;
 
+        // darling doesn't support Vec<String> parsing yet, so use comma-separated list for now
+        let aliases = column_params.alias
+            .map(|alias| alias.split(',').map(ToOwned::to_owned).collect())
+            .unwrap_or_else(Vec::new);
+
         columns.push(Column {
             field: field_name,
             name: column_params.name,
             regex: column_params.regex,
-            // darling doesn't support Vec<String> parsing yet, so use comma-separated list for now
-            aliases: column_params.alias.split(',').map(ToOwned::to_owned).collect(),
+            aliases: aliases,
+            parse_with: column_params.parse_with,
             optional: column_params.optional,
         })
     }
