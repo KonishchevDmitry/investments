@@ -76,6 +76,10 @@ impl SheetParser for StatementSheetParser {
         "broker_rep"
     }
 
+    fn repeatable_table_column_titles(&self) -> bool {
+        true
+    }
+
     fn skip_row(&self, row: &[Cell]) -> bool {
         lazy_static! {
             static ref CURRENT_PAGE_REGEX: Regex = Regex::new(r"^\d+ из$").unwrap();

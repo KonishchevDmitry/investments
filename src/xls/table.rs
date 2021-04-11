@@ -27,12 +27,20 @@ pub trait TableReader {
 }
 
 pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> GenericResult<Vec<T>> {
-    let columns = T::columns();
-    let columns_mapping = map_columns(sheet.next_row_checked()?, &columns)?;
-
     let mut table = Vec::new();
+    let columns = T::columns();
+    let repeatable_table_column_titles = sheet.repeatable_table_column_titles();
+
+    let mut columns_mapping = map_columns(sheet.next_row_checked()?, &columns)?;
 
     while let Some(row) = T::next_row(sheet) {
+        if repeatable_table_column_titles {
+            if let Ok(new_mapping) = map_columns(row, &columns) {
+                columns_mapping = new_mapping;
+                continue;
+            }
+        }
+
         let mapped_row = columns_mapping.map(row)?;
         if T::skip_row(&mapped_row)? {
             continue;

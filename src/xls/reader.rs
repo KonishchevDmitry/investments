@@ -29,13 +29,8 @@ impl SheetReader {
         })
     }
 
-    pub fn detalize_error(&self, error: &str) -> String {
-        if self.next_row_id == 0 {
-            error.to_owned()
-        } else {
-            format!("Starting from #{} row: {:?}: {}",
-                    self.next_row_id, self.sheet.index(self.next_row_id - 1), error)
-        }
+    pub fn repeatable_table_column_titles(&self) -> bool {
+        self.parser.repeatable_table_column_titles()
     }
 
     pub fn next_row(&mut self) -> Option<&[Cell]> {
@@ -71,11 +66,25 @@ impl SheetReader {
             }
         }
     }
+
+    pub fn detalize_error(&self, error: &str) -> String {
+        if self.next_row_id == 0 {
+            error.to_owned()
+        } else {
+            format!("Starting from #{} row: {:?}: {}",
+                    self.next_row_id, self.sheet.index(self.next_row_id - 1), error)
+        }
+    }
 }
 
 pub trait SheetParser {
     fn sheet_name(&self) -> &str;
+
     fn skip_row(&self, _row: &[Cell]) -> bool {
+        false
+    }
+
+    fn repeatable_table_column_titles(&self) -> bool {
         false
     }
 }
