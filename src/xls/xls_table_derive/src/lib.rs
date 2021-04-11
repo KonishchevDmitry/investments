@@ -53,7 +53,7 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
         let mut parse_code = match column.parse_with {
             Some(ref parse_func) => {
                 let parse_func = Ident::new(&parse_func, span);
-                quote!(#parse_func(cell))
+                quote!(#mod_ident::parse_with(cell, #parse_func))
             },
             None => quote!(#mod_ident::CellType::parse(cell)),
         };

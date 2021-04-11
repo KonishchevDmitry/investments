@@ -80,3 +80,63 @@ impl<T: CellType> CellType for Option<T> {
         }
     }
 }
+
+pub fn parse_with<T, C>(cell: &Cell, parse: fn(&Cell) -> GenericResult<T>) -> GenericResult<C>
+    where C: FromParsedOptional<T>
+{
+    FromParsedOptional::from_parsed_optional(match cell {
+        Cell::Empty => None,
+        _ => Some(parse(cell)?),
+    })
+}
+
+pub trait FromParsedOptional<T>: Sized {
+    fn from_parsed_optional(value: Option<T>) -> GenericResult<Self>;
+}
+
+impl<T> FromParsedOptional<T> for Option<T> {
+    fn from_parsed_optional(value: Option<T>) -> GenericResult<Option<T>> {
+        Ok(value)
+    }
+}
+
+impl<T> FromParsedOptional<T> for T {
+    fn from_parsed_optional(value: Option<T>) -> GenericResult<T> {
+        match value {
+            Some(value) => Ok(value),
+            None => return Err!("Got an empty cell"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_using_parse_with() {
+        let value: i64 = parse_with(&Cell::Int(42), parse_int).unwrap();
+        assert_eq!(value, 42);
+
+        match parse_with(&Cell::Empty, parse_int) {
+            Ok(value) => {
+                let _: i64 = value;
+                unreachable!()
+            },
+            Err(e) => assert_eq!(e.to_string(), "Got an empty cell"),
+        };
+
+        let optional_value: Option<i64> = parse_with(&Cell::Int(42), parse_int).unwrap();
+        assert_eq!(optional_value, Some(42));
+
+        let optional_value: Option<i64> = parse_with(&Cell::Empty, parse_int).unwrap();
+        assert_eq!(optional_value, None);
+    }
+
+    fn parse_int(cell: &Cell) -> GenericResult<i64> {
+        match cell {
+            Cell::Int(value) => Ok(*value),
+            _ => return Err!("Invalid cell value: {:?}", cell),
+        }
+    }
+}
