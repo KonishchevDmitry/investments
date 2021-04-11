@@ -4,7 +4,7 @@ use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
-use crate::core::EmptyResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::forex::parse_forex_code;
 use crate::formatting::format_date;
@@ -23,7 +23,7 @@ pub struct TradesParser {
 impl SectionParser for TradesParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let mut trades = xls::read_table::<TradeRow>(&mut parser.sheet)?;
-        trades.sort_by_key(|trade| DateTime::new(trade.date, trade.time));
+        trades.sort_by_key(|trade| (trade.date, trade.time, trade.id));
 
         for trade in trades {
             if !trade.accumulated_coupon_income.is_zero() {
@@ -94,8 +94,8 @@ impl SectionParser for TradesParser {
 
 #[derive(XlsTableRow)]
 struct TradeRow {
-    #[column(name="Номер сделки")]
-    _0: SkipCell,
+    #[column(name="Номер сделки", parse_with="parse_trade_id")]
+    id: u64,
     #[column(name="Номер поручения")]
     _1: SkipCell,
     #[column(name="Дата заключения", parse_with="parse_date_cell")]
@@ -166,4 +166,9 @@ impl TableReader for TradeRow {
     fn next_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
         read_next_table_row(sheet)
     }
+}
+
+fn parse_trade_id(cell: &Cell) -> GenericResult<u64> {
+    let value = xls::get_string_cell(cell)?;
+    Ok(value.parse().map_err(|_| format!("Got an unexpected trade ID: {:?}", value))?)
 }
