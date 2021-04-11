@@ -1,6 +1,6 @@
 mod sections;
 
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::xls::{SheetReader, SheetParser};
 
@@ -16,13 +16,19 @@ impl XlsStatementParser {
     pub fn read(
         path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>,
     ) -> GenericResult<PartialBrokerStatement> {
-        XlsStatementParser {
+        let mut parser = XlsStatementParser {
             statement: PartialBrokerStatement::new(true),
             sheet: SheetReader::new(path, parser)?,
-        }.parse(sections)
+        };
+
+        if let Err(e) = parser.parse(sections) {
+            return Err(parser.sheet.detalize_error(&e.to_string()).into());
+        }
+
+        parser.statement.validate()
     }
 
-    fn parse(mut self, sections: Vec<Section>) -> GenericResult<PartialBrokerStatement> {
+    fn parse(&mut self, sections: Vec<Section>) -> EmptyResult {
         let mut sections = SectionState::new(sections);
 
         while let Some(row) = self.sheet.next_row() {
@@ -38,11 +44,10 @@ impl XlsStatementParser {
                     self.sheet.step_back();
                 }
 
-                parser.parse(&mut self)?;
+                parser.parse(self)?;
             }
         }
 
-        sections.validate()?;
-        self.statement.validate()
+        sections.validate()
     }
 }

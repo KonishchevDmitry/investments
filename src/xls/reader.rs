@@ -29,6 +29,15 @@ impl SheetReader {
         })
     }
 
+    pub fn detalize_error(&self, error: &str) -> String {
+        if self.next_row_id == 0 {
+            error.to_owned()
+        } else {
+            format!("Starting from #{} row: {:?}: {}",
+                    self.next_row_id, self.sheet.index(self.next_row_id - 1), error)
+        }
+    }
+
     pub fn next_row(&mut self) -> Option<&[Cell]> {
         while self.next_row_id < self.sheet.height() {
             let row = self.sheet.index(self.next_row_id);
