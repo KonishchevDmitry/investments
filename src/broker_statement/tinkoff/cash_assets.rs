@@ -18,7 +18,7 @@ use crate::util::DecimalRestrictions;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{
-    read_next_table_row, parse_date, parse_cash, parse_date_cell, parse_decimal_cell, parse_time};
+    read_next_table_row, parse_cash, parse_date_cell, parse_decimal_cell, parse_time_cell};
 
 pub struct CashAssetsParser {
 }
@@ -90,10 +90,10 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> GenericResult<HashSe
 
 #[derive(XlsTableRow)]
 struct CashFlowRow {
-    #[column(name="Дата")]
-    date: Option<String>,
-    #[column(name="Время совершения")]
-    time: Option<String>,
+    #[column(name="Дата", parse_with="parse_date_cell")]
+    date: Option<Date>,
+    #[column(name="Время совершения", parse_with="parse_time_cell")]
+    time: Option<Time>,
     #[column(name="Дата исполнения", parse_with="parse_date_cell")]
     execution_date: Date,
     #[column(name="Операция")]
@@ -135,12 +135,8 @@ fn parse_cash_flows(parser: &mut XlsStatementParser, currencies: &HashSet<String
         };
 
         for cash_flow in xls::read_table::<CashFlowRow>(&mut parser.sheet)? {
-            let (date, time) = match cash_flow.date.as_ref() {
-                Some(date) => {
-                    let date = parse_date(&date)?;
-                    let time = cash_flow.time.as_ref().map(|time| parse_time(&time)).transpose()?;
-                    (date, time)
-                },
+            let (date, time) = match cash_flow.date {
+                Some(date) => (date, cash_flow.time),
                 None => (cash_flow.execution_date, None),
             };
 

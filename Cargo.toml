@@ -65,7 +65,7 @@ diesel_migrations = "1.4.0"
 libsqlite3-sys = { version = ">=0.8.0, <0.21.0", features = ["bundled"] }
 
 static_table_derive = "0.1.24"
-xls_table_derive = "0.4.2"
+xls_table_derive = "0.4.3"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }

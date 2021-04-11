@@ -2490,7 +2490,7 @@ dependencies = [
 
 [[package]]
 name = "xls_table_derive"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "darling",
  "proc-macro2 1.0.26",
