@@ -12,12 +12,13 @@ use crate::broker_statement::taxes::TaxId;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
-use crate::types::{Date, Time};
+use crate::time::{Date, Time};
+use crate::types::Decimal;
 use crate::util::DecimalRestrictions;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 
-use super::common::{parse_date, parse_decimal, parse_cash, read_next_table_row};
-use crate::broker_statement::tinkoff::common::parse_time;
+use super::common::{
+    read_next_table_row, parse_date, parse_cash, parse_date_cell, parse_decimal_cell, parse_time};
 
 pub struct CashAssetsParser {
 }
@@ -34,21 +35,21 @@ impl SectionParser for CashAssetsParser {
 struct AssetsRow {
     #[column(name="Валюта")]
     currency: String,
-    #[column(name="Входящий остаток на начало периода:")]
-    starting: String,
+    #[column(name="Входящий остаток на начало периода:", parse_with="parse_decimal_cell")]
+    starting: Decimal,
     #[column(name="Исходящий остаток на конец периода:")]
     _2: SkipCell,
 
     // Regex to support variations:
     // * "Плановый исходящий остаток на конец периода (с учетом неисполненных на дату отчета сделок):"
     // * "Плановый исходящий остаток на конец периода (с учетом неисполненных на дату "
-    #[column(name=r"^Плановый исходящий остаток на конец периода", regex=true)]
-    planned: String,
+    #[column(name=r"^Плановый исходящий остаток на конец периода", regex=true, parse_with="parse_decimal_cell")]
+    planned: Decimal,
 
-    #[column(name="Задолженность клиента перед брокером:")]
-    debt: String,
-    #[column(name="Сумма непокрытого остатка:")]
-    uncovered: String,
+    #[column(name="Задолженность клиента перед брокером:", parse_with="parse_decimal_cell")]
+    debt: Decimal,
+    #[column(name="Сумма непокрытого остатка:", parse_with="parse_decimal_cell")]
+    uncovered: Decimal,
     #[column(name="Задолженность клиента перед Депозитарием (справочно)")]
     _6: SkipCell,
 }
@@ -66,23 +67,20 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> GenericResult<HashSe
     for assets in &xls::read_table::<AssetsRow>(&mut parser.sheet)? {
         currencies.insert(assets.currency.clone());
 
-        let starting = parse_decimal(&assets.starting, DecimalRestrictions::No)?;
-        if !starting.is_zero() {
+        if !assets.starting.is_zero() {
             parser.statement.starting_assets.replace(true);
         }
 
-        let planned = parse_cash(&assets.currency, &assets.planned, DecimalRestrictions::No)?;
+        let planned = parse_cash(&assets.currency, assets.planned, DecimalRestrictions::No)?;
         if !planned.is_zero() {
             parser.statement.cash_assets.as_mut().unwrap().deposit(planned);
         }
 
-        let debt = parse_decimal(&assets.debt, DecimalRestrictions::No)?;
-        if !debt.is_zero() {
+        if !assets.debt.is_zero() {
             return Err!("Debt is not supported yet");
         }
 
-        let uncovered = parse_decimal(&assets.uncovered, DecimalRestrictions::No)?;
-        if !uncovered.is_zero() {
+        if !assets.uncovered.is_zero() {
             return Err!("Leverage is not supported yet");
         }
     }
@@ -96,14 +94,14 @@ struct CashFlowRow {
     date: Option<String>,
     #[column(name="Время совершения")]
     time: Option<String>,
-    #[column(name="Дата исполнения")]
-    execution_date: String,
+    #[column(name="Дата исполнения", parse_with="parse_date_cell")]
+    execution_date: Date,
     #[column(name="Операция")]
     operation: String,
-    #[column(name="Сумма зачисления")]
-    deposit: String,
-    #[column(name="Сумма списания")]
-    withdrawal: String,
+    #[column(name="Сумма зачисления", parse_with="parse_decimal_cell")]
+    deposit: Decimal,
+    #[column(name="Сумма списания", parse_with="parse_decimal_cell")]
+    withdrawal: Decimal,
     #[column(name="Примечание")]
     comment: Option<String>,
 }
@@ -143,7 +141,7 @@ fn parse_cash_flows(parser: &mut XlsStatementParser, currencies: &HashSet<String
                     let time = cash_flow.time.as_ref().map(|time| parse_time(&time)).transpose()?;
                     (date, time)
                 },
-                None => (parse_date(&cash_flow.execution_date)?, None),
+                None => (cash_flow.execution_date, None),
             };
 
             cash_flows.push(CashFlow {
@@ -174,8 +172,8 @@ fn parse_cash_flow(
     statement: &mut PartialBrokerStatement, date: Date, currency: &str, cash_flow: &CashFlowRow
 ) -> EmptyResult {
     let operation = &cash_flow.operation;
-    let deposit = parse_cash(currency, &cash_flow.deposit, DecimalRestrictions::PositiveOrZero)?;
-    let withdrawal = parse_cash(currency, &cash_flow.withdrawal, DecimalRestrictions::PositiveOrZero)?;
+    let deposit = parse_cash(currency, cash_flow.deposit, DecimalRestrictions::PositiveOrZero)?;
+    let withdrawal = parse_cash(currency, cash_flow.withdrawal, DecimalRestrictions::PositiveOrZero)?;
 
     let check_amount = |amount: Cash| -> GenericResult<Cash> {
         if amount.is_zero() || !matches!((deposit.is_zero(), withdrawal.is_zero()), (true, false) | (false, true)) {

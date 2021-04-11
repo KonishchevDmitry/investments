@@ -3,22 +3,36 @@ use crate::currency::Cash;
 use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{SheetReader, Cell};
+use crate::xls::{self, SheetReader, Cell};
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%Y")
+}
+
+pub fn parse_date_cell(cell: &Cell) -> GenericResult<Date> {
+    parse_date(xls::get_string_cell(cell)?)
 }
 
 pub fn parse_time(time: &str) -> GenericResult<Time> {
     time::parse_time(time, "%H:%M:%S")
 }
 
-pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
-    util::parse_decimal(&string.replace(',', "."), restrictions)
+pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
+    parse_time(xls::get_string_cell(cell)?)
 }
 
-pub fn parse_cash(currency: &str, value: &str, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
-    Ok(Cash::new(currency, parse_decimal(value, restrictions)?))
+pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
+    let value = xls::get_string_cell(cell)?;
+    Ok(value.parse().map_err(|_| format!("Invalid quantity: {}", value))?)
+}
+
+pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
+    let value = xls::get_string_cell(cell)?.replace(',', ".");
+    util::parse_decimal(&value, DecimalRestrictions::No)
+}
+
+pub fn parse_cash(currency: &str, amount: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
+    Ok(Cash::new(currency, util::validate_decimal(amount, restrictions)?))
 }
 
 pub fn read_next_table_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
