@@ -41,7 +41,7 @@ done
 
 for portfolio in \
     ib-margin-rub ib-complex ib-stock-split ib-reverse-stock-split ib-reverse-stock-split-reverse-order \
-    ib-simple-with-lse ib-symbol-with-space tinkoff-complex; do
+    ib-simple-with-lse ib-symbol-with-space ib-tax-remapping tinkoff-complex; do
     investments other tax-statement "$portfolio"
 done
 

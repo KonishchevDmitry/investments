@@ -36,6 +36,7 @@ fn generate_regression_tests() {
     t.add("IB reverse stock split with reverse order tax statement", "tax-statement ib-reverse-stock-split-reverse-order").config("other");
     t.add("IB simple with LSE tax statement", "tax-statement ib-simple-with-lse").config("other");
     t.add("IB symbol with space tax statement", "tax-statement ib-symbol-with-space").config("other");
+    t.add("IB tax remapping tax statement", "tax-statement ib-tax-remapping").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
 
     // cash-flow
@@ -44,6 +45,7 @@ fn generate_regression_tests() {
     t.add("IB reverse stock split cash flow", "cash-flow ib-reverse-stock-split").config("other");
     t.add("IB reverse stock split with reverse order cash flow", "cash-flow ib-reverse-stock-split-reverse-order").config("other");
     t.add("IB simple with LSE cash flow", "cash-flow ib-simple-with-lse").config("other");
+    t.add("IB tax remapping cash flow", "cash-flow ib-tax-remapping").config("other");
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
     t.add("Tinkoff complex cash flow", "cash-flow tinkoff-complex").config("other");
 
