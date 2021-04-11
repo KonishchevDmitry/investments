@@ -23,7 +23,7 @@ use std::collections::hash_map::Entry;
 use log::{debug, warn};
 use num_traits::Zero;
 
-use crate::brokers::BrokerInfo;
+use crate::brokers::{BrokerInfo, Broker};
 use crate::commissions::CommissionCalc;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
@@ -135,7 +135,17 @@ impl BrokerStatement {
                 .collect::<Vec<_>>()
                 .join("\n");
 
-            return Err!("Unable to find origin operations for the following taxes:\n{}", taxes);
+            let mut hint = "";
+            if statement.broker.type_ == Broker::InteractiveBrokers {
+                hint = concat!(
+                    "\n\nProbably manual tax remapping rules are required ",
+                    "(https://github.com/KonishchevDmitry/investments#dividend-reclassifications)",
+                );
+            }
+
+            return Err!(
+                "Unable to find origin operations for the following taxes:\n{}{}",
+                taxes, hint);
         }
 
         let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
@@ -165,11 +175,15 @@ impl BrokerStatement {
 
     fn new_empty_from(broker: BrokerInfo, statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
         let mut period = statement.get_period()?;
-        period.1 = period.0;
-
         if statement.get_starting_assets()? {
-            return Err!("Invalid broker statement period: It has a non-zero starting assets");
+            return Err!(concat!(
+                "The first broker statement ({}) has a non-zero starting assets. ",
+                "Make sure that broker statements directory contains statements for all periods ",
+                "starting from account opening",
+            ), formatting::format_period(period));
         }
+
+        period.1 = period.0;
 
         Ok(BrokerStatement {
             broker,

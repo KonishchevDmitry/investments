@@ -51,7 +51,8 @@ pub fn read(
     }
 
     if let Some(tax_remapping) = tax_remapping {
-        tax_remapping.ensure_all_mapped()?;
+        tax_remapping.ensure_all_mapped().map_err(|e| format!(
+            "{}. Tax remapping is not supported for {} yet", e, broker.brief_name()))?;
     }
     statement_reader.close()?;
 
