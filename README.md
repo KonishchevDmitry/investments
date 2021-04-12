@@ -145,6 +145,7 @@ the IB `Reports -> Flex Queries` tab with the following parameters:
 and download the statements for all periods where you have any trades. Investments will catch these statements and use
 information from them for calculations in T+2 mode.
 
+<a name="dividend-reclassifications"></a>
 #### Dividend reclassifications
 
 Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
