@@ -212,3 +212,10 @@ The project is developed as a pet project, mainly for my personal use. The code 
 something unusual in broker statement it returns an error and doesn't try to pass through the error to avoid the case
 when it will get you to misleading results, so there are many cases that it's not able to handle yet and I can't
 guarantee that I'll find a free time to support your specific case.
+
+
+# Contacts
+
+[Issues](https://github.com/KonishchevDmitry/investments/issues) and
+[Discussions](https://github.com/KonishchevDmitry/investments/discussions) are the preferred way for requests and
+questions. Please use [email](mailto:konishchev@gmail.com) only for privacy reasons.
