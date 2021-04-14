@@ -2,11 +2,11 @@ use std::collections::HashMap;
 #[cfg(test)] use std::fs;
 #[cfg(test)] use std::path::Path;
 
-use crate::core::{GenericResult};
+use crate::core::{GenericResult, EmptyResult};
 use crate::formatting::format_date;
 use crate::types::Date;
 
-use super::common::{Record, RecordSpec};
+use super::common::{Record, RecordSpec, format_record};
 
 pub type TradeExecutionDates = HashMap<OrderId, Date>;
 
@@ -39,34 +39,37 @@ pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> Gener
 
     for record in records {
         let record = record?;
-        let record = Record::new(&record_spec, &record);
-
-        if record.get_value("AssetClass")? != "STK" {
-            continue;
-        }
-
-        if record.get_value("LevelOfDetail")? != "EXECUTION" {
-            continue;
-        }
-
-        let symbol = record.parse_symbol("Symbol")?;
-        let conclusion_date = record.parse_date("TradeDate")?;
-        let execution_date = record.parse_date("SettleDate")?;
-
-        match execution_dates.insert(OrderId {
-            symbol: symbol.clone(),
-            date: conclusion_date,
-        }, execution_date) {
-            Some(other_date) if other_date != execution_date => {
-                return Err!("Got several execution dates for {} trade on {}: {} and {}",
-                    symbol, format_date(conclusion_date), format_date(execution_date),
-                    format_date(other_date));
-            },
-            _ => {},
-        }
+        parse_record(&Record::new(&record_spec, &record), execution_dates).map_err(|e| format!(
+            "Failed to parse ({}) record: {}", format_record(&record), e
+        ))?;
     }
 
     Ok(true)
+}
+
+fn parse_record(record: &Record, execution_dates: &mut TradeExecutionDates) -> EmptyResult {
+    if record.get_value("AssetClass")? != "STK" ||
+        record.get_value("LevelOfDetail")? != "EXECUTION" {
+        return Ok(());
+    }
+
+    let symbol = record.parse_symbol("Symbol")?;
+    let conclusion_date = record.parse_date("TradeDate")?;
+    let execution_date = record.parse_date("SettleDate")?;
+
+    match execution_dates.insert(OrderId {
+        symbol: symbol.clone(),
+        date: conclusion_date,
+    }, execution_date) {
+        Some(other_date) if other_date != execution_date => {
+            return Err!("Got several execution dates for {} trade on {}: {} and {}",
+                symbol, format_date(conclusion_date), format_date(execution_date),
+                format_date(other_date));
+        },
+        _ => {},
+    };
+
+    Ok(())
 }
 
 #[cfg(test)]
