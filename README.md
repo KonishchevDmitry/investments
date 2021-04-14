@@ -145,6 +145,7 @@ the IB `Reports -> Flex Queries` tab with the following parameters:
 and download the statements for all periods where you have any trades. Investments will catch these statements and use
 information from them for calculations in T+2 mode.
 
+<a name="dividend-reclassifications"></a>
 #### Dividend reclassifications
 
 Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
@@ -211,3 +212,10 @@ The project is developed as a pet project, mainly for my personal use. The code 
 something unusual in broker statement it returns an error and doesn't try to pass through the error to avoid the case
 when it will get you to misleading results, so there are many cases that it's not able to handle yet and I can't
 guarantee that I'll find a free time to support your specific case.
+
+
+# Contacts
+
+[Issues](https://github.com/KonishchevDmitry/investments/issues) and
+[Discussions](https://github.com/KonishchevDmitry/investments/discussions) are the preferred way for requests and
+questions. Please use [email](mailto:konishchev@gmail.com) only for privacy reasons.
