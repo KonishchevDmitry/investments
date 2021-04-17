@@ -203,6 +203,7 @@ The program supports only those cases which I saw in my broker statements or sta
 which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
 * Bonds
 * Futures
+* Options
 * Margin accounts
 
 
