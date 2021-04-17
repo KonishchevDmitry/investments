@@ -144,7 +144,7 @@ struct TradeRow {
 
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
-    #[column(name="Контрагент")]
+    #[column(name="Контрагент / Брокер", alias="Контрагент")]
     _23: SkipCell,
     #[column(name="Дата расчетов", parse_with="parse_date_cell")]
     execution_date: Date,
