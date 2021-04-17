@@ -131,6 +131,7 @@ won't fail when you'll need it.
 Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their mid-February
 statements and if you generate tax statement earlier, it may contain inaccurate data.
 
+<a name="ib-trade-settle-date"></a>
 #### T+2 trading mode
 
 Activity statements don't provide trade settle date. So by default all calculations will be made in T+0 mode and
