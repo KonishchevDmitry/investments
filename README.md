@@ -156,11 +156,12 @@ indicates that the distribution is an ordinary dividend (and therefore subject t
 the dividend is reclassified as Return of Capital, proceeds, or capital gains (all of which are not subject to 1042
 withholding).
 
-<a name="tax-remapping"></a>
 So withholding in previous year's statements should be reviewed against February statement's withholding adjustments.
+
+<a name="tax-remapping"></a>
 Investments finds such reclassifications and handles them properly, but at this time it matches dividends on taxes using
-(date, symbol) pair, because matching by description turned out to be too fragile. As it turns out sometimes dates
-of reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option
+(date, symbol) pair, because matching by description turned out to be too fragile.As it turns out sometimes dates of
+reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option
 using which you can manually map reclassified tax to date of its origin dividend.
 
 
@@ -201,8 +202,9 @@ The following deposits are closed:
 
 # Unsupported features
 
-The program supports only those cases which I saw in my broker statements or statements sent to me by other people,
-which I assured to be handled properly and wrote regression tests for. For example, the following aren't supported yet:
+The program is focused on passive investing use cases and supports only those cases which I saw in my broker statements
+or statements sent to me by other people, which I assured to be handled properly and wrote regression tests for. For
+example, the following aren't supported yet:
 * Bonds
 * Futures
 * Options
