@@ -47,17 +47,17 @@ manually, but it requires you to have all broker statements starting from accoun
 broker statement or many - it doesn't matter, but what matters is that the first statement must be with zero starting
 assets and statements' periods mustn't overlap or have missing days in between.
 
-For now the following broker statements are supported:
-* Interactive Brokers (*.csv) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#interactive-brokers))
-* Тинькофф (*.xlsx) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff))
-* Firstrade (experimental support) (*.ofx)
-* Открытие Брокер (IIA, basic support) (*.xml) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#open-broker))
-* БКС (basic support) (*.xls) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#bcs))
+For now the following brokers are supported:
+* Interactive Brokers ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#interactive-brokers))
+* Тинькофф ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff))
+* Firstrade ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#firstrade))
+* Открытие Брокер ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#open-broker))
+* БКС ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#bcs))
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:
-* Analyse commands (`analyse`, `simulate-sell`, `tax-statement`) that read your broker statements and produce some
-  results.
+* Analyse commands (`analyse`, [cash-flow](docs/taxes.md#cash-flow), `simulate-sell`,
+  [tax-statement](docs/taxes.md#tax-statement)) that read your broker statements and produce some results.
 * `sync` command that reads your broker statements and stores your current positions to the local database.
 * Portfolio rebalancing commands (`show`, `rebalance`, `cash`, `buy`, `sell`) that work only with local database.
 
