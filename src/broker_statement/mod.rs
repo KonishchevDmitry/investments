@@ -139,7 +139,7 @@ impl BrokerStatement {
             if statement.broker.type_ == Broker::InteractiveBrokers {
                 hint = concat!(
                     "\n\nProbably manual tax remapping rules are required ",
-                    "(https://github.com/KonishchevDmitry/investments#dividend-reclassifications)",
+                    "(https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping)",
                 );
             }
 

@@ -254,9 +254,10 @@ impl<'a> StatementParser<'a> {
 
         if *self.warn_on_missing_execution_date {
             warn!(concat!(
-                "The broker statement misses trade settle date information. ",
+                "The broker statement misses trade settle date information ",
+                "(https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-trade-settle-date). ",
                 "First occurred trade - {} at {}. ",
-                "All calculations for such trades will be performed in T+0 mode."
+                "All calculations for such trades will be performed in T+0 mode.",
             ), symbol, format_date(conclusion_date));
             *self.warn_on_missing_execution_date = false;
         }

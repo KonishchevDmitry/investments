@@ -6,21 +6,20 @@
 The program expects Activity Statements in `*.csv` format for broker statements (`Reports -> Statements -> Activity`).
 
 <a name="ib-trade-settle-date"></a>
-### T+2 trading mode
+### Trade settle date information
 
-Activity statements don't provide trade settle date. So by default all calculations will be made in T+0 mode and
-`simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects correctness of
-tax calculations.
+Activity statements don't provide trade settle date information. So by default all calculations will be made in T+0 mode
+and `simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects
+correctness of tax calculations.
 
-Trade settle date may be obtained from Trade Confirmation Report. To do this, create a Trade Confirmation Flex Query in
-the IB `Reports -> Flex Queries` tab with the following parameters:
+Trade settle date information may be obtained from Trade Confirmation Report. To do this, create a Trade Confirmation
+Flex Query in the IB `Reports -> Flex Queries` tab with the following parameters:
 
 ![Trade Confirmation Flex Query Parameters](images/trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
 
 and download the statements for all periods where you have any trades. Investments will catch these statements and use
 information from them for calculations in T+2 mode.
 
-<a name="ib-dividend-reclassifications"></a>
 ### Dividend reclassifications
 
 Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
@@ -32,17 +31,17 @@ withholding).
 
 <a name="ib-tax-remapping"></a>
 Investments finds such reclassifications and handles them properly, but at this time it matches dividends to taxes using
-(date, symbol) pair, because matching by description turned out to be too fragile. As it turns out sometimes dates of
-reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option
-using which you can manually map reclassified tax to date of its origin dividend.
+(date, symbol) pair (matching by description is too fragile). As it turns out sometimes dates of reclassified taxes
+don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option using which you can
+manually map reclassified tax to date of its origin dividend.
 
 
 <a name="tinkoff"></a>
 ## Тинькофф
 
-Dividends are parsed out from the broker statements, but without withheld tax information. See
-[#26](https://github.com/KonishchevDmitry/investments/issues/26) (I need an example of broker statement + foreign income
-report).
+Dividends are parsed out from broker statements, but without withheld tax information. See
+[#26](https://github.com/KonishchevDmitry/investments/issues/26#issuecomment-803274242) (I need an example of broker
+statement + foreign income report).
 
 
 <a name="bcs"></a>

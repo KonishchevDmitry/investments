@@ -48,11 +48,11 @@ broker statement or many - it doesn't matter, but what matters is that the first
 assets and statements' periods mustn't overlap or have missing days in between.
 
 For now the following broker statements are supported:
-* Interactive Brokers (*.csv)
-* Тинькофф (*.xlsx)
+* Interactive Brokers (*.csv) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#interactive-brokers))
+* Тинькофф (*.xlsx) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff))
 * Firstrade (experimental support) (*.ofx)
-* Открытие Брокер (IIA, basic support) (*.xml)
-* БКС (basic support) (*.xls)
+* Открытие Брокер (IIA, basic support) (*.xml) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#open-broker))
+* БКС (basic support) (*.xls) ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#bcs))
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:
@@ -116,59 +116,6 @@ Here is an example of [Grafana](https://grafana.com/) dashboard which displays a
 results for multiple portfolios opened in different brokers:
 
 [![Investments Grafana dashboard](https://user-images.githubusercontent.com/217795/105888583-320e1080-601e-11eb-8a47-97774479e0f7.gif)](https://youtu.be/fMUxBDY3AUg)
-
-## Broker specific
-
-### Interactive Brokers
-
-The program expects Activity Statements in \*.csv format for broker statements (`Reports -> Statements -> Activity`).
-
-#### Recommendations
-      
-Download broker statements periodically and run the tool against them to be sure that it's still able to parse them and
-won't fail when you'll need it.
-
-Generate tax statement in the beginning of March. Interactive Brokers sometimes adds corrections to their mid-February
-statements and if you generate tax statement earlier, it may contain inaccurate data.
-
-<a name="ib-trade-settle-date"></a>
-#### T+2 trading mode
-
-Activity statements don't provide trade settle date. So by default all calculations will be made in T+0 mode and
-`simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects correctness of
-tax calculations.
-
-Trade settle date may be obtained from Trade Confirmation Report. To do this, create a Trade Confirmation Flex Query in
-the IB `Reports -> Flex Queries` tab with the following parameters:
-
-![Trade Confirmation Flex Query Parameters](/images/trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
-
-and download the statements for all periods where you have any trades. Investments will catch these statements and use
-information from them for calculations in T+2 mode.
-
-<a name="dividend-reclassifications"></a>
-#### Dividend reclassifications
-
-Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
-dividend reclassifications. This is typically done in February the following year. As such, the majority of these
-adjustments are refunds to customers. The typical case is when IB's best information at the time of paying a dividend
-indicates that the distribution is an ordinary dividend (and therefore subject to withholding), then later at year end,
-the dividend is reclassified as Return of Capital, proceeds, or capital gains (all of which are not subject to 1042
-withholding).
-
-So withholding in previous year's statements should be reviewed against February statement's withholding adjustments.
-
-<a name="tax-remapping"></a>
-Investments finds such reclassifications and handles them properly, but at this time it matches dividends on taxes using
-(date, symbol) pair, because matching by description turned out to be too fragile.As it turns out sometimes dates of
-reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option
-using which you can manually map reclassified tax to date of its origin dividend.
-
-
-### БКС and Открытие Брокер
-
-Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
-example of how they are look like in the broker statements.
 
 ## Deposits
 
