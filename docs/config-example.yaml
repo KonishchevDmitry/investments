@@ -6,10 +6,10 @@ portfolios:
     # Specifies broker
     broker: interactive-brokers
 
-    # Path to a directory with broker statements (*.csv for Interactive Brokers)
+    # Path to a directory with broker statements
     statements: ~/Brokerage/Interactive Brokers/Statements
 
-    # Tax remapping rules (see README for details)
+    # Tax remapping rules (https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping)
     #tax_remapping:
     #  - date: 13.02.2020
     #    description: BND(US9219378356) Cash Dividend 0.19834500 USD per Share - US Tax

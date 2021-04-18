@@ -35,7 +35,7 @@ cargo install --path . --force
 
 # Configuration
 
-Create `~/.investments/config.yaml` configuration file ([example](config-example.yaml)). Don't forget to obtain API
+Create `~/.investments/config.yaml` configuration file ([example](docs/config-example.yaml)). Don't forget to obtain API
 token for Finnhub and Twelve Data (see the comments in example config).
 
 # Usage
