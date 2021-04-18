@@ -36,13 +36,6 @@ don't match dividend dates. To workaround such cases there is `tax_remapping` co
 manually map reclassified tax to date of its origin dividend.
 
 
-<a name="firstrade"></a>
-## Firstrade
-
-The program expects broker statements in `*.ofx` format (`Accounts -> History -> Download Account History -> Microsoft
-Money`).
-
-
 <a name="tinkoff"></a>
 ## Тинькофф
 
@@ -51,6 +44,13 @@ The program expects broker statements in `*.xlsx` format.
 Dividends are parsed out from broker statements, but without withheld tax information. See
 [#26](https://github.com/KonishchevDmitry/investments/issues/26#issuecomment-803274242) (I need an example of broker
 statement + foreign income report).
+
+
+<a name="firstrade"></a>
+## Firstrade
+
+The program expects broker statements in `*.ofx` format (`Accounts -> History -> Download Account History -> Microsoft
+Money`).
 
 
 <a name="open-broker"></a>

@@ -107,6 +107,11 @@ once, but it leaves a chance to spend more than you supposed to in case of highl
 simplest strategy here in case of relatively small price of all stocks - submit all orders except the last (one / two /
 few), commit the current result, execute `investments rebalance` and submit the rest.
 
+## Tax statement generation
+
+See [instructions for tax statement generation and recommendations for interacting with Russian Federal Tax
+Service](docs/taxes.md).
+
 ## Prometheus metrics
 
 `investments metrics` command allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
@@ -155,14 +160,14 @@ example, the following aren't supported yet:
 * Bonds
 * Futures
 * Options
-* Margin accounts
+* Leverage trading
 
 
 # Denial of responsibility
 
 The project is developed as a pet project, mainly for my personal use. The code is written in a way that if it finds
 something unusual in broker statement it returns an error and doesn't try to pass through the error to avoid the case
-when it will get you to misleading results, so there are many cases that it's not able to handle yet and I can't
+when it will get you to misleading results, so there may be many cases that it's not able to handle yet and I can't
 guarantee that I'll find a free time to support your specific case.
 
 
