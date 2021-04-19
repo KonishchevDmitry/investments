@@ -56,7 +56,7 @@ For now the following brokers are supported:
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:
-* Analyse commands (`analyse`, [cash-flow](docs/taxes.md#cash-flow), `simulate-sell`,
+* Analyse commands (`analyse`, [cash-flow](docs/taxes.md#cash-flow), [metrics](#metrics), `simulate-sell`,
   [tax-statement](docs/taxes.md#tax-statement)) that read your broker statements and produce some results.
 * `sync` command that reads your broker statements and stores your current positions to the local database.
 * Portfolio rebalancing commands (`show`, `rebalance`, `cash`, `buy`, `sell`) that work only with local database.
@@ -112,6 +112,7 @@ few), commit the current result, execute `investments rebalance` and submit the 
 See [instructions for tax statement generation and recommendations for interacting with Russian Federal Tax
 Service](docs/taxes.md).
 
+<a name="metrics"></a>
 ## Prometheus metrics
 
 `investments metrics` command allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
