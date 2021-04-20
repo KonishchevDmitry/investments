@@ -285,6 +285,11 @@ impl IncomeInfo {
                 let interest = IdleCashInterest::new(date, Cash::new(currency, amount));
                 parser.statement.idle_cash_interest.push(interest);
             },
+            // FIXME(konishchev): Support
+            // VANGUARD TOTAL BOND MARKET ETF Rev NRA W/H AS/OF 12/29/20 LCG
+            // ("MISC", SecurityType::Stock(_symbol)) => {
+            //     // unimplemented!();
+            // },
             ("DIV", SecurityType::Stock(issuer)) => {
                 let amount = util::validate_named_decimal(
                     "dividend amount", self.total, DecimalRestrictions::StrictlyPositive)?;
