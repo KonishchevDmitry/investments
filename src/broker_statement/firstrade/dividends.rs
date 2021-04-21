@@ -3,7 +3,6 @@ use lazy_static::lazy_static;
 use log::warn;
 use regex::Regex;
 
-use crate::broker_statement::Dividend;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::formatting;
@@ -41,12 +40,11 @@ pub fn parse_dividend(
     let paid_tax = amount - income;
     debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
 
-    parser.statement.dividends.push(Dividend {
-        date: date,
-        issuer: issuer.to_owned(),
-        amount: Cash::new(currency, amount),
-        paid_tax: Cash::new(currency, paid_tax),
-    });
+    parser.statement.dividend_accruals(date, issuer, true)
+        .add(date, Cash::new(currency, amount));
+
+    parser.statement.tax_accruals(date, issuer, false)
+        .add(date, Cash::new(currency, paid_tax));
 
     Ok(())
 }

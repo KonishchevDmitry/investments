@@ -97,6 +97,16 @@ impl PartialBrokerStatement {
         Ok(())
     }
 
+    pub fn dividend_accruals(&mut self, date: Date, symbol: &str, strict: bool) -> &mut DividendAccruals {
+        self.dividend_accruals.entry(DividendId::new(date, symbol))
+            .or_insert_with(|| DividendAccruals::new(strict))
+    }
+
+    pub fn tax_accruals(&mut self, date: Date, symbol: &str, strict: bool) -> &mut TaxAccruals {
+        self.tax_accruals.entry(TaxId::new(date, symbol))
+            .or_insert_with(|| TaxAccruals::new(strict))
+    }
+
     pub fn validate(self) -> GenericResult<PartialBrokerStatement> {
         let period = self.get_period()?;
         if period.0 >= period.1 {

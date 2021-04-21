@@ -2,7 +2,6 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -21,10 +20,7 @@ impl RecordParser for DividendsParser {
         let issuer = parse_dividend_description(record.get_value("Description")?)?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
-        let dividend_id = DividendId::new(date, &issuer);
-        let accruals = parser.statement.dividend_accruals.entry(dividend_id)
-            .or_insert_with(|| DividendAccruals::new(true));
-
+        let accruals = parser.statement.dividend_accruals(date, &issuer, true);
         if amount.is_negative() {
             accruals.reverse(date, -amount)
         } else {

@@ -274,31 +274,36 @@ impl IncomeInfo {
                 formatting::format_date(self.info.execution_date));
         }
 
+        let amount = self.total;
+        let description = self.info.memo.as_str();
+
         match (self._type.as_str(), securities.get(&self.security_id)?) {
             ("DIV", SecurityType::Stock(issuer)) => {
                 let amount = util::validate_named_cash(
-                    "dividend amount", currency, self.total,
+                    "dividend amount", currency, amount,
                     DecimalRestrictions::StrictlyPositive)?;
 
                 dividends::parse_dividend(
-                    parser, self.info.conclusion_date, &issuer, amount, &self.info.memo)?;
+                    parser, self.info.conclusion_date, &issuer, amount, description)?;
             },
             ("MISC", SecurityType::Interest) => {
                 let amount = util::validate_named_cash(
-                    "idle cash interest amount", currency, self.total,
+                    "idle cash interest amount", currency, amount,
                     DecimalRestrictions::NonZero)?;
 
                 parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
             },
-            // FIXME(konishchev): Support
             ("MISC", SecurityType::Stock(symbol)) => {
-                if let Some(_date) = dividends::parse_tax_reversal_description(&self.info.memo) {
-                    unimplemented!();
+                if let Some(reversal_date) = dividends::parse_tax_reversal_description(description) {
+                    let amount = util::validate_named_cash(
+                        "tax reversal amount", currency, amount,
+                        DecimalRestrictions::StrictlyPositive)?;
+                    parser.statement.tax_accruals(date, symbol, false).reverse(reversal_date, amount);
                 } else {
-                    return Err!("Got an unsupported income from {}: {:?}", symbol, self.info.memo);
+                    return Err!("Got an unsupported income from {}: {:?}", symbol, description);
                 }
             },
-            _ => return Err!("Got an unsupported income: {:?}", self.info.memo),
+            _ => return Err!("Got an unsupported income: {:?}", description),
         };
 
         Ok(())
