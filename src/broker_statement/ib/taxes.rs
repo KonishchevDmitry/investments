@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::broker_statement::taxes::TaxId;
+use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::{GenericResult, EmptyResult};
 use crate::util::DecimalRestrictions;
 
@@ -41,12 +41,13 @@ impl RecordParser for WithholdingTaxParser {
         // Positive number is used to cancel a previous tax payment and usually followed by another
         // negative number.
         let tax = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
-        let accruals = parser.statement.tax_accruals.entry(tax_id).or_default();
+        let accruals = parser.statement.tax_accruals.entry(tax_id)
+            .or_insert_with(|| TaxAccruals::new(true));
 
         if tax.is_positive() {
-            accruals.reverse(tax);
+            accruals.reverse(date, tax);
         } else {
-            accruals.add(-tax);
+            accruals.add(date, -tax);
         }
 
         Ok(())

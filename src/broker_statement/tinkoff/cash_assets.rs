@@ -8,7 +8,7 @@ use xls_table_derive::XlsTableRow;
 use crate::broker_statement::dividends::DividendId;
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::broker_statement::taxes::TaxId;
+use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
@@ -201,12 +201,18 @@ fn parse_cash_flow(
         "Выплата дивидендов" => {
             let issuer = parse_dividend_description(cash_flow.comment.as_deref().unwrap_or_default())?;
             let dividend_id = DividendId::new(date, issuer);
-            statement.dividend_accruals.entry(dividend_id).or_default().add(check_amount(deposit)?);
+            let amount = check_amount(deposit)?;
+            statement.dividend_accruals.entry(dividend_id)
+                .or_insert_with(|| TaxAccruals::new(true))
+                .add(date, amount);
         },
         "Налог (дивиденды)" => {
             let issuer = parse_dividend_description(cash_flow.comment.as_deref().unwrap_or_default())?;
             let tax_id = TaxId::new(date, issuer);
-            statement.tax_accruals.entry(tax_id).or_default().add(check_amount(withdrawal)?);
+            let amount = check_amount(withdrawal)?;
+            statement.tax_accruals.entry(tax_id)
+                .or_insert_with(|| TaxAccruals::new(true))
+                .add(date, amount);
         },
 
         _ => return Err!("Unsupported cash flow operation: {:?}", operation),
