@@ -1,5 +1,6 @@
 mod balance;
 mod common;
+mod dividends;
 mod open_positions;
 mod parser;
 mod security_info;

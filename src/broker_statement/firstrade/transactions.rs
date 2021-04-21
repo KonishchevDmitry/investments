@@ -1,20 +1,17 @@
-use log::warn;
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Dividend};
+use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
-use crate::localities;
-use crate::taxes::IncomeType;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
 use super::common::{Ignore, deserialize_date, deserialize_decimal, validate_sub_account};
+use super::dividends;
 use super::security_info::{SecurityInfo, SecurityId, SecurityType};
-use chrono::Datelike;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -201,9 +198,9 @@ impl StockTradeTransaction {
             DecimalRestrictions::StrictlyNegative
         })?.abs().normalize();
 
-        let price = util::validate_named_decimal(
-            "price", self.price, DecimalRestrictions::StrictlyPositive)
-            .map(|price| Cash::new(currency, price.normalize()))?;
+        let price = util::validate_named_cash(
+            "price", currency, self.price.normalize(),
+            DecimalRestrictions::StrictlyPositive)?;
 
         let commission = util::validate_named_decimal(
             "commission", self.commission, DecimalRestrictions::PositiveOrZero
@@ -278,58 +275,31 @@ impl IncomeInfo {
         }
 
         match (self._type.as_str(), securities.get(&self.security_id)?) {
-            ("MISC", SecurityType::Interest) => {
-                let amount = util::validate_named_decimal(
-                    "idle cash interest amount", self.total, DecimalRestrictions::NonZero)?;
+            ("DIV", SecurityType::Stock(issuer)) => {
+                let amount = util::validate_named_cash(
+                    "dividend amount", currency, self.total,
+                    DecimalRestrictions::StrictlyPositive)?;
 
-                let interest = IdleCashInterest::new(date, Cash::new(currency, amount));
-                parser.statement.idle_cash_interest.push(interest);
+                dividends::parse_dividend(
+                    parser, self.info.conclusion_date, &issuer, amount, &self.info.memo)?;
+            },
+            ("MISC", SecurityType::Interest) => {
+                let amount = util::validate_named_cash(
+                    "idle cash interest amount", currency, self.total,
+                    DecimalRestrictions::NonZero)?;
+
+                parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
             },
             // FIXME(konishchev): Support
-            // VANGUARD TOTAL BOND MARKET ETF Rev NRA W/H AS/OF 12/29/20 LCG
-            // ("MISC", SecurityType::Stock(_symbol)) => {
-            //     // unimplemented!();
-            // },
-            ("DIV", SecurityType::Stock(issuer)) => {
-                let amount = util::validate_named_decimal(
-                    "dividend amount", self.total, DecimalRestrictions::StrictlyPositive)?;
-                self.parse_dividend(parser, &issuer, Cash::new(currency, amount))?;
+            ("MISC", SecurityType::Stock(symbol)) => {
+                if let Some(_date) = dividends::parse_tax_reversal_description(&self.info.memo) {
+                    unimplemented!();
+                } else {
+                    return Err!("Got an unsupported income from {}: {:?}", symbol, self.info.memo);
+                }
             },
             _ => return Err!("Got an unsupported income: {:?}", self.info.memo),
         };
-
-        Ok(())
-    }
-
-    fn parse_dividend(self, parser: &mut StatementParser, issuer: &str, income: Cash) -> EmptyResult {
-        let date = self.info.conclusion_date;
-        let currency = income.currency;
-        let income = income.amount;
-
-        if parser.reader.warn_on_missing_dividend_details {
-            warn!(concat!(
-                "There are no detailed information for some dividends - it will be deduced ",
-                "approximately. First occurred dividend: {} at {}."
-            ), issuer, formatting::format_date(date));
-
-            parser.reader.warn_on_missing_dividend_details = false;
-        }
-
-        if self.info.memo.ends_with(" NON-QUALIFIED DIVIDEND NON-RES TAX WITHHELD") {
-            return Err!("Got an unexpected dividend description: {:?}", self.info.memo);
-        }
-
-        let foreign_country = localities::us();
-        let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
-        let paid_tax = amount - income;
-        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
-
-        parser.statement.dividends.push(Dividend {
-            date: date,
-            issuer: issuer.to_owned(),
-            amount: Cash::new(currency, amount),
-            paid_tax: Cash::new(currency, paid_tax),
-        });
 
         Ok(())
     }
