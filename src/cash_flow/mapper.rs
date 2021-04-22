@@ -24,6 +24,7 @@ struct CashFlowMapper {
 
 impl CashFlowMapper {
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
+        // FIXME(konishchev): Technical cash flows
         for deposit in &statement.cash_flows {
             self.deposit_or_withdrawal(deposit)
         }
@@ -124,6 +125,7 @@ impl CashFlowMapper {
         let description = format!("Дивиденд от {}", name);
         self.add(dividend.date.into(), Operation::Dividend, dividend.amount, description);
 
+        // FIXME(konishchev): Transactions
         if !dividend.paid_tax.is_zero() {
             let description = format!("Налог, удержанный с дивиденда от {}", name);
             self.add(dividend.date.into(), Operation::Dividend, -dividend.paid_tax, description);

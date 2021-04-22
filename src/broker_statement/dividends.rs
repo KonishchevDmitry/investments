@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::GenericResult;
-use crate::currency::Cash;
+use crate::currency::{Cash, CashAssets};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
@@ -18,6 +18,7 @@ pub struct Dividend {
     pub issuer: String,
     pub amount: Cash,
     pub paid_tax: Cash,
+    pub tax_transactions: Vec<CashAssets>,
 }
 
 impl Dividend {
@@ -56,7 +57,7 @@ pub fn process_dividend_accruals(
 ) -> GenericResult<Option<Dividend>> {
     let tax_id = TaxId::new(dividend.date, &dividend.issuer);
     // FIXME(konishchev): Support
-    let (paid_tax, _) = taxes.remove(&tax_id).map_or_else(|| Ok((None, Vec::new())), |tax_accruals| {
+    let (paid_tax, tax_transactions) = taxes.remove(&tax_id).map_or_else(|| Ok((None, Vec::new())), |tax_accruals| {
         tax_accruals.get_result().map_err(|e| format!(
             "Failed to process {} tax from {}: {}",
             tax_id.issuer, formatting::format_date(tax_id.date), e))
@@ -81,7 +82,8 @@ pub fn process_dividend_accruals(
     Ok(Some(Dividend {
         date: dividend.date,
         issuer: dividend.issuer,
-        amount: amount,
+        amount,
         paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
+        tax_transactions,
     }))
 }

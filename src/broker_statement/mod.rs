@@ -193,6 +193,7 @@ impl BrokerStatement {
             historical_cash_assets: BTreeMap::new(),
 
             fees: Vec::new(),
+            // FIXME(konishchev): Technical cash flows
             cash_flows: Vec::new(),
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),
@@ -466,6 +467,7 @@ impl BrokerStatement {
         }
 
         self.fees.extend(statement.fees.into_iter());
+        // FIXME(konishchev): Technical cash flows
         self.cash_flows.extend(statement.cash_flows.into_iter());
         self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
         self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
@@ -529,6 +531,7 @@ impl BrokerStatement {
     fn validate(&mut self) -> EmptyResult {
         let date_validator = self.date_validator();
 
+        // FIXME(konishchev): Technical cash flows
         date_validator.sort_and_validate(
             "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
