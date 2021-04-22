@@ -1,3 +1,4 @@
+mod cash_flows;
 mod corporate_actions;
 mod dividends;
 mod fees;
@@ -20,7 +21,7 @@ mod tinkoff;
 use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::collections::hash_map::Entry;
 
-use log::{debug, warn};
+use log::warn;
 use num_traits::Zero;
 
 use crate::brokers::{BrokerInfo, Broker};
@@ -42,6 +43,7 @@ use self::reader::BrokerStatementReader;
 use self::taxes::{TaxId, TaxAccruals};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
+pub use self::cash_flows::TechnicalCashFlow;
 pub use self::corporate_actions::{
     CorporateAction, CorporateActionType, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
@@ -53,7 +55,6 @@ pub use self::trades::{
     ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, StockSourceDetails,
     SellDetails, FifoDetails};
 
-#[derive(Debug)]
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: (Date, Date),
@@ -65,6 +66,7 @@ pub struct BrokerStatement {
     pub cash_flows: Vec<CashAssets>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
     pub tax_agent_withholdings: Vec<TaxWithholding>,
+    pub technical_cash_flows: Vec<TechnicalCashFlow>,
 
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
@@ -84,19 +86,7 @@ impl BrokerStatement {
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
         tax_remapping: TaxRemapping, corporate_actions: &[CorporateAction], strict_mode: bool,
     ) -> GenericResult<BrokerStatement> {
-        let statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strict_mode)?;
-
-        let joint_statement = BrokerStatement::new_from(
-            broker, statements, symbol_remapping, instrument_names, corporate_actions)?;
-        debug!("{:#?}", joint_statement);
-        Ok(joint_statement)
-    }
-
-    fn new_from(
-        broker: BrokerInfo, mut statements: Vec<PartialBrokerStatement>,
-        symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
-        manual_corporate_actions: &[CorporateAction],
-    ) -> GenericResult<BrokerStatement> {
+        let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strict_mode)?;
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
         let last_index = statements.len() - 1;
 
@@ -122,9 +112,14 @@ impl BrokerStatement {
         }
 
         for (dividend_id, accruals) in dividend_accruals {
-            if let Some(dividend) = process_dividend_accruals(dividend_id, accruals, &mut tax_accruals)? {
+            let (dividend, cash_flows) = process_dividend_accruals(
+                dividend_id, accruals, &mut tax_accruals)?;
+
+            if let Some(dividend) = dividend {
                 statement.dividends.push(dividend);
             }
+
+            statement.technical_cash_flows.extend(cash_flows.into_iter());
         }
 
         if !tax_accruals.is_empty() {
@@ -152,7 +147,7 @@ impl BrokerStatement {
             .map(|trade| &trade.symbol)
             .collect();
 
-        for corporate_action in manual_corporate_actions {
+        for corporate_action in corporate_actions {
             if portfolio_symbols.get(&corporate_action.symbol).is_none() {
                 return Err!(
                     "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
@@ -193,10 +188,10 @@ impl BrokerStatement {
             historical_cash_assets: BTreeMap::new(),
 
             fees: Vec::new(),
-            // FIXME(konishchev): Technical cash flows
             cash_flows: Vec::new(),
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),
+            technical_cash_flows: Vec::new(),
 
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),
@@ -467,7 +462,6 @@ impl BrokerStatement {
         }
 
         self.fees.extend(statement.fees.into_iter());
-        // FIXME(konishchev): Technical cash flows
         self.cash_flows.extend(statement.cash_flows.into_iter());
         self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
         self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
@@ -531,7 +525,6 @@ impl BrokerStatement {
     fn validate(&mut self) -> EmptyResult {
         let date_validator = self.date_validator();
 
-        // FIXME(konishchev): Technical cash flows
         date_validator.sort_and_validate(
             "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
@@ -544,6 +537,9 @@ impl BrokerStatement {
         date_validator.sort_and_validate(
             "a tax agent withholding", &mut self.tax_agent_withholdings,
             |withholding| withholding.date)?;
+
+        date_validator.sort_and_validate(
+            "a cash flow", &mut self.technical_cash_flows, |cash_flow| cash_flow.date)?;
 
         date_validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_time)?;
