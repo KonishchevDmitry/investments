@@ -2,59 +2,59 @@ use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::time::Date;
 
-/// Calculates result amount from a series of payments and reversals. Doesn't require payments and
-/// reversals to be in order because Interactive Brokers' statement doesn't guarantee the order.
+/// Calculates result amount from a series of payments and reversals.
 pub struct Payments {
     strict: bool,
-    payments: Vec<CashAssets>,
-    reversals: Vec<CashAssets>,
+    transactions: Vec<CashAssets>,
 }
 
 impl Payments {
     pub fn new(strict: bool) -> Payments {
         Payments {
             strict: strict,
-            payments: Vec::new(),
-            reversals: Vec::new(),
+            transactions: Vec::new(),
         }
     }
 
     pub fn add(&mut self, date: Date, amount: Cash) {
         assert!(amount.is_positive());
-        self.payments.push(CashAssets::new_from_cash(date, amount));
+        self.transactions.push(CashAssets::new_from_cash(date, amount));
     }
 
     pub fn reverse(&mut self, date: Date, amount: Cash) {
         assert!(amount.is_positive());
-        self.reversals.push(CashAssets::new_from_cash(date, amount));
+        self.transactions.push(CashAssets::new_from_cash(date, -amount));
     }
 
     pub fn merge(&mut self, other: &Payments) {
-        for &payment in &other.payments {
-            self.add(payment.date, payment.cash);
-        }
-
-        for &reversal in &other.reversals {
-            self.reverse(reversal.date, reversal.cash);
-        }
+        assert_eq!(self.strict, other.strict);
+        self.transactions.extend(other.transactions.iter());
     }
 
-    // FIXME(konishchev): Return all payments
-    pub fn get_result(self) -> GenericResult<Option<Cash>> {
-        let Payments { strict, mut payments, reversals } = self;
+    pub fn get_result(self) -> GenericResult<(Option<Cash>, Vec<CashAssets>)> {
+        let Payments { strict, mut transactions } = self;
+        transactions.sort_by_key(|transaction| transaction.date);
 
         if strict {
+            // Don't require payments and reversals to be in order because Interactive Brokers
+            // statement doesn't guarantee it.
+
+            let (mut payments, reversals) = transactions.iter().cloned().partition::<Vec<_>, _>(|transaction| {
+                transaction.cash.is_positive()
+            });
+
             for reversal in reversals {
+                let reversal = -reversal.cash;
                 let index = payments.iter()
-                    .position(|&payment| payment.cash == reversal.cash)
-                    .ok_or_else(|| format!("Unexpected reversal: {}", reversal.cash))?;
+                    .position(|&payment| payment.cash == reversal)
+                    .ok_or_else(|| format!("Unexpected reversal: {}", reversal))?;
 
                 payments.remove(index);
             }
 
             let mut result = match payments.pop() {
                 Some(payment) => payment.cash,
-                None => return Ok(None),
+                None => return Ok((None, transactions)),
             };
 
             for payment in payments {
@@ -63,12 +63,12 @@ impl Payments {
                     "Mixed currency: {} and {}", result.currency, amount.currency))?;
             }
 
-            Ok(Some(result))
+            Ok((Some(result), transactions))
         } else {
             let mut result: Option<Cash> = None;
 
-            for payment in payments {
-                let amount = payment.cash;
+            for transaction in &transactions {
+                let amount = transaction.cash;
 
                 match result.as_mut() {
                     None => {
@@ -81,24 +81,15 @@ impl Payments {
                 };
             }
 
-            for reversal in reversals {
-                let amount = reversal.cash;
-                let result = result.as_mut().ok_or_else(|| format!(
-                    "Unexpected reversal: {}", amount))?;
-
-                result.sub_assign(amount).map_err(|_| format!(
-                    "Mixed currency: {} and {}", result.currency, amount.currency))?;
-            }
-
             if let Some(result) = result {
                 if result.is_zero() {
-                    return Ok(None);
+                    return Ok((None, transactions));
                 } else if result.is_negative() {
                     return Err!("Got a negative result: {}", result);
                 }
             }
 
-            Ok(result)
+            Ok((result, transactions))
         }
     }
 }

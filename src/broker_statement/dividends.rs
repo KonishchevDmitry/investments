@@ -55,7 +55,8 @@ pub fn process_dividend_accruals(
     dividend: DividendId, accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>
 ) -> GenericResult<Option<Dividend>> {
     let tax_id = TaxId::new(dividend.date, &dividend.issuer);
-    let paid_tax = taxes.remove(&tax_id).map_or(Ok(None), |tax_accruals| {
+    // FIXME(konishchev): Support
+    let (paid_tax, _) = taxes.remove(&tax_id).map_or_else(|| Ok((None, Vec::new())), |tax_accruals| {
         tax_accruals.get_result().map_err(|e| format!(
             "Failed to process {} tax from {}: {}",
             tax_id.issuer, formatting::format_date(tax_id.date), e))
@@ -65,8 +66,9 @@ pub fn process_dividend_accruals(
         "Failed to process {} dividend from {}: {}",
         dividend.issuer, formatting::format_date(dividend.date), e
     ))? {
-        Some(amount) => amount,
-        None => {
+        // FIXME(konishchev): Support
+        (Some(amount), _) => amount,
+        (None, _) => {
             if paid_tax.is_some() {
                 return Err!("Got paid tax for reversed {} dividend from {}",
                             dividend.issuer, formatting::format_date(dividend.date));
