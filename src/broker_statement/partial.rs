@@ -18,7 +18,7 @@ pub struct PartialBrokerStatement {
     pub period: Option<(Date, Date)>,
 
     pub starting_assets: Option<bool>,
-    pub cash_flows: Vec<CashAssets>,
+    pub deposits_and_withdrawals: Vec<CashAssets>,
     pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
     pub tax_agent_withholdings: Vec<TaxWithholding>,
@@ -45,7 +45,7 @@ impl PartialBrokerStatement {
             period: None,
 
             starting_assets: None,
-            cash_flows: Vec::new(),
+            deposits_and_withdrawals: Vec::new(),
             fees: Vec::new(),
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),

@@ -181,10 +181,12 @@ fn parse_cash_flow(
 
     match operation.as_str() {
         "Пополнение счета" => {
-            statement.cash_flows.push(CashAssets::new_from_cash(date, check_amount(deposit)?));
+            statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
+                date, check_amount(deposit)?));
         },
         "Вывод средств" => {
-            statement.cash_flows.push(CashAssets::new_from_cash(date, -check_amount(withdrawal)?));
+            statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
+                date, -check_amount(withdrawal)?));
         },
 
         "Покупка/продажа" | "Комиссия за сделки" => {},

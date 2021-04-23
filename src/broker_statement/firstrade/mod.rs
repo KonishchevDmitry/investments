@@ -88,8 +88,8 @@ mod tests {
             broker, "testdata/firstrade/my",
             &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap();
 
-        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
+        assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(statement.fees.is_empty());
         assert!(!statement.idle_cash_interest.is_empty());

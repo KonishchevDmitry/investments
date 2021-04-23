@@ -47,7 +47,7 @@ impl RecordParser for DepositsAndWithdrawalsParser {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Settle Date")?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
-        parser.statement.cash_flows.push(CashAssets::new_from_cash(date, amount));
+        parser.statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(date, amount));
         Ok(())
     }
 }

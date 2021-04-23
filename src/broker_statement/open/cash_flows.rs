@@ -42,7 +42,7 @@ impl CashFlows {
                         "deposit or withdrawal amount", amount,
                         DecimalRestrictions::NonZero)?;
 
-                    statement.cash_flows.push(CashAssets::new_from_cash(
+                    statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
                         date, Cash::new(currency, amount)));
                 },
 

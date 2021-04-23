@@ -1,15 +1,21 @@
 use crate::currency::Cash;
-use crate::time::Date;
+use crate::time::DateOptTime;
 
-// Provides detailed information about actual cash flows on account including reversal operations.
-// Used to be able to calculate cash balance for specific point of time.
-pub struct TechnicalCashFlow {
-    pub date: Date,
+// Represents actual cash flows on account including reversal operations. Used to be able to
+// calculate cash balance for specific point of time.
+pub struct CashFlow {
+    pub date: DateOptTime,
     pub amount: Cash,
-    pub type_: TechnicalCashFlowType,
+    pub type_: CashFlowType,
 }
 
-pub enum TechnicalCashFlowType {
+pub enum CashFlowType {
     Dividend {issuer: String},
-    Tax {symbol: String},
+    Tax {issuer: String},
+}
+
+impl CashFlow {
+    pub fn new(date: DateOptTime, amount: Cash, type_: CashFlowType) -> CashFlow {
+        CashFlow {date, amount, type_}
+    }
 }

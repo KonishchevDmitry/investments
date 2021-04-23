@@ -60,8 +60,8 @@ mod tests {
         let statement = BrokerStatement::read(
             broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap();
 
-        assert!(!statement.cash_flows.is_empty());
         assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
+        assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert_eq!(statement.fees.is_empty(), name == "my");
         assert!(statement.idle_cash_interest.is_empty());

@@ -43,7 +43,7 @@ use self::reader::BrokerStatementReader;
 use self::taxes::{TaxId, TaxAccruals};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
-pub use self::cash_flows::TechnicalCashFlow;
+pub use self::cash_flows::{CashFlow, CashFlowType};
 pub use self::corporate_actions::{
     CorporateAction, CorporateActionType, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
@@ -63,10 +63,10 @@ pub struct BrokerStatement {
     pub historical_cash_assets: BTreeMap<Date, MultiCurrencyCashAccount>,
 
     pub fees: Vec<Fee>,
-    pub cash_flows: Vec<CashAssets>,
+    pub cash_flows: Vec<CashFlow>,
+    pub deposits_and_withdrawals: Vec<CashAssets>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
     pub tax_agent_withholdings: Vec<TaxWithholding>,
-    pub technical_cash_flows: Vec<TechnicalCashFlow>,
 
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
@@ -113,13 +113,14 @@ impl BrokerStatement {
 
         for (dividend_id, accruals) in dividend_accruals {
             let (dividend, cash_flows) = process_dividend_accruals(
-                dividend_id, accruals, &mut tax_accruals)?;
+                dividend_id, accruals, &mut tax_accruals,
+                statement.broker.type_ == Broker::Firstrade)?;
 
             if let Some(dividend) = dividend {
                 statement.dividends.push(dividend);
             }
 
-            statement.technical_cash_flows.extend(cash_flows.into_iter());
+            statement.cash_flows.extend(cash_flows.into_iter());
         }
 
         if !tax_accruals.is_empty() {
@@ -189,9 +190,9 @@ impl BrokerStatement {
 
             fees: Vec::new(),
             cash_flows: Vec::new(),
+            deposits_and_withdrawals: Vec::new(),
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),
-            technical_cash_flows: Vec::new(),
 
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),
@@ -462,7 +463,7 @@ impl BrokerStatement {
         }
 
         self.fees.extend(statement.fees.into_iter());
-        self.cash_flows.extend(statement.cash_flows.into_iter());
+        self.deposits_and_withdrawals.extend(statement.deposits_and_withdrawals.into_iter());
         self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
         self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
 
@@ -525,8 +526,9 @@ impl BrokerStatement {
     fn validate(&mut self) -> EmptyResult {
         let date_validator = self.date_validator();
 
+        // FIXME(konishchev): HERE
         date_validator.sort_and_validate(
-            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
+            "a cash flow", &mut self.deposits_and_withdrawals, |cash_flow| cash_flow.date)?;
 
         self.sort_and_alter_fees(date_validator.max_date);
         date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
@@ -538,8 +540,9 @@ impl BrokerStatement {
             "a tax agent withholding", &mut self.tax_agent_withholdings,
             |withholding| withholding.date)?;
 
+        // FIXME(konishchev): Sort by issuer
         date_validator.sort_and_validate(
-            "a cash flow", &mut self.technical_cash_flows, |cash_flow| cash_flow.date)?;
+            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
         date_validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_time)?;

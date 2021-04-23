@@ -241,20 +241,20 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_deposits_and_withdrawals(&mut self, statement: &BrokerStatement) -> EmptyResult {
-        for mut cash_flow in statement.cash_flows.iter().cloned() {
-            if cash_flow.cash.is_positive() {
-                cash_flow.cash.amount += statement.broker.get_deposit_commission(cash_flow)?;
+        for mut assets in statement.deposits_and_withdrawals.iter().cloned() {
+            if assets.cash.is_positive() {
+                assets.cash.amount += statement.broker.get_deposit_commission(assets)?;
             }
 
-            let amount = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.currency)?;
+            let amount = self.converter.convert_to(assets.date, assets.cash, self.currency)?;
 
             trace!("* {} {}: {}", if amount.is_sign_positive() {
                 "Deposit"
             } else {
                 "Withdrawal"
-            }, formatting::format_date(cash_flow.date), amount.normalize());
+            }, formatting::format_date(assets.date), amount.normalize());
 
-            self.transaction(cash_flow.date, amount);
+            self.transaction(assets.date, amount);
         }
 
         Ok(())

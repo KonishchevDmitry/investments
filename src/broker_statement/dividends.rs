@@ -10,7 +10,7 @@ use crate::localities::Country;
 use crate::taxes::IncomeType;
 use crate::types::{Date, Decimal};
 
-use super::cash_flows::{TechnicalCashFlow, TechnicalCashFlowType};
+use super::cash_flows::{CashFlow, CashFlowType};
 use super::payments::Payments;
 use super::taxes::{TaxId, TaxAccruals};
 
@@ -55,9 +55,15 @@ impl DividendId {
 pub type DividendAccruals = Payments;
 
 pub fn process_dividend_accruals(
-    dividend: DividendId, accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>
-) -> GenericResult<(Option<Dividend>, Vec<TechnicalCashFlow>)> {
+    dividend: DividendId, accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>,
+    cash_flow_details: bool,
+) -> GenericResult<(Option<Dividend>, Vec<CashFlow>)> {
     let mut cash_flows = Vec::new();
+
+    let (amount, dividend_transactions) = accruals.get_result().map_err(|e| format!(
+        "Failed to process {} dividend from {}: {}",
+        dividend.issuer, formatting::format_date(dividend.date), e
+    ))?;
 
     let tax_id = TaxId::new(dividend.date, &dividend.issuer);
     let (paid_tax, tax_transactions) = taxes.remove(&tax_id).map_or_else(|| Ok((None, Vec::new())), |tax_accruals| {
@@ -66,25 +72,22 @@ pub fn process_dividend_accruals(
             tax_id.issuer, formatting::format_date(tax_id.date), e))
     })?;
 
-    for transaction in tax_transactions {
-        cash_flows.push(TechnicalCashFlow {
-            date: transaction.date,
-            amount: -transaction.cash,
-            type_: TechnicalCashFlowType::Tax {symbol: dividend.issuer.clone()},
-        })
-    }
+    if cash_flow_details {
+        for transaction in dividend_transactions {
+            cash_flows.push(CashFlow {
+                date: transaction.date.into(),
+                amount: transaction.cash,
+                type_: CashFlowType::Dividend {issuer: dividend.issuer.clone()},
+            })
+        }
 
-    let (amount, dividend_transactions) = accruals.get_result().map_err(|e| format!(
-        "Failed to process {} dividend from {}: {}",
-        dividend.issuer, formatting::format_date(dividend.date), e
-    ))?;
-
-    for transaction in dividend_transactions {
-        cash_flows.push(TechnicalCashFlow {
-            date: transaction.date,
-            amount: transaction.cash,
-            type_: TechnicalCashFlowType::Dividend {issuer: dividend.issuer.clone()},
-        })
+        for transaction in tax_transactions {
+            cash_flows.push(CashFlow {
+                date: transaction.date.into(),
+                amount: -transaction.cash,
+                type_: CashFlowType::Tax {issuer: dividend.issuer.clone()},
+            })
+        }
     }
 
     let dividend = match amount {
@@ -93,7 +96,7 @@ pub fn process_dividend_accruals(
             issuer: dividend.issuer,
             amount: amount,
             paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
-            skip_from_cash_flow: true,
+            skip_from_cash_flow: cash_flow_details,
         }),
         None => {
             if paid_tax.is_some() {

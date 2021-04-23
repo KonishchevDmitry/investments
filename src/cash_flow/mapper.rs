@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
-    IdleCashInterest, TaxWithholding};
+    IdleCashInterest, TaxWithholding, CashFlow as CashFlowDetails, CashFlowType};
 use crate::currency::{Cash, CashAssets};
 use crate::time::DateOptTime;
 
@@ -24,9 +24,8 @@ struct CashFlowMapper {
 
 impl CashFlowMapper {
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
-        // FIXME(konishchev): Technical cash flows
-        for deposit in &statement.cash_flows {
-            self.deposit_or_withdrawal(deposit)
+        for assets in &statement.deposits_and_withdrawals {
+            self.deposit_or_withdrawal(assets)
         }
 
         for interest in &statement.idle_cash_interest {
@@ -34,7 +33,11 @@ impl CashFlowMapper {
         }
 
         for dividend in &statement.dividends {
-            self.dividend(&statement.get_instrument_name(&dividend.issuer), dividend);
+            self.dividend(statement, dividend);
+        }
+
+        for cash_flow in &statement.cash_flows {
+            self.cash_flow(statement, cash_flow);
         }
 
         for trade in &statement.forex_trades {
@@ -121,15 +124,45 @@ impl CashFlowMapper {
         }
     }
 
-    fn dividend(&mut self, name: &str, dividend: &Dividend) {
-        let description = format!("Дивиденд от {}", name);
-        self.add(dividend.date.into(), Operation::Dividend, dividend.amount, description);
+    fn dividend(&mut self, statement: &BrokerStatement, dividend: &Dividend) {
+        if dividend.skip_from_cash_flow {
+            return
+        }
 
-        // FIXME(konishchev): Transactions
+        let date = dividend.date.into();
+        let issuer = &dividend.issuer;
+
+        self.cash_flow(statement, &CashFlowDetails::new(
+            date, dividend.amount, CashFlowType::Dividend {issuer: issuer.clone()}));
+
         if !dividend.paid_tax.is_zero() {
-            let description = format!("Налог, удержанный с дивиденда от {}", name);
-            self.add(dividend.date.into(), Operation::Dividend, -dividend.paid_tax, description);
+            self.cash_flow(statement, &CashFlowDetails::new(
+                date, -dividend.paid_tax, CashFlowType::Tax {issuer: issuer.clone()}));
         };
+    }
+
+    fn cash_flow(&mut self, statement: &BrokerStatement, cash_flow: &CashFlowDetails) {
+        let date = cash_flow.date;
+        let amount = cash_flow.amount;
+
+        match cash_flow.type_ {
+            CashFlowType::Dividend {ref issuer} => {
+                let name = statement.get_instrument_name(&issuer);
+                self.add(date, Operation::Dividend, amount, if amount.is_positive() {
+                    format!("Дивиденд от {}", name)
+                } else {
+                    format!("Возврат дивиденда от {}", name)
+                });
+            },
+            CashFlowType::Tax {ref issuer} => {
+                let name = statement.get_instrument_name(&issuer);
+                self.add(date, Operation::Dividend, amount, if amount.is_positive() {
+                    format!("Возврат налога, удержанного с дивиденда от {}", name)
+                } else {
+                    format!("Налог, удержанный с дивиденда от {}", name)
+                });
+            },
+        }
     }
 
     fn tax_agent_withholding(&mut self, withholding: &TaxWithholding) {

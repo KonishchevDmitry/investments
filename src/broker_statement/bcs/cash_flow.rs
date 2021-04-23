@@ -43,7 +43,8 @@ impl CashFlowParser {
         match operation {
             "Приход ДС" => {
                 deposit_restrictions = DecimalRestrictions::StrictlyPositive;
-                parser.statement.cash_flows.push(CashAssets::new(date, currency, cash_flow.deposit));
+                parser.statement.deposits_and_withdrawals.push(CashAssets::new(
+                    date, currency, cash_flow.deposit));
             },
             "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
                 deposit_restrictions = DecimalRestrictions::PositiveOrZero;

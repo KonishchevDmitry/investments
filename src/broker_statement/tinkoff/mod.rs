@@ -124,8 +124,8 @@ mod tests {
     fn parse_real() {
         let statement = parse("my");
 
-        assert!(!statement.cash_flows.is_empty());
         assert!(!statement.cash_assets.is_empty());
+        assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());

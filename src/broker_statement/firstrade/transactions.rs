@@ -126,7 +126,8 @@ impl CashFlowInfo {
 
         let amount = util::validate_named_decimal(
             "transaction amount", transaction.amount, DecimalRestrictions::StrictlyPositive)?;
-        parser.statement.cash_flows.push(CashAssets::new(transaction.date, currency, amount));
+        parser.statement.deposits_and_withdrawals.push(CashAssets::new(
+            transaction.date, currency, amount));
 
         Ok(())
     }
