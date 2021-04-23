@@ -444,6 +444,14 @@ impl BrokerStatement {
             }
         }
 
+        for cash_flow in &mut self.cash_flows {
+            if let Some(symbol) = cash_flow.mut_symbol() {
+                if let Some(&mapping) = symbol_mapping.get(symbol) {
+                    *symbol = mapping.clone();
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -514,6 +522,14 @@ impl BrokerStatement {
             }
         }
 
+        for cash_flow in &mut self.cash_flows {
+            if let Some(symbol) = cash_flow.mut_symbol() {
+                if let Some(mapping) = remapping.get(symbol) {
+                    *symbol = mapping.to_owned();
+                }
+            }
+        }
+
         for corporate_action in &mut self.corporate_actions {
             if let Some(mapping) = remapping.get(&corporate_action.symbol) {
                 corporate_action.symbol = mapping.to_owned();
@@ -526,12 +542,15 @@ impl BrokerStatement {
     fn validate(&mut self) -> EmptyResult {
         let date_validator = self.date_validator();
 
-        // FIXME(konishchev): HERE
         date_validator.sort_and_validate(
-            "a cash flow", &mut self.deposits_and_withdrawals, |cash_flow| cash_flow.date)?;
+            "a deposit of withdrawal", &mut self.deposits_and_withdrawals, |cash_flow| cash_flow.date)?;
 
         self.sort_and_alter_fees(date_validator.max_date);
         date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
+
+        self.cash_flows.sort_by(|a, b| (a.date, a.symbol()).cmp(&(b.date, b.symbol())));
+        date_validator.sort_and_validate(
+            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
         date_validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
@@ -539,10 +558,6 @@ impl BrokerStatement {
         date_validator.sort_and_validate(
             "a tax agent withholding", &mut self.tax_agent_withholdings,
             |withholding| withholding.date)?;
-
-        // FIXME(konishchev): Sort by issuer
-        date_validator.sort_and_validate(
-            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
 
         date_validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_time)?;

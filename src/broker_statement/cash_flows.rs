@@ -18,4 +18,18 @@ impl CashFlow {
     pub fn new(date: DateOptTime, amount: Cash, type_: CashFlowType) -> CashFlow {
         CashFlow {date, amount, type_}
     }
+
+    pub fn symbol(&self) -> Option<&str> {
+        Some(match self.type_ {
+            CashFlowType::Dividend {ref issuer} => &issuer,
+            CashFlowType::Tax {ref issuer} => &issuer,
+        })
+    }
+
+    pub fn mut_symbol(&mut self) -> Option<&mut String> {
+        Some(match self.type_ {
+            CashFlowType::Dividend {ref mut issuer} => issuer,
+            CashFlowType::Tax {ref mut issuer} => issuer,
+        })
+    }
 }
