@@ -69,19 +69,8 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
     let mut round_value = match method {
         RoundingMethod::Round => value.round_dp_with_strategy(
             points, RoundingStrategy::MidpointAwayFromZero),
-
-        RoundingMethod::Truncate => {
-            let mut value = value;
-            let scale = value.scale();
-
-            if scale > points {
-                value.set_scale(scale - points).unwrap();
-                value = value.trunc();
-                value.set_scale(points).unwrap();
-            }
-
-            value
-        },
+        RoundingMethod::Truncate => value.round_dp_with_strategy(
+            points, RoundingStrategy::ToZero),
     };
 
     if round_value.is_zero() && round_value.is_sign_negative() {
