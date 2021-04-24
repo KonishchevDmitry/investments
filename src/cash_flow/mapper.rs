@@ -4,6 +4,7 @@ use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
     IdleCashInterest, TaxWithholding, CashFlow as CashFlowDetails, CashFlowType};
 use crate::currency::{Cash, CashAssets};
+use crate::formatting;
 use crate::time::DateOptTime;
 
 pub struct CashFlow {
@@ -132,12 +133,16 @@ impl CashFlowMapper {
         let date = dividend.date.into();
         let issuer = &dividend.issuer;
 
-        self.cash_flow(statement, &CashFlowDetails::new(
-            date, dividend.amount, CashFlowType::Dividend {issuer: issuer.clone()}));
+        self.cash_flow(statement, &CashFlowDetails::new(date, dividend.amount, CashFlowType::Dividend {
+            date: dividend.date,
+            issuer: issuer.clone(),
+        }));
 
         if !dividend.paid_tax.is_zero() {
-            self.cash_flow(statement, &CashFlowDetails::new(
-                date, -dividend.paid_tax, CashFlowType::Tax {issuer: issuer.clone()}));
+            self.cash_flow(statement, &CashFlowDetails::new(date, -dividend.paid_tax, CashFlowType::Tax {
+                date: dividend.date,
+                issuer: issuer.clone(),
+            }));
         };
     }
 
@@ -146,20 +151,28 @@ impl CashFlowMapper {
         let amount = cash_flow.amount;
 
         match cash_flow.type_ {
-            CashFlowType::Dividend {ref issuer} => {
-                let name = statement.get_instrument_name(&issuer);
+            CashFlowType::Dividend {date: dividend_date, ref issuer} => {
+                let mut description = statement.get_instrument_name(&issuer);
+                if date.date != dividend_date {
+                    description += &format!(" ({})", formatting::format_date(dividend_date));
+                };
+
                 self.add(date, Operation::Dividend, amount, if amount.is_positive() {
-                    format!("Дивиденд от {}", name)
+                    format!("Дивиденд от {}", description)
                 } else {
-                    format!("Возврат дивиденда от {}", name)
+                    format!("Возврат дивиденда от {}", description)
                 });
             },
-            CashFlowType::Tax {ref issuer} => {
-                let name = statement.get_instrument_name(&issuer);
+            CashFlowType::Tax {date: dividend_date, ref issuer, ..} => {
+                let mut description = statement.get_instrument_name(&issuer);
+                if date.date != dividend_date {
+                    description += &format!(" ({})", formatting::format_date(dividend_date));
+                };
+
                 self.add(date, Operation::Dividend, amount, if amount.is_positive() {
-                    format!("Возврат налога, удержанного с дивиденда от {}", name)
+                    format!("Возврат налога, удержанного с дивиденда от {}", description)
                 } else {
-                    format!("Налог, удержанный с дивиденда от {}", name)
+                    format!("Налог, удержанный с дивиденда от {}", description)
                 });
             },
         }

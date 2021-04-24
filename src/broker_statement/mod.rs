@@ -548,9 +548,8 @@ impl BrokerStatement {
         self.sort_and_alter_fees(date_validator.max_date);
         date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
-        self.cash_flows.sort_by(|a, b| (a.date, a.symbol()).cmp(&(b.date, b.symbol())));
-        date_validator.sort_and_validate(
-            "a cash flow", &mut self.cash_flows, |cash_flow| cash_flow.date)?;
+        self.cash_flows.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
+        date_validator.validate("a cash flow", &self.cash_flows, |cash_flow| cash_flow.date)?;
 
         date_validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;

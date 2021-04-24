@@ -5,7 +5,6 @@ use regex::Regex;
 
 use crate::core::EmptyResult;
 use crate::currency::Cash;
-use crate::formatting;
 use crate::localities;
 use crate::taxes::IncomeType;
 use crate::types::Date;
@@ -20,12 +19,10 @@ pub fn parse_dividend(
     let income = income.amount;
 
     if parser.reader.warn_on_missing_dividend_details {
-        // FIXME(konishchev): Change warning
         warn!(concat!(
-            "There are no detailed information for some dividends - it will be deduced ",
-            "approximately. First occurred dividend: {} at {}."
-        ), issuer, formatting::format_date(date));
-
+            "Firstrade statements don't provide information about real dividend amount, so it ",
+            "will be deduced from paid amount and expected tax rate.",
+        ));
         parser.reader.warn_on_missing_dividend_details = false;
     }
 

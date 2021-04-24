@@ -295,11 +295,11 @@ impl IncomeInfo {
                 parser.statement.idle_cash_interest.push(IdleCashInterest::new(date, amount));
             },
             ("MISC", SecurityType::Stock(symbol)) => {
-                if let Some(reversal_date) = dividends::parse_tax_reversal_description(description) {
+                if let Some(tax_date) = dividends::parse_tax_reversal_description(description) {
                     let amount = util::validate_named_cash(
                         "tax reversal amount", currency, amount,
                         DecimalRestrictions::StrictlyPositive)?;
-                    parser.statement.tax_accruals(date, symbol, false).reverse(reversal_date, amount);
+                    parser.statement.tax_accruals(tax_date, symbol, false).reverse(date, amount);
                 } else {
                     return Err!("Got an unsupported income from {}: {:?}", symbol, description);
                 }

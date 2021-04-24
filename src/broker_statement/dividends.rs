@@ -77,7 +77,10 @@ pub fn process_dividend_accruals(
             cash_flows.push(CashFlow {
                 date: transaction.date.into(),
                 amount: transaction.cash,
-                type_: CashFlowType::Dividend {issuer: dividend.issuer.clone()},
+                type_: CashFlowType::Dividend {
+                    date: dividend.date,
+                    issuer: dividend.issuer.clone(),
+                },
             })
         }
 
@@ -85,7 +88,10 @@ pub fn process_dividend_accruals(
             cash_flows.push(CashFlow {
                 date: transaction.date.into(),
                 amount: -transaction.cash,
-                type_: CashFlowType::Tax {issuer: dividend.issuer.clone()},
+                type_: CashFlowType::Tax {
+                    date: dividend.date,
+                    issuer: dividend.issuer.clone(),
+                },
             })
         }
     }
