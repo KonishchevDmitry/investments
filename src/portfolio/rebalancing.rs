@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use log::{self, log_enabled, debug};
-use num_traits::{ToPrimitive, Zero};
+use num_traits::ToPrimitive;
 
 use crate::brokers::BrokerInfo;
 use crate::commissions::CommissionCalc;

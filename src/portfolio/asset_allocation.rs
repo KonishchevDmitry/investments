@@ -1,7 +1,5 @@
 use std::collections::{HashSet, HashMap};
 
-use num_traits::Zero;
-
 use crate::brokers::BrokerInfo;
 use crate::config::{Config, PortfolioConfig, AssetAllocationConfig};
 use crate::core::{EmptyResult, GenericResult};

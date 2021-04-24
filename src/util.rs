@@ -3,7 +3,6 @@ use std::ops::Neg;
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
-use num_traits::Zero;
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
 
@@ -68,7 +67,9 @@ pub enum RoundingMethod {
 
 pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decimal {
     let mut round_value = match method {
-        RoundingMethod::Round => value.round_dp_with_strategy(points, RoundingStrategy::RoundHalfUp),
+        RoundingMethod::Round => value.round_dp_with_strategy(
+            points, RoundingStrategy::MidpointAwayFromZero),
+
         RoundingMethod::Truncate => {
             let mut value = value;
             let scale = value.scale();

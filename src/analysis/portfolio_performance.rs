@@ -1,7 +1,6 @@
 use std::collections::{HashMap, BTreeMap};
 
 use log::{self, log_enabled, trace};
-use num_traits::Zero;
 
 use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
 use crate::config::PortfolioConfig;

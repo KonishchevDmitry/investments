@@ -22,7 +22,6 @@ use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::collections::hash_map::Entry;
 
 use log::warn;
-use num_traits::Zero;
 
 use crate::brokers::{BrokerInfo, Broker};
 use crate::commissions::CommissionCalc;

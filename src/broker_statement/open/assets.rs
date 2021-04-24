@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use num_traits::Zero;
 use serde::Deserialize;
 
 use crate::broker_statement::partial::PartialBrokerStatement;

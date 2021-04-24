@@ -1,7 +1,6 @@
 use std::fmt::Write;
 
 use ansi_term::{Style, Color, ANSIString};
-use num_traits::Zero;
 
 use crate::currency::Cash;
 use crate::types::Decimal;
@@ -138,14 +137,14 @@ fn format_shares(shares: Decimal, with_sign: bool) -> String {
 
 fn get_weight(asset_value: Decimal, expected_total_value: Decimal) -> Decimal {
     if expected_total_value.is_zero() {
-        Decimal::max_value()
+        Decimal::MAX
     } else {
         asset_value / expected_total_value
     }
 }
 
 fn format_weight(weight: Decimal) -> String {
-    if weight == Decimal::max_value() {
+    if weight == Decimal::MAX {
         s!("∞")
     } else {
         format!("{}%", util::round(weight * dec!(100), 1))

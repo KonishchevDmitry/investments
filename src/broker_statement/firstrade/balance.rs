@@ -1,4 +1,3 @@
-use num_traits::Zero;
 use serde::Deserialize;
 
 use crate::core::EmptyResult;

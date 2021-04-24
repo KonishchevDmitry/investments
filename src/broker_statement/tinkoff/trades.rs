@@ -1,4 +1,4 @@
-use num_traits::{FromPrimitive, Zero};
+use num_traits::FromPrimitive;
 
 use xls_table_derive::XlsTableRow;
 

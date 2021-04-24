@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use log::{error, trace};
-use num_traits::Zero;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;

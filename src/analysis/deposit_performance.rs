@@ -1,7 +1,6 @@
 #[cfg(test)] use chrono::Duration;
 
 use log::{debug, warn};
-use num_traits::Zero;
 
 use crate::core::EmptyResult;
 use crate::currency::Cash;

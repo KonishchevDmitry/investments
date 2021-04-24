@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
 use chrono::Datelike;
-use num_traits::{cast::ToPrimitive, Zero};
+use num_traits::cast::ToPrimitive;
 
 use crate::core::GenericResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};

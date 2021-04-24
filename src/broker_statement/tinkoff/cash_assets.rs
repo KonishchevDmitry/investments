@@ -1,8 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use num_traits::Zero;
-
 use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::fees::Fee;

@@ -1,6 +1,5 @@
 use chrono::Datelike;
 use log::warn;
-use num_traits::Zero;
 
 use static_table_derive::StaticTable;
 

@@ -6,7 +6,6 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 #[cfg(test)] use indoc::indoc;
 use log::{debug, trace};
 #[cfg(test)] use mockito::{self, Mock, mock};
-use num_traits::Zero;
 use rayon::prelude::*;
 use reqwest::Url;
 use reqwest::blocking::Client;

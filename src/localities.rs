@@ -3,8 +3,6 @@ use std::ops::Bound;
 
 use chrono::{Datelike, Duration};
 
-use num_traits::Zero;
-
 use crate::currency;
 use crate::taxes::IncomeType;
 use crate::time;

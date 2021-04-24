@@ -1,7 +1,5 @@
 #[cfg(test)] use std::collections::HashMap;
 
-#[cfg(test)] use num_traits::Zero;
-
 #[cfg(test)] use crate::commissions::CommissionCalc;
 use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,

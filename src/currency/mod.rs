@@ -3,7 +3,6 @@ use std::fmt::{self, Write};
 use std::str::FromStr;
 use std::ops::{Mul, Div, Neg};
 
-use num_traits::identities::Zero;
 use num_traits::ToPrimitive;
 
 use separator::Separatable;
