@@ -1820,9 +1820,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal"
-version = "1.12.1"
+version = "1.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49cd5b7c654eec5b39e05644c30adf91ab30be6dc30a63772770fe55b1d67bba"
+checksum = "d64bd27418c091ebd539b00f50ad059fc41421c87d5033c217cd76c7506d0d71"
 dependencies = [
  "arrayvec",
  "num-traits",
@@ -1831,9 +1831,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal_macros"
-version = "1.12.1"
+version = "1.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b30e2ca240354a851f52187b3436fb10e53bb2f114e346c675e632f462ab3024"
+checksum = "81dbf822f50d527a9ba351f392aadca0ac47375c3bfad5d48ecfad53cc067833"
 dependencies = [
  "quote 1.0.9",
  "rust_decimal",
