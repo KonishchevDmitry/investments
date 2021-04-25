@@ -149,16 +149,17 @@ pub fn process_income(
 
     if !table.is_empty() {
         if broker_statement.broker.type_ == Broker::Tinkoff {
-            let mut messages = vec![concat!(
-                "The following calculations for dividend income are very inaccurate ",
-                "(see https://github.com/KonishchevDmitry/investments/issues/26)."
+            // https://github.com/KonishchevDmitry/investments/issues/26
+            let url = "http://bit.ly/investments-tinkoff-dividends";
+            let mut messages = vec![format!(
+                "The following calculations for dividend income are very inaccurate (see {}).", url,
             )];
 
             if tax_statement.is_some() {
                 messages.push(concat!(
                     "The result tax statement must be corrected manually. Please also take into ",
                     "account that all dividends will be declared with USA jurisdiction."
-                ));
+                ).to_owned());
             };
 
             eprintln!(); warn!("{}", messages.join(" "));

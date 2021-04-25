@@ -130,17 +130,14 @@ impl BrokerStatement {
                 .collect::<Vec<_>>()
                 .join("\n");
 
-            let mut hint = "";
+            let mut hint = String::new();
             if statement.broker.type_ == Broker::InteractiveBrokers {
-                hint = concat!(
-                    "\n\nProbably manual tax remapping rules are required ",
-                    "(https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping)",
-                );
+                // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping
+                let url = "http://bit.ly/investments-ib-tax-remapping";
+                hint = format!("\n\nProbably manual tax remapping rules are required (see {})", url);
             }
 
-            return Err!(
-                "Unable to find origin operations for the following taxes:\n{}{}",
-                taxes, hint);
+            return Err!("Unable to find origin operations for the following taxes:\n{}{}", taxes, hint);
         }
 
         let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
