@@ -6,12 +6,12 @@ mod dividends;
 mod fees;
 mod interest;
 mod instruments;
+mod sections;
 mod summary;
 mod taxes;
 mod trades;
 
 use std::cell::RefCell;
-use std::collections::{HashMap, hash_map::Entry};
 use std::iter::Iterator;
 
 #[cfg(test)] use chrono::Datelike;
@@ -29,7 +29,7 @@ use crate::types::Date;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-use self::common::{RecordSpec, Record, RecordParser, format_record};
+use self::common::{Record, format_record};
 use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
@@ -117,25 +117,10 @@ impl<'a> StatementParser<'a> {
             .has_headers(false)
             .flexible(true)
             .from_path(path)?;
-        let mut records = reader.records();
-
-        let mut statement_info_parser = summary::StatementInfoParser {};
-        let mut account_information_parser = summary::AccountInformationParser {};
-        let mut change_in_nav_parser = summary::ChangeInNavParser {};
-        let mut cash_report_parser = cash::CashReportParser {};
-        let mut open_positions_parser = instruments::OpenPositionsParser {};
-        let mut corporate_actions_parser = corporate_actions::CorporateActionsParser::new();
-        let mut trades_parser = trades::TradesParser {};
-        let mut deposits_and_withdrawals_parser = cash::DepositsAndWithdrawalsParser {};
-        let mut fees_parser = fees::FeesParser {};
-        let mut dividends_parser = dividends::DividendsParser {};
-        let mut withholding_tax_parser = taxes::WithholdingTaxParser {};
-        let mut interest_parser = interest::InterestParser {};
-        let mut financial_instrument_information_parser = instruments::FinancialInstrumentInformationParser {};
-        let mut unknown_record_parser = common::UnknownRecordParser {};
 
         let mut state = Some(State::None);
-        let mut seen_sections = HashMap::<String, bool>::new();
+        let mut records = reader.records();
+        let mut section_parsers = sections::SectionParsers::new();
 
         'state: loop {
             match state.take().unwrap() {
@@ -171,43 +156,7 @@ impl<'a> StatementParser<'a> {
                     }
                 },
                 State::Header(record) => {
-                    let spec = parse_header(&record);
-                    let mut parser: &mut dyn RecordParser = match spec.name {
-                        "Statement" => &mut statement_info_parser,
-                        "Account Information" => &mut account_information_parser,
-                        "Change in NAV" => &mut change_in_nav_parser,
-                        "Cash Report" => &mut cash_report_parser,
-                        "Open Positions" => &mut open_positions_parser,
-                        "Corporate Actions" => &mut corporate_actions_parser,
-                        "Trades" => &mut trades_parser,
-                        "Deposits & Withdrawals" => &mut deposits_and_withdrawals_parser,
-                        "Fees" => &mut fees_parser,
-                        "Dividends" => &mut dividends_parser,
-                        "Withholding Tax" => &mut withholding_tax_parser,
-                        "Interest" => &mut interest_parser,
-                        "Financial Instrument Information" => &mut financial_instrument_information_parser,
-                        _ => &mut unknown_record_parser,
-                    };
-
-                    if !parser.allow_multiple() {
-                        let has_code_field = spec.has_field("Code");
-
-                        match seen_sections.entry(spec.name.to_owned()) {
-                            Entry::Occupied(entry) => {
-                                let had_code_field = *entry.get();
-
-                                match spec.name {
-                                    "Dividends" | "Deposits & Withdrawals" if !had_code_field && has_code_field => {
-                                        parser = &mut unknown_record_parser;
-                                    },
-                                    _ => return Err!("Got a duplicated {} section", spec.name),
-                                }
-                            },
-                            Entry::Vacant(entry) => {
-                                entry.insert(has_code_field);
-                            },
-                        };
-                    }
+                    let (spec, parser) = section_parsers.select(&record)?;
 
                     let data_types = parser.data_types();
                     let skip_data_types = parser.skip_data_types();
@@ -263,14 +212,7 @@ impl<'a> StatementParser<'a> {
             }
         }
 
-        // When statement has no non-base currency activity it contains only base currency summary
-        // and we have to use it as the only source of current cash assets info.
-        if self.statement.cash_assets.is_none() {
-            let amount = self.base_currency_summary.ok_or("Unable to find base currency summary")?;
-            self.statement.cash_assets.get_or_insert_with(Default::default).deposit(amount);
-        }
-
-        corporate_actions_parser.commit(&mut self)?;
+        section_parsers.commit(&mut self)?;
         self.statement.validate()
     }
 
@@ -298,14 +240,6 @@ impl<'a> StatementParser<'a> {
 
         conclusion_date
     }
-}
-
-fn parse_header(record: &StringRecord) -> RecordSpec {
-    let offset = 2;
-    let name = record.get(0).unwrap();
-    let fields = record.iter().skip(offset).collect::<Vec<_>>();
-    trace!("Header: {}: {}.", name, format_record(fields.iter().cloned()));
-    RecordSpec::new(name, fields, offset)
 }
 
 #[cfg(test)]
