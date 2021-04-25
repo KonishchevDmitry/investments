@@ -16,7 +16,18 @@ impl RecordParser for TradesParser {
     }
 
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        record.check_value("DataDiscriminator", "Order")?;
+        let data_type_field = "DataDiscriminator";
+        match record.get_value(data_type_field)? {
+            // Default Activity Statement contains only this type
+            "Order" => {},
+
+            // Custom Activity Statement types:
+            // * Trade - order execution details (one order may be executed via several trades)
+            // * ClosedLot - closed positions calculation
+            "Trade" | "ClosedLot" => return Ok(()),
+
+            value => return Err!("Got an unexpected {:?} field value: {:?}", data_type_field, value),
+        };
 
         let asset_category = record.get_value("Asset Category")?;
         let symbol = record.get_value("Symbol")?;

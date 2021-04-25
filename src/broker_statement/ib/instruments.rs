@@ -12,15 +12,23 @@ impl RecordParser for OpenPositionsParser {
     }
 
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        record.check_values(&[
-            ("DataDiscriminator", "Summary"),
-            ("Asset Category", "Stocks"),
-            ("Mult", "1"),
-        ])?;
+        let data_type_field = "DataDiscriminator";
+        match record.get_value(data_type_field)? {
+            // Default Activity Statement contains only this type
+            "Summary" => record.check_values(&[
+                ("Asset Category", "Stocks"),
+                ("Mult", "1"),
+            ])?,
+
+            // Custom Activity Statement types:
+            // * Lot - open position calculation
+            "Lot" => return Ok(()),
+
+            value => return Err!("Got an unexpected {:?} field value: {:?}", data_type_field, value),
+        };
 
         let symbol = record.parse_symbol("Symbol")?;
         let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
-
         parser.statement.add_open_position(&symbol, quantity)
     }
 }

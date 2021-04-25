@@ -140,11 +140,22 @@ impl<'a> StatementParser<'a> {
                 State::None => {
                     match records.next() {
                         Some(result) => state = Some(State::Record(result?)),
-                        None => break,
+                        None => break 'state,
                     };
                 }
                 State::Record(record) => {
                     if record.len() < 2 {
+                        let value = record.get(0).unwrap_or("");
+
+                        // An empty "Option Exercises, Assignments and Expirations" section in
+                        // Custom Activity Statement is rendered as a single value record without
+                        // header record:
+                        // "No exercises, assignments or expirations for May 21, 2018 - December 31, 2018"
+                        if value.starts_with("No exercises, assignments or expirations for ") {
+                            state = Some(State::None);
+                            continue 'state;
+                        }
+
                         return Err!("Invalid record: {}", format_record(&record));
                     }
 
@@ -182,16 +193,14 @@ impl<'a> StatementParser<'a> {
 
                     for result in &mut records {
                         let record = result?;
-                        if record.len() < 3 {
+                        if record.get(0) != Some(spec.name) {
+                            state = Some(State::Record(record));
+                            continue 'state;
+                        } else if record.len() < 3 {
                             return Err!("Invalid record: {}", format_record(&record));
                         }
 
-                        if record.get(0).unwrap() != spec.name {
-                            state = Some(State::Record(record));
-                            continue 'state;
-                        }
                         let data_type = record.get(1).unwrap();
-
                         if data_type == "Header" {
                             state = Some(State::Header(record));
                             continue 'state;
@@ -227,7 +236,7 @@ impl<'a> StatementParser<'a> {
                         ))?;
                     }
 
-                    break;
+                    break 'state;
                 }
             }
         }
