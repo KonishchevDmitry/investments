@@ -15,6 +15,10 @@ impl RecordParser for TradesParser {
         Some(&["SubTotal", "Total"])
     }
 
+    fn allow_multiple(&self) -> bool {
+        true
+    }
+
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let data_type_field = "DataDiscriminator";
         match record.get_value(data_type_field)? {

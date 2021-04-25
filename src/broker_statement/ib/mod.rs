@@ -11,6 +11,7 @@ mod taxes;
 mod trades;
 
 use std::cell::RefCell;
+use std::collections::{HashMap, hash_map::Entry};
 use std::iter::Iterator;
 
 #[cfg(test)] use chrono::Datelike;
@@ -116,6 +117,7 @@ impl<'a> StatementParser<'a> {
             .has_headers(false)
             .flexible(true)
             .from_path(path)?;
+        let mut records = reader.records();
 
         let mut statement_info_parser = summary::StatementInfoParser {};
         let mut account_information_parser = summary::AccountInformationParser {};
@@ -132,8 +134,8 @@ impl<'a> StatementParser<'a> {
         let mut financial_instrument_information_parser = instruments::FinancialInstrumentInformationParser {};
         let mut unknown_record_parser = common::UnknownRecordParser {};
 
-        let mut records = reader.records();
         let mut state = Some(State::None);
+        let mut seen_sections = HashMap::<String, bool>::new();
 
         'state: loop {
             match state.take().unwrap() {
@@ -170,7 +172,7 @@ impl<'a> StatementParser<'a> {
                 },
                 State::Header(record) => {
                     let spec = parse_header(&record);
-                    let parser: &mut dyn RecordParser = match spec.name {
+                    let mut parser: &mut dyn RecordParser = match spec.name {
                         "Statement" => &mut statement_info_parser,
                         "Account Information" => &mut account_information_parser,
                         "Change in NAV" => &mut change_in_nav_parser,
@@ -186,6 +188,26 @@ impl<'a> StatementParser<'a> {
                         "Financial Instrument Information" => &mut financial_instrument_information_parser,
                         _ => &mut unknown_record_parser,
                     };
+
+                    if !parser.allow_multiple() {
+                        let has_code_field = spec.has_field("Code");
+
+                        match seen_sections.entry(spec.name.to_owned()) {
+                            Entry::Occupied(entry) => {
+                                let had_code_field = *entry.get();
+
+                                match spec.name {
+                                    "Dividends" | "Deposits & Withdrawals" if !had_code_field && has_code_field => {
+                                        parser = &mut unknown_record_parser;
+                                    },
+                                    _ => return Err!("Got a duplicated {} section", spec.name),
+                                }
+                            },
+                            Entry::Vacant(entry) => {
+                                entry.insert(has_code_field);
+                            },
+                        };
+                    }
 
                     let data_types = parser.data_types();
                     let skip_data_types = parser.skip_data_types();

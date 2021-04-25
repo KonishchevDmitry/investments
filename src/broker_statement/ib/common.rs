@@ -25,6 +25,14 @@ impl<'a> RecordSpec<'a> {
     pub fn new(name: &'a str, fields: Vec<&'a str>, offset: usize) -> RecordSpec<'a> {
         RecordSpec {name, fields, offset}
     }
+
+    pub fn has_field(&self, field: &str) -> bool {
+        self.field_index(field).is_some()
+    }
+
+    fn field_index(&self, field: &str) -> Option<usize> {
+        self.fields.iter().position(|other: &&str| *other == field)
+    }
 }
 
 pub struct Record<'a> {
@@ -38,7 +46,7 @@ impl<'a> Record<'a> {
     }
 
     pub fn get_value(&self, field: &str) -> GenericResult<&str> {
-        if let Some(index) = self.spec.fields.iter().position(|other: &&str| *other == field) {
+        if let Some(index) = self.spec.field_index(field) {
             if let Some(value) = self.values.get(self.spec.offset + index) {
                 return Ok(value);
             }
@@ -100,6 +108,7 @@ pub trait RecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> { Some(&["Data"]) }
     fn skip_data_types(&self) -> Option<&'static [&'static str]> { None }
     fn skip_totals(&self) -> bool { false }
+    fn allow_multiple(&self) -> bool { false }
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult;
 }
 
@@ -108,6 +117,10 @@ pub struct UnknownRecordParser {}
 impl RecordParser for UnknownRecordParser {
     fn data_types(&self) -> Option<&'static [&'static str]> {
         None
+    }
+
+    fn allow_multiple(&self) -> bool {
+        true
     }
 
     fn parse(&mut self, _parser: &mut StatementParser, _record: &Record) -> EmptyResult {
