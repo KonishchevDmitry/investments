@@ -137,7 +137,7 @@ pub fn format_record<'a, I>(iter: I) -> String
         .join(", ")
 }
 
-fn parse_date(date: &str) -> GenericResult<Date> {
+pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%Y-%m-%d")
 }
 

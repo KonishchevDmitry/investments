@@ -20,7 +20,7 @@ mod rate_cache;
 
 pub mod converter;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cash {
     pub currency: &'static str,
     pub amount: Decimal,

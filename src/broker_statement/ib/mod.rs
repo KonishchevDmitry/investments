@@ -1,4 +1,5 @@
 mod cash;
+mod cash_flows;
 mod common;
 mod confirmation;
 mod corporate_actions;
@@ -29,6 +30,7 @@ use crate::types::Date;
 #[cfg(test)] use super::{BrokerStatement};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
+use self::cash_flows::CashFlows;
 use self::common::{Record, format_record};
 use self::confirmation::{TradeExecutionDates, OrderId};
 
@@ -75,6 +77,7 @@ impl BrokerStatementReader for StatementReader {
 
             base_currency: None,
             base_currency_summary: None,
+            cash_flows: CashFlows::new(),
 
             tax_remapping: &mut self.tax_remapping.borrow_mut(),
             trade_execution_dates: &self.trade_execution_dates.borrow(),
@@ -100,6 +103,7 @@ pub struct StatementParser<'a> {
 
     base_currency: Option<String>,
     base_currency_summary: Option<Cash>,
+    cash_flows: CashFlows,
 
     tax_remapping: &'a mut TaxRemapping,
     trade_execution_dates: &'a TradeExecutionDates,
@@ -213,6 +217,7 @@ impl<'a> StatementParser<'a> {
         }
 
         section_parsers.commit(&mut self)?;
+        self.cash_flows.commit()?;
         self.statement.validate()
     }
 

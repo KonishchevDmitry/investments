@@ -6,7 +6,7 @@ use log::trace;
 use crate::core::{GenericResult, EmptyResult};
 
 use super::StatementParser;
-use super::cash::{CashReportParser, DepositsAndWithdrawalsParser};
+use super::cash::{CashReportParser, DepositsAndWithdrawalsParser, StatementOfFundsParser};
 use super::common::{RecordSpec, RecordParser, UnknownRecordParser, format_record};
 use super::corporate_actions::CorporateActionsParser;
 use super::dividends::DividendsParser;
@@ -22,6 +22,7 @@ pub struct SectionParsers {
     account_information_parser: AccountInformationParser,
     change_in_nav_parser: ChangeInNavParser,
     cash_report_parser: CashReportParser,
+    statement_of_funds_parser: StatementOfFundsParser,
     open_positions_parser: OpenPositionsParser,
     corporate_actions_parser: CorporateActionsParser,
     trades_parser: TradesParser,
@@ -45,6 +46,7 @@ impl SectionParsers {
             account_information_parser: AccountInformationParser{},
             change_in_nav_parser: ChangeInNavParser {},
             cash_report_parser: CashReportParser {},
+            statement_of_funds_parser: StatementOfFundsParser {},
             open_positions_parser: OpenPositionsParser {},
             corporate_actions_parser: CorporateActionsParser::new(),
             trades_parser: TradesParser {},
@@ -69,6 +71,7 @@ impl SectionParsers {
             "Account Information" => &mut self.account_information_parser,
             "Change in NAV" => &mut self.change_in_nav_parser,
             "Cash Report" => &mut self.cash_report_parser,
+            "Statement of Funds" => &mut self.statement_of_funds_parser,
             "Open Positions" => &mut self.open_positions_parser,
             "Corporate Actions" => &mut self.corporate_actions_parser,
             "Trades" => &mut self.trades_parser,
