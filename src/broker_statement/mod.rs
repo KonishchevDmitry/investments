@@ -113,8 +113,7 @@ impl BrokerStatement {
 
         for (dividend_id, accruals) in dividend_accruals {
             let (dividend, cash_flows) = process_dividend_accruals(
-                dividend_id, accruals, &mut tax_accruals,
-                statement.broker.type_ == Broker::Firstrade)?;
+                dividend_id, accruals, &mut tax_accruals, true)?;
 
             if let Some(dividend) = dividend {
                 statement.dividends.push(dividend);
