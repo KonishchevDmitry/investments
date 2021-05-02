@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 use std::thread::{self, JoinHandle};
 
-use log::{debug, error};
+use diesel::{self, prelude::*};
+use log::{trace, debug, error};
+#[cfg(test)] use mockito::{self, Mock, mock};
+use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
-use diesel::{self, prelude::*};
-// FIXME(konishchev): Implement
-// #[cfg(test)] use mockito::{self, Mock, mock};
 
 use crate::brokers::Broker;
 use crate::core::{EmptyResult, GenericResult};
@@ -66,7 +66,7 @@ impl TelemetryRecordBuilder {
 // FIXME(konishchev): Configuration option
 pub struct Telemetry {
     db: db::Connection,
-    processor: Option<JoinHandle<GenericResult<i64>>>,
+    processor: Option<JoinHandle<Option<i64>>>,
 }
 
 impl Telemetry {
@@ -117,35 +117,15 @@ impl Telemetry {
         Ok(records.last().map(|record| (record.0, payloads)))
     }
 
-    // FIXME(konishchev): Implement
-    /*
-    fn send(&self) -> EmptyResult {
-        #[derive(Serialize)]
-        pub struct TelemetryRecords {
-            records: Vec<serde_json::Value>,
-        }
-
-        let mut payloads = Vec::with_capacity(to_send.len());
-        for payload in payloads {
-            let payload = serde_json::from_str(payload)?;
-            payloads.push(payload);
-        }
-
-        #[cfg(not(test))] let base_url = "http://www.cbr.ru";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        Ok(())
-    }
-     */
-
     #[cfg_attr(not(test), allow(dead_code))]
     fn close(mut self) -> EmptyResult {
         self.close_impl()
     }
 
     fn close_impl(&mut self) -> EmptyResult {
+        // FIXME(konishchev): Timeout
         if let Some(processor) = self.processor.take() {
-            processor.join().unwrap()?;
+            processor.join().unwrap();
         }
         Ok(())
     }
@@ -154,13 +134,38 @@ impl Telemetry {
 impl Drop for Telemetry {
     fn drop(&mut self) {
         if let Err(e) = self.close_impl() {
+            // FIXME(konishchev): HERE
             error!("Telemetry processing error: {}.", e)
         }
     }
 }
 
-fn process(last_record_id: i64, _payloads: Vec<Value>) -> GenericResult<i64> {
-    Ok(last_record_id)
+#[derive(Serialize)]
+pub struct TelemetryRecords {
+    records: Vec<Value>,
+}
+
+fn process(last_record_id: i64, records: Vec<Value>) -> Option<i64> {
+    #[cfg(not(test))] let base_url = "https://investments.konishchev.ru";
+    #[cfg(test)] let base_url = mockito::server_url();
+    let url = format!("{}/telemetry", base_url);
+
+    trace!("Sending telemetry ({} records)...", records.len());
+    match Client::new().post(url).json(&TelemetryRecords {records}).send() {
+        Ok(response) => {
+            if response.status().is_success() {
+                trace!("Telemetry has been successfully sent.");
+                Some(last_record_id)
+            } else {
+                trace!("Telemetry server returned an error: {}.", response.status());
+                None
+            }
+        },
+        Err(e) => {
+            trace!("Failed to send telemetry: {}.", e);
+            None
+        },
+    }
 }
 
 #[cfg(test)]
@@ -169,12 +174,19 @@ mod tests {
 
     #[test]
     fn telemetry() {
-        let max_records = 5;
-        let mut expected = vec![];
         let (_database, connection) = db::new_temporary();
 
+        let max_records = 5;
+        let new_telemetry = || {
+            Telemetry::new(connection.clone(), max_records).unwrap()
+        };
+
+        let mut expected = vec![];
+        let mut server = broken_server();
+
+        // Broken server, nothing to drop, nothing to send
         {
-            let telemetry = Telemetry::new(connection.clone(), max_records).unwrap();
+            let telemetry = new_telemetry();
 
             for id in 0..4 {
                 let record = TelemetryRecord::mock(id);
@@ -185,9 +197,12 @@ mod tests {
             telemetry.close().unwrap();
         }
         compare(connection.clone(), &expected);
+        server = server.expect(0);
+        server.assert();
 
+        // Broken server, nothing to drop, trying to send
         {
-            let telemetry = Telemetry::new(connection.clone(), max_records).unwrap();
+            let telemetry = new_telemetry();
 
             for id in 4..8 {
                 let record = TelemetryRecord::mock(id);
@@ -198,12 +213,13 @@ mod tests {
             telemetry.close().unwrap();
         }
         compare(connection.clone(), &expected);
+        server = server.expect(1);
+        server.assert();
 
+        // Broken server, dropping records, trying to send
         {
-            let telemetry = Telemetry::new(connection.clone(), max_records).unwrap();
-            for _ in 0..3 {
-                expected.remove(0);
-            }
+            let telemetry = new_telemetry();
+            expected.drain(..3);
 
             for id in 8..12 {
                 let record = TelemetryRecord::mock(id);
@@ -213,8 +229,47 @@ mod tests {
 
             telemetry.close().unwrap();
         }
-
         compare(connection.clone(), &expected);
+        server = server.expect(2);
+        server.assert();
+
+        // Healthy server, dropping records, sending remaining
+        expected.drain(..4);
+        server = healthy_server(&expected);
+        {
+            let telemetry = new_telemetry();
+
+            for id in 12..16 {
+                let record = TelemetryRecord::mock(id);
+                telemetry.add(record.clone()).unwrap();
+                expected.push(record);
+            }
+
+            telemetry.close().unwrap();
+        }
+        compare(connection.clone(), &expected);
+        server = server.expect(1);
+        server.assert();
+    }
+
+    fn broken_server() -> Mock {
+        mock("POST", "/telemetry")
+            .with_status(500)
+            .create()
+    }
+
+    fn healthy_server(expected: &[TelemetryRecord]) -> Mock {
+        let expected_body = serde_json::to_string(&TelemetryRecords {
+            records: expected.iter().map(|record| {
+                serde_json::to_value(record).unwrap()
+            }).collect(),
+        }).unwrap();
+
+        mock("POST", "/telemetry")
+            .match_header("content-type", "application/json")
+            .match_body(expected_body.as_str())
+            .with_status(200)
+            .create()
     }
 
     fn compare(connection: db::Connection, expected: &[TelemetryRecord]) {
