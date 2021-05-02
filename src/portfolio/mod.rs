@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::rc::Rc;
 
-use crate::broker_statement::BrokerStatement;
+use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
@@ -26,7 +26,7 @@ pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
 
     let statement = BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, false)?;
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, ReadingStrictness::empty())?;
     statement.check_date();
 
     let assets = Assets::new(statement.cash_assets, statement.open_positions);

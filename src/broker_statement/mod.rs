@@ -49,6 +49,7 @@ pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
+pub use self::reader::ReadingStrictness;
 pub use self::taxes::TaxWithholding;
 pub use self::trades::{
     ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, StockSourceDetails,
@@ -83,9 +84,9 @@ impl BrokerStatement {
     pub fn read(
         broker: BrokerInfo, statement_dir_path: &str,
         symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
-        tax_remapping: TaxRemapping, corporate_actions: &[CorporateAction], strict_mode: bool,
+        tax_remapping: TaxRemapping, corporate_actions: &[CorporateAction], strictness: ReadingStrictness,
     ) -> GenericResult<BrokerStatement> {
-        let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strict_mode)?;
+        let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strictness)?;
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
         let last_index = statements.len() - 1;
 

@@ -17,7 +17,7 @@ use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::xls::{SheetParser, Cell};
 
-#[cfg(test)] use super::{BrokerStatement};
+#[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 use super::xls::{XlsStatementParser, Section, SectionParserRc};
 
@@ -148,6 +148,8 @@ mod tests {
     fn parse(name: &str) -> BrokerStatement {
         let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/tinkoff/{}", name);
-        BrokerStatement::read(broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap()
+        BrokerStatement::read(
+            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[],
+            ReadingStrictness::all()).unwrap()
     }
 }

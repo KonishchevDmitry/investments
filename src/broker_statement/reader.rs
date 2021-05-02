@@ -1,12 +1,21 @@
 use std::fs;
 use std::path::Path;
 
+use bitflags::bitflags;
+
 use crate::core::{GenericResult, EmptyResult};
 use crate::brokers::Broker;
 use crate::taxes::TaxRemapping;
 
 use super::{bcs, firstrade, ib, open, tinkoff};
 use super::PartialBrokerStatement;
+
+bitflags! {
+    pub struct ReadingStrictness: u32 {
+        const TRADE_SETTLE_DATE = 1 << 0;
+        const CASH_FLOW_DATES =   1 << 1;
+    }
+}
 
 pub trait BrokerStatementReader {
     fn is_statement(&self, path: &str) -> GenericResult<bool>;
@@ -16,14 +25,15 @@ pub trait BrokerStatementReader {
 }
 
 pub fn read(
-    broker: Broker, statement_dir_path: &str, tax_remapping: TaxRemapping, strict_mode: bool,
+    broker: Broker, statement_dir_path: &str,
+    tax_remapping: TaxRemapping, strictness: ReadingStrictness,
 ) -> GenericResult<Vec<PartialBrokerStatement>> {
     let mut tax_remapping = Some(tax_remapping);
     let mut statement_reader = match broker {
         Broker::Bcs => bcs::StatementReader::new(),
         Broker::Firstrade => firstrade::StatementReader::new(),
         Broker::InteractiveBrokers => ib::StatementReader::new(
-            tax_remapping.take().unwrap(), strict_mode),
+            tax_remapping.take().unwrap(), strictness),
         Broker::Open => open::StatementReader::new(),
         Broker::Tinkoff => tinkoff::StatementReader::new(),
     }?;

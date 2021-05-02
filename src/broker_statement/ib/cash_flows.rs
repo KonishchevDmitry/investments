@@ -17,10 +17,10 @@ pub struct CashFlows {
 }
 
 impl CashFlows {
-    pub fn new() -> CashFlows {
+    pub fn new(enable_warnings: bool) -> CashFlows {
         CashFlows {
             cash_flows: HashMap::new(),
-            enable_warnings: false,  // FIXME(konishchev): https://docs.rs/bitflags/1.2.1/bitflags/index.html
+            enable_warnings,
         }
     }
 
@@ -69,7 +69,7 @@ impl CashFlows {
         Ok(fallback)
     }
 
-    pub fn commit(mut self) -> EmptyResult {
+    pub fn commit(mut self) -> GenericResult<bool> {
         let cash_flows = std::mem::take(&mut self.cash_flows);
 
         for (id, records) in cash_flows {
@@ -78,7 +78,7 @@ impl CashFlows {
             }
         }
 
-        Ok(())
+        Ok(self.enable_warnings)
     }
 
     fn on_mapping_error(&mut self, id: &CashFlowId) -> EmptyResult {

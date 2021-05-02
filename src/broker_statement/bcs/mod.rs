@@ -10,7 +10,7 @@ use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::xls::SheetParser;
 
-#[cfg(test)] use super::{BrokerStatement};
+#[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 use super::xls::{XlsStatementParser, Section};
 
@@ -81,7 +81,7 @@ mod tests {
 
         let statement = BrokerStatement::read(
             broker, &format!("testdata/bcs/{}", name),
-            &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap();
+            &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], ReadingStrictness::all()).unwrap();
 
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.deposits_and_withdrawals.is_empty());

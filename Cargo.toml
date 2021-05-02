@@ -26,6 +26,7 @@ path = "examples/tax_statement_parser.rs"
 
 [dependencies]
 ansi_term = "0.12.1"
+bitflags = "1.2.1"
 calamine = "0.18.0"
 chrono = "0.4.19"
 chrono-tz = "0.5.3"

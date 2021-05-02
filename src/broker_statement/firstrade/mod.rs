@@ -15,7 +15,7 @@ use std::io::{Read, BufReader, BufRead, Seek, SeekFrom};
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
-#[cfg(test)] use super::{BrokerStatement};
+#[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use self::parser::{StatementParser, Ofx};
@@ -86,7 +86,7 @@ mod tests {
 
         let statement = BrokerStatement::read(
             broker, "testdata/firstrade/my",
-            &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap();
+            &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], ReadingStrictness::all()).unwrap();
 
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.deposits_and_withdrawals.is_empty());

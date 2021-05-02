@@ -4,7 +4,7 @@ mod mapper;
 
 use std::collections::BTreeMap;
 
-use crate::broker_statement::BrokerStatement;
+use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::currency::{self, Cash};
@@ -20,7 +20,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
 
     let statement = BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, false)?;
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, ReadingStrictness::CASH_FLOW_DATES)?;
 
     let mut summary_title = format!("Движение средств по счету в {}", statement.broker.name);
     let mut details_title = format!("Детализация движения средств по счету в {}", statement.broker.name);

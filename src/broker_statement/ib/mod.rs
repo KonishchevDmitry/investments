@@ -27,8 +27,8 @@ use crate::formatting::format_date;
 use crate::taxes::TaxRemapping;
 use crate::types::Date;
 
-#[cfg(test)] use super::{BrokerStatement};
-use super::{BrokerStatementReader, PartialBrokerStatement};
+#[cfg(test)] use super::BrokerStatement;
+use super::{BrokerStatementReader, ReadingStrictness, PartialBrokerStatement};
 
 use self::cash_flows::CashFlows;
 use self::common::{Record, format_record};
@@ -40,16 +40,18 @@ pub struct StatementReader {
 
     warn_on_margin_account: bool,
     warn_on_missing_execution_date: bool,
+    warn_on_missing_cash_flow_info: bool,
 }
 
 impl StatementReader {
-    pub fn new(tax_remapping: TaxRemapping, strict_mode: bool) -> GenericResult<Box<dyn BrokerStatementReader>> {
+    pub fn new(tax_remapping: TaxRemapping, strictness: ReadingStrictness) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             tax_remapping: RefCell::new(tax_remapping),
             trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
 
             warn_on_margin_account: true,
-            warn_on_missing_execution_date: strict_mode,
+            warn_on_missing_execution_date: strictness.contains(ReadingStrictness::TRADE_SETTLE_DATE),
+            warn_on_missing_cash_flow_info: strictness.contains(ReadingStrictness::CASH_FLOW_DATES),
         }))
     }
 }
@@ -77,13 +79,14 @@ impl BrokerStatementReader for StatementReader {
 
             base_currency: None,
             base_currency_summary: None,
-            cash_flows: CashFlows::new(),
+            cash_flows: CashFlows::new(self.warn_on_missing_cash_flow_info),
 
             tax_remapping: &mut self.tax_remapping.borrow_mut(),
             trade_execution_dates: &self.trade_execution_dates.borrow(),
 
             warn_on_margin_account: &mut self.warn_on_margin_account,
             warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
+            warn_on_missing_cash_flow_info: &mut self.warn_on_missing_cash_flow_info,
         }.parse(path)
     }
 
@@ -110,6 +113,7 @@ pub struct StatementParser<'a> {
 
     warn_on_margin_account: &'a mut bool,
     warn_on_missing_execution_date: &'a mut bool,
+    warn_on_missing_cash_flow_info: &'a mut bool,
 }
 
 impl<'a> StatementParser<'a> {
@@ -214,7 +218,7 @@ impl<'a> StatementParser<'a> {
         }
 
         section_parsers.commit(&mut self)?;
-        self.cash_flows.commit()?;
+        *self.warn_on_missing_cash_flow_info &= self.cash_flows.commit()?;
         self.statement.validate()
     }
 
@@ -333,13 +337,16 @@ mod tests {
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
         let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
-        StatementReader::new(TaxRemapping::new(), true).unwrap().read(&path, true).unwrap();
+        StatementReader::new(TaxRemapping::new(), ReadingStrictness::all()).unwrap()
+            .read(&path, true).unwrap();
     }
 
     fn parse_full(name: &str, tax_remapping: Option<TaxRemapping>) -> BrokerStatement {
         let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/interactive-brokers/{}", name);
         let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
-        BrokerStatement::read(broker, &path, &hashmap!{}, &hashmap!{}, tax_remapping, &[], true).unwrap()
+        BrokerStatement::read(
+            broker, &path, &hashmap!{}, &hashmap!{}, tax_remapping, &[],
+            ReadingStrictness::all()).unwrap()
     }
 }

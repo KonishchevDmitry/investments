@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::brokers::Broker;
-use crate::broker_statement::{BrokerStatement, StockSellType};
+use crate::broker_statement::{BrokerStatement, ReadingStrictness, StockSellType};
 use crate::commissions::CommissionCalc;
 use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{GenericResult, EmptyResult};
@@ -189,7 +189,7 @@ pub fn simulate_sell(
     base_currency: Option<&str>,
 ) -> EmptyResult {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let statement = load_portfolio(config, portfolio, true)?;
+    let statement = load_portfolio(config, portfolio, ReadingStrictness::TRADE_SETTLE_DATE)?;
     let (converter, quotes) = load_tools(config)?;
 
     sell_simulation::simulate_sell(
@@ -199,10 +199,11 @@ pub fn simulate_sell(
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
     let mut portfolios = Vec::new();
+    let reading_strictness = ReadingStrictness::empty();
 
     if let Some(name) = name {
         let portfolio = config.get_portfolio(name)?;
-        let statement = load_portfolio(config, portfolio, false)?;
+        let statement = load_portfolio(config, portfolio, reading_strictness)?;
         portfolios.push((portfolio, statement));
     } else {
         if config.portfolios.is_empty() {
@@ -210,7 +211,7 @@ fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<
         }
 
         for portfolio in &config.portfolios {
-            let statement = load_portfolio(config, portfolio, false)?;
+            let statement = load_portfolio(config, portfolio, reading_strictness)?;
             portfolios.push((portfolio, statement));
         }
     }
@@ -218,11 +219,11 @@ fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<
     Ok(portfolios)
 }
 
-fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strict_mode: bool) -> GenericResult<BrokerStatement> {
+fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strictness: ReadingStrictness) -> GenericResult<BrokerStatement> {
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
     BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, strict_mode)
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, strictness)
 }
 
 fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, Rc<Quotes>)> {

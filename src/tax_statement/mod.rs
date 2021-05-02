@@ -1,4 +1,4 @@
-use crate::broker_statement::BrokerStatement;
+use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::Config;
 use crate::core::EmptyResult;
 use crate::currency::converter::CurrencyConverter;
@@ -22,7 +22,8 @@ pub fn generate_tax_statement(
 
     let broker_statement = BrokerStatement::read(
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, true)?;
+        portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
+        ReadingStrictness::TRADE_SETTLE_DATE)?;
 
     if let Some(year) = year {
         broker_statement.check_period_against_tax_year(year)?;

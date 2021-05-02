@@ -934,6 +934,7 @@ name = "investments"
 version = "2.12.1"
 dependencies = [
  "ansi_term 0.12.1",
+ "bitflags",
  "calamine",
  "cast",
  "chrono",

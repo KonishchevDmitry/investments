@@ -10,7 +10,7 @@ mod trades;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
-#[cfg(test)] use super::{BrokerStatement};
+#[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use report::BrokerReport;
@@ -58,7 +58,8 @@ mod tests {
         let path = format!("testdata/open-broker/{}", name);
 
         let statement = BrokerStatement::read(
-            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], true).unwrap();
+            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[],
+            ReadingStrictness::all()).unwrap();
 
         assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
         assert!(!statement.deposits_and_withdrawals.is_empty());
