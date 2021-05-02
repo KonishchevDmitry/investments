@@ -1,9 +1,10 @@
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::Config;
-use crate::core::EmptyResult;
+use crate::core::GenericResult;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::localities::Jurisdiction;
+use crate::telemetry::TelemetryRecordBuilder;
 
 pub use self::statement::TaxStatement;
 
@@ -15,7 +16,7 @@ mod trades;
 
 pub fn generate_tax_statement(
     config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
-) -> EmptyResult {
+) -> GenericResult<TelemetryRecordBuilder> {
     let country = config.get_tax_country();
     let portfolio = config.get_portfolio(portfolio_name)?;
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
@@ -71,5 +72,5 @@ pub fn generate_tax_statement(
         tax_statement.save()?;
     }
 
-    Ok(())
+    Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }

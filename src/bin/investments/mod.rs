@@ -12,6 +12,7 @@ use investments::deposits;
 use investments::metrics;
 use investments::portfolio;
 use investments::tax_statement;
+use investments::telemetry::{TelemetryRecord, TelemetryRecordBuilder};
 
 use self::init::{Action, initialize};
 
@@ -22,20 +23,21 @@ mod init;
 // * XLS for tax inspector
 
 fn main() {
-    let (action, config) = initialize();
+    let (config, command, action) = initialize();
 
-    if let Err(e) = run(action, config) {
+    if let Err(e) = run(config, &command, action) {
         error!("{}.", e);
         process::exit(1);
     }
 }
 
-fn run(action: Action, config: Config) -> EmptyResult {
-    match action {
+fn run(config: Config, command: &str, action: Action) -> EmptyResult {
+    let _: TelemetryRecord = match action {
         Action::Analyse {name, show_closed_positions} => {
-            let (statistics, _) = analysis::analyse(
+            let (statistics, _, telemetry) = analysis::analyse(
                 &config, name.as_deref(), show_closed_positions, None, true)?;
             statistics.print();
+            telemetry
         },
         Action::SimulateSell {name, positions, base_currency} => analysis::simulate_sell(
             &config, &name, positions, base_currency.as_deref())?,
@@ -57,12 +59,15 @@ fn run(action: Action, config: Config) -> EmptyResult {
         Action::CashFlow {name, year} =>
             cash_flow::generate_cash_flow_report(&config, &name, year)?,
 
-        Action::Deposits { date, cron_mode } => deposits::list(
-            &config.get_tax_country(), config.deposits, date, cron_mode,
-            config.notify_deposit_closing_days),
+        Action::Deposits { date, cron_mode } => {
+            deposits::list(
+                &config.get_tax_country(), config.deposits, date, cron_mode,
+                config.notify_deposit_closing_days);
+            TelemetryRecordBuilder::new()
+        },
 
         Action::Metrics(path) => metrics::collect(&config, &path)?,
-    };
+    }.build(command);
 
     Ok(())
 }

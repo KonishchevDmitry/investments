@@ -14,7 +14,7 @@ use crate::currency::CashAssets;
 use crate::localities::Jurisdiction;
 use crate::types::Decimal;
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
 pub enum Broker {
     Bcs,
     Firstrade,
@@ -48,6 +48,16 @@ impl Broker {
             fractional_shares_trading: matches!(self, Broker::InteractiveBrokers),
             statements_merging_strategy: statements_merging_strategy,
         })
+    }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Broker::Bcs => "bcs",
+            Broker::Firstrade => "firstrade",
+            Broker::InteractiveBrokers => "interactive-brokers",
+            Broker::Open => "open",
+            Broker::Tinkoff => "tinkoff",
+        }
     }
 
     pub fn name(self) -> &'static str {

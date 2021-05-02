@@ -3,11 +3,12 @@ use std::rc::Rc;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
-use crate::core::EmptyResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::quotes::Quotes;
+use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
 use self::asset_allocation::Portfolio;
@@ -19,7 +20,7 @@ mod assets;
 mod formatting;
 mod rebalancing;
 
-pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
+pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
     let database = db::connect(&config.db_path)?;
@@ -33,10 +34,10 @@ pub fn sync(config: &Config, portfolio_name: &str) -> EmptyResult {
     assets.validate(&portfolio)?;
     assets.save(database, &portfolio.name)?;
 
-    Ok(())
+    Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-pub fn buy(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> EmptyResult {
+pub fn buy(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> GenericResult<TelemetryRecordBuilder> {
     modify_assets(config, portfolio_name, |portfolio, assets| {
         if portfolio.get_stock_symbols().get(symbol).is_none() {
             return Err!("Unable to buy {}: it's not specified in asset allocation configuration",
@@ -51,7 +52,7 @@ pub fn buy(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str,
     })
 }
 
-pub fn sell(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> EmptyResult {
+pub fn sell(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> GenericResult<TelemetryRecordBuilder> {
     modify_assets(config, portfolio_name, |portfolio, assets| {
         let mut entry = match assets.stocks.entry(symbol.to_owned()) {
             Entry::Occupied(entry) => entry,
@@ -74,13 +75,13 @@ pub fn sell(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str
     })
 }
 
-pub fn set_cash_assets(config: &Config, portfolio_name: &str, cash_assets: Decimal) -> EmptyResult {
+pub fn set_cash_assets(config: &Config, portfolio_name: &str, cash_assets: Decimal) -> GenericResult<TelemetryRecordBuilder> {
     modify_assets(config, portfolio_name, |portfolio, assets| {
         set_cash_assets_impl(portfolio, assets, cash_assets)
     })
 }
 
-fn modify_assets<F>(config: &Config, portfolio_name: &str, modify: F) -> EmptyResult
+fn modify_assets<F>(config: &Config, portfolio_name: &str, modify: F) -> GenericResult<TelemetryRecordBuilder>
     where F: Fn(&PortfolioConfig, &mut Assets) -> EmptyResult
 {
     let portfolio = config.get_portfolio(portfolio_name)?;
@@ -90,7 +91,7 @@ fn modify_assets<F>(config: &Config, portfolio_name: &str, modify: F) -> EmptyRe
     modify(portfolio, &mut assets)?;
     assets.save(database, &portfolio.name)?;
 
-    Ok(())
+    Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
 fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_assets: Decimal) -> EmptyResult {
@@ -99,15 +100,15 @@ fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_a
     Ok(())
 }
 
-pub fn show(config: &Config, portfolio_name: &str, flat: bool) -> EmptyResult {
+pub fn show(config: &Config, portfolio_name: &str, flat: bool) -> GenericResult<TelemetryRecordBuilder> {
     process(config, portfolio_name, false, flat)
 }
 
-pub fn rebalance(config: &Config, portfolio_name: &str, flat: bool) -> EmptyResult {
+pub fn rebalance(config: &Config, portfolio_name: &str, flat: bool) -> GenericResult<TelemetryRecordBuilder> {
     process(config, portfolio_name, true, flat)
 }
 
-fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> EmptyResult {
+fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
@@ -124,5 +125,5 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
 
     print_portfolio(portfolio, flat);
 
-    Ok(())
+    Ok(TelemetryRecordBuilder::new_with_broker(portfolio_config.broker))
 }

@@ -9,6 +9,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
 use crate::quotes::Quotes;
+use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
 use self::portfolio_analysis::PortfolioPerformanceAnalysis;
@@ -84,7 +85,8 @@ impl PortfolioCurrencyStatistics {
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,
     merge_performance: Option<&PerformanceMergingConfig>, interactive: bool,
-) -> GenericResult<(PortfolioStatistics, CurrencyConverterRc)> {
+) -> GenericResult<(PortfolioStatistics, CurrencyConverterRc, TelemetryRecordBuilder)> {
+    let mut telemetry = TelemetryRecordBuilder::new();
     let mut portfolios = load_portfolios(config, portfolio_name)?;
 
     let country = config.get_tax_country();
@@ -97,6 +99,7 @@ pub fn analyse(
 
     for (portfolio, statement) in &mut portfolios {
         let broker = statement.broker.type_;
+        telemetry.add_broker(broker);
 
         if interactive {
             statement.check_date();
@@ -181,20 +184,22 @@ pub fn analyse(
         Ok(())
     })?;
 
-    Ok((statistics, converter))
+    Ok((statistics, converter, telemetry))
 }
 
 pub fn simulate_sell(
     config: &Config, portfolio_name: &str, positions: Vec<(String, Option<Decimal>)>,
     base_currency: Option<&str>,
-) -> EmptyResult {
+) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let statement = load_portfolio(config, portfolio, ReadingStrictness::TRADE_SETTLE_DATE)?;
     let (converter, quotes) = load_tools(config)?;
 
     sell_simulation::simulate_sell(
         &config.get_tax_country(), portfolio, statement,
-        converter, &quotes, positions, base_currency)
+        converter, &quotes, positions, base_currency)?;
+
+    Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {

@@ -6,15 +6,16 @@ use std::collections::BTreeMap;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::Config;
-use crate::core::EmptyResult;
+use crate::core::GenericResult;
 use crate::currency::{self, Cash};
 use crate::formatting::table::{Table, Column, Cell};
+use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Date;
 
 use self::calculator::CashFlowSummary;
 use self::mapper::CashFlow;
 
-pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> EmptyResult {
+pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
 
@@ -45,7 +46,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     generate_summary_report(&summary_title, start_date, end_date, &summaries);
     generate_details_report(&details_title, &summaries, cash_flows);
 
-    Ok(())
+    Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
 fn generate_summary_report(

@@ -7,8 +7,9 @@ use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, re
 
 use crate::analysis::{self, PortfolioCurrencyStatistics};
 use crate::config::Config;
-use crate::core::{EmptyResult, GenericError};
+use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::currency::converter::CurrencyConverter;
+use crate::telemetry::TelemetryRecordBuilder;
 use crate::time;
 use crate::types::Decimal;
 
@@ -50,8 +51,8 @@ lazy_static! {
         "forex_pairs", "Forex quotes.", &["base", "quote"]);
 }
 
-pub fn collect(config: &Config, path: &str) -> EmptyResult {
-    let (statistics, converter) = analysis::analyse(
+pub fn collect(config: &Config, path: &str) -> GenericResult<TelemetryRecordBuilder> {
+    let (statistics, converter, telemetry) = analysis::analyse(
         config, None, false, Some(&config.metrics.merge_performance), false)?;
 
     UPDATE_TIME.set(cast::f64(time::utc_now().timestamp()));
@@ -61,8 +62,9 @@ pub fn collect(config: &Config, path: &str) -> EmptyResult {
     }
 
     collect_forex_quotes(&converter, "USD", "RUB")?;
+    save(path)?;
 
-    save(path)
+    Ok(telemetry)
 }
 
 fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {

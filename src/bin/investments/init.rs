@@ -65,7 +65,7 @@ pub enum Action {
     Metrics(String),
 }
 
-pub fn initialize() -> (Action, Config) {
+pub fn initialize() -> (Config, String, Action) {
     let default_config_dir_path = "~/.investments";
 
     let matches = App::new("Investments")
@@ -213,8 +213,8 @@ pub fn initialize() -> (Action, Config) {
     };
     config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
 
-    let action = match parse_arguments(&mut config, &matches) {
-        Ok(action) => action,
+    let (command, action) = match parse_arguments(&mut config, &matches) {
+        Ok(result) => result,
         Err(err) => {
             error!("{}.", err);
             process::exit(1);
@@ -222,18 +222,22 @@ pub fn initialize() -> (Action, Config) {
     };
 
     debug!("{:#?}", config);
-    (action, config)
+    (config, command, action)
 }
 
-fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<Action> {
+fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<(String, Action)> {
     if let Some(expire_time) = matches.value_of("cache_expire_time") {
         config.cache_expire_time = time::parse_duration(expire_time).map_err(|_| format!(
             "Invalid cache expire time: {:?}", expire_time))?;
     };
 
     let (command, matches) = matches.subcommand();
-    let matches = matches.unwrap();
+    let action = parse_command(command, matches.unwrap())?;
 
+    Ok((command.to_owned(), action))
+}
+
+fn parse_command(command: &str, matches: &ArgMatches) -> GenericResult<Action> {
     match command {
         "deposits" => {
             let date = match matches.value_of("date") {

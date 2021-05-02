@@ -13,6 +13,7 @@ pub mod deposits;
 pub mod metrics;
 pub mod portfolio;
 pub mod tax_statement;
+pub mod telemetry;
 pub mod time;
 pub mod util;
 
