@@ -29,6 +29,6 @@ pub struct NewQuote<'a> {
 
 #[derive(Insertable)]
 #[table_name="telemetry"]
-pub struct NewTelemetryRecord<'a> {
-    pub payload: &'a str,
+pub struct NewTelemetryRecord {
+    pub payload: String,
 }

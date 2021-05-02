@@ -1,12 +1,15 @@
 use std::collections::HashSet;
+use std::thread::{self, JoinHandle};
 
+use log::{debug, error};
 use serde::Serialize;
+use serde_json::Value;
 use diesel::{self, prelude::*};
 // FIXME(konishchev): Implement
 // #[cfg(test)] use mockito::{self, Mock, mock};
 
 use crate::brokers::Broker;
-use crate::core::EmptyResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::db::{self, schema::telemetry, models};
 
 // FIXME(konishchev): Add more fields
@@ -60,47 +63,63 @@ impl TelemetryRecordBuilder {
     }
 }
 
+// FIXME(konishchev): Configuration option
 pub struct Telemetry {
     db: db::Connection,
+    processor: Option<JoinHandle<GenericResult<i64>>>,
 }
 
 impl Telemetry {
-    pub fn new(connection: db::Connection) -> Telemetry {
-        Telemetry {db: connection}
+    pub fn new(connection: db::Connection, max_records: usize) -> GenericResult<Telemetry> {
+        let to_send = Telemetry::load(connection.clone(), max_records)?;
+        Ok(Telemetry {
+            db: connection,
+            processor: to_send.map(|(last_record_id, payloads)| {
+                thread::spawn(move || process(last_record_id, payloads))
+            }),
+        })
     }
 
-    // FIXME(konishchev): Implement
     pub fn add(&self, record: TelemetryRecord) -> EmptyResult {
         let payload = serde_json::to_string(&record)?;
 
         diesel::insert_into(telemetry::table)
-            .values(models::NewTelemetryRecord {payload: &payload})
+            .values(models::NewTelemetryRecord {payload})
             .execute(&*self.db)?;
 
         Ok(())
     }
 
+    fn load(connection: db::Connection, max_records: usize) -> GenericResult<Option<(i64, Vec<Value>)>> {
+        let records = telemetry::table
+            .select((telemetry::id, telemetry::payload))
+            .order_by(telemetry::id.asc())
+            .load::<(i64, String)>(&*connection)?;
+
+        let mut records: &[_] = &records;
+        if records.len() > max_records {
+            let count = records.len() - max_records;
+            debug!("Dropping {} telemetry records.", count);
+
+            diesel::delete(telemetry::table.filter(telemetry::id.le(records[count - 1].0)))
+                .execute(&*connection)?;
+
+            records = &records[count..];
+        }
+
+        let mut payloads = Vec::with_capacity(records.len());
+        for record in records {
+            let payload = serde_json::from_str(&record.1).map_err(|e| format!(
+                "Failed to parse telemetry record: {}", e))?;
+            payloads.push(payload);
+        }
+
+        Ok(records.last().map(|record| (record.0, payloads)))
+    }
+
     // FIXME(konishchev): Implement
     /*
     fn send(&self) -> EmptyResult {
-        let mut records = telemetry::table
-            .select((telemetry::id, telemetry::payload))
-            .order_by(telemetry::id.asc())
-            .load::<(i64, String)>(&*self.db)?;
-
-        const MAX_RECORDS: usize = 10;
-        let count = records.len();
-
-        let to_send = if count > MAX_RECORDS {
-            let drop_index = count - MAX_RECORDS;
-            let drop_below = records[drop_index].0;
-            diesel::delete(telemetry::table.filter(telemetry::id.lt(drop_below)))
-                .execute(&*database)?;
-            &records[drop_index..]
-        } else {
-            &records
-        };
-
         #[derive(Serialize)]
         pub struct TelemetryRecords {
             records: Vec<serde_json::Value>,
@@ -118,36 +137,96 @@ impl Telemetry {
         Ok(())
     }
      */
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn close(mut self) -> EmptyResult {
+        self.close_impl()
+    }
+
+    fn close_impl(&mut self) -> EmptyResult {
+        if let Some(processor) = self.processor.take() {
+            processor.join().unwrap()?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for Telemetry {
+    fn drop(&mut self) {
+        if let Err(e) = self.close_impl() {
+            error!("Telemetry processing error: {}.", e)
+        }
+    }
+}
+
+fn process(last_record_id: i64, _payloads: Vec<Value>) -> GenericResult<i64> {
+    Ok(last_record_id)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // FIXME(konishchev): Implement
     #[test]
     fn telemetry() {
+        let max_records = 5;
+        let mut expected = vec![];
         let (_database, connection) = db::new_temporary();
 
-        let expected = vec![
-            TelemetryRecord::mock(0),
-            TelemetryRecord::mock(1),
-        ];
-        let telemetry = Telemetry::new(connection.clone());
-        for record in &expected {
-            telemetry.add(record.clone()).unwrap();
+        {
+            let telemetry = Telemetry::new(connection.clone(), max_records).unwrap();
+
+            for id in 0..4 {
+                let record = TelemetryRecord::mock(id);
+                telemetry.add(record.clone()).unwrap();
+                expected.push(record);
+            }
+
+            telemetry.close().unwrap();
+        }
+        compare(connection.clone(), &expected);
+
+        {
+            let telemetry = Telemetry::new(connection.clone(), max_records).unwrap();
+
+            for id in 4..8 {
+                let record = TelemetryRecord::mock(id);
+                telemetry.add(record.clone()).unwrap();
+                expected.push(record);
+            }
+
+            telemetry.close().unwrap();
+        }
+        compare(connection.clone(), &expected);
+
+        {
+            let telemetry = Telemetry::new(connection.clone(), max_records).unwrap();
+            for _ in 0..3 {
+                expected.remove(0);
+            }
+
+            for id in 8..12 {
+                let record = TelemetryRecord::mock(id);
+                telemetry.add(record.clone()).unwrap();
+                expected.push(record);
+            }
+
+            telemetry.close().unwrap();
         }
 
-        let records = telemetry::table
-            .select((telemetry::id, telemetry::payload))
-            .order_by(telemetry::id.asc())
-            .load::<(i64, String)>(&*connection).unwrap();
-        compare(&records, &expected);
+        compare(connection.clone(), &expected);
     }
 
-    fn compare(actual: &[(i64, String)], expected: &[TelemetryRecord]) {
-        let actual: Vec<String> = actual.iter().map(|record| record.1.clone()).collect();
-        let expected: Vec<String> = expected.iter().map(|record| serde_json::to_string(record).unwrap()).collect();
+    fn compare(connection: db::Connection, expected: &[TelemetryRecord]) {
+        let actual = telemetry::table
+            .select(telemetry::payload)
+            .order_by(telemetry::id.asc())
+            .load::<String>(&*connection).unwrap();
+
+        let expected: Vec<String> = expected.iter()
+            .map(|record| serde_json::to_string(record).unwrap())
+            .collect();
+
         assert_eq!(actual, expected);
     }
 }
