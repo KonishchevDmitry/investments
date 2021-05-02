@@ -5,6 +5,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
+use super::cash_flows::CashFlowId;
 use super::common::{self, Record, RecordParser, parse_symbol};
 
 // Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US
@@ -30,8 +31,10 @@ impl RecordParser for WithholdingTaxParser {
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let description = record.get_value("Description")?;
-        let date = parser.tax_remapping.map(record.parse_date("Date")?, description);
+        let statement_date = record.parse_date("Date")?;
+
         let issuer = parse_tax_description(description)?;
+        let actual_date = parser.tax_remapping.map(statement_date, description);
 
         // Tax amount is represented as a negative number.
         //
@@ -39,11 +42,14 @@ impl RecordParser for WithholdingTaxParser {
         // negative number.
         let tax = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
-        let accruals = parser.statement.tax_accruals(date, &issuer, true);
+        let cash_flow_id = CashFlowId::new(statement_date, description, tax);
+        let cash_flow_date = parser.cash_flows.map(&parser.statement, cash_flow_id, actual_date)?;
+
+        let accruals = parser.statement.tax_accruals(actual_date, &issuer, true);
         if tax.is_positive() {
-            accruals.reverse(date, tax);
+            accruals.reverse(cash_flow_date, tax);
         } else {
-            accruals.add(date, -tax);
+            accruals.add(cash_flow_date, -tax);
         }
 
         Ok(())

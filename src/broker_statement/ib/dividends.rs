@@ -5,6 +5,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
+use super::cash_flows::CashFlowId;
 use super::common::{self, Record, RecordParser, parse_symbol};
 
 pub struct DividendsParser {}
@@ -16,15 +17,19 @@ impl RecordParser for DividendsParser {
 
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
-        let date = record.parse_date("Date")?;
-        let issuer = parse_dividend_description(record.get_value("Description")?)?;
+        let statement_date = record.parse_date("Date")?;
+        let description = record.get_value("Description")?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
-        let accruals = parser.statement.dividend_accruals(date, &issuer, true);
+        let issuer = parse_dividend_description(description)?;
+        let cash_flow_id = CashFlowId::new(statement_date, description, amount);
+        let cash_flow_date = parser.cash_flows.map(&parser.statement, cash_flow_id, statement_date)?;
+
+        let accruals = parser.statement.dividend_accruals(statement_date, &issuer, true);
         if amount.is_negative() {
-            accruals.reverse(date, -amount)
+            accruals.reverse(cash_flow_date, -amount)
         } else {
-            accruals.add(date, amount)
+            accruals.add(cash_flow_date, amount)
         }
 
         Ok(())
