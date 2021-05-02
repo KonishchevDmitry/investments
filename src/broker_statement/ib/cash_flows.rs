@@ -59,7 +59,6 @@ impl CashFlows {
 
         let period = statement.get_period()?;
         if fallback < period.0 {
-            // FIXME(konishchev): Docs
             fallback = period.0;
         }
 

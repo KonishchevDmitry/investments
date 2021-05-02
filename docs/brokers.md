@@ -3,8 +3,8 @@
 <a name="interactive-brokers"></a>
 ## Interactive Brokers
 
-The program expects Activity Statements in `*.csv` format for broker statements (`Reports -> Statements -> Activity`),
-but [Custom Activity Statement is preferred](#ib-custom-activity-statement).
+The program expects Activity Statements in `*.csv` format for broker statements (`Reports -> Statements -> Activity`).
+[Custom Activity Statement](#ib-custom-activity-statement) is preferred.
 
 <a name="ib-trade-settle-date"></a>
 ### Trade settle date information
@@ -43,9 +43,12 @@ manually map reclassified tax to date of its origin dividend.
 
 Default Activity Statement contains only essential information and omits some details. For example [dividend
 reclassifications](#ib-dividend-reclassifications) don't provide actual dates of cash flows on your account which may be
-important for [cash-flow](taxes.md#cash-flow) command. For this reason it's recommended to use Custom Activity
-Statements instead of Default Activity Statements. Plus, it's actually a good idea to keep your statements with max
-level of detail - who knows when it might be needed.
+important for [cash-flow](taxes.md#cash-flow) command. For this reason it's recommended to use Custom Activity Statement
+instead of Default Activity Statement. Plus, it's actually a good idea to keep your statements with max level of detail
+— who knows when it might be needed.
+
+If Default Activity Statement is used, investments remaps dividend reclassification dates from the past to statement
+period start date to workaround the issue.
 
 To generate Custom Activity Statement:
 * Go to `Reports -> Statements -> Custom Statements`
