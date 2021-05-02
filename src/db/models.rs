@@ -1,4 +1,4 @@
-use crate::db::schema::{AssetType, assets, currency_rates, quotes};
+use crate::db::schema::{AssetType, assets, currency_rates, quotes, telemetry};
 use crate::types::{Date, DateTime};
 
 #[derive(Insertable, Queryable)]
@@ -25,4 +25,10 @@ pub struct NewQuote<'a> {
     pub time: DateTime,
     pub currency: &'a str,
     pub price: String,
+}
+
+#[derive(Insertable)]
+#[table_name="telemetry"]
+pub struct NewTelemetryRecord<'a> {
+    pub payload: &'a str,
 }

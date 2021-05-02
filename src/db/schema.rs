@@ -34,3 +34,10 @@ table! {
         price -> Text,
     }
 }
+
+table! {
+    telemetry (id) {
+        id -> BigInt,
+        payload -> Text,
+    }
+}
