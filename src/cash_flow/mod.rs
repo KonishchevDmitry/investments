@@ -85,7 +85,8 @@ fn generate_summary_report(
 fn generate_details_report(
     title: &str, summaries: &BTreeMap<&'static str, CashFlowSummary>, cash_flows: Vec<CashFlow>
 ) {
-    let mut columns = vec![Column::new("Дата"), Column::new("Операция")];
+    // FIXME(konishchev): A temporary hackaround
+    let mut columns = vec![Column::new("Дата"), Column::new("Операция                                                                                             ")];
     for &currency in summaries.keys() {
         columns.push(Column::new(currency));
     }
