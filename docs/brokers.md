@@ -3,7 +3,8 @@
 <a name="interactive-brokers"></a>
 ## Interactive Brokers
 
-The program expects Activity Statements in `*.csv` format for broker statements (`Reports -> Statements -> Activity`).
+The program expects Activity Statements in `*.csv` format for broker statements (`Reports -> Statements -> Activity`),
+but [Custom Activity Statement is preferred](#ib-custom-activity-statement).
 
 <a name="ib-trade-settle-date"></a>
 ### Trade settle date information
@@ -15,11 +16,12 @@ correctness of tax calculations.
 Trade settle date information may be obtained from Trade Confirmation Report. To do this, create a Trade Confirmation
 Flex Query in the IB `Reports -> Flex Queries` tab with the following parameters:
 
-![Trade Confirmation Flex Query Parameters](images/trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
+![Trade Confirmation Flex Query Parameters](images/ib-trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
 
 and download the statements for all periods where you have any trades. Investments will catch these statements and use
 information from them for calculations in T+2 mode.
 
+<a name="ib-dividend-reclassifications"></a>
 ### Dividend reclassifications
 
 Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
@@ -34,6 +36,23 @@ Investments finds such reclassifications and handles them properly, but at this 
 (date, symbol) pair (matching by description is too fragile). As it turns out sometimes dates of reclassified taxes
 don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option using which you can
 manually map reclassified tax to date of its origin dividend.
+
+<a name="ib-cash-flow-info"></a>
+<a name="ib-custom-activity-statement"></a>
+### Custom activity statement
+
+Default Activity Statement contains only essential information and omits some details. For example [dividend
+reclassifications](#ib-dividend-reclassifications) don't provide actual dates of cash flows on your account which may be
+important for [cash-flow](taxes.md#cash-flow) command. For this reason it's recommended to use Custom Activity
+Statements instead of Default Activity Statements. Plus, it's actually a good idea to keep your statements with max
+level of detail - who knows when it might be needed.
+
+To generate Custom Activity Statement:
+* Go to `Reports -> Statements -> Custom Statements`
+* Select `Statement Type - Activity`
+* Select all sections
+* Use the following section configurations:
+![Custom Activity Statement Parameters](images/ib-custom-activity-statement-parameters.png?raw=true "Custom Activity Statement Parameters")
 
 
 <a name="tinkoff"></a>

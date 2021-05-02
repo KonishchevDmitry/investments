@@ -33,10 +33,12 @@ impl CashFlows {
     pub fn map(&mut self, statement: &PartialBrokerStatement, id: CashFlowId, mut fallback: Date) -> GenericResult<Date> {
         if self.cash_flows.is_empty() {
             if self.enable_warnings {
+                // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-cash-flow-info
+                let url = "http://bit.ly/investments-ib-cash-flow-info";
                 warn!(concat!(
-                    "The broker statement misses account cash flow info. ", // FIXME(konishchev): Docs
+                    "The broker statement misses account cash flow info (see {}). ",
                     "Operation dates may not be correct enough for account cash flow calculations.",
-                ));
+                ), url);
                 self.enable_warnings = false;
             }
         } else {

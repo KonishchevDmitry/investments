@@ -112,9 +112,6 @@ pub struct StatementParser<'a> {
     warn_on_missing_execution_date: &'a mut bool,
 }
 
-// FIXME(konishchev): Reports -> Statements -> Custom Statements:
-// Statement Type - Activity
-// Select all sections
 impl<'a> StatementParser<'a> {
     fn parse(mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
