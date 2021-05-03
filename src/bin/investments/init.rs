@@ -4,7 +4,7 @@ use std::process;
 use std::str::FromStr;
 
 use clap::{App, Arg, AppSettings, SubCommand, ArgMatches};
-use log::{self, debug, error};
+use log::{self, error};
 
 use investments::config::Config;
 use investments::core::GenericResult;
@@ -221,7 +221,6 @@ pub fn initialize() -> (Config, String, Action) {
         },
     };
 
-    debug!("{:#?}", config);
     (config, command, action)
 }
 

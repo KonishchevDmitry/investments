@@ -14,7 +14,7 @@ use crate::util::{self, RoundingMethod};
 
 pub use builders::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CommissionSpec {
     currency: &'static str,
     rounding_method: RoundingMethod,
@@ -34,13 +34,13 @@ impl CommissionSpec {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone)]
 pub struct TradeCommissionSpec {
     commission: TransactionCommissionSpec,
     transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
 }
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy)]
 pub struct TransactionCommissionSpec {
     percent: Option<Decimal>,
     per_share: Option<Decimal>,
@@ -81,7 +81,7 @@ impl TransactionCommissionSpec {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone)]
 pub struct CumulativeCommissionSpec {
     // Broker commissions
     percent: Option<CumulativeTieredSpec>,
@@ -95,13 +95,13 @@ pub struct CumulativeCommissionSpec {
     monthly_depositary: BTreeMap<Decimal, Decimal>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum CumulativeTierType {
     Volume,
     PortfolioNetValue,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CumulativeTieredSpec {
     _type: CumulativeTierType,
     tiers: BTreeMap<Decimal, Decimal>,
@@ -121,7 +121,7 @@ impl CumulativeTieredSpec {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct CumulativeFeeSpec {
     percent: Decimal,
 }

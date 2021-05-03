@@ -4,7 +4,7 @@ use crate::core::EmptyResult;
 use crate::formatting;
 use crate::types::Date;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum StatementsMergingStrategy {
     ContinuousOnly,
     SparseOnHolidays(usize),

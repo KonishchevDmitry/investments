@@ -17,7 +17,7 @@ use crate::time::{self, deserialize_date};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(skip)]
@@ -164,7 +164,7 @@ impl Config {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DepositConfig {
     pub name: String,
@@ -184,7 +184,7 @@ pub struct DepositConfig {
     pub contributions: Vec<(Date, Decimal)>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PortfolioConfig {
     pub name: String,
@@ -257,7 +257,7 @@ impl PortfolioConfig {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TaxRemappingConfig {
     #[serde(deserialize_with = "deserialize_date")]
@@ -267,7 +267,7 @@ struct TaxRemappingConfig {
     pub to_date: Date,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct AssetAllocationConfig {
     pub name: String,
     pub symbol: Option<String>,
@@ -294,7 +294,7 @@ impl AssetAllocationConfig {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BrokersConfig {
     pub bcs: Option<BrokerConfig>,
@@ -317,7 +317,7 @@ impl BrokersConfig {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct BrokerConfig {
     pub deposit_commissions: HashMap<String, TransactionCommissionSpec>,
@@ -332,7 +332,7 @@ impl BrokerConfig {
     }
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct TaxRates {
     #[serde(default)]
@@ -343,32 +343,32 @@ pub struct TaxRates {
     pub interest: BTreeMap<i32, Decimal>,
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct MetricsConfig {
     #[serde(default)]
     pub merge_performance: PerformanceMergingConfig,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TransactionCommissionSpec {
     pub fixed_amount: Decimal,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlphaVantageConfig {
     pub api_key: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FinnhubConfig {
     pub token: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TwelveDataConfig {
     pub token: String,
