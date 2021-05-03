@@ -49,10 +49,10 @@ prettytable-rs = "0.8.0"
 prometheus = "0.12.0"
 quick-xml = { version = "0.22.0", features = [ "serialize" ] }
 rayon = "1.5.0"
-regex = "1.4.6"
+regex = "1.5.3"
 reqwest = { version = "0.11.3", features = ["blocking", "json"] }
-rust_decimal = "~1.12.1"
-rust_decimal_macros = "~1.12.1"
+rust_decimal = "~1.12.4"
+rust_decimal_macros = "~1.12.4"
 separator = "0.4.1"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"
@@ -67,8 +67,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.21.0", features = ["bundled"] }
 
-static_table_derive = "0.1.25"
-xls_table_derive = "0.4.4"
+static_table_derive = "0.1.26"
+xls_table_derive = "0.4.5"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
@@ -77,6 +77,6 @@ xls_table_derive = { path = "src/xls/xls_table_derive" }
 [dev-dependencies]
 mockito = "0.30.0"
 qtrac-retest = "4.0.6"
-rstest = "0.7.0"
+rstest = "0.9.0"
 tempfile = "3.2.0"
 url = "2.2.1"
