@@ -4,7 +4,7 @@
 /// No personal information will ever be sent.
 
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Condvar};
 use std::thread::{self, JoinHandle};
 use std::time::{Instant, SystemTime, Duration};
 
@@ -99,7 +99,7 @@ struct TelemetryRequest {
 
 pub struct Telemetry {
     db: db::Connection,
-    sender: Option<(JoinHandle<Option<i64>>, Instant)>,
+    sender: Option<TelemetrySender>,
 }
 
 impl Telemetry {
@@ -114,17 +114,16 @@ impl Telemetry {
 
         if let Some((records, last_record_id)) = telemetry.load(max_records)? {
             let user_id = telemetry.user_id()?;
+            let request = TelemetryRequest {user_id, records};
 
             // By default we don't give any extra time to sender to complete its work. But if we
             // accumulated some records - we do.
             let mut deadline = Instant::now();
-            if records.len() % flush_threshold == 0 {
+            if request.records.len() % flush_threshold == 0 {
                 deadline += flush_timeout;
             }
 
-            let request = TelemetryRequest {user_id, records};
-            let sender = thread::spawn(move || send(request, last_record_id));
-            telemetry.sender.replace((sender, deadline));
+            telemetry.sender.replace(TelemetrySender::new(request, last_record_id, deadline));
         }
 
         Ok(telemetry)
@@ -199,51 +198,13 @@ impl Telemetry {
     }
 
     fn close_impl(&mut self) -> EmptyResult {
-        if let Some(last_record_id) = self.wait_sender() {
-            self.delete(last_record_id).map_err(|e| format!(
-                "Failed to delete telemetry records: {}", e))?;
+        if let Some(sender) = self.sender.take() {
+            if let Some(last_record_id) = sender.wait() {
+                self.delete(last_record_id).map_err(|e| format!(
+                    "Failed to delete telemetry records: {}", e))?;
+            }
         }
         Ok(())
-    }
-
-    fn wait_sender(&mut self) -> Option<i64> {
-        let (sender, deadline) = match self.sender.take() {
-            Some(value) => value,
-            None => return None,
-        };
-
-        let result = Arc::new(Mutex::new(None));
-        let joiner = {
-            // We use additional thread to be able to join with timeout
-
-            let result = result.clone();
-            let waiter = thread::current();
-
-            thread::spawn(move || {
-                let value = sender.join().unwrap();
-                result.lock().unwrap().replace(value);
-                waiter.unpark();
-            })
-        };
-
-        while let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
-            if result.lock().unwrap().is_some() {
-                break;
-            }
-            thread::park_timeout(timeout);
-        }
-        let result = result.lock().unwrap().take();
-
-        if cfg!(test) {
-            // Join the thread in test mode to not introduce any side effects, but after result
-            // acquiring.
-            joiner.join().unwrap();
-        } else {
-            // We mustn't delay program execution or shutdown because of telemetry server or network
-            // unavailability, so just forget about the thread - it will die on program exit.
-        }
-
-        result.unwrap_or(None)
     }
 }
 
@@ -255,31 +216,88 @@ impl Drop for Telemetry {
     }
 }
 
-fn send(request: TelemetryRequest, last_record_id: i64) -> Option<i64> {
-    #[cfg(not(test))] let base_url = "https://investments.konishchev.ru";
-    #[cfg(test)] let base_url = mockito::server_url();
-    let url = format!("{}/telemetry", base_url);
+struct TelemetrySender {
+    thread: JoinHandle<()>,
+    result: Arc<(Mutex<Option<Option<i64>>>, Condvar)>,
+    deadline: Instant,
+}
 
-    trace!("Sending telemetry ({} records)...", request.records.len());
-    match Client::new().post(url).json(&request).send() {
-        Ok(response) => {
-            let status = response.status();
-            if status.is_success() {
-                // Consume body in test mode to block on unreachable server emulation
-                if cfg!(test) {
-                    let _ = response.bytes();
+impl TelemetrySender {
+    fn new(request: TelemetryRequest, last_record_id: i64, deadline: Instant) -> TelemetrySender {
+        let result = Arc::new((Mutex::new(None), Condvar::new()));
+
+        let thread = {
+            let result = result.clone();
+            thread::spawn(move || {
+                let ok = TelemetrySender::send(request);
+
+                let (lock, cond) = result.as_ref();
+                let mut result = lock.lock().unwrap();
+
+                result.replace(if ok {
+                    Some(last_record_id)
+                } else {
+                    None
+                });
+                cond.notify_one();
+            })
+        };
+
+        TelemetrySender {thread, result, deadline}
+    }
+
+    fn wait(self) -> Option<i64> {
+        let result = {
+            let (lock, cond) = self.result.as_ref();
+
+            let guard = lock.lock().unwrap();
+            let timeout = self.deadline.checked_duration_since(Instant::now()).unwrap_or_default();
+
+            let (mut result, _) = cond.wait_timeout_while(
+                guard, timeout, |result| result.is_none(),
+            ).unwrap();
+
+            result.take().unwrap_or_default()
+        };
+
+        if cfg!(test) {
+            // Join the thread in test mode to not introduce any side effects, but do it after
+            // result acquiring to not change the behaviour.
+            self.thread.join().unwrap();
+        } else {
+            // We mustn't delay program execution or shutdown because of telemetry server or network
+            // unavailability, so just forget about the thread - it will die on program exit.
+        }
+
+        result
+    }
+
+    fn send(request: TelemetryRequest) -> bool {
+        #[cfg(not(test))] let base_url = "https://investments.konishchev.ru";
+        #[cfg(test)] let base_url = mockito::server_url();
+        let url = format!("{}/telemetry", base_url);
+
+        trace!("Sending telemetry ({} records)...", request.records.len());
+        match Client::new().post(url).json(&request).send() {
+            Ok(response) => {
+                let status = response.status();
+                if status.is_success() {
+                    // Consume body in test mode to block on unreachable server emulation
+                    if cfg!(test) {
+                        let _ = response.bytes();
+                    }
+                    trace!("Telemetry has been successfully sent.");
+                    true
+                } else {
+                    trace!("Telemetry server returned an error: {}.", status);
+                    false
                 }
-                trace!("Telemetry has been successfully sent.");
-                Some(last_record_id)
-            } else {
-                trace!("Telemetry server returned an error: {}.", status);
-                None
-            }
-        },
-        Err(e) => {
-            trace!("Failed to send telemetry: {}.", e);
-            None
-        },
+            },
+            Err(e) => {
+                trace!("Failed to send telemetry: {}.", e);
+                false
+            },
+        }
     }
 }
 
