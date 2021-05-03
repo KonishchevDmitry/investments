@@ -6,33 +6,38 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Instant, Duration};
+use std::time::{Instant, SystemTime, Duration};
 
 use diesel::{self, prelude::*};
 use log::{trace, error};
 use reqwest::blocking::Client;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::brokers::Broker;
-use crate::core::{EmptyResult, GenericResult};
-use crate::db::{self, schema::telemetry, models};
+use crate::core::{EmptyResult, GenericResult, GenericError};
+use crate::db::{self, schema::{settings, telemetry}, models};
 
-// FIXME(konishchev): Add more fields
 #[derive(Serialize, Clone)]
 pub struct TelemetryRecord {
+    id: String,
+    time: u64,
+
+    os: &'static str,
+    version: &'static str,
+
     command: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     brokers: Vec<String>,
 }
 
 impl TelemetryRecord {
-    // FIXME(konishchev): Rewrite
     #[cfg(test)]
     fn mock(id: usize) -> TelemetryRecord {
-        TelemetryRecord {
-            command: format!("{}", id),
-            brokers: Vec::new(),
-        }
+        let mut record = TelemetryRecordBuilder::new().build("command-mock");
+        record.id = format!("{}", id);
+        record
     }
 }
 
@@ -62,7 +67,17 @@ impl TelemetryRecordBuilder {
             .map(|broker| broker.id().to_owned()).collect();
         brokers.sort();
 
+        let id = Uuid::new_v4().to_string();
+        let time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default()
+            .as_secs();
+
         TelemetryRecord {
+            id, time,
+
+            os: platforms::TARGET_OS.as_str(),
+            version: env!("CARGO_PKG_VERSION"),
+
             command: command.to_owned(),
             brokers,
         }
@@ -78,6 +93,7 @@ pub struct TelemetryConfig {
 
 #[derive(Serialize)]
 struct TelemetryRequest {
+    user_id: String,
     records: Vec<Value>,
 }
 
@@ -96,7 +112,9 @@ impl Telemetry {
             sender: None,
         };
 
-        telemetry.sender = telemetry.load(max_records)?.map(|(records, last_record_id)| {
+        if let Some((records, last_record_id)) = telemetry.load(max_records)? {
+            let user_id = telemetry.user_id()?;
+
             // By default we don't give any extra time to sender to complete its work. But if we
             // accumulated some records - we do.
             let mut deadline = Instant::now();
@@ -104,10 +122,10 @@ impl Telemetry {
                 deadline += flush_timeout;
             }
 
-            let request = TelemetryRequest {records};
+            let request = TelemetryRequest {user_id, records};
             let sender = thread::spawn(move || send(request, last_record_id));
-            (sender, deadline)
-        });
+            telemetry.sender.replace((sender, deadline));
+        }
 
         Ok(telemetry)
     }
@@ -150,6 +168,29 @@ impl Telemetry {
         diesel::delete(telemetry::table.filter(telemetry::id.le(last_record_id)))
             .execute(&*self.db)?;
         Ok(())
+    }
+
+    fn user_id(&self) -> GenericResult<String> {
+        self.db.transaction::<_, GenericError, _>(|| {
+            let name = models::SETTING_USER_ID;
+            let user_id = settings::table
+                .select(settings::value)
+                .filter(settings::name.eq(name))
+                .get_result::<String>(&*self.db).optional()?;
+
+            Ok(match user_id {
+                Some(user_id) => user_id,
+                None => {
+                    let user_id = Uuid::new_v4().to_string();
+
+                    diesel::insert_into(settings::table)
+                        .values(&models::NewSetting {name, value: &user_id})
+                        .execute(&*self.db)?;
+
+                    user_id
+                },
+            })
+        })
     }
 
     #[cfg(test)]
@@ -261,8 +302,9 @@ mod tests {
         let mut server = broken_server().expect(0);
 
         // Broken server, nothing to drop, nothing to send
-        {
+        let user_id = {
             let telemetry = new_telemetry();
+            let user_id = telemetry.user_id().unwrap();
 
             for id in 0..4 {
                 let record = TelemetryRecord::mock(id);
@@ -271,7 +313,8 @@ mod tests {
             }
 
             telemetry.close().unwrap();
-        }
+            user_id
+        };
         server.assert();
         compare(connection.clone(), &expected); // 4 records
 
@@ -310,7 +353,7 @@ mod tests {
 
         // Healthy server, dropping records, sending remaining
         expected.drain(..4);
-        server = healthy_server(&expected); // 5 records
+        server = healthy_server(&user_id, &expected); // 5 records
         {
             let telemetry = new_telemetry();
 
@@ -341,7 +384,7 @@ mod tests {
         compare(connection.clone(), &expected); // 5 records
 
         // Healthy server, nothing to drop, sending all records
-        server = healthy_server(&expected);
+        server = healthy_server(&user_id, &expected);
         {
             let telemetry = new_telemetry();
 
@@ -362,8 +405,9 @@ mod tests {
             .create()
     }
 
-    fn healthy_server(expected: &[TelemetryRecord]) -> Mock {
+    fn healthy_server(user_id: &str, expected: &[TelemetryRecord]) -> Mock {
         let expected_request = TelemetryRequest {
+            user_id: user_id.to_owned(),
             records: expected.iter().map(|record| {
                 serde_json::to_value(record).unwrap()
             }).collect(),

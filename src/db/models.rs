@@ -1,4 +1,4 @@
-use crate::db::schema::{AssetType, assets, currency_rates, quotes, telemetry};
+use crate::db::schema::{AssetType, assets, currency_rates, quotes, settings, telemetry};
 use crate::types::{Date, DateTime};
 
 #[derive(Insertable, Queryable)]
@@ -25,6 +25,15 @@ pub struct NewQuote<'a> {
     pub time: DateTime,
     pub currency: &'a str,
     pub price: String,
+}
+
+pub const SETTING_USER_ID: &str = "user_id";
+
+#[derive(Insertable)]
+#[table_name="settings"]
+pub struct NewSetting<'a> {
+    pub name: &'a str,
+    pub value: &'a str,
 }
 
 #[derive(Insertable)]

@@ -36,6 +36,13 @@ table! {
 }
 
 table! {
+    settings (name) {
+        name -> Text,
+        value -> Text,
+    }
+}
+
+table! {
     telemetry (id) {
         id -> BigInt,
         payload -> Text,
