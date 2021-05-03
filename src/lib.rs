@@ -9,6 +9,7 @@
 pub mod analysis;
 pub mod cash_flow;
 pub mod config;
+pub mod db;
 pub mod deposits;
 pub mod metrics;
 pub mod portfolio;
@@ -21,7 +22,6 @@ mod broker_statement;
 mod brokers;
 mod commissions;
 mod currency;
-mod db;
 mod forex;
 mod formatting;
 mod localities;

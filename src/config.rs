@@ -13,6 +13,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country, Jurisdiction};
 use crate::taxes::{TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
+use crate::telemetry::TelemetryConfig;
 use crate::time::{self, deserialize_date};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
@@ -32,16 +33,17 @@ pub struct Config {
     #[serde(default)]
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
-
     #[serde(default)]
     pub tax_rates: TaxRates,
-
     #[serde(default)]
     pub metrics: MetricsConfig,
 
     pub alphavantage: Option<AlphaVantageConfig>,
     pub finnhub: Option<FinnhubConfig>,
     pub twelvedata: Option<TwelveDataConfig>,
+
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
 }
 
 impl Config {
@@ -62,6 +64,7 @@ impl Config {
             alphavantage: None,
             finnhub: None,
             twelvedata: None,
+            telemetry: Default::default(),
         }
     }
 

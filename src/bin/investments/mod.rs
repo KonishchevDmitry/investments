@@ -1,6 +1,7 @@
 extern crate investments;
 
 use std::process;
+use std::time::Duration;
 
 use log::error;
 
@@ -8,11 +9,12 @@ use investments::analysis;
 use investments::cash_flow;
 use investments::config::Config;
 use investments::core::EmptyResult;
+use investments::db;
 use investments::deposits;
 use investments::metrics;
 use investments::portfolio;
 use investments::tax_statement;
-use investments::telemetry::{TelemetryRecord, TelemetryRecordBuilder};
+use investments::telemetry::{Telemetry, TelemetryRecordBuilder};
 
 use self::init::{Action, initialize};
 
@@ -32,7 +34,17 @@ fn main() {
 }
 
 fn run(config: Config, command: &str, action: Action) -> EmptyResult {
-    let _: TelemetryRecord = match action {
+    let telemetry = if config.telemetry.disable {
+        None
+    } else {
+        let connection = db::connect(&config.db_path)?;
+        let flush_threshold = 5;
+        let flush_timeout = Duration::from_millis(500);
+        let max_records = 100;
+        Some(Telemetry::new(connection, flush_threshold, flush_timeout, max_records)?)
+    };
+
+    let record: TelemetryRecordBuilder = match action {
         Action::Analyse {name, show_closed_positions} => {
             let (statistics, _, telemetry) = analysis::analyse(
                 &config, name.as_deref(), show_closed_positions, None, true)?;
@@ -59,7 +71,7 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
         Action::CashFlow {name, year} =>
             cash_flow::generate_cash_flow_report(&config, &name, year)?,
 
-        Action::Deposits { date, cron_mode } => {
+        Action::Deposits {date, cron_mode} => {
             deposits::list(
                 &config.get_tax_country(), config.deposits, date, cron_mode,
                 config.notify_deposit_closing_days);
@@ -67,7 +79,11 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
         },
 
         Action::Metrics(path) => metrics::collect(&config, &path)?,
-    }.build(command);
+    };
+
+    if let Some(telemetry) = telemetry.as_ref() {
+        telemetry.add(record.build(command))?;
+    }
 
     Ok(())
 }

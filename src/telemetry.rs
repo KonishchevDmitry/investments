@@ -11,7 +11,7 @@ use std::time::{Instant, Duration};
 use diesel::{self, prelude::*};
 use log::{trace, error};
 use reqwest::blocking::Client;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
 
 use crate::brokers::Broker;
@@ -69,12 +69,18 @@ impl TelemetryRecordBuilder {
     }
 }
 
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct TelemetryConfig {
+    #[serde(default)]
+    pub disable: bool,
+}
+
 #[derive(Serialize)]
 struct TelemetryRequest {
     records: Vec<Value>,
 }
 
-// FIXME(konishchev): Configuration option
 pub struct Telemetry {
     db: db::Connection,
     sender: Option<(JoinHandle<Option<i64>>, Instant)>,
