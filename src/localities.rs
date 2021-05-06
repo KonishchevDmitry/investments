@@ -29,7 +29,7 @@ impl Country {
             }
         }
 
-        Country {currency, tax_rates, default_tax_rate, tax_precision}
+        Country {currency, default_tax_rate, tax_rates, tax_precision}
     }
 
     pub fn round_tax(&self, tax: Decimal) -> Decimal {
