@@ -25,9 +25,6 @@ check() {
 main() {
     local blacklist
 
-    # A workaround to force recheck
-    touch src/lib.rs
-
     blacklist='
     collapsible_if
     comparison_chain
