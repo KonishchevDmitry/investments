@@ -100,7 +100,7 @@ fn parse_stock_record(
         let mut ok = false;
         let expected_volume = price * -quantity;
 
-        for precision in 4..=8 {
+        for precision in 2..=8 {
             if expected_volume.round_to(precision) == volume {
                 ok = true;
                 break;
