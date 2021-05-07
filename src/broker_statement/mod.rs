@@ -562,8 +562,7 @@ impl BrokerStatement {
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;
 
-        // FIXME(konishchev): Original issuer
-        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.original_issuer)));
         date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 
         date_validator.sort_and_validate(
