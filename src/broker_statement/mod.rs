@@ -432,15 +432,6 @@ impl BrokerStatement {
             }
         }
 
-        // FIXME(konishchev): Keep original symbol
-        for cash_flow in &mut self.cash_flows {
-            if let Some(symbol) = cash_flow.mut_symbol() {
-                if let Some(&mapping) = symbol_mapping.get(symbol) {
-                    *symbol = mapping.clone();
-                }
-            }
-        }
-
         Ok(())
     }
 
@@ -536,10 +527,12 @@ impl BrokerStatement {
             old_rename(dividend.date.into(), &mut dividend.issuer);
         }
 
-        for cash_flow in &mut self.cash_flows {
-            let date = cash_flow.date;
-            if let Some(symbol) = cash_flow.mut_symbol() {
-                old_rename(date, symbol);
+        if remapping {
+            for cash_flow in &mut self.cash_flows {
+                let date = cash_flow.date;
+                if let Some(symbol) = cash_flow.mut_symbol() {
+                    old_rename(date, symbol);
+                }
             }
         }
 

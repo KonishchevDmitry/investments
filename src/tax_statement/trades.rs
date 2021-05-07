@@ -293,8 +293,7 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
-        // FIXME(konishchev): Original symbol
-        let security = self.broker_statement.get_instrument_name(&trade.symbol);
+        let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
         let (price, commission) = match trade.type_ {
             StockSellType::Trade {price, commission, ..} => (price, commission),
             _ => unreachable!(),
@@ -363,6 +362,7 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
+    // FIXME(konishchev): Original symbol
     fn process_fifo(&mut self, security: &str, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
         self.stock_splits |= trade.multiplier != dec!(1);
 
@@ -452,8 +452,7 @@ impl<'a> TradesProcessor<'a> {
     ) -> EmptyResult {
         assert_eq!(details.taxable_local_profit, details.local_profit);
 
-        // FIXME(konishchev): Original symbol
-        let name = self.broker_statement.get_instrument_name(&trade.symbol);
+        let name = self.broker_statement.get_instrument_name(&trade.original_symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
         let cost = details.total_local_cost.amount + additional_fees;
@@ -465,8 +464,7 @@ impl<'a> TradesProcessor<'a> {
             details.revenue.amount, details.local_revenue.amount, cost,
         ).map_err(|e| format!(
             "Unable to add income from selling {} on {} to the tax statement: {}",
-            // FIXME(konishchev): Original symbol
-            trade.symbol, formatting::format_date(trade.execution_date), e
+            trade.original_symbol, formatting::format_date(trade.execution_date), e
         ))?;
 
         Ok(())
