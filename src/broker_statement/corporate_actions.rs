@@ -203,15 +203,19 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
                     ratio, from_change, to_change)?;
             }
         }
-        CorporateActionType::Rename {..} => {
-            // FIXME(konishchev): Support
-        },
+
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
                 &symbol, quantity, PurchaseTotalCost::new(),
                 action.time, action.execution_date(),
             ));
             statement.sort_and_validate_stock_buys()?;
+        },
+
+        CorporateActionType::Rename {ref new_symbol} => {
+            statement.rename_symbol(&action.symbol, &new_symbol, Some(action.time)).map_err(|e| format!(
+                "Failed to process {} -> {} rename corporate action: {}",
+                action.symbol, new_symbol, e))?;
         },
     };
 

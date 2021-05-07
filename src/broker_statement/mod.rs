@@ -157,7 +157,11 @@ impl BrokerStatement {
             statement.corporate_actions.push(corporate_action.clone());
         }
 
-        statement.remap_symbols(symbol_remapping)?;
+        for (symbol, new_symbol) in symbol_remapping.iter() {
+            statement.rename_symbol(&symbol, &new_symbol, None).map_err(|e| format!(
+                "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
+        }
+
         statement.instrument_names.extend(instrument_names.iter().map(|(symbol, name)| {
             (symbol.clone(), name.clone())
         }));
@@ -487,53 +491,66 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn remap_symbols(&mut self, remapping: &HashMap<String, String>) -> EmptyResult {
-        for (symbol, mapping) in remapping {
-            if self.open_positions.contains_key(mapping) || self.instrument_names.contains_key(mapping) {
-                return Err!(
-                    "Invalid symbol remapping configuration: The portfolio already has {} symbol",
-                    mapping);
+    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, time: Option<DateOptTime>) -> EmptyResult {
+        // For now don't introduce any enums here:
+        // * When date is set - it's always a corporate action.
+        // * In other case it's a manual remapping.
+        let remapping = time.is_none();
+
+        let mut found = false;
+        let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String| {
+            if let Some(time) = time {
+                if operation_time > time {
+                    return;
+                }
+            }
+
+            // FIXME(konishchev): Keep original
+            if *operation_symbol == symbol {
+                found = true;
+                *operation_symbol = new_symbol.to_owned();
+            }
+        };
+
+        if remapping {
+            if self.open_positions.contains_key(new_symbol) || self.instrument_names.contains_key(new_symbol) {
+                return Err!("The portfolio already has {} symbol", new_symbol);
             }
 
             if let Some(quantity) = self.open_positions.remove(symbol) {
-                self.open_positions.insert(mapping.to_owned(), quantity);
+                self.open_positions.insert(new_symbol.to_owned(), quantity);
             }
 
             if let Some(name) = self.instrument_names.remove(symbol) {
-                self.instrument_names.insert(mapping.to_owned(), name);
+                self.instrument_names.insert(new_symbol.to_owned(), name);
             }
         }
 
         for stock_buy in &mut self.stock_buys {
-            if let Some(mapping) = remapping.get(&stock_buy.symbol) {
-                stock_buy.symbol = mapping.to_owned();
-            }
+            rename(stock_buy.conclusion_time, &mut stock_buy.symbol);
         }
 
         for stock_sell in &mut self.stock_sells {
-            if let Some(mapping) = remapping.get(&stock_sell.symbol) {
-                stock_sell.symbol = mapping.to_owned();
-            }
+            rename(stock_sell.conclusion_time, &mut stock_sell.symbol);
         }
 
         for dividend in &mut self.dividends {
-            if let Some(mapping) = remapping.get(&dividend.issuer) {
-                dividend.issuer = mapping.to_owned();
-            }
+            rename(dividend.date.into(), &mut dividend.issuer);
         }
 
         for cash_flow in &mut self.cash_flows {
+            let date = cash_flow.date;
             if let Some(symbol) = cash_flow.mut_symbol() {
-                if let Some(mapping) = remapping.get(symbol) {
-                    *symbol = mapping.to_owned();
-                }
+                rename(date, symbol);
             }
         }
 
         for corporate_action in &mut self.corporate_actions {
-            if let Some(mapping) = remapping.get(&corporate_action.symbol) {
-                corporate_action.symbol = mapping.to_owned();
-            }
+            rename(corporate_action.time, &mut corporate_action.symbol);
+        }
+
+        if !found {
+            return Err!("Unable to find any operation with it in the broker statement");
         }
 
         Ok(())

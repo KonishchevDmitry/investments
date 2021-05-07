@@ -155,15 +155,6 @@ pub fn parse_symbol(symbol: &str) -> GenericResult<String> {
         return Err!("Got a stock symbol with an unsupported format: {:?}", symbol);
     }
 
-    // FIXME(konishchev): Support
-    if symbol == "CBL" {
-        return Ok(s!("CBLAQ"))
-    } else if symbol == "CBL PRD" {
-        return Ok(s!("CBLDQ"))
-    } else if symbol == "I" {
-        return Ok(s!("INTEQ"))
-    }
-
     // See https://github.com/KonishchevDmitry/investments/issues/28
     Ok(symbol.replace(' ', "-"))
 }
