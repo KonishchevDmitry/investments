@@ -94,6 +94,7 @@ impl BrokerStatement {
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
+        // FIXME(konishchev): Renames
         for (index, mut partial) in statements.into_iter().enumerate() {
             for (dividend_id, accruals) in partial.dividend_accruals.drain() {
                 dividend_accruals.entry(dividend_id)
@@ -145,10 +146,13 @@ impl BrokerStatement {
             .collect();
 
         for corporate_action in corporate_actions {
-            if portfolio_symbols.get(&corporate_action.symbol).is_none() {
-                return Err!(
+            // FIXME(konishchev): Support
+            if false {
+                if portfolio_symbols.get(&corporate_action.symbol).is_none() {
+                    return Err!(
                     "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
                     corporate_action.symbol);
+                }
             }
             statement.corporate_actions.push(corporate_action.clone());
         }

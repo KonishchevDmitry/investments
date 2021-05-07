@@ -43,7 +43,8 @@ impl RecordParser for FinancialInstrumentInformationParser {
             return Ok(());
         }
 
-        let symbol = parse_symbol(symbol)?;
+        // FIXME(konishchev): Support
+        let symbol = parse_symbol(&symbol.split(',').next().unwrap().replace(".OLD", ""))?;
         let name = record.get_value("Description")?.to_owned();
 
         // It may be duplicated when the security changes its ID due to corporate action (stock
