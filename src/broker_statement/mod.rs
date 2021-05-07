@@ -146,13 +146,10 @@ impl BrokerStatement {
             .collect();
 
         for corporate_action in corporate_actions {
-            // FIXME(konishchev): Support
-            if false {
-                if portfolio_symbols.get(&corporate_action.symbol).is_none() {
-                    return Err!(
+            if portfolio_symbols.get(&corporate_action.symbol).is_none() {
+                return Err!(
                     "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
                     corporate_action.symbol);
-                }
             }
             statement.corporate_actions.push(corporate_action.clone());
         }
