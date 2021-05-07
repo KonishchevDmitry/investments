@@ -20,7 +20,6 @@ impl TaxId {
 
 pub type TaxAccruals = Payments;
 
-#[derive(Debug)]
 pub struct TaxWithholding {
     pub date: Date,
     pub year: i32,
