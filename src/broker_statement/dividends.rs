@@ -36,9 +36,8 @@ impl Dividend {
         Ok(country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax)))
     }
 
-    // FIXME(konishchev): Original issuer
     pub fn description(&self) -> String {
-        format!("{} dividend from {}", self.issuer, formatting::format_date(self.date))
+        format!("{} dividend from {}", self.original_issuer, formatting::format_date(self.date))
     }
 }
 

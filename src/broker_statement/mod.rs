@@ -353,17 +353,15 @@ impl BrokerStatement {
             let mut remaining_quantity = stock_sell.quantity;
             let mut sources = Vec::new();
 
-            // FIXME(konishchev): Original symbol
             let symbol_buys = unsold_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
                 "Error while processing {} position closing: There are no open positions for it",
-                stock_sell.symbol
+                stock_sell.original_symbol
             ))?;
 
             while !remaining_quantity.is_zero() {
-                // FIXME(konishchev): Original symbol
                 let index = symbol_buys.last().copied().ok_or_else(|| format!(
                     "Error while processing {} position closing: There are no open positions for it",
-                    stock_sell.symbol
+                    stock_sell.original_symbol
                 ))?;
 
                 let stock_buy = &mut self.stock_buys[index];
@@ -395,7 +393,6 @@ impl BrokerStatement {
         Ok(())
     }
 
-    // FIXME(konishchev): Keep original symbol
     pub fn merge_symbols(
         &mut self, symbols_to_merge: &HashMap<String, HashSet<String>>, strict: bool,
     ) -> EmptyResult {
@@ -435,6 +432,7 @@ impl BrokerStatement {
             }
         }
 
+        // FIXME(konishchev): Keep original symbol
         for cash_flow in &mut self.cash_flows {
             if let Some(symbol) = cash_flow.mut_symbol() {
                 if let Some(&mapping) = symbol_mapping.get(symbol) {
