@@ -180,30 +180,14 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
         CorporateActionType::StockSplit {ratio, from_change, to_change} => {
-            // We have two algorithms of handling stock split:
-            // * The first one is most straightforward, but can be applied only to simple splits
-            //   that don't produce complex stock fractions.
-            // * The second one is much complex (to write and to explain to tax inspector), loses
-            //   long term investment tax exemptions, but can be applied to any stock split.
-
-            let complex = if ratio.from == 1 {
-                match statement.stock_splits.add(action.time, &action.symbol, ratio.to)? {
-                    Ok(()) => false,
-                    Err(e) => {
-                        debug!("{}: {}. Using complex stock split algorithm.", action.symbol, e);
-                        true
-                    },
-                }
-            } else {
-                true
-            };
-
-            if complex {
-                process_complex_stock_split(
-                    statement, action.time, &action.symbol,
-                    ratio, from_change, to_change)?;
-            }
-        }
+            process_stock_split(
+                statement, action.time, &action.symbol,
+                ratio, from_change, to_change,
+            ).map_err(|e| format!(
+                "Failed to process {} stock split from {}: {}",
+                action.symbol, format_date(action.time), e,
+            ))?;
+        },
 
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
@@ -222,6 +206,33 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
 
     statement.corporate_actions.push(action);
     Ok(())
+}
+
+fn process_stock_split(
+    statement: &mut BrokerStatement,
+    split_time: DateOptTime, symbol: &str, ratio: StockSplitRatio,
+    from_change: Option<Decimal>, to_change: Option<Decimal>,
+) -> EmptyResult {
+    // We have two algorithms of handling stock split:
+    // * The first one is most straightforward, but it can be applied only to simple splits
+    //   that don't produce complex stock fractions.
+    // * The second one is much complex (to write and to explain to tax inspector), loses
+    //   long term investment tax exemptions, but can be applied to any stock split.
+
+    if ratio.from == 1 {
+        if !statement.stock_buys.iter().any(|trade| {
+            trade.symbol == symbol && !trade.is_sold() && trade.conclusion_time < split_time
+        }) {
+            return Err!("The portfolio has no open {} position at {}", symbol, format_date(split_time));
+        }
+
+        match statement.stock_splits.add(split_time, symbol, ratio.to)? {
+            Ok(()) => return Ok(()),
+            Err(e) => debug!("{}: {}. Using complex stock split algorithm.", symbol, e),
+        };
+    };
+
+    process_complex_stock_split(statement, split_time, symbol, ratio, from_change, to_change)
 }
 
 fn process_complex_stock_split(
@@ -248,16 +259,12 @@ fn process_complex_stock_split(
     }
 
     if sell_sources.is_empty() {
-        return Err!(
-            "Got {} stock split at {} when portfolio has no open positions with it",
-            symbol, format_date(split_time));
+        return Err!("The portfolio has no open {} position at {}", symbol, format_date(split_time));
     }
 
-    let new_quantity = calculate_stock_split(
-        split_time.date, symbol, quantity, ratio, from_change, to_change)?;
-
+    let new_quantity = calculate_stock_split(quantity, ratio, from_change, to_change)?;
     debug!("{} stock split from {}: {} -> {}.",
-           symbol, format_date(split_time.date), quantity, new_quantity);
+        symbol, format_date(split_time.date), quantity, new_quantity);
 
     // We create sell+buy trades with execution date equal to conclusion date and insert them to the
     // beginning of the list to be sure that they will be placed before any corporate action related
@@ -275,7 +282,7 @@ fn process_complex_stock_split(
 }
 
 fn calculate_stock_split(
-    date: Date, symbol: &str, quantity: Decimal, ratio: StockSplitRatio,
+    quantity: Decimal, ratio: StockSplitRatio,
     from_change: Option<Decimal>, to_change: Option<Decimal>,
 ) -> GenericResult<Decimal> {
     Ok(if let Some(lots) = get_stock_split_lots(quantity, ratio) {
@@ -287,8 +294,8 @@ fn calculate_stock_split(
 
             if quantity - from_change + to_change != new_quantity {
                 return Err!(
-                    "Got unexpected parameters for {} stock split from {}: {} - {} + {} != {}",
-                    symbol, format_date(date), quantity, from_change, to_change, new_quantity);
+                    "Got an unexpected stock split parameters: {} - {} + {} != {}",
+                    quantity, from_change, to_change, new_quantity);
             }
         }
 
@@ -297,15 +304,15 @@ fn calculate_stock_split(
         let new_quantity = match (from_change, to_change) {
             (Some(from_change), Some(to_change)) if from_change == quantity => to_change,
             _ => return Err!(
-                "Unsupported {} stock split from {}: {} for {} when portfolio has {} shares",
-                symbol, format_date(date), ratio.to, ratio.from, quantity),
+                "Unsupported stock split: {} for {} when portfolio has {} shares",
+                ratio.to, ratio.from, quantity),
         };
 
         let expected_quantity = quantity / Decimal::from(ratio.from) * Decimal::from(ratio.to);
         if util::round(expected_quantity, 2) != util::round(new_quantity, 2) {
             return Err!(
-                "Unexpected result of {} stock split from {}: {} / {} * {} = {} when {} is expected",
-                symbol, format_date(date), quantity, ratio.from, ratio.to, new_quantity, expected_quantity);
+                "Unexpected result of stock split: {} / {} * {} = {} when {} is expected",
+                quantity, ratio.from, ratio.to, new_quantity, expected_quantity);
         }
 
         new_quantity

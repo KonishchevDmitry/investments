@@ -140,25 +140,12 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}{}", taxes, hint);
         }
 
-        // FIXME(konishchev): Drop or support renaming + spinoff
-        let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
-            .map(|trade| &trade.symbol)
-            .collect();
-
-        for corporate_action in corporate_actions {
-            if portfolio_symbols.get(&corporate_action.symbol).is_none() {
-                return Err!(
-                    "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
-                    corporate_action.symbol);
-            }
-            statement.corporate_actions.push(corporate_action.clone());
-        }
-
         for (symbol, new_symbol) in symbol_remapping.iter() {
             statement.rename_symbol(&symbol, &new_symbol, None).map_err(|e| format!(
                 "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
         }
 
+        statement.corporate_actions.extend(corporate_actions.iter().cloned());
         statement.instrument_names.extend(instrument_names.iter().map(|(symbol, name)| {
             (symbol.clone(), name.clone())
         }));
