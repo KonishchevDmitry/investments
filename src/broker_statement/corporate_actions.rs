@@ -56,7 +56,6 @@ pub enum CorporateActionType {
         to_change: Option<Decimal>,
     },
 
-    // FIXME(konishchev): Docs
     // See https://github.com/KonishchevDmitry/investments/issues/29 for details
     Rename {
         new_symbol: String,
