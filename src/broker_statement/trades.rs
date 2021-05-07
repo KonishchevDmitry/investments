@@ -110,6 +110,7 @@ impl StockBuy {
         };
 
         StockSellSource {
+            original_symbol: self.original_symbol.clone(),
             quantity, multiplier, type_, cost,
             conclusion_time: self.conclusion_time,
             execution_date: self.execution_date,
@@ -191,10 +192,9 @@ impl StockSell {
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
-        // FIXME(konishchev): Original symbol
         Ok(self.calculate_impl(country, tax_year, tax_exemptions, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
-            self.symbol, formatting::format_date(self.conclusion_time), e))?)
+            self.original_symbol, formatting::format_date(self.conclusion_time), e))?)
     }
 
     fn calculate_impl(
@@ -337,6 +337,8 @@ impl StockSell {
 
 #[derive(Clone)]
 pub struct StockSellSource {
+    pub original_symbol: String,
+
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
@@ -384,6 +386,8 @@ impl SellDetails {
 }
 
 pub struct FifoDetails {
+    pub original_symbol: String,
+
     pub quantity: Decimal,
     pub multiplier: Decimal,
 
@@ -435,6 +439,8 @@ impl FifoDetails {
         };
 
         Ok(FifoDetails {
+            original_symbol: source.original_symbol.clone(),
+
             quantity: source.quantity,
             multiplier: source.multiplier,
 

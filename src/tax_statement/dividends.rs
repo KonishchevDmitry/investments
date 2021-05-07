@@ -67,8 +67,7 @@ pub fn process_income(
             }
         }
 
-        // FIXME(konishchev): Original issuer
-        let issuer = broker_statement.get_instrument_name(&dividend.issuer);
+        let issuer = broker_statement.get_instrument_name(&dividend.original_issuer);
 
         let foreign_amount = dividend.amount.round();
         total_foreign_amount.deposit(foreign_amount);

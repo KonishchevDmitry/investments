@@ -474,30 +474,23 @@ impl BrokerStatement {
         let remapping = time.is_none();
 
         let mut found = false;
-        // FIXME(konishchev): Deprecate
-        let old_rename = |operation_time: DateOptTime, operation_symbol: &mut String| {
+        let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String, operation_original_symbol: &mut String| {
             if let Some(time) = time {
                 if operation_time > time {
                     return;
                 }
             }
 
-            // FIXME(konishchev): Keep original
             if *operation_symbol == symbol {
                 *operation_symbol = new_symbol.to_owned();
-            }
-        };
-        let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String| {
-            if let Some(time) = time {
-                if operation_time > time {
-                    return;
-                }
-            }
-
-            // FIXME(konishchev): Keep original
-            if *operation_symbol == symbol {
                 found = true;
-                *operation_symbol = new_symbol.to_owned();
+            }
+
+            if remapping {
+                if *operation_original_symbol == symbol {
+                    *operation_original_symbol = new_symbol.to_owned();
+                    found = true;
+                }
             }
         };
 
@@ -515,29 +508,26 @@ impl BrokerStatement {
             }
         }
 
-        for stock_buy in &mut self.stock_buys {
-            rename(stock_buy.conclusion_time, &mut stock_buy.symbol);
+        for trade in &mut self.stock_buys {
+            rename(trade.conclusion_time, &mut trade.symbol, &mut trade.original_symbol);
         }
 
-        for stock_sell in &mut self.stock_sells {
-            old_rename(stock_sell.conclusion_time, &mut stock_sell.symbol);
+        for trade in &mut self.stock_sells {
+            rename(trade.conclusion_time, &mut trade.symbol, &mut trade.original_symbol);
         }
 
         for dividend in &mut self.dividends {
-            old_rename(dividend.date.into(), &mut dividend.issuer);
+            rename(dividend.date.into(), &mut dividend.issuer, &mut dividend.original_issuer);
         }
 
         if remapping {
             for cash_flow in &mut self.cash_flows {
-                let date = cash_flow.date;
-                if let Some(symbol) = cash_flow.mut_symbol() {
-                    old_rename(date, symbol);
+                if let Some(original_symbol) = cash_flow.mut_symbol() {
+                    if *original_symbol == symbol {
+                        *original_symbol = new_symbol.to_owned();
+                    }
                 }
             }
-        }
-
-        for corporate_action in &mut self.corporate_actions {
-            old_rename(corporate_action.time, &mut corporate_action.symbol);
         }
 
         if !found {

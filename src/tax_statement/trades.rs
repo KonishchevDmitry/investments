@@ -329,7 +329,7 @@ impl<'a> TradesProcessor<'a> {
             id: trade_id,
             conclusion_date: trade.conclusion_time.date,
             execution_date: trade.execution_date,
-            security: security.to_owned(),
+            security: security,
             quantity: trade.quantity,
 
             price,
@@ -356,14 +356,14 @@ impl<'a> TradesProcessor<'a> {
         });
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            self.process_fifo(&security, trade_id, buy_trade, index == 0)?;
+            self.process_fifo(trade_id, buy_trade, index == 0)?;
         }
 
         Ok(())
     }
 
-    // FIXME(konishchev): Original symbol
-    fn process_fifo(&mut self, security: &str, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
+    fn process_fifo(&mut self, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
+        let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
         self.stock_splits |= trade.multiplier != dec!(1);
 
         let mut execution_date_cell = None;
@@ -420,7 +420,7 @@ impl<'a> TradesProcessor<'a> {
             },
             conclusion_date: trade.conclusion_time.date,
             execution_date: execution_date_cell,
-            security: security.to_owned(),
+            security: security,
             quantity: trade.quantity,
             multiplier: trade.multiplier,
 
