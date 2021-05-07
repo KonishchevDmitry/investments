@@ -94,7 +94,6 @@ impl BrokerStatement {
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
-        // FIXME(konishchev): Renames
         for (index, mut partial) in statements.into_iter().enumerate() {
             for (dividend_id, accruals) in partial.dividend_accruals.drain() {
                 dividend_accruals.entry(dividend_id)
