@@ -506,6 +506,8 @@ impl BrokerStatement {
             if let Some(name) = self.instrument_names.remove(symbol) {
                 self.instrument_names.insert(new_symbol.to_owned(), name);
             }
+        } else {
+            self.stock_splits.rename(symbol, new_symbol)?;
         }
 
         for trade in &mut self.stock_buys {

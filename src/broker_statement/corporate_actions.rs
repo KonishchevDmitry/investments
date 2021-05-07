@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeMap, btree_map};
+use std::collections::{HashMap, BTreeMap, hash_map, btree_map};
 use std::ops::Bound;
 
 use lazy_static::lazy_static;
@@ -103,7 +103,6 @@ impl<'de> Deserialize<'de> for StockSplitRatio {
     }
 }
 
-// FIXME(konishchev): Support renaming
 #[derive(Default)]
 pub struct StockSplitController {
     symbols: HashMap<String, BTreeMap<DateTime, u32>>
@@ -164,6 +163,21 @@ impl StockSplitController {
         }
 
         multiplier
+    }
+
+    pub fn rename(&mut self, symbol: &str, new_symbol: &str) -> EmptyResult {
+        if let Some((symbol, splits)) = self.symbols.remove_entry(symbol) {
+            match self.symbols.entry(new_symbol.to_owned()) {
+                hash_map::Entry::Vacant(entry) => {
+                    entry.insert(splits);
+                },
+                hash_map::Entry::Occupied(_) => {
+                    self.symbols.insert(symbol, splits);
+                    return Err!("Stock split controller already has {} symbol", new_symbol);
+                },
+            };
+        }
+        Ok(())
     }
 }
 
