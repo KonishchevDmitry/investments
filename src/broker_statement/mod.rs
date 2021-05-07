@@ -140,20 +140,12 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}{}", taxes, hint);
         }
 
-        let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
-            .map(|trade| &trade.symbol)
-            .collect();
-
-        for corporate_action in corporate_actions {
-            if portfolio_symbols.get(&corporate_action.symbol).is_none() {
-                return Err!(
-                    "Unable to apply corporate action to {}: there is no such symbol in the portfolio",
-                    corporate_action.symbol);
-            }
-            statement.corporate_actions.push(corporate_action.clone());
+        for (symbol, new_symbol) in symbol_remapping.iter() {
+            statement.rename_symbol(&symbol, &new_symbol, None).map_err(|e| format!(
+                "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
         }
 
-        statement.remap_symbols(symbol_remapping)?;
+        statement.corporate_actions.extend(corporate_actions.iter().cloned());
         statement.instrument_names.extend(instrument_names.iter().map(|(symbol, name)| {
             (symbol.clone(), name.clone())
         }));
@@ -363,13 +355,13 @@ impl BrokerStatement {
 
             let symbol_buys = unsold_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
                 "Error while processing {} position closing: There are no open positions for it",
-                stock_sell.symbol
+                stock_sell.original_symbol
             ))?;
 
             while !remaining_quantity.is_zero() {
                 let index = symbol_buys.last().copied().ok_or_else(|| format!(
                     "Error while processing {} position closing: There are no open positions for it",
-                    stock_sell.symbol
+                    stock_sell.original_symbol
                 ))?;
 
                 let stock_buy = &mut self.stock_buys[index];
@@ -440,14 +432,6 @@ impl BrokerStatement {
             }
         }
 
-        for cash_flow in &mut self.cash_flows {
-            if let Some(symbol) = cash_flow.mut_symbol() {
-                if let Some(&mapping) = symbol_mapping.get(symbol) {
-                    *symbol = mapping.clone();
-                }
-            }
-        }
-
         Ok(())
     }
 
@@ -483,53 +467,73 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn remap_symbols(&mut self, remapping: &HashMap<String, String>) -> EmptyResult {
-        for (symbol, mapping) in remapping {
-            if self.open_positions.contains_key(mapping) || self.instrument_names.contains_key(mapping) {
-                return Err!(
-                    "Invalid symbol remapping configuration: The portfolio already has {} symbol",
-                    mapping);
+    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, time: Option<DateOptTime>) -> EmptyResult {
+        // For now don't introduce any enums here:
+        // * When date is set - it's always a corporate action.
+        // * In other case it's a manual remapping.
+        let remapping = time.is_none();
+
+        let mut found = false;
+        let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String, operation_original_symbol: &mut String| {
+            if let Some(time) = time {
+                if operation_time > time {
+                    return;
+                }
+            }
+
+            if *operation_symbol == symbol {
+                *operation_symbol = new_symbol.to_owned();
+                found = true;
+            }
+
+            if remapping {
+                if *operation_original_symbol == symbol {
+                    *operation_original_symbol = new_symbol.to_owned();
+                    found = true;
+                }
+            }
+        };
+
+        if remapping {
+            if self.open_positions.contains_key(new_symbol) || self.instrument_names.contains_key(new_symbol) {
+                return Err!("The portfolio already has {} symbol", new_symbol);
             }
 
             if let Some(quantity) = self.open_positions.remove(symbol) {
-                self.open_positions.insert(mapping.to_owned(), quantity);
+                self.open_positions.insert(new_symbol.to_owned(), quantity);
             }
 
             if let Some(name) = self.instrument_names.remove(symbol) {
-                self.instrument_names.insert(mapping.to_owned(), name);
+                self.instrument_names.insert(new_symbol.to_owned(), name);
             }
+        } else {
+            self.stock_splits.rename(symbol, new_symbol)?;
         }
 
-        for stock_buy in &mut self.stock_buys {
-            if let Some(mapping) = remapping.get(&stock_buy.symbol) {
-                stock_buy.symbol = mapping.to_owned();
-            }
+        for trade in &mut self.stock_buys {
+            rename(trade.conclusion_time, &mut trade.symbol, &mut trade.original_symbol);
         }
 
-        for stock_sell in &mut self.stock_sells {
-            if let Some(mapping) = remapping.get(&stock_sell.symbol) {
-                stock_sell.symbol = mapping.to_owned();
-            }
+        for trade in &mut self.stock_sells {
+            rename(trade.conclusion_time, &mut trade.symbol, &mut trade.original_symbol);
         }
 
         for dividend in &mut self.dividends {
-            if let Some(mapping) = remapping.get(&dividend.issuer) {
-                dividend.issuer = mapping.to_owned();
-            }
+            rename(dividend.date.into(), &mut dividend.issuer, &mut dividend.original_issuer);
         }
 
-        for cash_flow in &mut self.cash_flows {
-            if let Some(symbol) = cash_flow.mut_symbol() {
-                if let Some(mapping) = remapping.get(symbol) {
-                    *symbol = mapping.to_owned();
+        if remapping {
+            for cash_flow in &mut self.cash_flows {
+                if let Some(original_symbol) = cash_flow.mut_symbol() {
+                    if *original_symbol == symbol {
+                        *original_symbol = new_symbol.to_owned();
+                    }
                 }
             }
         }
 
-        for corporate_action in &mut self.corporate_actions {
-            if let Some(mapping) = remapping.get(&corporate_action.symbol) {
-                corporate_action.symbol = mapping.to_owned();
-            }
+        if !found {
+            return Err!("Unable to find any operation with it in the broker statement");
         }
 
         Ok(())
@@ -560,7 +564,7 @@ impl BrokerStatement {
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;
 
-        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
+        self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.original_issuer)));
         date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 
         date_validator.sort_and_validate(

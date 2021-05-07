@@ -14,10 +14,11 @@ use super::cash_flows::{CashFlow, CashFlowType};
 use super::payments::Payments;
 use super::taxes::{TaxId, TaxAccruals};
 
-#[derive(Debug)]
 pub struct Dividend {
     pub date: Date,
     pub issuer: String,
+    pub original_issuer: String,
+
     pub amount: Cash,
     pub paid_tax: Cash,
     pub skip_from_cash_flow: bool,
@@ -36,7 +37,7 @@ impl Dividend {
     }
 
     pub fn description(&self) -> String {
-        format!("{} dividend from {}", self.issuer, formatting::format_date(self.date))
+        format!("{} dividend from {}", self.original_issuer, formatting::format_date(self.date))
     }
 }
 
@@ -99,7 +100,9 @@ pub fn process_dividend_accruals(
     let dividend = match amount {
         Some(amount) => Some(Dividend {
             date: dividend.date,
-            issuer: dividend.issuer,
+            issuer: dividend.issuer.clone(),
+            original_issuer: dividend.issuer,
+
             amount: amount,
             paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
             skip_from_cash_flow: cash_flow_details,

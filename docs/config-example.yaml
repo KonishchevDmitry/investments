@@ -9,14 +9,22 @@ portfolios:
     # Path to a directory with broker statements
     statements: ~/Brokerage/Interactive Brokers/Statements
 
+    # Base currency of your account
+    currency: USD
+
     # Tax remapping rules (https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping)
     #tax_remapping:
     #  - date: 13.02.2020
     #    description: BND(US9219378356) Cash Dividend 0.19834500 USD per Share - US Tax
     #    to_date: 06.02.2019
 
-    # Base currency of your account
-    currency: USD
+    # Sometimes stocks are renamed without any corporate action (see https://github.com/KonishchevDmitry/investments/issues/29)
+    # Manual corporate action specification solves the issue.
+    #corporate_actions:
+    #  - date: 03.11.2020
+    #    symbol: CBL
+    #    type: rename
+    #    new_symbol: CBLAQ
 
     # Specifies which instruments' performance should be merged into the specified instrument during performance
     # analysis. This may be useful for example when you replace one ETF by another but very similar and want to know how

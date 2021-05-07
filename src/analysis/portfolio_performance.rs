@@ -378,8 +378,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* {} {} dividend {} tax: {}",
-                       dividend.issuer, formatting::format_date(dividend.date),
-                       formatting::format_date(tax_payment_date), amount);
+                    dividend.original_issuer, formatting::format_date(dividend.date),
+                    formatting::format_date(tax_payment_date), amount);
 
                 self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date.into(), amount);
                 self.transaction(tax_payment_date, amount);

@@ -6,7 +6,6 @@ use crate::taxes::IncomeType;
 use crate::types::{Date, Decimal};
 use chrono::Datelike;
 
-#[derive(Debug)]
 pub struct IdleCashInterest {
     pub date: Date,
     pub amount: Cash, // May be negative

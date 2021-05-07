@@ -38,17 +38,21 @@ pub struct FinancialInstrumentInformationParser {
 
 impl RecordParser for FinancialInstrumentInformationParser {
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        let symbol = record.get_value("Symbol")?;
-        if symbol.ends_with(".OLD") {
-            return Ok(());
+        // If symbol renames saving its ISIN the column contains both symbols
+        // (see https://github.com/KonishchevDmitry/investments/issues/29)
+
+        for symbol in record.get_value("Symbol")?.split(',').map(str::trim) {
+            if symbol.ends_with(".OLD") {
+                continue;
+            }
+
+            let symbol = parse_symbol(symbol)?;
+            let name = record.get_value("Description")?.to_owned();
+
+            // It may be duplicated when the security changes its ID due to corporate action (stock
+            // split for example).
+            parser.statement.instrument_names.insert(symbol, name);
         }
-
-        let symbol = parse_symbol(symbol)?;
-        let name = record.get_value("Description")?.to_owned();
-
-        // It may be duplicated when the security changes its ID due to corporate action (stock
-        // split for example).
-        parser.statement.instrument_names.insert(symbol, name);
 
         Ok(())
     }

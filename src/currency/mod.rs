@@ -147,7 +147,7 @@ impl fmt::Display for Cash {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct CashAssets {
     pub date: Date,
     pub cash: Cash,

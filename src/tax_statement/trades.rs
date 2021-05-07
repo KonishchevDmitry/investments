@@ -293,7 +293,7 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
-        let security = self.broker_statement.get_instrument_name(&trade.symbol);
+        let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
         let (price, commission) = match trade.type_ {
             StockSellType::Trade {price, commission, ..} => (price, commission),
             _ => unreachable!(),
@@ -329,7 +329,7 @@ impl<'a> TradesProcessor<'a> {
             id: trade_id,
             conclusion_date: trade.conclusion_time.date,
             execution_date: trade.execution_date,
-            security: security.to_owned(),
+            security: security,
             quantity: trade.quantity,
 
             price,
@@ -356,13 +356,14 @@ impl<'a> TradesProcessor<'a> {
         });
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            self.process_fifo(&security, trade_id, buy_trade, index == 0)?;
+            self.process_fifo(trade_id, buy_trade, index == 0)?;
         }
 
         Ok(())
     }
 
-    fn process_fifo(&mut self, security: &str, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
+    fn process_fifo(&mut self, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
+        let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
         self.stock_splits |= trade.multiplier != dec!(1);
 
         let mut execution_date_cell = None;
@@ -419,7 +420,7 @@ impl<'a> TradesProcessor<'a> {
             },
             conclusion_date: trade.conclusion_time.date,
             execution_date: execution_date_cell,
-            security: security.to_owned(),
+            security: security,
             quantity: trade.quantity,
             multiplier: trade.multiplier,
 
@@ -451,7 +452,7 @@ impl<'a> TradesProcessor<'a> {
     ) -> EmptyResult {
         assert_eq!(details.taxable_local_profit, details.local_profit);
 
-        let name = self.broker_statement.get_instrument_name(&trade.symbol);
+        let name = self.broker_statement.get_instrument_name(&trade.original_symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
         let cost = details.total_local_cost.amount + additional_fees;
@@ -463,7 +464,7 @@ impl<'a> TradesProcessor<'a> {
             details.revenue.amount, details.local_revenue.amount, cost,
         ).map_err(|e| format!(
             "Unable to add income from selling {} on {} to the tax statement: {}",
-            trade.symbol, formatting::format_date(trade.execution_date), e
+            trade.original_symbol, formatting::format_date(trade.execution_date), e
         ))?;
 
         Ok(())

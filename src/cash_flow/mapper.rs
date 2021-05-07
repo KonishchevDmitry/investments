@@ -46,11 +46,11 @@ impl CashFlowMapper {
         }
 
         for trade in &statement.stock_sells {
-            self.stock_sell(&statement.get_instrument_name(&trade.symbol), trade);
+            self.stock_sell(&statement.get_instrument_name(&trade.original_symbol), trade);
         }
 
         for trade in &statement.stock_buys {
-            self.stock_buy(&statement.get_instrument_name(&trade.symbol), trade);
+            self.stock_buy(&statement.get_instrument_name(&trade.original_symbol), trade);
         }
 
         for fee in &statement.fees {
@@ -131,7 +131,7 @@ impl CashFlowMapper {
         }
 
         let date = dividend.date.into();
-        let issuer = &dividend.issuer;
+        let issuer = &dividend.original_issuer;
 
         self.cash_flow(statement, &CashFlowDetails::new(date, dividend.amount, CashFlowType::Dividend {
             date: dividend.date,
