@@ -293,6 +293,7 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
+        // FIXME(konishchev): Original symbol
         let security = self.broker_statement.get_instrument_name(&trade.symbol);
         let (price, commission) = match trade.type_ {
             StockSellType::Trade {price, commission, ..} => (price, commission),
@@ -451,6 +452,7 @@ impl<'a> TradesProcessor<'a> {
     ) -> EmptyResult {
         assert_eq!(details.taxable_local_profit, details.local_profit);
 
+        // FIXME(konishchev): Original symbol
         let name = self.broker_statement.get_instrument_name(&trade.symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
@@ -463,6 +465,7 @@ impl<'a> TradesProcessor<'a> {
             details.revenue.amount, details.local_revenue.amount, cost,
         ).map_err(|e| format!(
             "Unable to add income from selling {} on {} to the tax statement: {}",
+            // FIXME(konishchev): Original symbol
             trade.symbol, formatting::format_date(trade.execution_date), e
         ))?;
 

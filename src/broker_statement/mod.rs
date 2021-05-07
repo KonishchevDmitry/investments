@@ -140,6 +140,7 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}{}", taxes, hint);
         }
 
+        // FIXME(konishchev): Drop or support renaming + spinoff
         let portfolio_symbols: HashSet<_> = statement.stock_buys.iter()
             .map(|trade| &trade.symbol)
             .collect();
@@ -365,12 +366,14 @@ impl BrokerStatement {
             let mut remaining_quantity = stock_sell.quantity;
             let mut sources = Vec::new();
 
+            // FIXME(konishchev): Original symbol
             let symbol_buys = unsold_buys.get_mut(&stock_sell.symbol).ok_or_else(|| format!(
                 "Error while processing {} position closing: There are no open positions for it",
                 stock_sell.symbol
             ))?;
 
             while !remaining_quantity.is_zero() {
+                // FIXME(konishchev): Original symbol
                 let index = symbol_buys.last().copied().ok_or_else(|| format!(
                     "Error while processing {} position closing: There are no open positions for it",
                     stock_sell.symbol
@@ -405,6 +408,7 @@ impl BrokerStatement {
         Ok(())
     }
 
+    // FIXME(konishchev): Keep original symbol
     pub fn merge_symbols(
         &mut self, symbols_to_merge: &HashMap<String, HashSet<String>>, strict: bool,
     ) -> EmptyResult {
@@ -590,6 +594,7 @@ impl BrokerStatement {
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;
 
+        // FIXME(konishchev): Original issuer
         self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.issuer)));
         date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 

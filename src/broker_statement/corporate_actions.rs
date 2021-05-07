@@ -104,7 +104,7 @@ impl<'de> Deserialize<'de> for StockSplitRatio {
 }
 
 // FIXME(konishchev): Support renaming
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct StockSplitController {
     symbols: HashMap<String, BTreeMap<DateTime, u32>>
 }

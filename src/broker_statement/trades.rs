@@ -8,7 +8,6 @@ use crate::time::DateOptTime;
 use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
 
-#[derive(Debug)]
 pub struct ForexTrade {
     pub from: Cash,
     pub to: Cash,
@@ -22,7 +21,7 @@ impl ForexTrade {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum StockSource {
     // Ordinary trade
     Trade {
@@ -37,11 +36,11 @@ pub enum StockSource {
     CorporateAction,
 }
 
-#[derive(Debug)]
 pub struct StockBuy {
     pub symbol: String,
-    pub quantity: Decimal,
+    pub original_symbol: String,
 
+    pub quantity: Decimal,
     pub type_: StockSource,
     cost: PurchaseTotalCost,
 
@@ -61,8 +60,8 @@ impl StockBuy {
             conclusion_time.date, execution_date, volume, commission);
 
         StockBuy {
-            symbol: symbol.to_owned(), quantity,
-            type_: StockSource::Trade {price, volume, commission}, cost,
+            symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
+            quantity, type_: StockSource::Trade {price, volume, commission}, cost,
             conclusion_time, execution_date, out_of_order_execution: margin,
             sold: dec!(0),
         }
@@ -73,8 +72,8 @@ impl StockBuy {
         conclusion_time: DateOptTime, execution_date: Date,
     ) -> StockBuy {
         StockBuy {
-            symbol: symbol.to_owned(), quantity,
-            type_: StockSource::CorporateAction, cost, out_of_order_execution: true,
+            symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
+            quantity, type_: StockSource::CorporateAction, cost, out_of_order_execution: true,
             conclusion_time, execution_date, sold: dec!(0),
         }
     }
@@ -118,7 +117,7 @@ impl StockBuy {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum StockSellType {
     // Ordinary trade
     Trade {
@@ -133,9 +132,11 @@ pub enum StockSellType {
     CorporateAction,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StockSell {
     pub symbol: String,
+    pub original_symbol: String,
+
     pub quantity: Decimal,
     pub type_: StockSellType,
 
@@ -153,8 +154,8 @@ impl StockSell {
         conclusion_time: DateOptTime, execution_date: Date, margin: bool, emulation: bool,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(), quantity,
-            type_: StockSellType::Trade {price, volume, commission},
+            symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
+            quantity, type_: StockSellType::Trade {price, volume, commission},
             conclusion_time, execution_date, out_of_order_execution: margin,
             emulation, sources: Vec::new(),
         }
@@ -164,8 +165,8 @@ impl StockSell {
         symbol: &str, quantity: Decimal, conclusion_time: DateOptTime, execution_date: Date,
     ) -> StockSell {
         StockSell {
-            symbol: symbol.to_owned(), quantity,
-            type_: StockSellType::CorporateAction,
+            symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
+            quantity, type_: StockSellType::CorporateAction,
             conclusion_time, execution_date, out_of_order_execution: true,
             emulation: false, sources: Vec::new(),
         }
@@ -190,6 +191,7 @@ impl StockSell {
         &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
+        // FIXME(konishchev): Original symbol
         Ok(self.calculate_impl(country, tax_year, tax_exemptions, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
             self.symbol, formatting::format_date(self.conclusion_time), e))?)
@@ -333,7 +335,7 @@ impl StockSell {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StockSellSource {
     pub quantity: Decimal,
     pub multiplier: Decimal,
@@ -473,7 +475,7 @@ impl FifoDetails {
 // calculation in other currencies.
 //
 // Please note that it may be zero due to corporate actions or other non-trade operations.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PurchaseTotalCost(Vec<PurchaseCost>);
 
 impl PurchaseTotalCost {
@@ -530,23 +532,23 @@ impl PurchaseTotalCost {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct PurchaseCost {
     transactions: Vec<PurchaseTransaction>,
     fraction: Fraction,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 struct Fraction(Decimal, Decimal);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 struct PurchaseTransaction {
     date: Date,
     type_: PurchaseCostType,
     cost: Cash,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq)]
 enum PurchaseCostType {
     Trade,
     Commission,

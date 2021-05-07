@@ -377,9 +377,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let (_, tax_payment_date) = portfolio.tax_payment_day().get(dividend.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+                // FIXME(konishchev): Original issuer
                 trace!("* {} {} dividend {} tax: {}",
-                       dividend.issuer, formatting::format_date(dividend.date),
-                       formatting::format_date(tax_payment_date), amount);
+                    dividend.issuer, formatting::format_date(dividend.date),
+                    formatting::format_date(tax_payment_date), amount);
 
                 self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date.into(), amount);
                 self.transaction(tax_payment_date, amount);

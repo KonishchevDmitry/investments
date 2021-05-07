@@ -24,6 +24,7 @@ struct CashFlowMapper {
 }
 
 impl CashFlowMapper {
+    // FIXME(konishchev): Original symbols
     fn process(mut self, statement: &BrokerStatement) -> Vec<CashFlow> {
         for assets in &statement.deposits_and_withdrawals {
             self.deposit_or_withdrawal(assets)
