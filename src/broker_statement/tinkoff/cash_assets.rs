@@ -1,10 +1,13 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
+use chrono::Datelike;
+
 use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::broker_statement::taxes::TaxWithholding;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
@@ -205,6 +208,13 @@ fn parse_cash_flow(
             let issuer = parse_dividend_description(cash_flow.comment.as_deref().unwrap_or_default())?;
             let amount = check_amount(withdrawal)?;
             statement.tax_accruals(date, issuer, true).add(date, amount);
+        },
+
+        "Налог" => {
+            let year = date.year();
+            let amount = check_amount(withdrawal)?;
+            let tax_withholding = TaxWithholding::new(date, year, amount)?;
+            statement.tax_agent_withholdings.push(tax_withholding);
         },
 
         _ => return Err!("Unsupported cash flow operation: {:?}", operation),
