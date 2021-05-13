@@ -40,7 +40,8 @@ impl Quotes {
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), vec![
             Box::new(Finnhub::new(&finnhub.token)),
             Box::new(TwelveData::new(&twelvedata.token)),
-            Box::new(Moex::new()),
+            Box::new(Moex::new("TQTF")),
+            Box::new(Moex::new("TQBR")),
         ]))
     }
 

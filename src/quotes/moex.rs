@@ -16,11 +16,12 @@ use crate::types::{Decimal, Date};
 use super::{QuotesMap, QuotesProvider};
 
 pub struct Moex {
+    board: String,
 }
 
 impl Moex {
-    pub fn new() -> Moex {
-        Moex {}
+    pub fn new(board: &str) -> Moex {
+        Moex {board: board.to_owned()}
     }
 }
 
@@ -38,7 +39,7 @@ impl QuotesProvider for Moex {
         #[cfg(test)] let base_url = mockito::server_url();
 
         let url = Url::parse_with_params(
-            &format!("{}/iss/engines/stock/markets/shares/boards/TQTF/securities.xml", base_url),
+            &format!("{}/iss/engines/stock/markets/shares/boards/{}/securities.xml", base_url, self.board),
             &[("securities", symbols.join(",").as_str())],
         )?;
 
@@ -88,9 +89,6 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
         symbol: Option<String>,
 
         // Security fields
-
-        #[serde(rename = "LOTSIZE")]
-        lot_size: Option<u32>,
 
         #[serde(rename = "CURRENCYID")]
         currency: Option<String>,
@@ -146,14 +144,9 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
 
     for row in securities {
         let symbol = get_value(row.symbol)?;
-        let lot_size = get_value(row.lot_size)?;
         let currency = get_value(row.currency)?;
         let prev_date = get_value(row.prev_date)?;
         let prev_price = get_value(row.prev_price)?;
-
-        if lot_size != 1 {
-            return Err!("{} has lot = {} which is not supported yet", symbol, lot_size);
-        }
 
         let currency = match currency.as_str() {
             "SUR" => "RUB",
@@ -260,19 +253,21 @@ mod tests {
 
     #[test]
     fn no_quotes() {
-        let _mock = mock_response(&["FXUS", "FXIT"], "moex-empty.xml");
-        assert_eq!(Moex::new().get_quotes(&["FXUS", "FXIT"]).unwrap(), HashMap::new());
+        let board = "TQTF";
+        let _mock = mock_response(board, &["FXUS", "FXIT"], "moex-empty.xml");
+        assert_eq!(Moex::new(board).get_quotes(&["FXUS", "FXIT"]).unwrap(), HashMap::new());
     }
 
     #[test]
     fn quotes() {
-        let _mock = mock_response(&["FXUS", "FXIT", "INVALID"], "moex.xml");
+        let board = "TQTF";
+        let _mock = mock_response(board, &["FXUS", "FXIT", "INVALID"], "moex.xml");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
         quotes.insert(s!("FXIT"), Cash::new("RUB", dec!(4612)));
 
-        assert_eq!(Moex::new().get_quotes(&["FXUS", "FXIT", "INVALID"]).unwrap(), quotes);
+        assert_eq!(Moex::new(board).get_quotes(&["FXUS", "FXIT", "INVALID"]).unwrap(), quotes);
     }
 
     #[test]
@@ -291,23 +286,28 @@ mod tests {
     }
 
     fn test_exchange_status(status: &str) {
+        let board = "TQTF";
         let securities = ["FXAU", "FXCN", "FXDE", "FXIT", "FXJP", "FXRB", "FXRL", "FXRU", "FXUK", "FXUS"];
-        let _mock = mock_response(&securities, &format!("moex-{}.xml", status));
-        let quotes = Moex::new().get_quotes(&securities).unwrap();
+        let _mock = mock_response(board, &securities, &format!("moex-{}.xml", status));
+
+        let quotes = Moex::new(board).get_quotes(&securities).unwrap();
         assert_eq!(
             quotes.keys().map(String::as_str).collect::<HashSet<&str>>(),
             securities.iter().cloned().collect::<HashSet<&str>>(),
         );
     }
 
-    fn mock_response(securities: &[&str], body_path: &str) -> Mock {
+    fn mock_response(board: &str, securities: &[&str], body_path: &str) -> Mock {
+        let securities =
+            url::form_urlencoded::byte_serialize(securities.join(",").as_bytes())
+            .collect::<String>();
+
         let path = format!(
-            "/iss/engines/stock/markets/shares/boards/TQTF/securities.xml?securities={}",
-            url::form_urlencoded::byte_serialize(securities.join(",").as_bytes()).collect::<String>()
-        );
-        let body_path = Path::new(file!()).parent().unwrap().join("testdata").join(body_path);
+            "/iss/engines/stock/markets/shares/boards/{}/securities.xml?securities={}",
+            board, securities);
 
         let mut body = String::new();
+        let body_path = Path::new(file!()).parent().unwrap().join("testdata").join(body_path);
         File::open(body_path).unwrap().read_to_string(&mut body).unwrap();
 
         mock("GET", path.as_str())
