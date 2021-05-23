@@ -1,9 +1,9 @@
 use std::collections::{HashSet, HashMap, BTreeMap};
 use std::fs::File;
 use std::io::Read;
+use std::str::FromStr;
 
 use chrono::Duration;
-use num_traits::FromPrimitive;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
@@ -404,16 +404,19 @@ fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
     where D: Deserializer<'de>
 {
     let weight: String = Deserialize::deserialize(deserializer)?;
-    if !weight.ends_with('%') {
-        return Err(D::Error::custom(format!("Invalid weight: {}", weight)));
-    }
 
-    let weight = match weight[..weight.len() - 1].parse::<u8>().ok() {
-        Some(weight) if weight <= 100 => weight,
-        _ => return Err(D::Error::custom(format!("Invalid weight: {}", weight))),
-    };
+    let weight = Some(weight.as_str())
+        .and_then(|weight| weight.strip_suffix('%'))
+        .and_then(|weight| Decimal::from_str(weight).ok())
+        .and_then(|weight| {
+            if weight.is_sign_positive() && util::decimal_precision(weight) <= 2 && weight <= dec!(100) {
+                Some(weight.normalize())
+            } else {
+                None
+            }
+        }).ok_or_else(|| D::Error::custom(format!("Invalid weight: {}", weight)))?;
 
-    Ok(Decimal::from_u8(weight).unwrap() / dec!(100))
+    Ok(weight / dec!(100))
 }
 
 pub type PerformanceMergingConfig = HashMap<String, HashSet<String>>;
