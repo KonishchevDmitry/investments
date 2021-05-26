@@ -192,24 +192,24 @@ mod tests {
             "Stocks", "USD", "2020-08-31", "2020-08-28, 20:25:00",
             "AAPL(US0378331005) Split 4 for 1 (AAPL, APPLE INC, US0378331005)",
             "111", "0", "0", "0", "",
-        ], "AAPL", date_time!(20, 25, 00, 28, 8, 2020), date!(31, 8, 2020), 4, 1, None, Some(dec!(111))),
+        ], "AAPL", date_time!(2020, 8, 28, 20, 25, 00), date!(2020, 8, 31), 4, 1, None, Some(dec!(111))),
 
         case(vec![
             "Stocks", "USD", "2021-01-21", "2021-01-20, 20:25:00",
             "SLG(US78440X1019) Split 100000 for 102918 (SLG.OLD, SL GREEN REALTY CORP, US78440X1019)",
             "-7", "0", "0", "0", "",
-        ], "SLG", date_time!(20, 25, 00, 20, 1, 2021), date!(21, 1, 2021), 100000, 102918, Some(dec!(7)), None),
+        ], "SLG", date_time!(2021, 1, 20, 20, 25, 00), date!(2021, 1, 21), 100000, 102918, Some(dec!(7)), None),
 
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y2019)",
             "-80", "0", "0", "0", "",
-        ], "VISL", date_time!(20, 25, 00, 31, 7, 2020), date!(3, 8, 2020), 1, 6, Some(dec!(80)), None),
+        ], "VISL", date_time!(2020, 7, 31, 20, 25, 00), date!(2020, 8, 3), 1, 6, Some(dec!(80)), None),
         case(vec![
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y3009)",
             "13.3333", "0", "0", "0", "",
-        ], "VISL", date_time!(20, 25, 00, 31, 7, 2020), date!(3, 8, 2020), 1, 6, None, Some(dec!(13.3333))),
+        ], "VISL", date_time!(2020, 7, 31, 20, 25, 00), date!(2020, 8, 3), 1, 6, None, Some(dec!(13.3333))),
     )]
     fn stock_split_parsing(
         record: Vec<&str>, symbol: &str, time: DateTime, report_date: Date, to: u32, from: u32,
@@ -242,8 +242,8 @@ mod tests {
         let record = Record::new(&spec, &record);
 
         assert_eq!(parse(&record).unwrap(), CorporateAction {
-            time: date_time!(20, 25, 00, 16, 11, 2020).into(),
-            report_date: Some(date!(17, 11, 2020)),
+            time: date_time!(2020, 11, 16, 20, 25, 00).into(),
+            report_date: Some(date!(2020, 11, 17)),
 
             symbol: s!("PFE"),
             action: CorporateActionType::Spinoff {

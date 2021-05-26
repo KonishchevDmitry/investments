@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn date_parsing() {
-        assert_eq!(parse_date("2017-12-31T00:00:00").unwrap(), date!(31, 12, 2017));
+        assert_eq!(parse_date("2017-12-31T00:00:00").unwrap(), date!(2017, 12, 31));
     }
 
     #[test]
@@ -77,7 +77,7 @@ mod tests {
     fn date_time_parsing() {
         assert_eq!(
             parse_date_time("2021-02-20T12:31:44").unwrap(),
-            date_time!(12, 31, 44, 20, 2, 2021),
+            date_time!(2021, 2, 20, 12, 31, 44),
         );
     }
 }

@@ -167,21 +167,21 @@ impl CurrencyRateCacheBackend {
         Ok(match currency {
             "USD" => vec![
                 CurrencyRate {
-                    date: date!(1, 9, 2018),
+                    date: date!(2018, 9, 1),
                     price: dec!(68.0447),
                 },
                 CurrencyRate {
-                    date: date!(4, 9, 2018),
+                    date: date!(2018, 9, 4),
                     price: dec!(67.7443),
                 },
             ],
             "EUR" => vec![
                 CurrencyRate {
-                    date: date!(1, 9, 2018),
+                    date: date!(2018, 9, 1),
                     price: dec!(79.4966),
                 },
                 CurrencyRate {
-                    date: date!(4, 9, 2018),
+                    date: date!(2018, 9, 4),
                     price: dec!(78.6376),
                 },
             ],
@@ -300,13 +300,13 @@ mod tests {
             ("USD", "EUR", amount * dec!(79.4966) / dec!(68.0447), amount),
         ] {
             assert_matches!(
-                converter.convert(from, to, date!(31, 8, 2018), value),
+                converter.convert(from, to, date!(2018, 8, 31), value),
                 Err(ref e) if e.to_string().starts_with(&format!(
                     "Unable to find {}/{} currency rate", from, to))
             );
 
             for day in 1..4 {
-                check(from, to, date!(day, 9, 2018), value, result);
+                check(from, to, date!(2018, 9, day), value, result);
             }
         }
 
@@ -318,7 +318,7 @@ mod tests {
             ("EUR", "USD", amount, amount * dec!(78.6376) / dec!(67.7443)),
             ("USD", "EUR", amount * dec!(78.6376) / dec!(67.7443), amount),
         ] {
-            let mut date = date!(4, 9, 2018);
+            let mut date = date!(2018, 9, 4);
 
             for _ in 0..4 {
                 check(from, to, date, value, result);

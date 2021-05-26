@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn date_parsing() {
-        assert_eq!(parse_date("20200623").unwrap(), date!(23, 6, 2020));
-        assert_eq!(parse_date("20200623000000").unwrap(), date!(23, 6, 2020));
+        assert_eq!(parse_date("20200623").unwrap(), date!(2020, 6, 23));
+        assert_eq!(parse_date("20200623000000").unwrap(), date!(2020, 6, 23));
     }
 }

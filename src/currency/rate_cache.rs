@@ -214,13 +214,13 @@ mod tests {
         let currency = "USD";
         let (_database, mut cache) = CurrencyRateCache::new_temporary();
 
-        let today = date!(8, 2, 2018);
+        let today = date!(2018, 2, 8);
         let tomorrow = today.succ();
         cache.today = today;
         cache.tomorrow = tomorrow;
 
-        let first_date = date!(10, 1, 2018);
-        let last_date = date!(4, 2, 2018);
+        let first_date = date!(2018, 1, 10);
+        let last_date = date!(2018, 2, 4);
         let currency_rates = vec![CurrencyRate {
             date: last_date,
             price: dec!(1) / dec!(3),

@@ -45,7 +45,7 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::all_inclusive(), Cash::new(currency, dec!(0))).unwrap();
 
-        let date = date!(4, 1, 2021);
+        let date = date!(2021, 1, 4);
 
         for &(quantity, price, commission) in &[
             (  1, dec!(4008.00), dec!( 2.00)),
@@ -70,7 +70,7 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::iia(), Cash::new(currency, dec!(0))).unwrap();
 
-        let date = date!(14, 12, 2017);
+        let date = date!(2017, 12, 14);
 
         // Percent commission > minimum commission
         assert_eq!(
@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(calc.calculate().unwrap(), hashmap!{
             // Depositary commission
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(1, 1, 2018) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(175))),
+            date!(2018, 1, 1) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(175))),
         });
     }
 }

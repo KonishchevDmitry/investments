@@ -35,8 +35,8 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
             details_title += &title_suffix;
 
             (
-                std::cmp::max(date!(1, 1, year), statement.period.0),
-                std::cmp::min(date!(1, 1, year + 1), statement.period.1),
+                std::cmp::max(date!(year, 1, 1), statement.period.0),
+                std::cmp::min(date!(year + 1, 1, 1), statement.period.1),
             )
         },
         None => statement.period,

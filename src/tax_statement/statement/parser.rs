@@ -259,7 +259,7 @@ mod tests {
         incomes.extend(statement.get_foreign_incomes().unwrap().drain(..));
         assert_eq!(incomes.len(), 4);
 
-        let date = date!(1, 1, year);
+        let date = date!(year, 1, 1);
         let amount = dec!(100);
         let paid_tax = dec!(10);
         let purchase_local_cost = dec!(10);

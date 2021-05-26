@@ -89,7 +89,7 @@ impl TaxStatementPrimitiveType for Date {
 }
 
 fn get_base_date() -> Date {
-    date!(30, 12, 1899)
+    date!(1899, 12, 30)
 }
 
 impl_tax_statement_type!(Decimal);
