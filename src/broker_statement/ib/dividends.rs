@@ -67,6 +67,9 @@ mod tests {
         case("RDS B(US7802591070) Cash Dividend USD 0.32 per Share (Ordinary Dividend)", "RDS-B"),
 
         case("UNIT(US91325V1089) Payment in Lieu of Dividend (Ordinary Dividend)", "UNIT"),
+
+        case("TEF (US8793822086) Stock Dividend US8793822086 416666667 for 10000000000 (Ordinary Dividend)", "TEF"),
+        case("TEF (US8793822086) Stock Dividend US8793822086 416666667 for 10000000000 - REVERSAL (Ordinary Dividend)", "TEF"),
     )]
     fn dividend_parsing(description: &str, symbol: &str) {
         assert_eq!(parse_dividend_description(description).unwrap(), symbol);
