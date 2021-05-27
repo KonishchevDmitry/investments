@@ -80,50 +80,48 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
     lazy_static! {
         static ref REGEX: Regex = Regex::new(&format!(concat!(
-            r"^(?P<symbol>{symbol}) ?\({id}\) (?P<action>Split|Spinoff) ",
-            r"(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
+            r"^(?P<symbol>{symbol}) ?\({id}\) (?P<action>Split|Stock Dividend|Spinoff) ",
+            r"(?:{id} )?(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
             r"\((?P<child_symbol>{symbol})(?:\.OLD)?, [^,)]+, {id}\)$",
         ), symbol=common::STOCK_SYMBOL_REGEX, id=common::STOCK_ID_REGEX)).unwrap();
     }
 
-    Ok(if let Some(captures) = REGEX.captures(description) {
-        let symbol = parse_symbol(captures.name("symbol").unwrap().as_str())?;
+    let captures = REGEX.captures(description).ok_or_else(|| format!(
+        "Unsupported corporate action: {:?}", description))?;
 
-        match captures.name("action").unwrap().as_str() {
-            "Split" => {
-                let from: u32 = captures.name("from").unwrap().as_str().parse()?;
-                let to: u32 = captures.name("to").unwrap().as_str().parse()?;
-                let ratio = StockSplitRatio::new(from, to);
+    let symbol = parse_symbol(captures.name("symbol").unwrap().as_str())?;
+    let action = match captures.name("action").unwrap().as_str() {
+        "Split" => {
+            let from: u32 = captures.name("from").unwrap().as_str().parse()?;
+            let to: u32 = captures.name("to").unwrap().as_str().parse()?;
+            let ratio = StockSplitRatio::new(from, to);
 
-                let change = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
-                let (from_change, to_change) = if change.is_sign_positive() {
-                    (None, Some(change))
-                } else {
-                    (Some(-change), None)
-                };
+            let change = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
+            let (from_change, to_change) = if change.is_sign_positive() {
+                (None, Some(change))
+            } else {
+                (Some(-change), None)
+            };
 
-                CorporateAction {
-                    time: time.into(), report_date, symbol,
-                    action: CorporateActionType::StockSplit{ratio, from_change, to_change},
-                }
-            },
-            "Spinoff" => {
-                let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
-                let currency = record.get_value("Currency")?.to_owned();
+            CorporateActionType::StockSplit{ratio, from_change, to_change}
+        },
+        "Stock Dividend" => {
+            let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
+            CorporateActionType::StockDividend {quantity}
+        },
+        "Spinoff" => {
+            let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
+            let currency = record.get_value("Currency")?.to_owned();
 
-                CorporateAction {
-                    time: time.into(), report_date, symbol,
-                    action: CorporateActionType::Spinoff {
-                        symbol: parse_symbol(captures.name("child_symbol").unwrap().as_str())?,
-                        quantity, currency,
-                    },
-                }
-            },
-            _ => unreachable!(),
-        }
-    } else {
-        return Err!("Unsupported corporate action: {:?}", description);
-    })
+            CorporateActionType::Spinoff {
+                symbol: parse_symbol(captures.name("child_symbol").unwrap().as_str())?,
+                quantity, currency,
+            }
+        },
+        _ => unreachable!(),
+    };
+
+    Ok(CorporateAction {time: time.into(), report_date, symbol, action})
 }
 
 fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<CorporateAction> {
@@ -181,45 +179,35 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-    lazy_static! {
-        static ref CORPORATE_ACTION_FIELDS: Vec<&'static str> =
-            "Asset Category,Currency,Report Date,Date/Time,Description,Quantity,Proceeds,Value,Realized P/L,Code"
-            .split(',').collect();
-    }
-
     #[rstest(record, symbol, time, report_date, to, from, from_change, to_change,
-        case(vec![
+        case(&[
             "Stocks", "USD", "2020-08-31", "2020-08-28, 20:25:00",
             "AAPL(US0378331005) Split 4 for 1 (AAPL, APPLE INC, US0378331005)",
             "111", "0", "0", "0", "",
         ], "AAPL", date_time!(2020, 8, 28, 20, 25, 00), date!(2020, 8, 31), 4, 1, None, Some(dec!(111))),
 
-        case(vec![
+        case(&[
             "Stocks", "USD", "2021-01-21", "2021-01-20, 20:25:00",
             "SLG(US78440X1019) Split 100000 for 102918 (SLG.OLD, SL GREEN REALTY CORP, US78440X1019)",
             "-7", "0", "0", "0", "",
         ], "SLG", date_time!(2021, 1, 20, 20, 25, 00), date!(2021, 1, 21), 100000, 102918, Some(dec!(7)), None),
 
-        case(vec![
+        case(&[
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y2019)",
             "-80", "0", "0", "0", "",
         ], "VISL", date_time!(2020, 7, 31, 20, 25, 00), date!(2020, 8, 3), 1, 6, Some(dec!(80)), None),
-        case(vec![
+        case(&[
             "Stocks", "USD", "2020-08-03", "2020-07-31, 20:25:00",
             "VISL(US92836Y2019) Split 1 for 6 (VISL, VISLINK TECHNOLOGIES INC, US92836Y3009)",
             "13.3333", "0", "0", "0", "",
         ], "VISL", date_time!(2020, 7, 31, 20, 25, 00), date!(2020, 8, 3), 1, 6, None, Some(dec!(13.3333))),
     )]
     fn stock_split_parsing(
-        record: Vec<&str>, symbol: &str, time: DateTime, report_date: Date, to: u32, from: u32,
+        record: &[&str], symbol: &str, time: DateTime, report_date: Date, to: u32, from: u32,
         from_change: Option<Decimal>, to_change: Option<Decimal>,
     ) {
-        let spec = RecordSpec::new("test", CORPORATE_ACTION_FIELDS.clone(), 0);
-        let record = StringRecord::from(record);
-        let record = Record::new(&spec, &record);
-
-        assert_eq!(parse(&record).unwrap(), CorporateAction {
+        test_parsing(record, CorporateAction {
             time: time.into(),
             report_date: Some(report_date),
 
@@ -232,16 +220,27 @@ mod tests {
     }
 
     #[test]
+    fn stock_dividend_parsing() {
+        test_parsing(&[
+            "Stocks", "USD", "2020-07-17", "2020-07-17, 20:20:00",
+            "TEF (US8793822086) Stock Dividend US8793822086 416666667 for 10000000000 (TEF, TELEFONICA SA-SPON ADR, US8793822086)",
+            "1", "0", "4.73", "0", "",
+        ], CorporateAction {
+            time: date_time!(2020, 07, 17, 20, 20, 0).into(),
+            report_date: Some(date!(2020, 7, 17)),
+
+            symbol: s!("TEF"),
+            action: CorporateActionType::StockDividend {quantity: dec!(1)},
+        });
+    }
+
+    #[test]
     fn spinoff_parsing() {
-        let spec = RecordSpec::new("test", CORPORATE_ACTION_FIELDS.clone(), 0);
-        let record = StringRecord::from(vec![
+        test_parsing(&[
             "Stocks", "USD", "2020-11-17", "2020-11-16, 20:25:00",
             "PFE(US7170811035) Spinoff  124079 for 1000000 (VTRS, VIATRIS INC-W/I, US92556V1061)",
             "9.3059", "0", "0", "0", "",
-        ]);
-        let record = Record::new(&spec, &record);
-
-        assert_eq!(parse(&record).unwrap(), CorporateAction {
+        ], CorporateAction {
             time: date_time!(2020, 11, 16, 20, 25, 00).into(),
             report_date: Some(date!(2020, 11, 17)),
 
@@ -252,5 +251,16 @@ mod tests {
                 currency: s!("USD"),
             },
         });
+    }
+
+    fn test_parsing(record: &[&str], expected: CorporateAction) {
+        let fields =
+            "Asset Category,Currency,Report Date,Date/Time,Description,Quantity,Proceeds,Value,Realized P/L,Code"
+            .split(',').collect();
+        let spec = RecordSpec::new("test", fields, 0);
+
+        let record = StringRecord::from(record);
+        let record = Record::new(&spec, &record);
+        assert_eq!(parse(&record).unwrap(), expected);
     }
 }

@@ -56,6 +56,11 @@ pub enum CorporateActionType {
         to_change: Option<Decimal>,
     },
 
+    #[serde(skip)]
+    StockDividend {
+        quantity: Decimal,
+    },
+
     // See https://github.com/KonishchevDmitry/investments/issues/29 for details
     Rename {
         new_symbol: String,
@@ -201,6 +206,9 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
                 action.symbol, format_date(action.time), e,
             ))?;
         },
+
+        // FIXME(konishchev): Support
+        CorporateActionType::StockDividend {..} => unimplemented!(),
 
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(
