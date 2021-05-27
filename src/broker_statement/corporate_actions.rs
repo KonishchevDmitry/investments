@@ -56,6 +56,8 @@ pub enum CorporateActionType {
         to_change: Option<Decimal>,
     },
 
+    // There are two types of stock dividend (see https://github.com/KonishchevDmitry/investments/issues/27#issuecomment-802212517)
+    // At this time we support only one of them.
     #[serde(skip)]
     StockDividend {
         quantity: Decimal,
@@ -207,8 +209,13 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
             ))?;
         },
 
-        // FIXME(konishchev): Support
-        CorporateActionType::StockDividend {..} => unimplemented!(),
+        CorporateActionType::StockDividend {quantity} => {
+            statement.stock_buys.push(StockBuy::new_corporate_action(
+                &action.symbol, quantity, PurchaseTotalCost::new(),
+                action.time, action.execution_date(),
+            ));
+            statement.sort_and_validate_stock_buys()?;
+        },
 
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
             statement.stock_buys.push(StockBuy::new_corporate_action(

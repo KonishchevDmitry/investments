@@ -226,7 +226,7 @@ mod tests {
             "TEF (US8793822086) Stock Dividend US8793822086 416666667 for 10000000000 (TEF, TELEFONICA SA-SPON ADR, US8793822086)",
             "1", "0", "4.73", "0", "",
         ], CorporateAction {
-            time: date_time!(2020, 07, 17, 20, 20, 0).into(),
+            time: date_time!(2020, 7, 17, 20, 20, 0).into(),
             report_date: Some(date!(2020, 7, 17)),
 
             symbol: s!("TEF"),
