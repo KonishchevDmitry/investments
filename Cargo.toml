@@ -51,8 +51,8 @@ quick-xml = { version = "0.22.0", features = [ "serialize" ] }
 rayon = "1.5.1"
 regex = "1.5.4"
 reqwest = { version = "0.11.3", features = ["blocking", "json"] }
-rust_decimal = "~1.13.0"
-rust_decimal_macros = "~1.13.0"
+rust_decimal = "~1.14.1"
+rust_decimal_macros = "~1.14.1"
 separator = "0.4.1"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
@@ -67,8 +67,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.21.0", features = ["bundled"] }
 
-static_table_derive = "0.1.26"
-xls_table_derive = "0.4.5"
+static_table_derive = "0.1.27"
+xls_table_derive = "0.4.6"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
