@@ -12,14 +12,14 @@ pub enum TradeType {
 }
 
 macro_rules! date {
-    ($day:expr, $month:expr, $year:expr) => (::chrono::NaiveDate::from_ymd($year, $month, $day))
+    ($year:expr, $month:expr, $day:expr) => (::chrono::NaiveDate::from_ymd($year, $month, $day))
 }
 
 #[cfg(test)]
 macro_rules! date_time {
-    ($hour:expr, $minute:expr, $second:expr, $day:expr, $month:expr, $year:expr) => {
+    ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
         ::chrono::NaiveDateTime::new(
-            date!($day, $month, $year),
+            date!($year, $month, $day),
             ::chrono::NaiveTime::from_hms($hour, $minute, $second),
         )
     }

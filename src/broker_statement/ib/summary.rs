@@ -97,12 +97,12 @@ mod tests {
     #[test]
     fn period_parsing() {
         assert_eq!(parse_period("October 1, 2018").unwrap(),
-                   (date!(1, 10, 2018), date!(2, 10, 2018)));
+                   (date!(2018, 10, 1), date!(2018, 10, 2)));
 
         assert_eq!(parse_period("September 30, 2018").unwrap(),
-                   (date!(30, 9, 2018), date!(1, 10, 2018)));
+                   (date!(2018, 9, 30), date!(2018, 10, 1)));
 
         assert_eq!(parse_period("May 21, 2018 - September 28, 2018").unwrap(),
-                   (date!(21, 5, 2018), date!(29, 9, 2018)));
+                   (date!(2018, 5, 21), date!(2018, 9, 29)));
     }
 }

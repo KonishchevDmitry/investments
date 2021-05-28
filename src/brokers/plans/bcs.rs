@@ -63,19 +63,19 @@ mod tests {
             converter, super::investor(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
-            (date!(13, 10, 2020),  28, dec!(1639.9)),
-            (date!(13, 10, 2020), 213, dec!(1640.0)),
-            (date!(13, 10, 2020),   2, dec!(1640.0)),
-            (date!(13, 10, 2020), 100, dec!(1640.1)),
+            (date!(2020, 10, 13),  28, dec!(1639.9)),
+            (date!(2020, 10, 13), 213, dec!(1640.0)),
+            (date!(2020, 10, 13),   2, dec!(1640.0)),
+            (date!(2020, 10, 13), 100, dec!(1640.1)),
 
-            (date!(13, 10, 2020), 2549, dec!(4.824)),
-            (date!(13, 10, 2020), 2000, dec!(4.824)),
-            (date!(13, 10, 2020),   33, dec!(4.824)),
-            (date!(13, 10, 2020),  418, dec!(4.824)),
-            (date!(13, 10, 2020), 2379, dec!(4.826)),
-            (date!(13, 10, 2020),  353, dec!(4.826)),
+            (date!(2020, 10, 13), 2549, dec!(4.824)),
+            (date!(2020, 10, 13), 2000, dec!(4.824)),
+            (date!(2020, 10, 13),   33, dec!(4.824)),
+            (date!(2020, 10, 13),  418, dec!(4.824)),
+            (date!(2020, 10, 13), 2379, dec!(4.826)),
+            (date!(2020, 10, 13),  353, dec!(4.826)),
 
-            (date!(14, 10, 2020),  100, dec!(4.808)),
+            (date!(2020, 10, 14),  100, dec!(4.808)),
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
@@ -84,8 +84,8 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(13, 10, 2020) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(599.83))),
-            date!(14, 10, 2020) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(  0.48))),
+            date!(2020, 10, 13) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(599.83))),
+            date!(2020, 10, 14) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(  0.48))),
         });
     }
 
@@ -97,17 +97,17 @@ mod tests {
             converter, super::investor_pro(), Cash::new(currency, dec!(1_000_000))).unwrap();
 
         for &(date, shares, price) in &[
-            (date!(13, 10, 2020),  78, dec!(1640.0)),
-            (date!(13, 10, 2020),   1, dec!(1640.0)),
-            (date!(13, 10, 2020),   9, dec!(1640.1)),
-            (date!(13, 10, 2020), 483, dec!(1640.1)),
+            (date!(2020, 10, 13),  78, dec!(1640.0)),
+            (date!(2020, 10, 13),   1, dec!(1640.0)),
+            (date!(2020, 10, 13),   9, dec!(1640.1)),
+            (date!(2020, 10, 13), 483, dec!(1640.1)),
 
-            (date!(13, 10, 2020), 2645, dec!(4.822)),
-            (date!(13, 10, 2020), 1182, dec!(4.824)),
-            (date!(13, 10, 2020), 3600, dec!(4.824)),
-            (date!(13, 10, 2020), 5671, dec!(4.826)),
+            (date!(2020, 10, 13), 2645, dec!(4.822)),
+            (date!(2020, 10, 13), 1182, dec!(4.824)),
+            (date!(2020, 10, 13), 3600, dec!(4.824)),
+            (date!(2020, 10, 13), 5671, dec!(4.826)),
 
-            (date!(14, 10, 2020),  100, dec!(4.808)),
+            (date!(2020, 10, 14),  100, dec!(4.808)),
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
@@ -116,10 +116,10 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(13, 10, 2020) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(99.97) + dec!(349.89))),
-            date!(14, 10, 2020) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(0.05) + dec!(0.17))),
+            date!(2020, 10, 13) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(99.97) + dec!(349.89))),
+            date!(2020, 10, 14) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(0.05) + dec!(0.17))),
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(1,  11, 2020) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(299))),
+            date!(2020, 11,  1) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(299))),
         });
     }
 
@@ -131,10 +131,10 @@ mod tests {
             converter, super::professional(), Cash::new(currency, dec!(0))).unwrap();
 
         for &(date, shares, price) in &[
-            (date!(2, 12, 2019),  35, dec!(2959.5)),
-            (date!(2, 12, 2019),   3, dec!(2960)),
-            (date!(2, 12, 2019),  18, dec!(2960)),
-            (date!(3, 12, 2019), 107, dec!( 782.4)),
+            (date!(2019, 12, 2),  35, dec!(2959.5)),
+            (date!(2019, 12, 2),   3, dec!(2960)),
+            (date!(2019, 12, 2),  18, dec!(2960)),
+            (date!(2019, 12, 3), 107, dec!( 782.4)),
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
@@ -143,11 +143,11 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(2, 12, 2019) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(68.45) + dec!(16.57))),
-            date!(3, 12, 2019) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(44.45) + dec!(8.37))),
+            date!(2019, 12, 2) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(68.45) + dec!(16.57))),
+            date!(2019, 12, 3) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(44.45) + dec!(8.37))),
 
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(1,  1, 2020) => MultiCurrencyCashAccount::new_from(Cash::new(currency,
+            date!(2020, 1, 1) => MultiCurrencyCashAccount::new_from(Cash::new(currency,
                 dec!(64.10) + // Monthly minimum
                 dec!(177) // Monthly depositary
             )),

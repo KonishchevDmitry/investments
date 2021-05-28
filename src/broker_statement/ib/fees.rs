@@ -12,6 +12,9 @@ impl RecordParser for FeesParser {
         true
     }
 
+    // TODO: Fees may be related to a particular stock due to corporate action processing, so we
+    // might want to link them to symbol. Example:
+    // * TEF(US8793822086) Choice Dividend USD 0.217254 Distribution Value - FEE
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;

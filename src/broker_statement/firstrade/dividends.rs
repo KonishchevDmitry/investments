@@ -64,8 +64,8 @@ mod tests {
     use super::*;
 
     #[rstest(description, date,
-        case("ISHARES TR                     CORE INTL AGGREGATE BD ETF     Rev NRA W/H AS/OF 10/07/20 ROC", date!( 7, 10, 2020)),
-        case("VANGUARD                       TOTAL BOND MARKET ETF          Rev NRA W/H AS/OF 12/29/20 LCG", date!(29, 12, 2020)),
+        case("ISHARES TR                     CORE INTL AGGREGATE BD ETF     Rev NRA W/H AS/OF 10/07/20 ROC", date!(2020, 10,  7)),
+        case("VANGUARD                       TOTAL BOND MARKET ETF          Rev NRA W/H AS/OF 12/29/20 LCG", date!(2020, 12, 29)),
     )]
     fn tax_reversal_parsing(description: &str, date: Date) {
         assert_eq!(parse_tax_reversal_description(description), Some(date));

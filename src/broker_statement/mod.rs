@@ -210,8 +210,8 @@ impl BrokerStatement {
     }
 
     pub fn check_period_against_tax_year(&self, year: i32) -> EmptyResult {
-        let tax_period_start = date!(1, 1, year);
-        let tax_period_end = date!(1, 1, year + 1);
+        let tax_period_start = date!(year, 1, 1);
+        let tax_period_end = date!(year + 1, 1, 1);
 
         if tax_period_end <= self.period.0 || self.period.1 <= tax_period_start {
             return Err!(concat!(

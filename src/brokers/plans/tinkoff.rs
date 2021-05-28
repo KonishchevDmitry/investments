@@ -58,7 +58,7 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::investor(), Cash::new("RUB", dec!(0))).unwrap();
 
-        let date = date!(27, 7, 2020);
+        let date = date!(2020, 7, 27);
 
         for &(currency, quantity, price, commission) in &[
             ("RUB", 30, dec!(184.69), dec!(16.62)),
@@ -87,7 +87,7 @@ mod tests {
         let (portfolio_net_value, depositary) = portfolio_net_value_tiers;
 
         let currency = "RUB";
-        let date = date!(22, 6, 2020);
+        let date = date!(2020, 6, 22);
 
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
@@ -110,7 +110,7 @@ mod tests {
         if depositary != 0 {
             // Actually the date is the date of the first trade
             let commissions = MultiCurrencyCashAccount::new_from(Cash::new(currency, depositary.into()));
-            additional.insert(date!(1, 7, 2020), commissions);
+            additional.insert(date!(2020, 7, 1), commissions);
         }
         assert_eq!(calc.calculate().unwrap(), additional);
     }
@@ -121,13 +121,13 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::trader(), Cash::new("RUB", dec!(0))).unwrap();
 
-        let date = date!(10, 12, 2020);
+        let date = date!(2020, 12, 10);
         assert_eq!(
             calc.add_trade(date, trade_type, 100.into(), Cash::new("RUB", dec!(8.09))).unwrap(),
             Cash::new("RUB", dec!(0.4)),
         );
 
-        let date = date!(18, 12, 2020);
+        let date = date!(2020, 12, 18);
         for &(currency, quantity, price, commission) in &[
             ("RUB", 100, dec!(8.125), dec!(0.41)),
             ("USD",   1, dec!(15.78), dec!(0.01)),
@@ -143,7 +143,7 @@ mod tests {
         assert_eq!(calc.calculate().unwrap(), hashmap!{
             // Depositary commission
             // Actually the date is the date of the first trade
-            date!(1, 1, 2021) => MultiCurrencyCashAccount::new_from(Cash::new("RUB", dec!(290))),
+            date!(2021, 1, 1) => MultiCurrencyCashAccount::new_from(Cash::new("RUB", dec!(290))),
         });
     }
 
@@ -153,7 +153,7 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::premium(), Cash::new("RUB", dec!(0))).unwrap();
 
-        let date = date!(20, 2, 2021);
+        let date = date!(2021, 2, 20);
 
         for &(currency, quantity, price, commission) in &[
             ("RUB",   21, dec!( 4727), dec!( 24.82)),

@@ -164,7 +164,7 @@ mod tests {
             "#)
         );
 
-        assert_eq!(cbr.get_currency_rates("USD", date!(2, 9, 2018), date!(3, 9, 2018)).unwrap(), vec![]);
+        assert_eq!(cbr.get_currency_rates("USD", date!(2018, 9, 2), date!(2018, 9, 3)).unwrap(), vec![]);
     }
 
     #[test]
@@ -190,12 +190,12 @@ mod tests {
         );
 
         assert_eq!(
-            cbr.get_currency_rates("USD", date!(1, 9, 2018), date!(4, 9, 2018)).unwrap(),
+            cbr.get_currency_rates("USD", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
             vec![CurrencyRate {
-                date: date!(1, 9, 2018),
+                date: date!(2018, 9, 1),
                 price: dec!(68.0447),
             }, CurrencyRate {
-                date: date!(4, 9, 2018),
+                date: date!(2018, 9, 4),
                 price: dec!(67.7443),
             }],
         );
@@ -218,12 +218,12 @@ mod tests {
         );
 
         assert_eq!(
-            cbr.get_currency_rates("JPY", date!(1, 9, 2018), date!(4, 9, 2018)).unwrap(),
+            cbr.get_currency_rates("JPY", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
             vec![CurrencyRate {
-                date: date!(1, 9, 2018),
+                date: date!(2018, 9, 1),
                 price: dec!(0.614704),
             }, CurrencyRate {
-                date: date!(4, 9, 2018),
+                date: date!(2018, 9, 4),
                 price: dec!(0.610172),
             }],
         );

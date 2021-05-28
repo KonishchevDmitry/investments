@@ -124,8 +124,8 @@ mod tests {
         {
             // First deposit
 
-            let open_date = date!(28, 7, 2018);
-            let close_date = date!(28, 1, 2019);
+            let open_date = date!(2018, 7, 28);
+            let close_date = date!(2019, 1, 28);
 
             transactions.extend(&[
                 // Fake transaction outside of interest period
@@ -136,12 +136,12 @@ mod tests {
             ]);
 
             for &(capitalization_date, assets) in &[
-                (date!(28,  8, 2018), dec!(603_567.12)),
-                (date!(28,  9, 2018), dec!(607_155.45)),
-                (date!(28, 10, 2018), dec!(610_648.68)),
-                (date!(28, 11, 2018), dec!(614_279.11)),
-                (date!(28, 12, 2018), dec!(617_813.32)),
-                (date!(28,  1, 2019), dec!(621_486.34)),
+                (date!(2018,  8, 28), dec!(603_567.12)),
+                (date!(2018,  9, 28), dec!(607_155.45)),
+                (date!(2018, 10, 28), dec!(610_648.68)),
+                (date!(2018, 11, 28), dec!(614_279.11)),
+                (date!(2018, 12, 28), dec!(617_813.32)),
+                (date!(2019,  1, 28), dec!(621_486.34)),
             ] {
                 let mut interest_periods = interest_periods.clone();
                 interest_periods.push(InterestPeriod::new(open_date, capitalization_date));
@@ -156,19 +156,19 @@ mod tests {
             compare(&transactions, &interest_periods, dec!(300_000));
 
             // Withdraw some assets between interest periods
-            transactions.push(Transaction::new(date!(29, 1, 2019), dec!(-200_000)));
+            transactions.push(Transaction::new(date!(2019, 1, 29), dec!(-200_000)));
             compare(&transactions, &interest_periods, dec!(100_000));
 
             // Deposit some assets between interest periods
-            transactions.push(Transaction::new(date!(30, 1, 2019), dec!(50_000)));
+            transactions.push(Transaction::new(date!(2019, 1, 30), dec!(50_000)));
             compare(&transactions, &interest_periods, dec!(150_000));
         }
 
         {
             // Second deposit
 
-            let open_date = date!(31, 1, 2019);
-            let close_date = date!(31, 7, 2019);
+            let open_date = date!(2019, 1, 31);
+            let close_date = date!(2019, 7, 31);
 
             // Deposit more assets at open date
             transactions.push(Transaction::new(open_date, dec!(40_000)));
@@ -176,17 +176,17 @@ mod tests {
 
             // Deposit contributions
             transactions.extend(&[
-                Transaction::new(date!( 5, 2, 2019), dec!(60_000)),
-                Transaction::new(date!(21, 2, 2019), dec!(50_000)),
+                Transaction::new(date!(2019, 2,  5), dec!(60_000)),
+                Transaction::new(date!(2019, 2, 21), dec!(50_000)),
             ]);
 
             for &(capitalization_date, assets) in &[
-                (date!(28, 2, 2019), dec!(301_352.05)),
-                (date!(31, 3, 2019), dec!(303_143.65)),
-                (date!(30, 4, 2019), dec!(304_887.77)),
-                (date!(31, 5, 2019), dec!(306_700.39)),
-                (date!(30, 6, 2019), dec!(308_464.97)),
-                (date!(31, 7, 2019), dec!(310_298.85)),
+                (date!(2019, 2, 28), dec!(301_352.05)),
+                (date!(2019, 3, 31), dec!(303_143.65)),
+                (date!(2019, 4, 30), dec!(304_887.77)),
+                (date!(2019, 5, 31), dec!(306_700.39)),
+                (date!(2019, 6, 30), dec!(308_464.97)),
+                (date!(2019, 7, 31), dec!(310_298.85)),
             ] {
                 let mut interest_periods = interest_periods.clone();
                 interest_periods.push(InterestPeriod::new(open_date, capitalization_date));
