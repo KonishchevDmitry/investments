@@ -1,4 +1,5 @@
 extern crate investments;
+#[macro_use] extern crate maplit;
 
 use std::process;
 use std::time::Duration;
@@ -21,7 +22,7 @@ use self::init::{Action, initialize};
 mod init;
 
 // TODO: Features to implement:
-// * Declare losses in tax statement: commissions and loss from previous years
+// * Declare loss from previous years in tax statement
 // * XLS for tax inspector
 
 fn main() {
@@ -38,10 +39,14 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
         None
     } else {
         let connection = db::connect(&config.db_path)?;
-        let flush_threshold = 5;
-        let flush_timeout = Duration::from_millis(500);
-        let max_records = 100;
-        Some(Telemetry::new(connection, flush_threshold, flush_timeout, max_records)?)
+        Some(Telemetry::new(connection, btreemap! {
+            // Dummy HTTPS request averages to Moscow:
+            // * Paris    - 243 ms
+            // * London   - 257 ms
+            // * New York - 553 ms
+             5 => Duration::from_millis(500),
+            20 => Duration::from_millis(750),
+        }, 100)?)
     };
 
     let record: TelemetryRecordBuilder = match action {

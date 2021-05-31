@@ -3,7 +3,7 @@
 /// Sends only basic anonymous usage statistics like program version, used commands and brokers.
 /// No personal information will ever be sent.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, Mutex, Condvar};
 use std::thread::{self, JoinHandle};
 use std::time::{Instant, SystemTime, Duration};
@@ -104,8 +104,7 @@ pub struct Telemetry {
 
 impl Telemetry {
     pub fn new(
-        connection: db::Connection,
-        flush_threshold: usize, flush_timeout: Duration, max_records: usize,
+        connection: db::Connection, flush_thresholds: BTreeMap<usize, Duration>, max_records: usize,
     ) -> GenericResult<Telemetry> {
         let mut telemetry = Telemetry {
             db: connection,
@@ -119,8 +118,11 @@ impl Telemetry {
             // By default we don't give any extra time to sender to complete its work. But if we
             // accumulated some records - we do.
             let mut deadline = Instant::now();
-            if request.records.len() % flush_threshold == 0 {
-                deadline += flush_timeout;
+            for (&threshold, &timeout) in flush_thresholds.iter().rev() {
+                if request.records.len() % threshold == 0 {
+                    deadline += timeout;
+                    break;
+                }
             }
 
             telemetry.sender.replace(TelemetrySender::new(request, last_record_id, deadline));
@@ -310,10 +312,9 @@ mod tests {
     fn telemetry() {
         let (_database, connection) = db::new_temporary();
         let new_telemetry = || {
-            let flush_threshold = 1;
-            let flush_timeout = Duration::from_millis(10);
-            let max_records = 5;
-            Telemetry::new(connection.clone(), flush_threshold, flush_timeout, max_records).unwrap()
+            Telemetry::new(connection.clone(), btreemap!{
+                1 => Duration::from_millis(10),
+            }, 5).unwrap()
         };
 
         let mut expected = vec![];
