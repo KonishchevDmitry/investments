@@ -12,7 +12,7 @@ use crate::quotes::Quotes;
 use crate::taxes::IncomeType;
 use crate::trades::convert_price;
 use crate::time;
-use crate::types::Decimal;
+use crate::types::{Date, Decimal};
 use crate::util;
 
 pub fn simulate_sell(
@@ -103,6 +103,8 @@ struct TradeRow {
 struct FifoRow {
     #[column(name="Symbol")]
     symbol: Option<String>,
+    #[column(name="Date")]
+    date: Date,
     #[column(name="Quantity")]
     quantity: Decimal,
     #[column(name="Price")]
@@ -185,6 +187,7 @@ fn print_results(
                 } else {
                    None
                 },
+                date: buy_trade.conclusion_time.date,
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
                 price: (buy_price / buy_trade.multiplier).normalize(),
                 // FIXME(konishchev): LTO support
