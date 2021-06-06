@@ -20,7 +20,7 @@ impl LtoDeductionCalculator {
     }
 
     #[allow(dead_code)] // FIXME(konishchev): Remove
-    pub fn add(&mut self, profit: Decimal, years: i32) {
+    pub fn add(&mut self, profit: Decimal, years: u32) {
         assert!(profit.is_sign_positive());
         assert!(years >= 3);
         self.profit += profit;
@@ -39,8 +39,20 @@ impl LtoDeductionCalculator {
     }
 }
 
-#[allow(dead_code)] // FIXME(konishchev): Remove
-pub fn calculate_ownership_years(buy_date: Date, sell_date: Date) -> i32 {
+pub fn is_deductible(buy_date: Date, sell_date: Date) -> Option<u32> {
+    if buy_date < date!(2014, 1, 1) {
+        return None;
+    }
+
+    let years = calculate_ownership_years(buy_date, sell_date);
+    if years >= 3 {
+        Some(years)
+    } else {
+        None
+    }
+}
+
+fn calculate_ownership_years(buy_date: Date, sell_date: Date) -> u32 {
     assert!(buy_date <= sell_date);
     let mut years = sell_date.year() - buy_date.year();
 
@@ -54,7 +66,7 @@ pub fn calculate_ownership_years(buy_date: Date, sell_date: Date) -> i32 {
         }
     }
 
-    years
+    cast::u32(years).unwrap()
 }
 
 #[cfg(test)]
@@ -79,7 +91,7 @@ mod tests {
         case(date!(2020, 2, 29), date!(2024, 2, 29), 4),
         case(date!(2020, 2, 29), date!(2024, 3,  1), 4),
     )]
-    fn ownership_years_calculation(buy_date: Date, sell_date: Date, years: i32) {
+    fn ownership_years_calculation(buy_date: Date, sell_date: Date, years: u32) {
         assert_eq!(calculate_ownership_years(buy_date, sell_date), years);
     }
 

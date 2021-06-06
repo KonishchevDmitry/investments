@@ -187,6 +187,7 @@ fn print_results(
                 },
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
                 price: (buy_price / buy_trade.multiplier).normalize(),
+                // FIXME(konishchev): LTO support
                 tax_free: if buy_trade.tax_exemption_applied {
                     Some("✔".to_owned())
                 } else {

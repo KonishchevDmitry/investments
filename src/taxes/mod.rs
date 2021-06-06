@@ -1,4 +1,4 @@
-mod long_term_ownership;
+pub mod long_term_ownership;
 mod net_calculator;
 mod payment_day;
 mod remapping;
@@ -27,6 +27,7 @@ impl<'de> Deserialize<'de> for TaxExemption {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let value = String::deserialize(deserializer)?;
         Ok(match value.as_str() {
+            // FIXME(konishchev): Config validation: mix or duplicate
             // FIXME(konishchev): Support
             "tax-free" => TaxExemption::TaxFree,
             _ => return Err(D::Error::unknown_variant(&value, &["tax-free"])),

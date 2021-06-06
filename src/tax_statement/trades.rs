@@ -436,6 +436,7 @@ impl<'a> TradesProcessor<'a> {
 
             total_local_cost: trade.total_cost(self.country.currency, self.converter)?,
             source: source.to_owned(),
+            // FIXME(konishchev): LTO support
             tax_free: if trade.tax_exemption_applied {
                 Some("✔".to_owned())
             } else {

@@ -3,7 +3,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
-use crate::taxes::{IncomeType, TaxExemption};
+use crate::taxes::{self, IncomeType, TaxExemption};
 use crate::time::DateOptTime;
 use crate::trades::calculate_price;
 use crate::types::{Date, Decimal};
@@ -227,30 +227,30 @@ impl StockSell {
             let source_total_cost = source_details.total_cost(currency, converter)?;
             let source_total_local_cost = source_details.total_cost(country.currency, converter)?;
 
-            let mut tax_exemptible = false;
             for tax_exemption in tax_exemptions {
                 match tax_exemption {
                     TaxExemption::LongTermOwnership => {
-                        // FIXME(konishchev): Support
+                        if let Some(years) = taxes::long_term_ownership::is_deductible(source.execution_date, self.execution_date) {
+                            let source_local_revenue = local_execution(price * source_quantity)?;
+                            let source_local_commission = local_conclusion(
+                                commission * source_quantity / self.quantity)?;
+
+                            let source_local_profit = source_local_revenue
+                                .sub(source_local_commission).unwrap()
+                                .sub(source_total_local_cost).unwrap();
+
+                            source_details.long_term_ownership_deductible.replace(LtoDeductible {
+                                profit: std::cmp::max(dec!(0), source_local_profit.amount),
+                                years,
+                            });
+                            break;
+                        }
                     },
                     TaxExemption::TaxFree => {
-                        tax_exemptible = true;
                         source_details.tax_exemption_applied = true;
                         break;
                     },
                 };
-            }
-
-            if tax_exemptible && !source_details.tax_exemption_applied {
-                let source_local_revenue = local_execution(price * source_quantity)?;
-                let source_local_commission = local_conclusion(
-                    commission * source_quantity / self.quantity)?;
-
-                let source_local_profit = source_local_revenue
-                    .sub(source_local_commission).unwrap()
-                    .sub(source_total_local_cost).unwrap();
-
-                source_details.tax_exemption_applied = source_local_profit.is_positive();
             }
 
             total_quantity += source_quantity;
@@ -402,6 +402,7 @@ pub struct FifoDetails {
     cost: PurchaseTotalCost,
 
     pub tax_exemption_applied: bool,
+    pub long_term_ownership_deductible: Option<LtoDeductible>,
 }
 
 pub enum StockSourceDetails {
@@ -455,6 +456,7 @@ impl FifoDetails {
             cost: source.cost.clone(),
 
             tax_exemption_applied: false,
+            long_term_ownership_deductible: None,
         })
     }
 
@@ -568,4 +570,10 @@ impl PurchaseTransaction {
     fn new(date: Date, type_: PurchaseCostType, cost: Cash) -> PurchaseTransaction {
         PurchaseTransaction {date, type_, cost}
     }
+}
+
+#[allow(dead_code)] // FIXME(konishchev): Remove
+pub struct LtoDeductible {
+    profit: Decimal,
+    years: u32,
 }
