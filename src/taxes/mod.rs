@@ -19,21 +19,15 @@ pub enum IncomeType {
 
 #[derive(Clone, Copy, Debug)]
 pub enum TaxExemption {
+    LongTermOwnership,
     TaxFree,
-}
-
-impl TaxExemption {
-    pub fn is_applicable(&self) -> (bool, bool) {
-        match self {
-            TaxExemption::TaxFree => (true, true),
-        }
-    }
 }
 
 impl<'de> Deserialize<'de> for TaxExemption {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let value = String::deserialize(deserializer)?;
         Ok(match value.as_str() {
+            // FIXME(konishchev): Support
             "tax-free" => TaxExemption::TaxFree,
             _ => return Err(D::Error::unknown_variant(&value, &["tax-free"])),
         })

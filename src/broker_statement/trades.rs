@@ -229,12 +229,16 @@ impl StockSell {
 
             let mut tax_exemptible = false;
             for tax_exemption in tax_exemptions {
-                let (exemptible, force) = tax_exemption.is_applicable();
-                tax_exemptible |= exemptible;
-                if force {
-                    source_details.tax_exemption_applied = true;
-                    break;
-                }
+                match tax_exemption {
+                    TaxExemption::LongTermOwnership => {
+                        // FIXME(konishchev): Support
+                    },
+                    TaxExemption::TaxFree => {
+                        tax_exemptible = true;
+                        source_details.tax_exemption_applied = true;
+                        break;
+                    },
+                };
             }
 
             if tax_exemptible && !source_details.tax_exemption_applied {
