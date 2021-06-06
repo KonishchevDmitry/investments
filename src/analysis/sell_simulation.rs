@@ -109,8 +109,10 @@ struct FifoRow {
     quantity: Decimal,
     #[column(name="Price")]
     price: Cash,
+    #[column(name="LTO", align="center")]
+    long_term_ownership: bool,
     #[column(name="Tax free", align="center")]
-    tax_free: Option<String>,
+    tax_free: bool,
 }
 
 fn print_results(
@@ -146,6 +148,7 @@ fn print_results(
 
     let mut trades_table = TradesTable::new();
     let mut fifo_table = FifoTable::new();
+    let mut long_term_ownership = false;
     let mut tax_exemptions = false;
 
     for trade in stock_sells {
@@ -163,6 +166,7 @@ fn print_results(
 
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
+        long_term_ownership |= details.long_term_ownership();
         tax_exemptions |= details.tax_exemption_applied();
 
         total_revenue.deposit(details.revenue);
@@ -190,12 +194,8 @@ fn print_results(
                 date: buy_trade.conclusion_time.date,
                 quantity: (buy_trade.quantity * buy_trade.multiplier).normalize(),
                 price: (buy_price / buy_trade.multiplier).normalize(),
-                // FIXME(konishchev): LTO support
-                tax_free: if buy_trade.tax_exemption_applied {
-                    Some("✔".to_owned())
-                } else {
-                    None
-                },
+                long_term_ownership: buy_trade.long_term_ownership_deductible.is_some(),
+                tax_free: buy_trade.tax_exemption_applied,
             });
         }
 
@@ -227,6 +227,9 @@ fn print_results(
         trades_table.hide_local_profit();
         trades_table.hide_real_tax();
         trades_table.hide_real_local_profit();
+    }
+    if !long_term_ownership {
+        fifo_table.hide_long_term_ownership();
     }
     if !tax_exemptions {
         trades_table.hide_taxable_local_profit();

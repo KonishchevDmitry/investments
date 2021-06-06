@@ -378,6 +378,10 @@ pub struct SellDetails {
 }
 
 impl SellDetails {
+    pub fn long_term_ownership(&self) -> bool {
+        self.fifo.iter().any(|trade| trade.long_term_ownership_deductible.is_some())
+    }
+
     pub fn tax_exemption_applied(&self) -> bool {
         if self.fifo.iter().any(|trade| trade.tax_exemption_applied) {
             return true;

@@ -167,6 +167,16 @@ impl_from_number_to_cell!(u32);
 impl_from_number_to_cell!(usize);
 impl_from_number_to_cell!(Decimal);
 
+impl From<bool> for Cell {
+    fn from(value: bool) -> Cell {
+        if value {
+            "✔".into()
+        } else {
+            Cell::new_empty()
+        }
+    }
+}
+
 impl From<String> for Cell {
     fn from(text: String) -> Cell {
         Cell::new(text, Alignment::LEFT)
