@@ -6,6 +6,10 @@ mod remapping;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
+use crate::brokers::Broker;
+use crate::core::EmptyResult;
+use crate::localities::Jurisdiction;
+
 pub use self::net_calculator::NetTaxCalculator;
 pub use self::payment_day::{TaxPaymentDay, TaxPaymentDaySpec};
 pub use self::remapping::TaxRemapping;
@@ -27,10 +31,26 @@ impl<'de> Deserialize<'de> for TaxExemption {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let value = String::deserialize(deserializer)?;
         Ok(match value.as_str() {
-            // FIXME(konishchev): Config validation: mix or duplicate
-            // FIXME(konishchev): Support
+            "long-term-ownership" => TaxExemption::LongTermOwnership,
             "tax-free" => TaxExemption::TaxFree,
+            // FIXME(konishchev): Support
             _ => return Err(D::Error::unknown_variant(&value, &["tax-free"])),
         })
     }
+}
+
+pub fn validate_tax_exemptions(broker: Broker, exemptions: &[TaxExemption]) -> EmptyResult {
+    if exemptions.is_empty() {
+        return Ok(());
+    }
+
+    if exemptions.len() > 1 {
+        return Err!("Only one tax exemption can be specified per portfolio");
+    }
+
+    if broker.jurisdiction() != Jurisdiction::Russia {
+        return Err!("Tax exemptions are only supported for brokers with Russia jurisdiction");
+    }
+
+    Ok(())
 }

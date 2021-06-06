@@ -12,7 +12,7 @@ use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::localities::{self, Country, Jurisdiction};
-use crate::taxes::{TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
+use crate::taxes::{self, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::telemetry::TelemetryConfig;
 use crate::time::{self, deserialize_date};
 use crate::types::{Date, Decimal};
@@ -69,68 +69,28 @@ impl Config {
     }
 
     pub fn load(path: &str) -> GenericResult<Config> {
-        let mut data = Vec::new();
-        File::open(path)?.read_to_end(&mut data)?;
-
-        let mut config: Config = serde_yaml::from_slice(&data)?;
+        let mut config: Config = {
+            let mut data = Vec::new();
+            File::open(path)?.read_to_end(&mut data)?;
+            serde_yaml::from_slice(&data)?
+        };
 
         for deposit in &config.deposits {
-            if deposit.open_date > deposit.close_date {
-                return Err!(
-                    "Invalid {:?} deposit dates: {} -> {}",
-                    deposit.name, formatting::format_date(deposit.open_date),
-                    formatting::format_date(deposit.close_date));
-            }
-
-            for &(date, _amount) in &deposit.contributions {
-                if date < deposit.open_date || date > deposit.close_date {
-                    return Err!(
-                        "Invalid {:?} deposit contribution date: {}",
-                        deposit.name, formatting::format_date(date));
-                }
-            }
+            deposit.validate()?;
         }
 
         {
             let mut portfolio_names = HashSet::new();
 
-            for portfolio in &config.portfolios {
+            for portfolio in &mut config.portfolios {
                 if !portfolio_names.insert(&portfolio.name) {
                     return Err!("Duplicate portfolio name: {:?}", portfolio.name);
                 }
 
-                if let Some(ref currency) = portfolio.currency {
-                    match currency.as_str() {
-                        "RUB" | "USD" => (),
-                        _ => return Err!("Unsupported portfolio currency: {}", currency),
-                    };
-                }
-
-                for (symbol, mapping) in &portfolio.symbol_remapping {
-                    if portfolio.symbol_remapping.get(mapping).is_some() {
-                        return Err!(
-                            "Invalid symbol remapping configuration: Recursive {} symbol",
-                            symbol);
-                    }
-                }
-
-                validate_performance_merging_configuration(&portfolio.merge_performance)?;
-
-                if
-                    matches!(portfolio.tax_payment_day_spec, TaxPaymentDaySpec::OnClose(_)) &&
-                    portfolio.broker.jurisdiction() != Jurisdiction::Russia
-                {
-                    return Err!("On close tax payment date is only available for brokers with Russia jurisdiction")
-                }
-
-                if !portfolio.tax_exemptions.is_empty() && portfolio.broker.jurisdiction() != Jurisdiction::Russia {
-                    return Err!("Tax exemptions are only supported for brokers with Russia jurisdiction")
-                }
+                portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
+                portfolio.validate().map_err(|e| format!(
+                    "{:?} portfolio: {}", portfolio.name, e))?;
             }
-        }
-
-        for portfolio in &mut config.portfolios {
-            portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
         }
 
         for &tax_rates in &[
@@ -185,6 +145,27 @@ pub struct DepositConfig {
     pub capitalization: bool,
     #[serde(default, deserialize_with = "deserialize_cash_flows")]
     pub contributions: Vec<(Date, Decimal)>,
+}
+
+impl DepositConfig {
+    fn validate(&self) -> EmptyResult {
+        if self.open_date > self.close_date {
+            return Err!(
+                "Invalid {:?} deposit dates: {} -> {}",
+                self.name, formatting::format_date(self.open_date),
+                formatting::format_date(self.close_date));
+        }
+
+        for &(date, _amount) in &self.contributions {
+            if date < self.open_date || date > self.close_date {
+                return Err!(
+                    "Invalid {:?} deposit contribution date: {}",
+                    self.name, formatting::format_date(date));
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
@@ -257,6 +238,33 @@ impl PortfolioConfig {
 
     pub fn close_date() -> Date {
         time::today()
+    }
+
+    fn validate(&self) -> EmptyResult {
+        if let Some(ref currency) = self.currency {
+            match currency.as_str() {
+                "RUB" | "USD" => (),
+                _ => return Err!("Unsupported portfolio currency: {}", currency),
+            };
+        }
+
+        for (symbol, mapping) in &self.symbol_remapping {
+            if self.symbol_remapping.get(mapping).is_some() {
+                return Err!("Invalid symbol remapping configuration: Recursive {} symbol", symbol);
+            }
+        }
+
+        if
+            matches!(self.tax_payment_day_spec, TaxPaymentDaySpec::OnClose(_)) &&
+            self.broker.jurisdiction() != Jurisdiction::Russia
+        {
+            return Err!("On close tax payment date is only available for brokers with Russia jurisdiction")
+        }
+
+        taxes::validate_tax_exemptions(self.broker, &self.tax_exemptions)?;
+        validate_performance_merging_configuration(&self.merge_performance)?;
+
+        Ok(())
     }
 }
 
