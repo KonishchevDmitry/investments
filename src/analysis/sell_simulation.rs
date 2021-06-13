@@ -174,7 +174,6 @@ fn print_results(
             tax_to_pay: details.tax_to_pay,
             tax_deduction: details.tax_deduction,
 
-            // FIXME(konishchev): Totals?
             real_profit: real.profit_ratio.map(Cell::new_ratio),
             real_tax: real.tax_ratio.map(Cell::new_ratio),
             real_local_profit: real.local_profit_ratio.map(Cell::new_ratio),
