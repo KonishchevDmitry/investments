@@ -11,7 +11,6 @@ pub struct LtoDeductionCalculator {
 }
 
 impl LtoDeductionCalculator {
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn new() -> LtoDeductionCalculator {
         LtoDeductionCalculator {
             profit: Decimal::default(),
@@ -19,7 +18,6 @@ impl LtoDeductionCalculator {
         }
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn add(&mut self, profit: Decimal, years: u32) {
         assert!(profit.is_sign_positive());
         assert!(years >= 3);
@@ -27,7 +25,6 @@ impl LtoDeductionCalculator {
         self.weighted_profit += profit * Decimal::from(years);
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn calculate(self) -> (Decimal, Decimal) {
         if self.profit.is_zero() {
             return (dec!(0), dec!(0));

@@ -368,7 +368,7 @@ pub struct SellDetails {
     pub taxable_local_profit: Cash,
 
     pub tax_to_pay: Cash,
-    pub tax_deduction: Cash,
+    pub tax_deduction: Cash,  // FIXME(konishchev): Deprecate?
 
     pub real_tax_ratio: Option<Decimal>,
     pub real_profit_ratio: Option<Decimal>,
@@ -378,10 +378,6 @@ pub struct SellDetails {
 }
 
 impl SellDetails {
-    pub fn long_term_ownership(&self) -> bool {
-        self.fifo.iter().any(|trade| trade.long_term_ownership_deductible.is_some())
-    }
-
     pub fn tax_exemption_applied(&self) -> bool {
         if self.fifo.iter().any(|trade| trade.tax_exemption_applied) {
             return true;
@@ -576,8 +572,7 @@ impl PurchaseTransaction {
     }
 }
 
-#[allow(dead_code)] // FIXME(konishchev): Remove
 pub struct LtoDeductible {
-    profit: Decimal,
-    years: u32,
+    pub profit: Decimal,
+    pub years: u32,
 }
