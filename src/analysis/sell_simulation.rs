@@ -115,6 +115,7 @@ fn print_results(
 
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
+        let real = details.real_profit(&converter)?;
         tax_exemptions |= details.tax_exemption_applied();
 
         total_revenue.deposit(details.revenue);
@@ -168,9 +169,9 @@ fn print_results(
             tax_deduction: details.tax_deduction,
 
             // FIXME(konishchev): Totals?
-            real_profit: details.real_profit_ratio.map(Cell::new_ratio),
-            real_tax: details.real_tax_ratio.map(Cell::new_ratio),
-            real_local_profit: details.real_local_profit_ratio.map(Cell::new_ratio),
+            real_profit: real.profit_ratio.map(Cell::new_ratio),
+            real_tax: real.tax_ratio.map(Cell::new_ratio),
+            real_local_profit: real.local_profit_ratio.map(Cell::new_ratio),
         });
     }
 

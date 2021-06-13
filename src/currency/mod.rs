@@ -234,6 +234,12 @@ impl MultiCurrencyCashAccount {
         Ok(total_assets)
     }
 
+    pub fn total_cash_assets(
+        &self, date: Date, currency: &str, converter: &CurrencyConverter
+    ) -> GenericResult<Cash> {
+        Ok(Cash::new(currency, self.total_assets(date, currency, converter)?))
+    }
+
     pub fn total_assets_real_time(
         &self, currency: &str, converter: &CurrencyConverter
     ) -> GenericResult<Decimal> {

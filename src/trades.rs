@@ -1,6 +1,7 @@
 use crate::core::GenericResult;
-use crate::currency::Cash;
+use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
+use crate::time::Date;
 use crate::types::Decimal;
 use crate::util;
 
@@ -43,4 +44,49 @@ pub fn calculate_price(quantity: Decimal, volume: Cash) -> GenericResult<Cash> {
     }
 
     Ok(Cash::new(volume.currency, price))
+}
+
+pub struct RealProfit {
+    pub tax_ratio: Option<Decimal>,
+    pub profit_ratio: Option<Decimal>,
+    pub local_profit_ratio: Option<Decimal>,
+}
+
+pub fn calculate_real_profit<C>(
+    date: Date, purchase_cost: C, purchase_local_cost: Cash, profit: C, local_profit: Cash,
+    tax_to_pay: Cash, converter: &CurrencyConverter,
+) -> GenericResult<RealProfit>
+    where C: Into<MultiCurrencyCashAccount>
+{
+    let local_currency = tax_to_pay.currency;
+    let purchase_cost = purchase_cost.into();
+    let profit = profit.into();
+
+    let profit_in_local = profit.total_cash_assets(date, local_currency, converter)?;
+    let real_tax_ratio = if profit_in_local.is_zero() {
+        None
+    } else {
+        Some(tax_to_pay.div(profit_in_local).unwrap())
+    };
+
+    let real_profit_in_local = profit_in_local.sub(tax_to_pay).unwrap();
+    let purchase_cost_in_local = purchase_cost.total_cash_assets(date, local_currency, converter)?;
+    let real_profit_ratio = if purchase_cost_in_local.is_zero() {
+        None
+    } else {
+        Some(real_profit_in_local.div(purchase_cost_in_local).unwrap())
+    };
+
+    let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
+    let real_local_profit_ratio = if purchase_local_cost.is_zero() {
+        None
+    } else {
+        Some(real_local_profit.div(purchase_local_cost).unwrap())
+    };
+
+    Ok(RealProfit {
+        tax_ratio: real_tax_ratio,
+        profit_ratio: real_profit_ratio,
+        local_profit_ratio: real_local_profit_ratio,
+    })
 }

@@ -325,6 +325,8 @@ impl<'a> TradesProcessor<'a> {
             None
         };
 
+        let real = details.real_profit(self.converter)?;
+
         self.trades_table.add_row(TradeRow {
             id: trade_id,
             conclusion_date: trade.conclusion_time.date,
@@ -351,8 +353,8 @@ impl<'a> TradesProcessor<'a> {
             tax_to_pay: details.tax_to_pay,
             tax_deduction: details.tax_deduction,
 
-            real_profit_ratio: details.real_profit_ratio.map(Cell::new_ratio),
-            real_local_profit_ratio: details.real_local_profit_ratio.map(Cell::new_ratio),
+            real_profit_ratio: real.profit_ratio.map(Cell::new_ratio),
+            real_local_profit_ratio: real.local_profit_ratio.map(Cell::new_ratio),
         });
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {

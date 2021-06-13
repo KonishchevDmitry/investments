@@ -5,7 +5,7 @@ use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{self, IncomeType, TaxExemption};
 use crate::time::DateOptTime;
-use crate::trades::calculate_price;
+use crate::trades::{self, RealProfit};
 use crate::types::{Date, Decimal};
 
 pub struct ForexTrade {
@@ -293,33 +293,14 @@ impl StockSell {
         let tax_deduction = tax_without_deduction.sub(tax_to_pay).unwrap();
         assert!(!tax_deduction.is_negative());
 
-        let real_tax_ratio = if profit.is_zero() {
-            None
-        } else {
-            Some(converter.convert_to(self.execution_date, tax_to_pay, profit.currency)? / profit.amount)
-        };
-
-        let real_profit = profit.sub(converter.convert_to_cash_rounding(
-            self.execution_date, tax_to_pay, currency)?).unwrap();
-
-        let real_profit_ratio = if purchase_cost.is_zero() {
-            None
-        } else {
-            Some(real_profit.div(purchase_cost).unwrap())
-        };
-
-        let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
-        let real_local_profit_ratio = if purchase_local_cost.is_zero() {
-            None
-        } else {
-            Some(real_local_profit.div(purchase_local_cost).unwrap())
-        };
-
         Ok(SellDetails {
+            execution_date: self.execution_date,
+
             revenue,
             local_revenue,
             local_commission,
 
+            purchase_cost,
             purchase_local_cost,
             total_local_cost,
 
@@ -329,10 +310,6 @@ impl StockSell {
 
             tax_to_pay,
             tax_deduction,
-
-            real_tax_ratio,
-            real_profit_ratio,
-            real_local_profit_ratio,
 
             fifo,
         })
@@ -354,12 +331,15 @@ pub struct StockSellSource {
 }
 
 pub struct SellDetails {
+    execution_date: Date,
+
     pub revenue: Cash,
     pub local_revenue: Cash,
     pub local_commission: Cash,
 
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
+    purchase_cost: Cash,
     pub purchase_local_cost: Cash,
     pub total_local_cost: Cash,
 
@@ -369,10 +349,6 @@ pub struct SellDetails {
 
     pub tax_to_pay: Cash,
     pub tax_deduction: Cash,  // FIXME(konishchev): Deprecate?
-
-    pub real_tax_ratio: Option<Decimal>,
-    pub real_profit_ratio: Option<Decimal>,
-    pub real_local_profit_ratio: Option<Decimal>,
 
     pub fifo: Vec<FifoDetails>,
 }
@@ -386,6 +362,12 @@ impl SellDetails {
         assert_eq!(self.taxable_local_profit, self.local_profit);
         assert!(self.tax_deduction.is_zero());
         false
+    }
+
+    pub fn real_profit(&self, converter: &CurrencyConverter) -> GenericResult<RealProfit> {
+        trades::calculate_real_profit(
+            self.execution_date, self.purchase_cost, self.purchase_local_cost,
+            self.profit, self.local_profit, self.tax_to_pay, converter)
     }
 }
 
@@ -468,7 +450,7 @@ impl FifoDetails {
             StockSourceDetails::Trade {price, ..} if price.currency == currency => price,
             _ => {
                 let cost = self.cost(currency, converter)?;
-                calculate_price(self.quantity, cost)?
+                trades::calculate_price(self.quantity, cost)?
             },
         })
     }
