@@ -79,88 +79,6 @@ struct TradesProcessor<'a> {
     total_tax_deduction: Cash,
 }
 
-#[derive(StaticTable)]
-#[table(name="TradesTable")]
-struct TradeRow {
-    #[column(name="№")]
-    id: usize,
-    #[column(name="Дата сделки")]
-    conclusion_date: Date,
-    #[column(name="Дата расчета")]
-    execution_date: Date,
-    #[column(name="Ценная бумага")]
-    security: String,
-    #[column(name="Кол.")]
-    quantity: Decimal,
-    #[column(name="Цена")]
-    price: Cash,
-    #[column(name="Курс руб.\nдата сделки")]
-    conclusion_currency_rate: Option<Decimal>,
-    #[column(name="Курс руб.\nдата расчета")]
-    execution_currency_rate: Option<Decimal>,
-    #[column(name="Доход от\nпродажи")]
-    revenue: Cash,
-    #[column(name="Доход от\nпродажи (руб)")]
-    local_revenue: Cash,
-    #[column(name="Комиссия")]
-    commission: Cash,
-    #[column(name="Комиссия\n(руб)")]
-    local_commission: Cash,
-    #[column(name="Затраты на\nпокупку")]
-    purchase_local_cost: Cash,
-    #[column(name="Общие\nзатраты")]
-    total_local_cost: Cash,
-    #[column(name="Прибыль")]
-    local_profit: Cash,
-    #[column(name="Налогообл.\nприбыль")]
-    taxable_local_profit: Cash,
-    #[column(name="Налог")]
-    tax_to_pay: Cash,
-    #[column(name="Вычет")]
-    tax_deduction: Cash,
-    #[column(name="Реальный\nдоход")]
-    real_profit_ratio: Option<Cell>,
-    #[column(name="Реальный\nдоход (руб)")]
-    real_local_profit_ratio: Option<Cell>,
-}
-
-#[derive(StaticTable)]
-#[table(name="FifoTable")]
-struct FifoRow {
-    #[column(name="№")]
-    id: Option<usize>,
-    #[column(name="Дата сделки")]
-    conclusion_date: Date,
-    #[column(name="Дата расчета")]
-    execution_date: Option<Date>,
-    #[column(name="Ценная бумага")]
-    security: String,
-    #[column(name="Кол.")]
-    quantity: Decimal,
-    #[column(name="Мул.")]
-    multiplier: Decimal,
-    #[column(name="Цена")]
-    price: Option<Cash>,
-    #[column(name="Курс руб.\nдата сделки")]
-    conclusion_currency_rate: Option<Decimal>,
-    #[column(name="Курс руб.\nдата расчета")]
-    execution_currency_rate: Option<Decimal>,
-    #[column(name="Расходы")]
-    cost: Option<Cash>,
-    #[column(name="Расходы (руб)")]
-    local_cost: Option<Cash>,
-    #[column(name="Комиссия")]
-    commission: Option<Cash>,
-    #[column(name="Комиссия\n(руб)")]
-    local_commission: Option<Cash>,
-    #[column(name="Общие затраты")]
-    total_local_cost: Cash,
-    #[column(name="Источник", align="center")]
-    source: String,
-    #[column(name="Льгота", align="center")]
-    tax_free: Option<String>,
-}
-
 impl<'a> TradesProcessor<'a> {
     fn pre_process_fees(&mut self) -> GenericResult<(VecDeque<PreprocessedFee>, HashMap<i32, Decimal>)> {
         let broker = self.broker_statement.broker.type_;
@@ -473,7 +391,7 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_totals(&mut self) -> Option<Cash> {
+    fn process_totals(&self) -> Option<Cash> {
         match self.portfolio.tax_payment_day().spec {
             TaxPaymentDaySpec::Day {..} => Some(self.total_taxable_local_profit_by_year.iter().map(|(&year, profit)| {
                 self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
@@ -548,4 +466,86 @@ struct PreprocessedFee {
     amount: Cash,
     local_amount: Cash,
     description: String,
+}
+
+#[derive(StaticTable)]
+#[table(name="TradesTable")]
+struct TradeRow {
+    #[column(name="№")]
+    id: usize,
+    #[column(name="Дата сделки")]
+    conclusion_date: Date,
+    #[column(name="Дата расчета")]
+    execution_date: Date,
+    #[column(name="Ценная бумага")]
+    security: String,
+    #[column(name="Кол.")]
+    quantity: Decimal,
+    #[column(name="Цена")]
+    price: Cash,
+    #[column(name="Курс руб.\nдата сделки")]
+    conclusion_currency_rate: Option<Decimal>,
+    #[column(name="Курс руб.\nдата расчета")]
+    execution_currency_rate: Option<Decimal>,
+    #[column(name="Доход от\nпродажи")]
+    revenue: Cash,
+    #[column(name="Доход от\nпродажи (руб)")]
+    local_revenue: Cash,
+    #[column(name="Комиссия")]
+    commission: Cash,
+    #[column(name="Комиссия\n(руб)")]
+    local_commission: Cash,
+    #[column(name="Затраты на\nпокупку")]
+    purchase_local_cost: Cash,
+    #[column(name="Общие\nзатраты")]
+    total_local_cost: Cash,
+    #[column(name="Прибыль")]
+    local_profit: Cash,
+    #[column(name="Налогообл.\nприбыль")]
+    taxable_local_profit: Cash,
+    #[column(name="Налог")]
+    tax_to_pay: Cash,
+    #[column(name="Вычет")]
+    tax_deduction: Cash,
+    #[column(name="Реальный\nдоход")]
+    real_profit_ratio: Option<Cell>,
+    #[column(name="Реальный\nдоход (руб)")]
+    real_local_profit_ratio: Option<Cell>,
+}
+
+#[derive(StaticTable)]
+#[table(name="FifoTable")]
+struct FifoRow {
+    #[column(name="№")]
+    id: Option<usize>,
+    #[column(name="Дата сделки")]
+    conclusion_date: Date,
+    #[column(name="Дата расчета")]
+    execution_date: Option<Date>,
+    #[column(name="Ценная бумага")]
+    security: String,
+    #[column(name="Кол.")]
+    quantity: Decimal,
+    #[column(name="Мул.")]
+    multiplier: Decimal,
+    #[column(name="Цена")]
+    price: Option<Cash>,
+    #[column(name="Курс руб.\nдата сделки")]
+    conclusion_currency_rate: Option<Decimal>,
+    #[column(name="Курс руб.\nдата расчета")]
+    execution_currency_rate: Option<Decimal>,
+    #[column(name="Расходы")]
+    cost: Option<Cash>,
+    #[column(name="Расходы (руб)")]
+    local_cost: Option<Cash>,
+    #[column(name="Комиссия")]
+    commission: Option<Cash>,
+    #[column(name="Комиссия\n(руб)")]
+    local_commission: Option<Cash>,
+    #[column(name="Общие затраты")]
+    total_local_cost: Cash,
+    #[column(name="Источник", align="center")]
+    source: String,
+    #[column(name="Льгота", align="center")]
+    tax_free: Option<String>,
 }
