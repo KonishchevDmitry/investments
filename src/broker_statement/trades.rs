@@ -339,7 +339,7 @@ pub struct SellDetails {
 
     // Please note that all of the following values can be zero due to corporate actions or other
     // non-trade operations:
-    purchase_cost: Cash,
+    pub purchase_cost: Cash,
     pub purchase_local_cost: Cash,
     pub total_local_cost: Cash,
 

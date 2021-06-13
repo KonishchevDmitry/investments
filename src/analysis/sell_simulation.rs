@@ -10,7 +10,7 @@ use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
 use crate::taxes::{IncomeType, long_term_ownership::LtoDeductionCalculator};
-use crate::trades::convert_price;
+use crate::trades;
 use crate::time;
 use crate::types::{Date, Decimal};
 use crate::util;
@@ -46,7 +46,7 @@ pub fn simulate_sell(
 
         let mut price = quotes.get(&symbol)?;
         if let Some(base_currency) = base_currency {
-            price = convert_price(price, quantity, base_currency, &converter)?;
+            price = trades::convert_price(price, quantity, base_currency, &converter)?;
         }
 
         statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
@@ -72,6 +72,9 @@ fn print_results(
 
     let conclusion_time = time::today_trade_conclusion_time();
     let execution_date = time::today_trade_execution_date();
+
+    let mut total_purchase_cost = MultiCurrencyCashAccount::new();
+    let mut total_purchase_local_cost = Cash::new(country.currency, dec!(0));
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
     let mut total_local_revenue = Cash::new(country.currency, dec!(0));
@@ -117,6 +120,9 @@ fn print_results(
         let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
         let real = details.real_profit(&converter)?;
         tax_exemptions |= details.tax_exemption_applied();
+
+        total_purchase_cost.deposit(details.purchase_cost);
+        total_purchase_local_cost.add_assign(details.purchase_local_cost).unwrap();
 
         total_revenue.deposit(details.revenue);
         total_local_revenue.add_assign(details.local_revenue).unwrap();
@@ -184,6 +190,10 @@ fn print_results(
     let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
         IncomeType::Trading, tax_year, total_taxable_local_profit.amount, None));
 
+    let total_real = trades::calculate_real_profit(
+        converter.real_time_date(), total_purchase_cost, total_purchase_local_cost,
+        total_profit.clone(), total_local_profit, tax_to_pay, &converter)?;
+
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);
     totals.set_revenue(total_revenue);
@@ -193,12 +203,17 @@ fn print_results(
     totals.set_taxable_local_profit(total_taxable_local_profit);
     totals.set_tax_to_pay(tax_to_pay);
     totals.set_tax_deduction(tax_to_pay.sub(tax_without_deduction).unwrap());
+    totals.set_real_profit(total_real.profit_ratio.map(Cell::new_ratio));
+    totals.set_real_tax(total_real.tax_ratio.map(Cell::new_ratio));
+    totals.set_real_local_profit(total_real.local_profit_ratio.map(Cell::new_ratio));
 
     if same_currency {
         trades_table.hide_local_revenue();
         trades_table.hide_local_profit();
-        trades_table.hide_real_tax();
         trades_table.hide_real_local_profit();
+    }
+    if same_currency && !long_term_ownership {
+        trades_table.hide_real_tax();
     }
     if !tax_exemptions && !long_term_ownership {
         trades_table.hide_taxable_local_profit();
