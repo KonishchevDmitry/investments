@@ -147,6 +147,12 @@ impl fmt::Display for Cash {
     }
 }
 
+impl Into<MultiCurrencyCashAccount> for Cash {
+    fn into(self) -> MultiCurrencyCashAccount {
+        MultiCurrencyCashAccount::new_from(self)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct CashAssets {
     pub date: Date,
@@ -181,7 +187,7 @@ impl MultiCurrencyCashAccount {
         Default::default()
     }
 
-    pub fn new_from(amount: Cash) -> MultiCurrencyCashAccount {
+    fn new_from(amount: Cash) -> MultiCurrencyCashAccount {
         let mut assets = MultiCurrencyCashAccount::new();
         assets.deposit(amount);
         assets

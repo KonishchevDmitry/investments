@@ -4,8 +4,7 @@
 use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
-#[cfg(test)] use crate::currency::{Cash, MultiCurrencyCashAccount};
-#[cfg(test)] use crate::currency::converter::CurrencyConverter;
+#[cfg(test)] use crate::currency::{Cash, converter::CurrencyConverter};
 #[cfg(test)] use crate::types::TradeType;
 
 pub fn investor() -> CommissionSpec {
@@ -109,7 +108,7 @@ mod tests {
         let mut additional = HashMap::new();
         if depositary != 0 {
             // Actually the date is the date of the first trade
-            let commissions = MultiCurrencyCashAccount::new_from(Cash::new(currency, depositary.into()));
+            let commissions = Cash::new(currency, depositary.into()).into();
             additional.insert(date!(2020, 7, 1), commissions);
         }
         assert_eq!(calc.calculate().unwrap(), additional);
@@ -143,7 +142,7 @@ mod tests {
         assert_eq!(calc.calculate().unwrap(), hashmap!{
             // Depositary commission
             // Actually the date is the date of the first trade
-            date!(2021, 1, 1) => MultiCurrencyCashAccount::new_from(Cash::new("RUB", dec!(290))),
+            date!(2021, 1, 1) => Cash::new("RUB", dec!(290)).into(),
         });
     }
 

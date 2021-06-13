@@ -4,8 +4,7 @@
 use crate::commissions::{
     CommissionSpec, CommissionSpecBuilder, TradeCommissionSpecBuilder,
     TransactionCommissionSpecBuilder, CumulativeCommissionSpecBuilder};
-#[cfg(test)] use crate::currency::{Cash, MultiCurrencyCashAccount};
-#[cfg(test)] use crate::currency::converter::CurrencyConverter;
+#[cfg(test)] use crate::currency::{Cash, converter::CurrencyConverter};
 #[cfg(test)] use crate::types::TradeType;
 
 pub fn all_inclusive() -> CommissionSpec {
@@ -87,7 +86,7 @@ mod tests {
         assert_eq!(calc.calculate().unwrap(), hashmap!{
             // Depositary commission
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(2018, 1, 1) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(175))),
+            date!(2018, 1, 1) => Cash::new(currency, dec!(175)).into(),
         });
     }
 }

@@ -1,7 +1,6 @@
 #[cfg(test)] use crate::commissions::CommissionCalc;
 use crate::commissions::{CommissionSpec, CommissionSpecBuilder, CumulativeCommissionSpecBuilder};
-#[cfg(test)] use crate::currency::{Cash, MultiCurrencyCashAccount};
-#[cfg(test)] use crate::currency::converter::CurrencyConverter;
+#[cfg(test)] use crate::currency::{Cash, converter::CurrencyConverter};
 #[cfg(test)] use crate::types::TradeType;
 use crate::util::RoundingMethod;
 
@@ -84,8 +83,8 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(2020, 10, 13) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(599.83))),
-            date!(2020, 10, 14) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(  0.48))),
+            date!(2020, 10, 13) => Cash::new(currency, dec!(599.83)).into(),
+            date!(2020, 10, 14) => Cash::new(currency, dec!(  0.48)).into(),
         });
     }
 
@@ -116,10 +115,10 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(2020, 10, 13) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(99.97) + dec!(349.89))),
-            date!(2020, 10, 14) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(0.05) + dec!(0.17))),
+            date!(2020, 10, 13) => Cash::new(currency, dec!(99.97) + dec!(349.89)).into(),
+            date!(2020, 10, 14) => Cash::new(currency, dec!(0.05) + dec!(0.17)).into(),
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(2020, 11,  1) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(299))),
+            date!(2020, 11,  1) => Cash::new(currency, dec!(299)).into(),
         });
     }
 
@@ -143,14 +142,14 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(2019, 12, 2) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(68.45) + dec!(16.57))),
-            date!(2019, 12, 3) => MultiCurrencyCashAccount::new_from(Cash::new(currency, dec!(44.45) + dec!(8.37))),
+            date!(2019, 12, 2) => Cash::new(currency, dec!(68.45) + dec!(16.57)).into(),
+            date!(2019, 12, 3) => Cash::new(currency, dec!(44.45) + dec!(8.37)).into(),
 
             // Actually we have different date, but use fist day of the next month for simplicity
-            date!(2020, 1, 1) => MultiCurrencyCashAccount::new_from(Cash::new(currency,
+            date!(2020, 1, 1) => Cash::new(currency,
                 dec!(64.10) + // Monthly minimum
                 dec!(177) // Monthly depositary
-            )),
+            ).into(),
         });
     }
 }
