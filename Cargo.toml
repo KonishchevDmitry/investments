@@ -37,7 +37,7 @@ easy-logging = "0.1.2"
 encoding_rs = "0.8.28"
 governor = "0.3.2"
 indoc = "1.0.3"
-itertools = "0.10.0"
+itertools = "0.10.1"
 lazy_static = "1.4.0"
 log = "0.4.14"
 maplit = "1.0.2"
@@ -51,7 +51,7 @@ quick-xml = { version = "0.22.0", features = [ "serialize" ] }
 rayon = "1.5.1"
 regex = "1.5.4"
 reqwest = { version = "0.11.3", features = ["blocking", "json"] }
-rust_decimal = "~1.14.1"
+rust_decimal = "~1.14.2"
 rust_decimal_macros = "~1.14.1"
 separator = "0.4.1"
 serde = { version = "1.0.126", features = ["derive"] }
@@ -61,14 +61,14 @@ serde-xml-rs = "0.4.1"
 shellexpand = "2.1.0"
 uuid = { version = "0.8.2", features = ["v4"] }
 
-diesel = { version = "1.4.6", features = ["sqlite", "chrono"] }
+diesel = { version = "1.4.7", features = ["sqlite", "chrono"] }
 diesel-derive-enum = { version = "1.1.1", features = ["sqlite"] }
 diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.21.0", features = ["bundled"] }
 
-static_table_derive = "0.1.27"
-xls_table_derive = "0.4.6"
+static_table_derive = "0.1.28"
+xls_table_derive = "0.4.7"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
