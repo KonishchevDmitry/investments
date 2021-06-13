@@ -147,12 +147,6 @@ impl fmt::Display for Cash {
     }
 }
 
-impl Into<MultiCurrencyCashAccount> for Cash {
-    fn into(self) -> MultiCurrencyCashAccount {
-        MultiCurrencyCashAccount::new_from(self)
-    }
-}
-
 #[derive(Clone, Copy)]
 pub struct CashAssets {
     pub date: Date,
@@ -185,12 +179,6 @@ pub struct MultiCurrencyCashAccount {
 impl MultiCurrencyCashAccount {
     pub fn new() -> MultiCurrencyCashAccount {
         Default::default()
-    }
-
-    fn new_from(amount: Cash) -> MultiCurrencyCashAccount {
-        let mut assets = MultiCurrencyCashAccount::new();
-        assets.deposit(amount);
-        assets
     }
 
     pub fn is_empty(&self) -> bool {
@@ -250,6 +238,14 @@ impl MultiCurrencyCashAccount {
         &self, currency: &str, converter: &CurrencyConverter
     ) -> GenericResult<Decimal> {
         self.total_assets(converter.real_time_date(), currency, converter)
+    }
+}
+
+impl From<Cash> for MultiCurrencyCashAccount {
+    fn from(amount: Cash) -> MultiCurrencyCashAccount {
+        let mut assets = MultiCurrencyCashAccount::new();
+        assets.deposit(amount);
+        assets
     }
 }
 
