@@ -28,7 +28,7 @@ pub fn process_tax_agent_withholdings(
     }
 
     if withheld_tax.is_empty() {
-        withheld_tax.deposit(Cash::new(calculated_tax.currency, dec!(0)));
+        withheld_tax.deposit(Cash::zero(calculated_tax.currency));
     }
 
     table.add_row(Row {calculated_tax, withheld_tax});

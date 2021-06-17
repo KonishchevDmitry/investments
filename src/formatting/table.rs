@@ -163,6 +163,7 @@ macro_rules! impl_from_number_to_cell {
         }
     };
 }
+impl_from_number_to_cell!(i32);
 impl_from_number_to_cell!(u32);
 impl_from_number_to_cell!(usize);
 impl_from_number_to_cell!(Decimal);

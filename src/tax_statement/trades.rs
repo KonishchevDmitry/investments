@@ -1,5 +1,4 @@
-use std::collections::{HashMap, VecDeque};
-use std::ops::AddAssign;
+use std::collections::{BTreeMap, VecDeque};
 
 use chrono::Datelike;
 use log::warn;
@@ -11,12 +10,14 @@ use crate::broker_statement::{
     BrokerStatement, StockSell, StockSellType, SellDetails, FifoDetails, StockSourceDetails, Fee};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::Cash;
+use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{IncomeType, TaxPaymentDaySpec};
+use crate::taxes::long_term_ownership::LtoDeductionCalculator;
 use crate::time::Date;
+use crate::trades;
 use crate::types::Decimal;
 
 use super::statement::TaxStatement;
@@ -24,67 +25,65 @@ use super::statement::TaxStatement;
 pub fn process_income(
     country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement,
     year: Option<i32>, tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> GenericResult<Option<Cash>> {
+) -> GenericResult<Cash> {
     let mut processor = TradesProcessor {
         portfolio,
         broker_statement,
-        year,
+        tax_year: year,
 
         country,
         converter,
 
         trades_table: TradesTable::new(),
         fifo_table: FifoTable::new(),
+        lto_table: LtoTable::new(),
 
         same_dates: true,
         same_currency: true,
         non_trade_sources: false,
         stock_splits: false,
         tax_exemptions: false,
+        long_term_ownership: false,
 
-        total_local_profit: Cash::new(country.currency, dec!(0)),
-        total_taxable_local_profit_by_year: HashMap::new(),
-        total_taxable_local_profit: Cash::new(country.currency, dec!(0)),
-        total_tax_deduction: Cash::new(country.currency, dec!(0)),
+        tax_year_stat: BTreeMap::new(),
     };
 
     processor.process_trades(tax_statement)?;
 
-    let total_tax_to_pay = processor.process_totals();
-    processor.print(total_tax_to_pay);
+    let totals = processor.process_totals()?;
+    if !processor.trades_table.is_empty() {
+        processor.print(&totals);
+    }
 
-    Ok(total_tax_to_pay)
+    Ok(totals.tax_to_pay)
 }
 
 struct TradesProcessor<'a> {
     portfolio: &'a PortfolioConfig,
     broker_statement: &'a BrokerStatement,
-    year: Option<i32>,
+    tax_year: Option<i32>,
 
     country: &'a Country,
     converter: &'a CurrencyConverter,
 
     trades_table: TradesTable,
     fifo_table: FifoTable,
+    lto_table: LtoTable,
 
     same_dates: bool,
     same_currency: bool,
     non_trade_sources: bool,
     stock_splits: bool,
     tax_exemptions: bool,
+    long_term_ownership: bool,
 
-    total_local_profit: Cash,
-    total_taxable_local_profit_by_year: HashMap<i32, Cash>,
-    total_taxable_local_profit: Cash,
-    total_tax_deduction: Cash,
+    tax_year_stat: BTreeMap<i32, TaxYearStat>,
 }
 
 impl<'a> TradesProcessor<'a> {
-    fn pre_process_fees(&mut self) -> GenericResult<(VecDeque<PreprocessedFee>, HashMap<i32, Decimal>)> {
+    fn pre_process_fees(&mut self) -> GenericResult<VecDeque<PreprocessedFee>> {
         let broker = self.broker_statement.broker.type_;
-
         let mut fees = VecDeque::new();
-        let mut fees_by_year = HashMap::<i32, Decimal>::new();
 
         let mut index = 0;
         let count = self.broker_statement.fees.len();
@@ -106,20 +105,13 @@ impl<'a> TradesProcessor<'a> {
                 }
             }
 
-            if let Some(year) = self.year {
-                let (tax_year, _) = self.portfolio.tax_payment_day().get(fee.date, true);
-                if tax_year != year {
-                    continue;
-                }
+            let tax_year = self.get_tax_year(fee.date);
+            if self.needs_processing(tax_year) {
+                fees.push_back(self.pre_process_fee(fee)?);
             }
-
-            let fee = self.pre_process_fee(fee)?;
-            fees_by_year.entry(fee.date.year()).or_default()
-                .add_assign(fee.local_amount.amount);
-            fees.push_back(fee);
         }
 
-        Ok((fees, fees_by_year))
+        Ok(fees)
     }
 
     fn pre_process_fee(&mut self, fee: &Fee) -> GenericResult<PreprocessedFee> {
@@ -129,11 +121,11 @@ impl<'a> TradesProcessor<'a> {
         let local_amount = self.converter.convert_to_cash_rounding(
             fee.date, fee.amount, self.country.currency)?;
 
-        self.total_local_profit.sub_assign(local_amount).unwrap();
-        self.total_taxable_local_profit.sub_assign(local_amount).unwrap();
-        self.total_taxable_local_profit_by_year.entry(fee.date.year())
-            .and_modify(|total| total.sub_assign(local_amount).unwrap())
-            .or_insert(-local_amount);
+        let tax_year = self.tax_year_stat(fee.date);
+        tax_year.profit.withdraw(amount);
+        tax_year.local_profit.sub_assign(local_amount).unwrap();
+        tax_year.taxable_local_profit.sub_assign(local_amount).unwrap();
+        tax_year.deductible_fees.replace(tax_year.deductible_fees.unwrap_or_default() + local_amount.amount);
 
         Ok(PreprocessedFee {
             date: fee.date,
@@ -160,7 +152,7 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_trades(&mut self, mut tax_statement: Option<&'a mut TaxStatement>) -> EmptyResult {
-        let (mut fees, mut fees_by_year) = self.pre_process_fees()?;
+        let mut fees = self.pre_process_fees()?;
         let jurisdiction = self.broker_statement.broker.type_.jurisdiction();
 
         let mut trade_id = 0;
@@ -171,11 +163,9 @@ impl<'a> TradesProcessor<'a> {
                 StockSellType::CorporateAction => continue,
             };
 
-            let (tax_year, _) = self.portfolio.tax_payment_day().get(trade.execution_date, true);
-            if let Some(year) = self.year {
-                if tax_year != year {
-                    continue;
-                }
+            let tax_year = self.get_tax_year(trade.execution_date);
+            if !self.needs_processing(tax_year) {
+                continue;
             }
 
             while let Some(fee) = fees.front() {
@@ -191,7 +181,8 @@ impl<'a> TradesProcessor<'a> {
 
             if let Some(ref mut statement) = tax_statement {
                 if jurisdiction == Jurisdiction::Usa {
-                    let additional_fees = fees_by_year.remove(&tax_year).unwrap_or_default();
+                    let tax_year_stat = self.tax_year_stat.get_mut(&tax_year).unwrap();
+                    let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
                     self.add_income(statement, trade, &details, additional_fees)?;
                 } else {
                     warn!(concat!(
@@ -222,13 +213,6 @@ impl<'a> TradesProcessor<'a> {
             commission.currency == self.country.currency;
         self.tax_exemptions |= details.tax_exemption_applied();
 
-        self.total_local_profit.add_assign(details.local_profit).unwrap();
-        self.total_taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
-        self.total_taxable_local_profit_by_year.entry(trade.execution_date.year())
-            .and_modify(|total| total.add_assign(details.taxable_local_profit).unwrap())
-            .or_insert(details.taxable_local_profit);
-        self.total_tax_deduction.add_assign(details.tax_deduction).unwrap();
-
         let conclusion_currency_rate = if commission.currency != self.country.currency {
             Some(self.converter.precise_currency_rate(
                 trade.conclusion_time.date, commission.currency, self.country.currency)?)
@@ -244,6 +228,17 @@ impl<'a> TradesProcessor<'a> {
         };
 
         let real = details.real_profit(self.converter)?;
+
+        {
+            let tax_year = self.tax_year_stat(trade.execution_date);
+
+            tax_year.purchase_cost.deposit(details.purchase_cost);
+            tax_year.purchase_local_cost.add_assign(details.purchase_local_cost).unwrap();
+
+            tax_year.profit.deposit(details.profit);
+            tax_year.local_profit.add_assign(details.local_profit).unwrap();
+            tax_year.taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
+        }
 
         self.trades_table.add_row(TradeRow {
             id: trade_id,
@@ -271,18 +266,21 @@ impl<'a> TradesProcessor<'a> {
             tax_to_pay: details.tax_to_pay,
             tax_deduction: details.tax_deduction,
 
+            // FIXME(konishchev): More columns?
             real_profit_ratio: real.profit_ratio.map(Cell::new_ratio),
             real_local_profit_ratio: real.local_profit_ratio.map(Cell::new_ratio),
         });
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
-            self.process_fifo(trade_id, buy_trade, index == 0)?;
+            self.process_fifo(trade_id, buy_trade, trade.execution_date, index == 0)?;
         }
 
         Ok(())
     }
 
-    fn process_fifo(&mut self, trade_id: usize, trade: &FifoDetails, first: bool) -> EmptyResult {
+    fn process_fifo(
+        &mut self, trade_id: usize, trade: &FifoDetails, sell_execution_date: Date, first: bool,
+    ) -> EmptyResult {
         let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
         self.stock_splits |= trade.multiplier != dec!(1);
 
@@ -332,6 +330,12 @@ impl<'a> TradesProcessor<'a> {
             },
         };
 
+        if let Some(ref deductible) = trade.long_term_ownership_deductible {
+            let tax_year_stat = self.tax_year_stat(sell_execution_date);
+            tax_year_stat.lto_calculator.as_mut().unwrap().add(deductible.profit, deductible.years);
+            self.long_term_ownership = true;
+        }
+
         self.fifo_table.add_row(FifoRow {
             id: if first {
                 Some(trade_id)
@@ -356,12 +360,9 @@ impl<'a> TradesProcessor<'a> {
 
             total_local_cost: trade.total_cost(self.country.currency, self.converter)?,
             source: source.to_owned(),
-            // FIXME(konishchev): LTO support
-            tax_free: if trade.tax_exemption_applied {
-                Some("✔".to_owned())
-            } else {
-                None
-            },
+
+            long_term_ownership: trade.long_term_ownership_deductible.is_some(),
+            tax_free: trade.tax_exemption_applied,
         });
 
         Ok(())
@@ -372,6 +373,7 @@ impl<'a> TradesProcessor<'a> {
         additional_fees: Decimal,
     ) -> EmptyResult {
         assert_eq!(details.taxable_local_profit, details.local_profit);
+        assert!(details.fifo.iter().all(|trade| trade.long_term_ownership_deductible.is_none()));
 
         let name = self.broker_statement.get_instrument_name(&trade.original_symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
@@ -391,25 +393,74 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_totals(&self) -> Option<Cash> {
-        match self.portfolio.tax_payment_day().spec {
-            TaxPaymentDaySpec::Day {..} => Some(self.total_taxable_local_profit_by_year.iter().map(|(&year, profit)| {
-                self.country.tax_to_pay(IncomeType::Trading, year, profit.amount, None)
-            }).sum()),
+    fn process_totals(&mut self) -> GenericResult<Totals> {
+        let local_currency = self.country.currency;
+        let tax_payment_day = self.portfolio.tax_payment_day();
 
-            TaxPaymentDaySpec::OnClose(date) => if self.year.is_none() {
-                Some(self.country.tax_to_pay(IncomeType::Trading, date.year(), self.total_taxable_local_profit.amount, None))
-            } else {
-                None
-            },
-        }.map(|amount| Cash::new(self.country.currency, amount))
-    }
-
-    fn print(mut self, total_tax_to_pay: Option<Cash>) {
-        if self.trades_table.is_empty() {
-            return;
+        for (&year, stat) in &mut self.tax_year_stat {
+            let (lto_deduction, lto_limit) = stat.lto_calculator.take().unwrap().calculate();
+            if !lto_deduction.is_zero() {
+                stat.taxable_local_profit.amount -= lto_deduction;
+                self.lto_table.add_row(LtoRow {
+                    year,
+                    deduction: Cash::new(local_currency, lto_deduction),
+                    limit: Cash::new(local_currency, lto_limit),
+                });
+            }
         }
 
+        let mut total_local_profit = Cash::zero(local_currency);
+        let mut total_taxable_local_profit = Cash::zero(local_currency);
+
+        let mut total_tax_without_deduction = Cash::zero(local_currency);
+        let mut total_tax_to_pay = Cash::zero(local_currency);
+
+        for (&year, stat) in &self.tax_year_stat {
+            let single_tax_year = match tax_payment_day.spec {
+                TaxPaymentDaySpec::Day {..} => if let Some(tax_year) = self.tax_year {
+                    assert_eq!(year, tax_year);
+                    true
+                } else {
+                    false
+                },
+                TaxPaymentDaySpec::OnClose(close_date) => {
+                    assert_eq!(year, close_date.year());
+                    true
+                },
+            };
+
+            total_local_profit.add_assign(stat.local_profit).unwrap();
+            total_taxable_local_profit.add_assign(stat.taxable_local_profit).unwrap();
+
+            total_tax_without_deduction.amount += self.country.tax_to_pay(
+                IncomeType::Trading, year, stat.local_profit.amount, None);
+
+            let tax_to_pay = Cash::new(local_currency, self.country.tax_to_pay(
+                IncomeType::Trading, year, stat.taxable_local_profit.amount, None));
+            total_tax_to_pay.add_assign(tax_to_pay).unwrap();
+
+            if single_tax_year {
+                // FIXME(konishchev): Support
+                trades::calculate_real_profit(
+                    tax_payment_day.get_for(year, true),
+                    stat.purchase_cost.clone(), stat.purchase_local_cost,
+                    stat.profit.clone(), stat.local_profit, tax_to_pay, self.converter)?;
+            }
+        }
+
+        let total_tax_deduction = total_tax_without_deduction.sub(total_tax_to_pay).unwrap();
+        assert!(!total_tax_deduction.is_negative());
+
+        Ok(Totals {
+            local_profit: total_local_profit,
+            taxable_local_profit: total_taxable_local_profit,
+
+            tax_to_pay: total_tax_to_pay,
+            tax_deduction: total_tax_deduction,
+        })
+    }
+
+    fn print(mut self, totals: &Totals) {
         if self.same_dates {
             self.trades_table.hide_execution_date();
             self.trades_table.rename_conclusion_currency_rate("Курс руб.");
@@ -437,19 +488,26 @@ impl<'a> TradesProcessor<'a> {
         if !self.stock_splits {
             self.fifo_table.hide_multiplier();
         }
-        if !self.tax_exemptions {
+        if !self.tax_exemptions && !self.long_term_ownership {
             self.trades_table.hide_taxable_local_profit();
             self.trades_table.hide_tax_deduction();
+        }
+        if !self.tax_exemptions {
             self.fifo_table.hide_tax_free();
         }
-
-        let mut totals = self.trades_table.add_empty_row();
-        totals.set_local_profit(self.total_local_profit);
-        totals.set_taxable_local_profit(self.total_taxable_local_profit);
-        if let Some(total_tax_to_pay) = total_tax_to_pay {
-            totals.set_tax_to_pay(total_tax_to_pay);
+        if !self.long_term_ownership {
+            self.fifo_table.hide_long_term_ownership();
         }
-        totals.set_tax_deduction(self.total_tax_deduction);
+        if self.tax_year.is_some() {
+            self.lto_table.hide_year();
+        }
+
+        // FIXME(konishchev): More totals?
+        let mut totals_row = self.trades_table.add_empty_row();
+        totals_row.set_local_profit(totals.local_profit);
+        totals_row.set_taxable_local_profit(totals.taxable_local_profit);
+        totals_row.set_tax_to_pay(totals.tax_to_pay);
+        totals_row.set_tax_deduction(totals.tax_deduction);
 
         self.trades_table.print(&format!(
             "Расчет прибыли от продажи ценных бумаг, полученной через {}",
@@ -457,6 +515,43 @@ impl<'a> TradesProcessor<'a> {
 
         if !self.fifo_table.is_empty() {
             self.fifo_table.print("Детализация расчета сделок по ФИФО");
+        }
+
+        if !self.lto_table.is_empty() {
+            self.lto_table.print("Льгота на долгосрочное владение ценными бумагами");
+        }
+    }
+
+    fn tax_year_stat(&mut self, date: Date) -> &mut TaxYearStat {
+        let local_currency = self.country.currency;
+
+        let tax_year = self.get_tax_year(date);
+        assert!(self.needs_processing(tax_year), "An attempt to process {} tax year", tax_year);
+
+        self.tax_year_stat.entry(tax_year).or_insert_with(|| {
+            let zero = Cash::zero(local_currency);
+            TaxYearStat {
+                purchase_cost: MultiCurrencyCashAccount::new(),
+                purchase_local_cost: zero,
+
+                profit: MultiCurrencyCashAccount::new(),
+                local_profit: zero,
+                taxable_local_profit: zero,
+
+                deductible_fees: None,
+                lto_calculator: Some(LtoDeductionCalculator::new()),
+            }
+        })
+    }
+
+    fn get_tax_year(&self, date: Date) -> i32 {
+        self.portfolio.tax_payment_day().get(date, true).0
+    }
+
+    fn needs_processing(&self, tax_year: i32) -> bool {
+        match self.tax_year {
+            Some(year) => tax_year == year,
+            None => true,
         }
     }
 }
@@ -466,6 +561,26 @@ struct PreprocessedFee {
     amount: Cash,
     local_amount: Cash,
     description: String,
+}
+
+struct TaxYearStat {
+    purchase_cost: MultiCurrencyCashAccount,
+    purchase_local_cost: Cash,
+
+    profit: MultiCurrencyCashAccount,
+    local_profit: Cash,
+    taxable_local_profit: Cash,
+
+    deductible_fees: Option<Decimal>,
+    lto_calculator: Option<LtoDeductionCalculator>,
+}
+
+struct Totals {
+    local_profit: Cash,
+    taxable_local_profit: Cash,
+
+    tax_to_pay: Cash,
+    tax_deduction: Cash,
 }
 
 #[derive(StaticTable)]
@@ -546,6 +661,19 @@ struct FifoRow {
     total_local_cost: Cash,
     #[column(name="Источник", align="center")]
     source: String,
+    #[column(name="ЛДВ", align="center")]
+    long_term_ownership: bool,
     #[column(name="Льгота", align="center")]
-    tax_free: Option<String>,
+    tax_free: bool,
+}
+
+#[derive(StaticTable)]
+#[table(name="LtoTable")]
+struct LtoRow {
+    #[column(name="Год")]
+    year: i32,
+    #[column(name="Вычет")]
+    deduction: Cash,
+    #[column(name="Лимит")]
+    limit: Cash,
 }

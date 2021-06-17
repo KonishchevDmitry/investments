@@ -34,6 +34,11 @@ impl Cash {
         }
     }
 
+    // FIXME(konishchev): Replace all usages: `Cash::new\(.*, dec!\(0\)`
+    pub fn zero(currency: &str) -> Cash {
+        Cash::new(currency, dec!(0))
+    }
+
     pub fn new_from_string(currency: &str, amount: &str) -> GenericResult<Cash> {
         Ok(Cash::new(currency, Decimal::from_str(amount).map_err(|_| format!(
             "Invalid cash amount: {:?}", amount))?))

@@ -21,27 +21,40 @@ impl TaxPaymentDay {
 
     /// Returns tax year and an approximate date when tax is going to be paid for the specified income
     pub fn get(&self, income_date: Date, trading: bool) -> (i32, Date) {
-        match self.spec {
-            TaxPaymentDaySpec::Day {mut month, mut day} => {
-                let tax_year = income_date.year();
-
-                if trading && self.jurisdiction == Jurisdiction::Russia {
-                    month = 1;
-                    day = 1;
-                }
-
-                (tax_year, Date::from_ymd(tax_year + 1, month, day))
-            },
-
+        let tax_year = match self.spec {
+            TaxPaymentDaySpec::Day {..} => income_date.year(),
             TaxPaymentDaySpec::OnClose(close_date) => {
                 assert!(income_date <= close_date);
 
                 if trading {
-                    (close_date.year(), close_date)
+                    close_date.year()
                 } else {
-                    let day = TaxPaymentDaySpec::default();
-                    let tax_payment_day = TaxPaymentDay::new(self.jurisdiction, day);
-                    tax_payment_day.get(income_date, trading)
+                    income_date.year()
+                }
+            },
+        };
+        (tax_year, self.get_for(tax_year, trading))
+    }
+
+    pub fn get_for(&self, tax_year: i32, trading: bool) -> Date {
+        match self.spec {
+            TaxPaymentDaySpec::Day {mut month, mut day} => {
+                if trading && self.jurisdiction == Jurisdiction::Russia {
+                    month = 1;
+                    day = 1;
+                }
+                Date::from_ymd(tax_year + 1, month, day)
+            },
+
+            TaxPaymentDaySpec::OnClose(close_date) => {
+                assert!(tax_year <= close_date.year());
+
+                if trading {
+                    close_date
+                } else {
+                    let spec = TaxPaymentDaySpec::default();
+                    let tax_payment_day = TaxPaymentDay::new(self.jurisdiction, spec);
+                    tax_payment_day.get_for(tax_year, trading)
                 }
             },
         }

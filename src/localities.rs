@@ -36,6 +36,7 @@ impl Country {
         currency::round_to(currency::round(tax), self.tax_precision)
     }
 
+    // FIXME(konishchev): Return cash
     pub fn tax_to_pay(
         &self, income_type: IncomeType, year: i32, income: Decimal, paid_tax: Option<Decimal>,
     ) -> Decimal {

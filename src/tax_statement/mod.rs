@@ -61,11 +61,10 @@ pub fn generate_tax_statement(
     ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
     if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
-        if let Some(mut total_tax) = trades_tax {
-            total_tax.add_assign(dividends_tax).unwrap();
-            total_tax.add_assign(interest_tax).unwrap();
-            tax_agent::process_tax_agent_withholdings(&broker_statement, year, total_tax);
-        }
+        let total_tax = trades_tax
+            .add(dividends_tax).unwrap()
+            .add(interest_tax).unwrap();
+        tax_agent::process_tax_agent_withholdings(&broker_statement, year, total_tax);
     }
 
     if let Some(ref tax_statement) = tax_statement {
