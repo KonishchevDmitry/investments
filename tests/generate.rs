@@ -20,9 +20,11 @@ fn generate_regression_tests() {
     // analyse
     t.add("Analyse", "analyse all --all");
     t.add("Analyse complex", "analyse ib-complex --all").config("other");
+    t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
 
     // simulate-sell
     t.add("Simulate sell partial", "simulate-sell ib all VTI 50 BND 50 BND");
+    t.add("Simulate sell IIA type A", "simulate-sell open-first-iia-a").config("other");
     t.add("Simulate sell in other currency", "simulate-sell tinkoff --base-currency USD");
     t.add("Simulate sell after stock split", "simulate-sell ib-stock-split all AAPL").config("other");
     t.add("Simulate sell after reverse stock split", "simulate-sell ib-reverse-stock-split all AAPL all VISL").config("other");
@@ -48,6 +50,7 @@ fn generate_regression_tests() {
     t.add("IB simple with LSE cash flow", "cash-flow ib-simple-with-lse").config("other");
     t.add("IB tax remapping cash flow", "cash-flow ib-tax-remapping").config("other");
     t.add("IB trading cash flow", "cash-flow ib-trading").config("other");
+    t.add("Open non-unified account cash-flow", "cash-flow open-first-iia-a").config("other");
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
     t.add("Tinkoff complex cash flow", "cash-flow tinkoff-complex").config("other");
 
@@ -66,7 +69,7 @@ fn generate_regression_tests() {
         ("Kate", None),
         ("Kate IIA", None),
     ];
-    let end_tax_year = 2021;
+    let last_tax_year = 2021;
 
     for &(name, start_tax_year) in accounts {
         let id = &name_to_id(name);
@@ -74,8 +77,8 @@ fn generate_regression_tests() {
         t.with_args(&format!("Rebalance {}", name), &["rebalance", id]);
         t.with_args(&format!("Simulate sell {}", name), &["simulate-sell", id]);
 
-        if let Some(start_tax_year) = start_tax_year {
-            for tax_year in start_tax_year..=end_tax_year {
+        if let Some(first_tax_year) = start_tax_year {
+            for tax_year in first_tax_year..=last_tax_year {
                 let tax_year_string = &tax_year.to_string();
 
                 t.with_args(
@@ -93,6 +96,14 @@ fn generate_regression_tests() {
             t.with_args(&format!("{} tax statement", name), &["tax-statement", id]);
             t.with_args(&format!("{} cash flow", name), &["cash-flow", id]);
         }
+    }
+
+    t.add("IIA type A tax statement", "tax-statement open-first-iia-a").config("other");
+    for year in 2017..=last_tax_year {
+        t.with_args(
+            &format!("IIA type A tax statement {}", year),
+            &["tax-statement", "open-first-iia-a", &year.to_string()],
+        ).config("other");
     }
 
     t.write().unwrap()
