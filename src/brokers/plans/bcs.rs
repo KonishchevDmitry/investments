@@ -59,7 +59,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::investor(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::investor(), Cash::zero(currency)).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2020, 10, 13),  28, dec!(1639.9)),
@@ -78,7 +78,7 @@ mod tests {
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
-                Cash::new(currency, dec!(0)),
+                Cash::zero(currency),
             );
         }
 
@@ -110,7 +110,7 @@ mod tests {
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
-                Cash::new(currency, dec!(0)),
+                Cash::zero(currency),
             );
         }
 
@@ -127,7 +127,7 @@ mod tests {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::professional(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::professional(), Cash::zero(currency)).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2019, 12, 2),  35, dec!(2959.5)),
@@ -137,7 +137,7 @@ mod tests {
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
-                Cash::new(currency, dec!(0)),
+                Cash::zero(currency),
             );
         }
 

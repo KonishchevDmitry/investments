@@ -74,14 +74,14 @@ fn print_results(
     let execution_date = time::today_trade_execution_date();
 
     let mut total_purchase_cost = MultiCurrencyCashAccount::new();
-    let mut total_purchase_local_cost = Cash::new(country.currency, dec!(0));
+    let mut total_purchase_local_cost = Cash::zero(country.currency);
 
     let mut total_revenue = MultiCurrencyCashAccount::new();
-    let mut total_local_revenue = Cash::new(country.currency, dec!(0));
+    let mut total_local_revenue = Cash::zero(country.currency);
 
     let mut total_profit = MultiCurrencyCashAccount::new();
-    let mut total_local_profit = Cash::new(country.currency, dec!(0));
-    let mut total_taxable_local_profit = Cash::new(country.currency, dec!(0));
+    let mut total_local_profit = Cash::zero(country.currency);
+    let mut total_taxable_local_profit = Cash::zero(country.currency);
 
     let mut total_commission = MultiCurrencyCashAccount::new();
 
@@ -132,7 +132,7 @@ fn print_results(
         total_taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
 
         let price_precision = std::cmp::max(2, util::decimal_precision(sell_price.amount));
-        let mut purchase_cost = Cash::new(sell_price.currency, dec!(0));
+        let mut purchase_cost = Cash::zero(sell_price.currency);
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
             let buy_price = buy_trade.price(sell_price.currency, converter)?;

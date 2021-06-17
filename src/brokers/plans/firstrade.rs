@@ -20,11 +20,11 @@ mod tests {
         let currency = "USD";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::free(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::free(), Cash::zero(currency)).unwrap();
 
         let date = date!(1, 1, 1);
         assert_eq!(calc.add_trade(date, trade_type, 100.into(), Cash::new(currency, dec!(100))).unwrap(),
-                   Cash::new(currency, dec!(0)));
+                   Cash::zero(currency));
 
         assert_eq!(calc.calculate().unwrap(), HashMap::new());
     }

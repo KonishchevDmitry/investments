@@ -3,7 +3,7 @@ use std::fmt::{self, Write};
 use std::str::FromStr;
 use std::ops::{Mul, Div, Neg};
 
-use num_traits::ToPrimitive;
+use num_traits::{ToPrimitive, Zero};
 
 use separator::Separatable;
 
@@ -34,9 +34,8 @@ impl Cash {
         }
     }
 
-    // FIXME(konishchev): Replace all usages: `Cash::new\(.*, dec!\(0\)`
     pub fn zero(currency: &str) -> Cash {
-        Cash::new(currency, dec!(0))
+        Cash::new(currency, Decimal::zero())
     }
 
     pub fn new_from_string(currency: &str, amount: &str) -> GenericResult<Cash> {

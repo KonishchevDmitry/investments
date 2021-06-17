@@ -104,7 +104,7 @@ pub fn process_dividend_accruals(
             original_issuer: dividend.issuer,
 
             amount: amount,
-            paid_tax: paid_tax.unwrap_or_else(|| Cash::new(amount.currency, dec!(0))),
+            paid_tax: paid_tax.unwrap_or_else(|| Cash::zero(amount.currency)),
             skip_from_cash_flow: cash_flow_details,
         }),
         None => {

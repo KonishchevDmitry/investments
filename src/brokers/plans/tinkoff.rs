@@ -55,7 +55,7 @@ mod tests {
     fn investor(trade_type: TradeType) {
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::investor(), Cash::new("RUB", dec!(0))).unwrap();
+            converter, super::investor(), Cash::zero("RUB")).unwrap();
 
         let date = date!(2020, 7, 27);
 
@@ -118,7 +118,7 @@ mod tests {
     fn trader_mixed_currency(trade_type: TradeType) {
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::trader(), Cash::new("RUB", dec!(0))).unwrap();
+            converter, super::trader(), Cash::zero("RUB")).unwrap();
 
         let date = date!(2020, 12, 10);
         assert_eq!(
@@ -150,7 +150,7 @@ mod tests {
     fn premium(trade_type: TradeType) {
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::premium(), Cash::new("RUB", dec!(0))).unwrap();
+            converter, super::premium(), Cash::zero("RUB")).unwrap();
 
         let date = date!(2021, 2, 20);
 

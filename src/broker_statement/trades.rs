@@ -212,9 +212,9 @@ impl StockSell {
         let local_execution = |value| converter.convert_to_cash_rounding(
             self.execution_date, value, country.currency);
 
-        let mut purchase_cost = Cash::new(currency, dec!(0));
-        let mut purchase_local_cost = Cash::new(country.currency, dec!(0));
-        let mut deductible_purchase_local_cost = Cash::new(country.currency, dec!(0));
+        let mut purchase_cost = Cash::zero(currency);
+        let mut purchase_local_cost = Cash::zero(country.currency);
+        let mut deductible_purchase_local_cost = Cash::zero(country.currency);
 
         let mut fifo = Vec::new();
         let mut total_quantity = dec!(0);

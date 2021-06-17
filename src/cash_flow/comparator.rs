@@ -46,10 +46,10 @@ impl<'a> CashAssetsComparator<'a> {
 
         for &currency in &self.currencies {
             let calculated_amount = calculated.get(currency).unwrap_or_else(||
-                Cash::new(currency, dec!(0)));
+                Cash::zero(currency));
 
             let actual_amount = actual.get(currency).unwrap_or_else(||
-                Cash::new(currency, dec!(0)));
+                Cash::zero(currency));
 
             if calculated_amount == actual_amount {
                 continue;

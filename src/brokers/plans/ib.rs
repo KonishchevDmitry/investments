@@ -43,7 +43,7 @@ mod tests {
         let date = date!(1, 1, 1);
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::fixed(), Cash::new(currency, dec!(0))).unwrap();
+            converter, super::fixed(), Cash::zero(currency)).unwrap();
 
         let trade_type = TradeType::Buy;
         let shares = |shares| Decimal::from(shares) - fraction;

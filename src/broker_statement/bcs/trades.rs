@@ -123,7 +123,7 @@ impl TradesParser {
             .map(|volume| Cash::new(currency, volume))?;
         debug_assert_eq!(volume, (price * quantity).round());
 
-        let commission = Cash::new(currency, dec!(0));
+        let commission = Cash::zero(currency);
 
         if buy {
             statement.stock_buys.push(StockBuy::new_trade(
