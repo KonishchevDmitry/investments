@@ -265,8 +265,8 @@ impl<'a> TradesProcessor<'a> {
 
             tax_to_pay: details.tax_to_pay,
             tax_deduction: details.tax_deduction,
+            real_tax: real.tax_ratio.map(Cell::new_ratio),
 
-            // FIXME(konishchev): More columns?
             real_profit_ratio: real.profit_ratio.map(Cell::new_ratio),
             real_local_profit_ratio: real.local_profit_ratio.map(Cell::new_ratio),
         });
@@ -492,6 +492,9 @@ impl<'a> TradesProcessor<'a> {
             self.trades_table.hide_taxable_local_profit();
             self.trades_table.hide_tax_deduction();
         }
+        if self.same_currency && !self.long_term_ownership {
+            self.trades_table.hide_real_tax();
+        }
         if !self.tax_exemptions {
             self.fifo_table.hide_tax_free();
         }
@@ -622,6 +625,8 @@ struct TradeRow {
     tax_to_pay: Cash,
     #[column(name="Вычет")]
     tax_deduction: Cash,
+    #[column(name="Реальный\nналог")]
+    real_tax: Option<Cell>,
     #[column(name="Реальный\nдоход")]
     real_profit_ratio: Option<Cell>,
     #[column(name="Реальный\nдоход (руб)")]
