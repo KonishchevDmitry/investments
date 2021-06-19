@@ -17,7 +17,7 @@ use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{IncomeType, TaxPaymentDaySpec};
 use crate::taxes::long_term_ownership::LtoDeductionCalculator;
 use crate::time::Date;
-use crate::trades;
+use crate::trades::{self, RealProfit};
 use crate::types::Decimal;
 
 use super::statement::TaxStatement;
@@ -415,6 +415,8 @@ impl<'a> TradesProcessor<'a> {
         let mut total_tax_without_deduction = Cash::zero(local_currency);
         let mut total_tax_to_pay = Cash::zero(local_currency);
 
+        let mut real = None;
+
         for (&year, stat) in &self.tax_year_stat {
             let single_tax_year = match tax_payment_day.spec {
                 TaxPaymentDaySpec::Day {..} => if let Some(tax_year) = self.tax_year {
@@ -440,11 +442,12 @@ impl<'a> TradesProcessor<'a> {
             total_tax_to_pay += tax_to_pay;
 
             if single_tax_year {
-                // FIXME(konishchev): Support
-                trades::calculate_real_profit(
+                let real_profit = trades::calculate_real_profit(
                     tax_payment_day.get_for(year, true),
                     stat.purchase_cost.clone(), stat.purchase_local_cost,
                     stat.profit.clone(), stat.local_profit, tax_to_pay, self.converter)?;
+
+                assert!(real.replace(real_profit).is_none());
             }
         }
 
@@ -457,6 +460,8 @@ impl<'a> TradesProcessor<'a> {
 
             tax_to_pay: total_tax_to_pay,
             tax_deduction: total_tax_deduction,
+
+            real,
         })
     }
 
@@ -505,12 +510,18 @@ impl<'a> TradesProcessor<'a> {
             self.lto_table.hide_year();
         }
 
-        // FIXME(konishchev): More totals?
         let mut totals_row = self.trades_table.add_empty_row();
+
         totals_row.set_local_profit(totals.local_profit);
         totals_row.set_taxable_local_profit(totals.taxable_local_profit);
         totals_row.set_tax_to_pay(totals.tax_to_pay);
         totals_row.set_tax_deduction(totals.tax_deduction);
+
+        if let Some(ref real) = totals.real {
+            totals_row.set_real_tax(real.tax_ratio.map(Cell::new_ratio));
+            totals_row.set_real_profit_ratio(real.profit_ratio.map(Cell::new_ratio));
+            totals_row.set_real_local_profit_ratio(real.local_profit_ratio.map(Cell::new_ratio));
+        }
 
         self.trades_table.print(&format!(
             "Расчет прибыли от продажи ценных бумаг, полученной через {}",
@@ -584,6 +595,8 @@ struct Totals {
 
     tax_to_pay: Cash,
     tax_deduction: Cash,
+
+    real: Option<RealProfit>,
 }
 
 #[derive(StaticTable)]
