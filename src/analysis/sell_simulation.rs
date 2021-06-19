@@ -189,6 +189,9 @@ fn print_results(
     let tax_to_pay = country.tax_to_pay(
         IncomeType::Trading, tax_year, total_taxable_local_profit, None);
 
+    let tax_deduction = tax_without_deduction - tax_to_pay;
+    assert!(!tax_deduction.is_negative());
+
     let total_real = trades::calculate_real_profit(
         converter.real_time_date(), total_purchase_cost, total_purchase_local_cost,
         total_profit.clone(), total_local_profit, tax_to_pay, &converter)?;
@@ -201,7 +204,7 @@ fn print_results(
     totals.set_local_profit(total_local_profit);
     totals.set_taxable_local_profit(total_taxable_local_profit);
     totals.set_tax_to_pay(tax_to_pay);
-    totals.set_tax_deduction(tax_to_pay - tax_without_deduction);
+    totals.set_tax_deduction(tax_deduction);
     totals.set_real_profit(total_real.profit_ratio.map(Cell::new_ratio));
     totals.set_real_tax(total_real.tax_ratio.map(Cell::new_ratio));
     totals.set_real_local_profit(total_real.local_profit_ratio.map(Cell::new_ratio));
