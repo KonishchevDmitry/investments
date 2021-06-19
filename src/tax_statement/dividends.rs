@@ -78,7 +78,7 @@ pub fn process_income(
 
         let amount = converter.convert_to_cash_rounding(
             dividend.date, foreign_amount, country.currency)?;
-        total_amount.add_assign(amount).unwrap();
+        total_amount += amount;
 
         let tax = dividend.tax(&country, converter)?;
 
@@ -88,19 +88,19 @@ pub fn process_income(
 
         let paid_tax = converter.convert_to_cash_rounding(
             dividend.date, foreign_paid_tax, country.currency)?;
-        total_paid_tax.add_assign(paid_tax).unwrap();
+        total_paid_tax += paid_tax;
 
         let tax_to_pay = dividend.tax_to_pay(&country, converter)?;
-        total_tax_to_pay.add_assign(tax_to_pay).unwrap();
+        total_tax_to_pay += tax_to_pay;
 
         let tax_deduction = country.round_tax(paid_tax);
         if !tax_to_pay.is_zero() {
-            assert_eq!(tax_deduction, tax.sub(tax_to_pay).unwrap());
+            assert_eq!(tax_deduction, tax - tax_to_pay);
         }
-        total_tax_deduction.add_assign(tax_deduction).unwrap();
+        total_tax_deduction += tax_deduction;
 
-        let income = amount.sub(paid_tax).unwrap().sub(tax_to_pay).unwrap();
-        total_income.add_assign(income).unwrap();
+        let income = amount - paid_tax - tax_to_pay;
+        total_income += income;
 
         table.add_row(Row {
             date: dividend.date,

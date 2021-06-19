@@ -92,8 +92,8 @@ fn print_results(
             conclusion_time.date, commission, country.currency)?;
 
         total_profit.withdraw(commission);
-        total_local_profit.sub_assign(local_commission).unwrap();
-        total_taxable_local_profit.sub_assign(local_commission).unwrap();
+        total_local_profit -= local_commission;
+        total_taxable_local_profit -= local_commission;
     }
 
     let mut trades_table = TradesTable::new();
@@ -122,21 +122,21 @@ fn print_results(
         tax_exemptions |= details.tax_exemption_applied();
 
         total_purchase_cost.deposit(details.purchase_cost);
-        total_purchase_local_cost.add_assign(details.purchase_local_cost).unwrap();
+        total_purchase_local_cost += details.purchase_local_cost;
 
         total_revenue.deposit(details.revenue);
-        total_local_revenue.add_assign(details.local_revenue).unwrap();
+        total_local_revenue += details.local_revenue;
 
         total_profit.deposit(details.profit);
-        total_local_profit.add_assign(details.local_profit).unwrap();
-        total_taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
+        total_local_profit += details.local_profit;
+        total_taxable_local_profit += details.taxable_local_profit;
 
         let price_precision = std::cmp::max(2, util::decimal_precision(sell_price.amount));
         let mut purchase_cost = Cash::zero(sell_price.currency);
 
         for (index, buy_trade) in details.fifo.iter().enumerate() {
             let buy_price = buy_trade.price(sell_price.currency, converter)?;
-            purchase_cost.add_assign(buy_trade.cost(purchase_cost.currency, converter)?).unwrap();
+            purchase_cost += buy_trade.cost(purchase_cost.currency, converter)?;
 
             if let Some(ref deductible) = buy_trade.long_term_ownership_deductible {
                 lto_calculator.add(deductible.profit, deductible.years);
@@ -201,7 +201,7 @@ fn print_results(
     totals.set_local_profit(total_local_profit);
     totals.set_taxable_local_profit(total_taxable_local_profit);
     totals.set_tax_to_pay(tax_to_pay);
-    totals.set_tax_deduction(tax_to_pay.sub(tax_without_deduction).unwrap());
+    totals.set_tax_deduction(tax_to_pay - tax_without_deduction);
     totals.set_real_profit(total_real.profit_ratio.map(Cell::new_ratio));
     totals.set_real_tax(total_real.tax_ratio.map(Cell::new_ratio));
     totals.set_real_local_profit(total_real.local_profit_ratio.map(Cell::new_ratio));

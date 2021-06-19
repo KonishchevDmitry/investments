@@ -35,7 +35,7 @@ pub fn parse_dividend(
     }
 
     let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
-    let paid_tax = amount.sub(income).unwrap();
+    let paid_tax = amount - income;
     debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
 
     parser.statement.dividend_accruals(date, issuer, true).add(date, amount);

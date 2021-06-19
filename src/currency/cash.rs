@@ -1,4 +1,3 @@
-use std::cmp::{PartialOrd, Ordering};
 use std::fmt::{self, Write};
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 use std::str::FromStr;
@@ -9,7 +8,6 @@ use separator::Separatable;
 use crate::core::{GenericResult, EmptyResult};
 use crate::types::Decimal;
 
-// FIXME(konishchev): Refactor all below
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cash {
     pub currency: &'static str,
@@ -95,7 +93,7 @@ impl Cash {
         if self.currency == other.currency {
             Ok(())
         } else {
-            Err!("Currency mismatch: {} vs {}", self.currency, other.currency)
+            Err!("Currency mismatch: {} and {}", self.currency, other.currency)
         }
     }
 }
@@ -137,19 +135,20 @@ impl SubAssign for Cash {
     }
 }
 
-impl PartialOrd for Cash {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.ensure_same_currency(*other).unwrap();
-        self.amount.partial_cmp(&other.amount)
-    }
-}
-
 impl<T> Mul<T> for Cash where T: Into<Decimal> {
     type Output = Cash;
 
     fn mul(mut self, rhs: T) -> Cash {
         self.amount *= rhs.into();
         self
+    }
+}
+
+impl Div for Cash {
+    type Output = Decimal;
+
+    fn div(self, rhs: Cash) -> Decimal {
+        self.div(rhs).unwrap()
     }
 }
 

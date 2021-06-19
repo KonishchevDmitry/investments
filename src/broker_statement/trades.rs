@@ -236,8 +236,8 @@ impl StockSell {
                                 commission * source_quantity / self.quantity)?;
 
                             let source_local_profit = source_local_revenue
-                                .sub(source_local_commission).unwrap()
-                                .sub(source_total_local_cost).unwrap();
+                                - source_local_commission
+                                - source_total_local_cost;
 
                             source_details.long_term_ownership_deductible.replace(LtoDeductible {
                                 profit: std::cmp::max(dec!(0), source_local_profit.amount),
@@ -258,10 +258,10 @@ impl StockSell {
                 tax_free_quantity += source_quantity;
             }
 
-            purchase_cost.add_assign(source_total_cost).unwrap();
-            purchase_local_cost.add_assign(source_total_local_cost).unwrap();
+            purchase_cost += source_total_cost;
+            purchase_local_cost += source_total_local_cost;
             if !source_details.tax_exemption_applied {
-                deductible_purchase_local_cost.add_assign(source_total_local_cost).unwrap();
+                deductible_purchase_local_cost += source_total_local_cost;
             }
 
             fifo.push(source_details);
@@ -277,20 +277,20 @@ impl StockSell {
         let local_commission = local_conclusion(commission)?;
         let deductible_local_commission = local_conclusion(commission * taxable_ratio)?;
 
-        let total_cost = purchase_cost.add(converter.convert_to_cash_rounding(
-            self.conclusion_time.date, commission, currency)?).unwrap();
-        let total_local_cost = purchase_local_cost.add(local_commission).unwrap();
-        let deductible_total_local_cost = deductible_purchase_local_cost.add(deductible_local_commission).unwrap();
+        let total_cost = purchase_cost + converter.convert_to_cash_rounding(
+            self.conclusion_time.date, commission, currency)?;
+        let total_local_cost = purchase_local_cost + local_commission;
+        let deductible_total_local_cost = deductible_purchase_local_cost + deductible_local_commission;
 
-        let profit = revenue.sub(total_cost).unwrap();
-        let local_profit = local_revenue.sub(total_local_cost).unwrap();
-        let taxable_local_profit = taxable_local_revenue.sub(deductible_total_local_cost).unwrap();
+        let profit = revenue - total_cost;
+        let local_profit = local_revenue - total_local_cost;
+        let taxable_local_profit = taxable_local_revenue - deductible_total_local_cost;
 
         let tax_without_deduction = country.tax_to_pay(
             IncomeType::Trading, tax_year, local_profit, None);
         let tax_to_pay = country.tax_to_pay(
             IncomeType::Trading, tax_year, taxable_local_profit, None);
-        let tax_deduction = tax_without_deduction.sub(tax_to_pay).unwrap();
+        let tax_deduction = tax_without_deduction - tax_to_pay;
         assert!(!tax_deduction.is_negative());
 
         Ok(SellDetails {

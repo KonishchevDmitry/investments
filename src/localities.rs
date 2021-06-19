@@ -51,10 +51,10 @@ impl Country {
 
         if let Some(paid_tax) = paid_tax {
             assert!(!paid_tax.is_negative());
-            assert_eq!(paid_tax.currency, self.currency);
+            assert_eq!(paid_tax.currency, tax_to_pay.currency);
             let tax_deduction = self.round_tax(paid_tax);
 
-            if tax_deduction < tax_to_pay {
+            if tax_deduction.amount < tax_to_pay.amount {
                 tax_to_pay - tax_deduction
             } else {
                 Cash::zero(self.currency)

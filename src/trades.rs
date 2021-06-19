@@ -66,22 +66,22 @@ pub fn calculate_real_profit<C>(
     let real_tax_ratio = if profit_in_local.is_zero() {
         None
     } else {
-        Some(tax_to_pay.div(profit_in_local).unwrap())
+        Some(tax_to_pay / profit_in_local)
     };
 
-    let real_profit_in_local = profit_in_local.sub(tax_to_pay).unwrap();
+    let real_profit_in_local = profit_in_local - tax_to_pay;
     let purchase_cost_in_local = purchase_cost.total_cash_assets(date, local_currency, converter)?;
     let real_profit_ratio = if purchase_cost_in_local.is_zero() {
         None
     } else {
-        Some(real_profit_in_local.div(purchase_cost_in_local).unwrap())
+        Some(real_profit_in_local / purchase_cost_in_local)
     };
 
-    let real_local_profit = local_profit.sub(tax_to_pay).unwrap();
+    let real_local_profit = local_profit - tax_to_pay;
     let real_local_profit_ratio = if purchase_local_cost.is_zero() {
         None
     } else {
-        Some(real_local_profit.div(purchase_local_cost).unwrap())
+        Some(real_local_profit / purchase_local_cost)
     };
 
     Ok(RealProfit {

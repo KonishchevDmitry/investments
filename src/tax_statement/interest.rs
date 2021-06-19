@@ -60,13 +60,13 @@ pub fn process_income(
             interest.date, foreign_amount.currency, country.currency)?;
 
         let amount = converter.convert_to_cash_rounding(interest.date, foreign_amount, country.currency)?;
-        total_amount.add_assign(amount).unwrap();
+        total_amount += amount;
 
         let tax_to_pay = interest.tax_to_pay(&country, converter)?;
-        total_tax_to_pay.add_assign(tax_to_pay).unwrap();
+        total_tax_to_pay += tax_to_pay;
 
-        let income = amount.sub(tax_to_pay).unwrap();
-        total_income.add_assign(income).unwrap();
+        let income = amount - tax_to_pay;
+        total_income += income;
 
         table.add_row(Row {
             date: interest.date,

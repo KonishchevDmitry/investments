@@ -67,7 +67,7 @@ impl<'a> CashAssetsComparator<'a> {
 
             log!(level, "Calculation error for {}: {} vs {} ({})",
                  format_date(date), calculated_amount, actual_amount,
-                 calculated_amount.sub(actual_amount).unwrap());
+                 calculated_amount - actual_amount);
         }
     }
 

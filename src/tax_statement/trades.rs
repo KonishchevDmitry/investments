@@ -123,8 +123,8 @@ impl<'a> TradesProcessor<'a> {
 
         let tax_year = self.tax_year_stat(fee.date);
         tax_year.profit.withdraw(amount);
-        tax_year.local_profit.sub_assign(local_amount).unwrap();
-        tax_year.taxable_local_profit.sub_assign(local_amount).unwrap();
+        tax_year.local_profit -= local_amount;
+        tax_year.taxable_local_profit -= local_amount;
         tax_year.deductible_fees.replace(tax_year.deductible_fees.unwrap_or_default() + local_amount.amount);
 
         Ok(PreprocessedFee {
@@ -233,11 +233,11 @@ impl<'a> TradesProcessor<'a> {
             let tax_year = self.tax_year_stat(trade.execution_date);
 
             tax_year.purchase_cost.deposit(details.purchase_cost);
-            tax_year.purchase_local_cost.add_assign(details.purchase_local_cost).unwrap();
+            tax_year.purchase_local_cost += details.purchase_local_cost;
 
             tax_year.profit.deposit(details.profit);
-            tax_year.local_profit.add_assign(details.local_profit).unwrap();
-            tax_year.taxable_local_profit.add_assign(details.taxable_local_profit).unwrap();
+            tax_year.local_profit += details.local_profit;
+            tax_year.taxable_local_profit += details.taxable_local_profit;
         }
 
         self.trades_table.add_row(TradeRow {
@@ -429,15 +429,15 @@ impl<'a> TradesProcessor<'a> {
                 },
             };
 
-            total_local_profit.add_assign(stat.local_profit).unwrap();
-            total_taxable_local_profit.add_assign(stat.taxable_local_profit).unwrap();
+            total_local_profit += stat.local_profit;
+            total_taxable_local_profit += stat.taxable_local_profit;
 
-            total_tax_without_deduction.add_assign(self.country.tax_to_pay(
-                IncomeType::Trading, year, stat.local_profit, None)).unwrap();
+            total_tax_without_deduction += self.country.tax_to_pay(
+                IncomeType::Trading, year, stat.local_profit, None);
 
             let tax_to_pay = self.country.tax_to_pay(
                 IncomeType::Trading, year, stat.taxable_local_profit, None);
-            total_tax_to_pay.add_assign(tax_to_pay).unwrap();
+            total_tax_to_pay += tax_to_pay;
 
             if single_tax_year {
                 // FIXME(konishchev): Support
@@ -448,7 +448,7 @@ impl<'a> TradesProcessor<'a> {
             }
         }
 
-        let total_tax_deduction = total_tax_without_deduction.sub(total_tax_to_pay).unwrap();
+        let total_tax_deduction = total_tax_without_deduction - total_tax_to_pay;
         assert!(!total_tax_deduction.is_negative());
 
         Ok(Totals {
