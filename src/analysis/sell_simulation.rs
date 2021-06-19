@@ -184,10 +184,10 @@ fn print_results(
     total_taxable_local_profit.amount -= lto_deduction;
 
     let (tax_year, _) = portfolio.tax_payment_day().get(execution_date, true);
-    let tax_without_deduction = Cash::new(country.currency, country.tax_to_pay(
-        IncomeType::Trading, tax_year, total_local_profit.amount, None));
-    let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
-        IncomeType::Trading, tax_year, total_taxable_local_profit.amount, None));
+    let tax_without_deduction = country.tax_to_pay(
+        IncomeType::Trading, tax_year, total_local_profit, None);
+    let tax_to_pay = country.tax_to_pay(
+        IncomeType::Trading, tax_year, total_taxable_local_profit, None);
 
     let total_real = trades::calculate_real_profit(
         converter.real_time_date(), total_purchase_cost, total_purchase_local_cost,

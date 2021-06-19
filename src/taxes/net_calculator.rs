@@ -1,9 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::default::Default;
 
-use crate::currency;
+use crate::currency::Cash;
 use crate::localities::Country;
-use crate::types::{Date, Decimal};
+use crate::time::Date;
 
 use super::{IncomeType, TaxPaymentDay};
 
@@ -13,10 +12,9 @@ pub struct NetTaxCalculator {
     profit: HashMap<(i32, Date), NetProfit>,
 }
 
-#[derive(Default)]
 struct NetProfit {
-    total: Decimal,
-    taxable: Decimal,
+    total: Cash,
+    taxable: Cash,
 }
 
 impl NetTaxCalculator {
@@ -28,17 +26,20 @@ impl NetTaxCalculator {
         }
     }
 
-    pub fn add_profit(&mut self, date: Date, total: Decimal, taxable: Decimal) {
-        let total = currency::round(total);
-        let taxable = currency::round(taxable);
+    pub fn add_profit(&mut self, date: Date, total: Cash, taxable: Cash) {
+        let currency = self.country.currency;
         let key = self.tax_payment_day.get(date, true);
 
-        let profit = self.profit.entry(key).or_default();
-        profit.total += total;
-        profit.taxable += taxable;
+        let profit = self.profit.entry(key).or_insert_with(|| NetProfit {
+            total: Cash::zero(currency),
+            taxable: Cash::zero(currency),
+        });
+
+        profit.total += total.round();
+        profit.taxable += taxable.round();
     }
 
-    pub fn get_taxes(&self) -> HashMap<Date, (Decimal, Decimal)> {
+    pub fn get_taxes(&self) -> HashMap<Date, (Cash, Cash)> {
         let mut taxes = HashMap::new();
         let mut years = HashSet::new();
 
@@ -52,7 +53,7 @@ impl NetTaxCalculator {
                 IncomeType::Trading, tax_year, profit.total, None);
 
             let tax_deduction = tax_without_deduction - tax_to_pay;
-            assert!(!tax_deduction.is_sign_negative());
+            assert!(!tax_deduction.is_negative());
 
             assert_eq!(taxes.insert(tax_payment_date, (tax_to_pay, tax_deduction)), None);
         }

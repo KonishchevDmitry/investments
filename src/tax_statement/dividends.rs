@@ -51,14 +51,14 @@ pub fn process_income(
     let mut same_currency = true;
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
-    let mut total_amount = dec!(0);
+    let mut total_amount = Cash::zero(country.currency);
 
     let mut total_foreign_paid_tax = MultiCurrencyCashAccount::new();
-    let mut total_paid_tax = dec!(0);
-    let mut total_tax_deduction = dec!(0);
-    let mut total_tax_to_pay = dec!(0);
+    let mut total_paid_tax = Cash::zero(country.currency);
+    let mut total_tax_deduction = Cash::zero(country.currency);
+    let mut total_tax_to_pay = Cash::zero(country.currency);
 
-    let mut total_income = dec!(0);
+    let mut total_income = Cash::zero(country.currency);
 
     for dividend in &broker_statement.dividends {
         if let Some(year) = year {
@@ -76,9 +76,9 @@ pub fn process_income(
         let precise_currency_rate = converter.precise_currency_rate(
             dividend.date, foreign_amount.currency, country.currency)?;
 
-        let amount = converter.convert_to_rounding(
+        let amount = converter.convert_to_cash_rounding(
             dividend.date, foreign_amount, country.currency)?;
-        total_amount += amount;
+        total_amount.add_assign(amount).unwrap();
 
         let tax = dividend.tax(&country, converter)?;
 
@@ -86,41 +86,36 @@ pub fn process_income(
         total_foreign_paid_tax.deposit(foreign_paid_tax);
         same_currency &= foreign_paid_tax.currency == country.currency;
 
-        let paid_tax = converter.convert_to_rounding(
+        let paid_tax = converter.convert_to_cash_rounding(
             dividend.date, foreign_paid_tax, country.currency)?;
-        total_paid_tax += paid_tax;
+        total_paid_tax.add_assign(paid_tax).unwrap();
 
         let tax_to_pay = dividend.tax_to_pay(&country, converter)?;
-        total_tax_to_pay += tax_to_pay;
+        total_tax_to_pay.add_assign(tax_to_pay).unwrap();
 
         let tax_deduction = country.round_tax(paid_tax);
         if !tax_to_pay.is_zero() {
-            assert_eq!(tax_deduction, tax - tax_to_pay);
+            assert_eq!(tax_deduction, tax.sub(tax_to_pay).unwrap());
         }
-        total_tax_deduction += tax_deduction;
+        total_tax_deduction.add_assign(tax_deduction).unwrap();
 
-        let income = amount - paid_tax - tax_to_pay;
-        total_income += income;
+        let income = amount.sub(paid_tax).unwrap().sub(tax_to_pay).unwrap();
+        total_income.add_assign(income).unwrap();
 
         table.add_row(Row {
             date: dividend.date,
             issuer: issuer.to_owned(),
             currency: foreign_amount.currency.to_owned(),
 
-            foreign_amount: foreign_amount,
+            foreign_amount,
             currency_rate: if foreign_amount.currency == country.currency {
                 None
             } else {
                 Some(precise_currency_rate)
             },
-            amount: Cash::new(country.currency, amount),
+            amount,
 
-            tax: Cash::new(country.currency, tax),
-            foreign_paid_tax: foreign_paid_tax,
-            paid_tax: Cash::new(country.currency, paid_tax),
-            tax_deduction: Cash::new(country.currency, tax_deduction),
-            tax_to_pay: Cash::new(country.currency, tax_to_pay),
-            income: Cash::new(country.currency, income),
+            tax, foreign_paid_tax, paid_tax, tax_deduction, tax_to_pay, income,
         });
 
         if let Some(ref mut tax_statement) = tax_statement {
@@ -134,7 +129,7 @@ pub fn process_income(
 
             tax_statement.add_dividend_income(
                 &description, dividend.date, foreign_amount.currency, precise_currency_rate,
-                foreign_amount.amount, foreign_paid_tax.amount, amount, paid_tax
+                foreign_amount.amount, foreign_paid_tax.amount, amount.amount, paid_tax.amount
             ).map_err(|e| format!(
                 "Unable to add {} to the tax statement: {}", dividend.description(), e
             ))?;
@@ -168,17 +163,17 @@ pub fn process_income(
         let mut totals = table.add_empty_row();
 
         totals.set_foreign_amount(total_foreign_amount);
-        totals.set_amount(Cash::new(country.currency, total_amount));
+        totals.set_amount(total_amount);
 
         totals.set_foreign_paid_tax(total_foreign_paid_tax);
-        totals.set_paid_tax(Cash::new(country.currency, total_paid_tax));
-        totals.set_tax_deduction(Cash::new(country.currency, total_tax_deduction));
-        totals.set_tax_to_pay(Cash::new(country.currency, total_tax_to_pay));
-        totals.set_income(Cash::new(country.currency, total_income));
+        totals.set_paid_tax(total_paid_tax);
+        totals.set_tax_deduction(total_tax_deduction);
+        totals.set_tax_to_pay(total_tax_to_pay);
+        totals.set_income(total_income);
 
         table.print(&format!(
             "Расчет дохода от дивидендов, полученных через {}", broker_statement.broker.name));
     }
 
-    Ok(Cash::new(country.currency, total_tax_to_pay))
+    Ok(total_tax_to_pay)
 }

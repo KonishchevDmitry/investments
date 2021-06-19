@@ -3,7 +3,7 @@ use std::ops::Bound;
 
 use chrono::{Datelike, Duration};
 
-use crate::currency;
+use crate::currency::Cash;
 use crate::taxes::IncomeType;
 use crate::time;
 use crate::types::{Date, Decimal};
@@ -32,38 +32,41 @@ impl Country {
         Country {currency, default_tax_rate, tax_rates, tax_precision}
     }
 
-    pub fn round_tax(&self, tax: Decimal) -> Decimal {
-        currency::round_to(currency::round(tax), self.tax_precision)
+    pub fn round_tax(&self, tax: Cash) -> Cash {
+        assert_eq!(tax.currency, self.currency);
+        tax.round().round_to(self.tax_precision)
     }
 
-    // FIXME(konishchev): Return cash
     pub fn tax_to_pay(
-        &self, income_type: IncomeType, year: i32, income: Decimal, paid_tax: Option<Decimal>,
-    ) -> Decimal {
-        let income = currency::round(income);
+        &self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>,
+    ) -> Cash {
+        assert_eq!(income.currency, self.currency);
 
-        if income.is_sign_negative() || income.is_zero() {
-            return dec!(0);
+        let income = income.round();
+        if income.is_negative() || income.is_zero() {
+            return Cash::zero(self.currency);
         }
 
         let tax_to_pay = self.round_tax(income * self.tax_rate(income_type, year));
 
         if let Some(paid_tax) = paid_tax {
-            assert!(!paid_tax.is_sign_negative());
+            assert!(!paid_tax.is_negative());
+            assert_eq!(paid_tax.currency, self.currency);
             let tax_deduction = self.round_tax(paid_tax);
 
             if tax_deduction < tax_to_pay {
                 tax_to_pay - tax_deduction
             } else {
-                dec!(0)
+                Cash::zero(self.currency)
             }
         } else {
             tax_to_pay
         }
     }
 
-    pub fn deduce_income(&self, income_type: IncomeType, year: i32, result_income: Decimal) -> Decimal {
-        currency::round(result_income / (dec!(1) - self.tax_rate(income_type, year)))
+    pub fn deduce_income(&self, income_type: IncomeType, year: i32, result_income: Cash) -> Cash {
+        assert_eq!(result_income.currency, self.currency);
+        (result_income / (dec!(1) - self.tax_rate(income_type, year))).round()
     }
 
     fn tax_rate(&self, income_type: IncomeType, year: i32) -> Decimal {

@@ -38,9 +38,9 @@ pub fn process_income(
     let mut table = Table::new();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
-    let mut total_amount = dec!(0);
-    let mut total_tax_to_pay = dec!(0);
-    let mut total_income = dec!(0);
+    let mut total_amount = Cash::zero(country.currency);
+    let mut total_tax_to_pay = Cash::zero(country.currency);
+    let mut total_income = Cash::zero(country.currency);
 
     for interest in &broker_statement.idle_cash_interest {
         if let Some(year) = year {
@@ -59,14 +59,14 @@ pub fn process_income(
         let precise_currency_rate = converter.precise_currency_rate(
             interest.date, foreign_amount.currency, country.currency)?;
 
-        let amount = converter.convert_to_rounding(interest.date, foreign_amount, country.currency)?;
-        total_amount += amount;
+        let amount = converter.convert_to_cash_rounding(interest.date, foreign_amount, country.currency)?;
+        total_amount.add_assign(amount).unwrap();
 
         let tax_to_pay = interest.tax_to_pay(&country, converter)?;
-        total_tax_to_pay += tax_to_pay;
+        total_tax_to_pay.add_assign(tax_to_pay).unwrap();
 
-        let income = amount - tax_to_pay;
-        total_income += income;
+        let income = amount.sub(tax_to_pay).unwrap();
+        total_income.add_assign(income).unwrap();
 
         table.add_row(Row {
             date: interest.date,
@@ -77,9 +77,7 @@ pub fn process_income(
             } else {
                 None
             },
-            amount: Cash::new(country.currency, amount),
-            tax_to_pay: Cash::new(country.currency, tax_to_pay),
-            income: Cash::new(country.currency, income),
+            amount, tax_to_pay, income,
         });
 
         if tax_statement.is_some() && broker_statement.broker.type_.jurisdiction() != Jurisdiction::Usa {
@@ -94,7 +92,7 @@ pub fn process_income(
 
             tax_statement.add_interest_income(
                 &description, interest.date, foreign_amount.currency, precise_currency_rate,
-                foreign_amount.amount, amount
+                foreign_amount.amount, amount.amount
             ).map_err(|e| format!(
                 "Unable to add interest income from {} to the tax statement: {}",
                 formatting::format_date(interest.date), e
@@ -105,14 +103,14 @@ pub fn process_income(
     if !table.is_empty() {
         let mut totals = table.add_empty_row();
         totals.set_foreign_amount(total_foreign_amount);
-        totals.set_amount(Cash::new(country.currency, total_amount));
-        totals.set_tax_to_pay(Cash::new(country.currency, total_tax_to_pay));
-        totals.set_income(Cash::new(country.currency, total_income));
+        totals.set_amount(total_amount);
+        totals.set_tax_to_pay(total_tax_to_pay);
+        totals.set_income(total_income);
 
         table.print(&format!(
             "Расчет дохода от процентов на остаток по брокерскому счету, полученных через {}",
             broker_statement.broker.name));
     }
 
-    Ok(Cash::new(country.currency, total_tax_to_pay))
+    Ok(total_tax_to_pay)
 }

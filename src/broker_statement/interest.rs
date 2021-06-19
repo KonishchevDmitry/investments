@@ -3,7 +3,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::localities::Country;
 use crate::taxes::IncomeType;
-use crate::types::{Date, Decimal};
+use crate::time::Date;
 use chrono::Datelike;
 
 pub struct IdleCashInterest {
@@ -18,8 +18,8 @@ impl IdleCashInterest {
         }
     }
 
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
-        let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
+    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
         Ok(country.tax_to_pay(IncomeType::Interest, self.date.year(), amount, None))
     }
 }

@@ -286,10 +286,10 @@ impl StockSell {
         let local_profit = local_revenue.sub(total_local_cost).unwrap();
         let taxable_local_profit = taxable_local_revenue.sub(deductible_total_local_cost).unwrap();
 
-        let tax_without_deduction = Cash::new(country.currency, country.tax_to_pay(
-            IncomeType::Trading, tax_year, local_profit.amount, None));
-        let tax_to_pay = Cash::new(country.currency, country.tax_to_pay(
-            IncomeType::Trading, tax_year, taxable_local_profit.amount, None));
+        let tax_without_deduction = country.tax_to_pay(
+            IncomeType::Trading, tax_year, local_profit, None);
+        let tax_to_pay = country.tax_to_pay(
+            IncomeType::Trading, tax_year, taxable_local_profit, None);
         let tax_deduction = tax_without_deduction.sub(tax_to_pay).unwrap();
         assert!(!tax_deduction.is_negative());
 

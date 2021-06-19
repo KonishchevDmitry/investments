@@ -320,14 +320,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     let details = trade.calculate(
                         &self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
 
-                    let local_profit = details.local_profit.amount;
-                    let taxable_local_profit = details.taxable_local_profit.amount;
-
                     stock_taxes.entry(&trade.symbol)
                         .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
-                        .add_profit(trade.execution_date, local_profit, taxable_local_profit);
+                        .add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit);
 
-                    taxes.add_profit(trade.execution_date, local_profit, taxable_local_profit);
+                    taxes.add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit);
                 },
                 StockSellType::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
@@ -448,16 +445,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.transactions.push(Transaction::new(date, amount));
     }
 
-    fn map_tax_to_deposit_amount(&self, tax_payment_date: Date, tax_to_pay: Decimal) -> GenericResult<Option<Decimal>> {
+    fn map_tax_to_deposit_amount(&self, tax_payment_date: Date, tax_to_pay: Cash) -> GenericResult<Option<Decimal>> {
         // Treat tax payment as an ordinary deposit which we transfer to the account at tax payment
         // day.
 
         if tax_to_pay.is_zero() {
             return Ok(None);
         }
-        assert!(tax_to_pay.is_sign_positive());
-
-        let tax_to_pay = Cash::new(self.country.currency, tax_to_pay);
+        assert!(tax_to_pay.is_positive());
 
         let conversion_date = if tax_payment_date > self.today {
             self.today

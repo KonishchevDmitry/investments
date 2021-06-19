@@ -15,8 +15,10 @@ use super::StatementParser;
 pub fn parse_dividend(
     parser: &mut StatementParser, date: Date, issuer: &str, income: Cash, description: &str,
 ) -> EmptyResult {
-    let currency = income.currency;
-    let income = income.amount;
+    let foreign_country = localities::us();
+    if income.currency != foreign_country.currency {
+        return Err!("Got a dividend from {} in an unexpected currency: {}", issuer, income.currency)
+    }
 
     if parser.reader.warn_on_missing_dividend_details {
         warn!(concat!(
@@ -32,16 +34,12 @@ pub fn parse_dividend(
         return Err!("Unexpected dividend description: {:?}", description);
     }
 
-    let foreign_country = localities::us();
     let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
-    let paid_tax = amount - income;
+    let paid_tax = amount.sub(income).unwrap();
     debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
 
-    parser.statement.dividend_accruals(date, issuer, true)
-        .add(date, Cash::new(currency, amount));
-
-    parser.statement.tax_accruals(date, issuer, false)
-        .add(date, Cash::new(currency, paid_tax));
+    parser.statement.dividend_accruals(date, issuer, true).add(date, amount);
+    parser.statement.tax_accruals(date, issuer, false).add(date, paid_tax);
 
     Ok(())
 }

@@ -432,11 +432,11 @@ impl<'a> TradesProcessor<'a> {
             total_local_profit.add_assign(stat.local_profit).unwrap();
             total_taxable_local_profit.add_assign(stat.taxable_local_profit).unwrap();
 
-            total_tax_without_deduction.amount += self.country.tax_to_pay(
-                IncomeType::Trading, year, stat.local_profit.amount, None);
+            total_tax_without_deduction.add_assign(self.country.tax_to_pay(
+                IncomeType::Trading, year, stat.local_profit, None)).unwrap();
 
-            let tax_to_pay = Cash::new(local_currency, self.country.tax_to_pay(
-                IncomeType::Trading, year, stat.taxable_local_profit.amount, None));
+            let tax_to_pay = self.country.tax_to_pay(
+                IncomeType::Trading, year, stat.taxable_local_profit, None);
             total_tax_to_pay.add_assign(tax_to_pay).unwrap();
 
             if single_tax_year {

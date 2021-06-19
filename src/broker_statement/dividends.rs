@@ -8,7 +8,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::IncomeType;
-use crate::types::{Date, Decimal};
+use crate::time::Date;
 
 use super::cash_flows::{CashFlow, CashFlowType};
 use super::payments::Payments;
@@ -25,14 +25,14 @@ pub struct Dividend {
 }
 
 impl Dividend {
-    pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
-        let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
+    pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
         Ok(country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, None))
     }
 
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Decimal> {
-        let amount = converter.convert_to_rounding(self.date, self.amount, country.currency)?;
-        let paid_tax = converter.convert_to_rounding(self.date, self.paid_tax, country.currency)?;
+    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
+        let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
+        let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
         Ok(country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax)))
     }
 
