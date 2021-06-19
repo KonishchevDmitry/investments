@@ -317,6 +317,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     }
 
                     let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
+                    // FIXME(konishchev): Long term ownership support
                     let details = trade.calculate(
                         &self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
 

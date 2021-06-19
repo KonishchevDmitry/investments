@@ -142,6 +142,7 @@ pub fn analyse(
                 _ => unreachable!(),
             };
             let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
+            // FIXME(konishchev): Long term ownership support
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 
             statistics.process(|statistics| {
