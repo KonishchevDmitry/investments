@@ -348,7 +348,7 @@ pub struct SellDetails {
     pub taxable_local_profit: Cash,
 
     pub tax_to_pay: Cash,
-    pub tax_deduction: Cash,  // FIXME(konishchev): Deprecate?
+    pub tax_deduction: Cash,
 
     pub fifo: Vec<FifoDetails>,
 }
