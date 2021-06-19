@@ -9,8 +9,6 @@ use separator::Separatable;
 use crate::core::{GenericResult, EmptyResult};
 use crate::types::Decimal;
 
-use super::{round, round_to};
-
 // FIXME(konishchev): Refactor all below
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cash {
@@ -74,12 +72,12 @@ impl Cash {
     }
 
     pub fn round(mut self) -> Cash {
-        self.amount = round(self.amount);
+        self.amount = super::round(self.amount);
         self
     }
 
     pub fn round_to(mut self, points: u32) -> Cash {
-        self.amount = round_to(self.amount, points);
+        self.amount = super::round_to(self.amount, points);
         self
     }
 
@@ -89,7 +87,7 @@ impl Cash {
     }
 
     pub fn format_rounded(&self) -> String {
-        let amount = round_to(self.amount, 0).to_i64().unwrap().separated_string();
+        let amount = super::round_to(self.amount, 0).to_i64().unwrap().separated_string();
         format_currency(self.currency, &amount)
     }
 
