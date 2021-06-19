@@ -334,7 +334,7 @@ mod tests {
         File::open(path).unwrap().read_to_end(&mut data).unwrap();
 
         let (contents, _, errors) = encoding_rs::WINDOWS_1251.decode(data.as_slice());
-        assert_eq!(errors, false);
+        assert!(!errors);
 
         contents.deref().to_owned()
     }

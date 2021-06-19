@@ -282,7 +282,7 @@ mod tests {
 
     fn mock_cbr_response(path: &str, data: &str) -> Mock {
         let (data, _, errors) = encoding_rs::WINDOWS_1251.encode(data);
-        assert_eq!(errors, false);
+        assert!(!errors);
 
         mock("GET", path)
             .with_status(200)
