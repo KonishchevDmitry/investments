@@ -64,13 +64,13 @@ mod tests {
         assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
-        assert_eq!(statement.fees.is_empty(), name == "my");
+        assert_eq!(statement.fees.is_empty(), name == "iia");
         assert!(statement.idle_cash_interest.is_empty());
         assert!(statement.tax_agent_withholdings.is_empty());
 
         assert_eq!(statement.forex_trades.is_empty(), name == "iia");
         assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");
-        assert_eq!(statement.stock_sells.is_empty(), name != "iia");
+        assert_eq!(statement.stock_sells.is_empty(), name != "my");
         assert!(statement.dividends.is_empty());
 
         assert_eq!(statement.open_positions.is_empty(), name == "inactive-with-forex");
