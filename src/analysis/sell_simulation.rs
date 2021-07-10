@@ -139,7 +139,7 @@ fn print_results(
             purchase_cost += buy_trade.cost(purchase_cost.currency, converter)?;
 
             if let Some(ref deductible) = buy_trade.long_term_ownership_deductible {
-                lto_calculator.add(deductible.profit, deductible.years);
+                lto_calculator.add(deductible.profit, deductible.years, false);
                 long_term_ownership = true;
             }
 

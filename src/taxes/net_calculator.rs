@@ -36,7 +36,8 @@ impl NetTaxCalculator {
     }
 
     pub fn add_profit(
-        &mut self, date: Date, total: Cash, taxable: Cash, lto_deductible: &[LtoDeductibleProfit],
+        &mut self, date: Date, total: Cash, taxable: Cash,
+        lto_deductible: &[LtoDeductibleProfit], emulated_trade: bool,
     ) {
         let currency = self.country.currency;
         let key = self.tax_payment_day.get(date, true);
@@ -51,7 +52,7 @@ impl NetTaxCalculator {
         net_profit.taxable += taxable.round();
 
         for &LtoDeductibleProfit{profit, years} in lto_deductible {
-            net_profit.lto.add(profit, years);
+            net_profit.lto.add(profit, years, emulated_trade);
         }
     }
 

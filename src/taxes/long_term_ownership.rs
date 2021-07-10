@@ -15,6 +15,7 @@ pub struct LtoDeductibleProfit {
 pub struct LtoDeductionCalculator {
     profit: Decimal,
     weighted_profit: Decimal,
+    out_of_limit: Decimal,
 }
 
 impl LtoDeductionCalculator {
@@ -22,24 +23,36 @@ impl LtoDeductionCalculator {
         LtoDeductionCalculator {
             profit: Decimal::default(),
             weighted_profit: Decimal::default(),
+            out_of_limit: Decimal::default(),
         }
     }
 
-    pub fn add(&mut self, profit: Decimal, years: u32) {
+    pub fn add(&mut self, profit: Decimal, years: u32, out_of_limit: bool) {
         assert!(profit.is_sign_positive());
         assert!(years >= 3);
-        self.profit += profit;
-        self.weighted_profit += profit * Decimal::from(years);
+
+        if out_of_limit {
+            self.out_of_limit += profit;
+        } else {
+            self.profit += profit;
+            self.weighted_profit += profit * Decimal::from(years);
+        }
     }
 
     pub fn calculate(self) -> (Decimal, Decimal, Decimal) {
-        if self.profit.is_zero() {
-            return (dec!(0), dec!(0), dec!(0));
+        let mut total_profit = self.out_of_limit;
+        let mut total_limit = self.out_of_limit;
+        let mut total_deduction = self.out_of_limit;
+
+        if !self.profit.is_zero() {
+            let limit = self.weighted_profit / self.profit * dec!(3_000_000);
+
+            total_profit += self.profit;
+            total_limit += limit;
+            total_deduction += std::cmp::min(self.profit, limit);
         }
 
-        let limit = self.weighted_profit / self.profit * dec!(3_000_000);
-        let deduction = std::cmp::min(self.profit, limit);
-        (deduction, limit, self.profit - deduction)
+        (total_deduction, total_limit, total_profit - total_deduction)
     }
 }
 
@@ -68,8 +81,8 @@ impl NetLtoDeductionCalculator {
     }
 
     #[allow(dead_code)] // FIXME(konishchev): Remove
-    pub fn add_profit(&mut self, tax_year: i32, profit: Decimal, years: u32) {
-        self.tax_year(tax_year).calc.add(profit, years);
+    pub fn add_profit(&mut self, tax_year: i32, profit: Decimal, years: u32, out_of_limit: bool) {
+        self.tax_year(tax_year).calc.add(profit, years, out_of_limit);
     }
 
     #[allow(dead_code)] // FIXME(konishchev): Remove
@@ -155,24 +168,53 @@ mod tests {
         assert_eq!(calculate_ownership_years(buy_date, sell_date), years);
     }
 
-    #[test]
-    fn deduction_amount_calculation() {
-        assert_eq!(LtoDeductionCalculator::new().calculate(), (dec!(0), dec!(0), dec!(0)));
+    #[rstest(with_out_of_limit => [false, true])]
+    fn deduction_amount_calculation(with_out_of_limit: bool) {
+        let out_of_limit = if with_out_of_limit {
+            dec!(400_000)
+        } else {
+            dec!(0)
+        };
 
         {
             let mut calculator = LtoDeductionCalculator::new();
-            calculator.add(dec!(13_000_000), 4);
-            assert_eq!(calculator.calculate(), (dec!(12_000_000), dec!(12_000_000), dec!(1_000_000)));
+            if with_out_of_limit {
+                calculator.add(out_of_limit, 3, true);
+            }
+            assert_eq!(calculator.calculate(), (out_of_limit, out_of_limit, dec!(0)));
         }
 
         {
             let mut calculator = LtoDeductionCalculator::new();
-            calculator.add(dec!(2_000_000), 3);
-            calculator.add(dec!(  500_000), 3);
-            calculator.add(dec!(2_000_000), 4);
-            calculator.add(dec!(1_500_000), 4);
-            calculator.add(dec!(4_000_000), 5);
-            assert_eq!(calculator.calculate(), (dec!(10_000_000), dec!(12_450_000), dec!(0)));
+
+            calculator.add(dec!(13_000_000), 4, false);
+            if with_out_of_limit {
+                calculator.add(out_of_limit, 3, true);
+            }
+
+            assert_eq!(
+                calculator.calculate(),
+                (dec!(12_000_000) + out_of_limit, dec!(12_000_000) + out_of_limit, dec!(1_000_000)),
+            );
+        }
+
+        {
+            let mut calculator = LtoDeductionCalculator::new();
+
+            calculator.add(dec!(2_000_000), 3, false);
+            calculator.add(dec!(  500_000), 3, false);
+            calculator.add(dec!(2_000_000), 4, false);
+            calculator.add(dec!(1_500_000), 4, false);
+            calculator.add(dec!(4_000_000), 5, false);
+
+            if with_out_of_limit {
+                calculator.add(out_of_limit, 3, true);
+            }
+
+            assert_eq!(
+                calculator.calculate(),
+                (dec!(10_000_000) + out_of_limit, dec!(12_450_000) + out_of_limit, dec!(0)),
+            );
         }
     }
 }

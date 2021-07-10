@@ -332,7 +332,8 @@ impl<'a> TradesProcessor<'a> {
 
         if let Some(ref deductible) = trade.long_term_ownership_deductible {
             let tax_year_stat = self.tax_year_stat(sell_execution_date);
-            tax_year_stat.lto_calculator.as_mut().unwrap().add(deductible.profit, deductible.years);
+            tax_year_stat.lto_calculator.as_mut().unwrap()
+                .add(deductible.profit, deductible.years, false);
             self.long_term_ownership = true;
         }
 

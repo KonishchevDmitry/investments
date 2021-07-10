@@ -324,10 +324,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     // FIXME(konishchev): LTO deductible
                     stock_taxes.entry(&trade.symbol)
                         .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
-                        .add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[]);
+                        .add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[], trade.emulation);
 
                     // FIXME(konishchev): LTO deductible
-                    taxes.add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[]);
+                    taxes.add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[], trade.emulation);
                 },
                 StockSellType::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
