@@ -1,5 +1,7 @@
 // Long-term ownership tax exemption logic
 
+use std::collections::HashMap;
+
 use chrono::Datelike;
 
 use crate::time::Date;
@@ -38,6 +40,62 @@ impl LtoDeductionCalculator {
         let limit = self.weighted_profit / self.profit * dec!(3_000_000);
         let deduction = std::cmp::min(self.profit, limit);
         (deduction, limit, self.profit - deduction)
+    }
+}
+
+#[allow(dead_code)] // FIXME(konishchev): Remove
+pub struct NetLtoDeductionCalculator {
+    tax_years: HashMap<i32, TaxYearLto>
+}
+
+#[allow(dead_code)] // FIXME(konishchev): Remove
+pub struct NetLtoDeduction {
+    applied_above_limit: Decimal,
+    loss: Decimal,
+}
+
+struct TaxYearLto {
+    calc: LtoDeductionCalculator,
+    applied_deduction: Decimal,
+}
+
+impl NetLtoDeductionCalculator {
+    #[allow(dead_code)] // FIXME(konishchev): Remove
+    pub fn new() -> NetLtoDeductionCalculator {
+        NetLtoDeductionCalculator {
+            tax_years: HashMap::new(),
+        }
+    }
+
+    #[allow(dead_code)] // FIXME(konishchev): Remove
+    pub fn add_profit(&mut self, tax_year: i32, profit: Decimal, years: u32) {
+        self.tax_year(tax_year).calc.add(profit, years);
+    }
+
+    #[allow(dead_code)] // FIXME(konishchev): Remove
+    pub fn add_applied_deduction(&mut self, tax_year: i32, deduction: Decimal) {
+        assert!(deduction.is_sign_positive());
+        self.tax_year(tax_year).applied_deduction += deduction;
+    }
+
+    #[allow(dead_code)] // FIXME(konishchev): Remove
+    pub fn calculate(self) -> HashMap<i32, NetLtoDeduction> {
+        let mut tax_years = HashMap::new();
+
+        for (tax_year, stat) in self.tax_years.into_iter() {
+            let (_, limit, loss) = stat.calc.calculate();
+            let applied_above_limit = std::cmp::max(dec!(0), stat.applied_deduction - limit);
+            tax_years.insert(tax_year, NetLtoDeduction {applied_above_limit, loss});
+        }
+
+        tax_years
+    }
+
+    fn tax_year(&mut self, year: i32) -> &mut TaxYearLto {
+        self.tax_years.entry(year).or_insert_with(|| TaxYearLto {
+            calc: LtoDeductionCalculator::new(),
+            applied_deduction: dec!(0),
+        })
     }
 }
 
