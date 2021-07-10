@@ -5,6 +5,11 @@ use chrono::Datelike;
 use crate::time::Date;
 use crate::types::Decimal;
 
+pub struct LtoDeductibleProfit {
+    pub profit: Decimal,
+    pub years: u32,
+}
+
 pub struct LtoDeductionCalculator {
     profit: Decimal,
     weighted_profit: Decimal,
@@ -25,14 +30,14 @@ impl LtoDeductionCalculator {
         self.weighted_profit += profit * Decimal::from(years);
     }
 
-    pub fn calculate(self) -> (Decimal, Decimal) {
+    pub fn calculate(self) -> (Decimal, Decimal, Decimal) {
         if self.profit.is_zero() {
-            return (dec!(0), dec!(0));
+            return (dec!(0), dec!(0), dec!(0));
         }
 
         let limit = self.weighted_profit / self.profit * dec!(3_000_000);
         let deduction = std::cmp::min(self.profit, limit);
-        (deduction, limit)
+        (deduction, limit, self.profit - deduction)
     }
 }
 
@@ -94,12 +99,12 @@ mod tests {
 
     #[test]
     fn deduction_amount_calculation() {
-        assert_eq!(LtoDeductionCalculator::new().calculate(), (dec!(0), dec!(0)));
+        assert_eq!(LtoDeductionCalculator::new().calculate(), (dec!(0), dec!(0), dec!(0)));
 
         {
             let mut calculator = LtoDeductionCalculator::new();
             calculator.add(dec!(13_000_000), 4);
-            assert_eq!(calculator.calculate(), (dec!(12_000_000), dec!(12_000_000)));
+            assert_eq!(calculator.calculate(), (dec!(12_000_000), dec!(12_000_000), dec!(1_000_000)));
         }
 
         {
@@ -109,7 +114,7 @@ mod tests {
             calculator.add(dec!(2_000_000), 4);
             calculator.add(dec!(1_500_000), 4);
             calculator.add(dec!(4_000_000), 5);
-            assert_eq!(calculator.calculate(), (dec!(10_000_000), dec!(12_450_000)));
+            assert_eq!(calculator.calculate(), (dec!(10_000_000), dec!(12_450_000), dec!(0)));
         }
     }
 }

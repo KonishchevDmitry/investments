@@ -9,7 +9,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
-use crate::taxes::NetTaxCalculator;
+use crate::taxes::{NetTax, NetTaxCalculator};
 use crate::time::{self, Date, DateOptTime};
 use crate::types::Decimal;
 
@@ -321,11 +321,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     let details = trade.calculate(
                         &self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
 
+                    // FIXME(konishchev): LTO deductible
                     stock_taxes.entry(&trade.symbol)
                         .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
-                        .add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit);
+                        .add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[]);
 
-                    taxes.add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit);
+                    // FIXME(konishchev): LTO deductible
+                    taxes.add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[]);
                 },
                 StockSellType::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
@@ -334,8 +336,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             };
         }
 
-        for (&symbol, symbol_taxes) in stock_taxes.iter() {
-            for (&tax_payment_date, &(tax_to_pay, _tax_deduction)) in symbol_taxes.get_taxes().iter() {
+        for (symbol, symbol_taxes) in stock_taxes.into_iter() {
+            // FIXME(konishchev): LTO deduction, LTO loss
+            for (_, NetTax{tax_payment_date, tax_to_pay, ..}) in symbol_taxes.calculate().into_iter() {
                 if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                     trace!("* {} selling {} tax: {}",
                            symbol, formatting::format_date(tax_payment_date), amount);
@@ -345,7 +348,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
         }
 
-        for (&tax_payment_date, &(tax_to_pay, tax_deduction)) in taxes.get_taxes().iter() {
+        // FIXME(konishchev): LTO deduction, LTO loss
+        for (_, NetTax{tax_payment_date, tax_to_pay, tax_deduction, ..}) in taxes.calculate().into_iter() {
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* Stock selling {} tax: {}", formatting::format_date(tax_payment_date), amount);
                 self.transaction(tax_payment_date, amount);

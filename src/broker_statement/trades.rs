@@ -3,7 +3,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
-use crate::taxes::{self, IncomeType, TaxExemption};
+use crate::taxes::{self, IncomeType, LtoDeductibleProfit, TaxExemption};
 use crate::time::DateOptTime;
 use crate::trades::{self, RealProfit};
 use crate::types::{Date, Decimal};
@@ -239,7 +239,7 @@ impl StockSell {
                                 - source_local_commission
                                 - source_total_local_cost;
 
-                            source_details.long_term_ownership_deductible.replace(LtoDeductible {
+                            source_details.long_term_ownership_deductible.replace(LtoDeductibleProfit {
                                 profit: std::cmp::max(dec!(0), source_local_profit.amount),
                                 years,
                             });
@@ -384,7 +384,7 @@ pub struct FifoDetails {
     cost: PurchaseTotalCost,
 
     pub tax_exemption_applied: bool,
-    pub long_term_ownership_deductible: Option<LtoDeductible>,
+    pub long_term_ownership_deductible: Option<LtoDeductibleProfit>,
 }
 
 pub enum StockSourceDetails {
@@ -552,9 +552,4 @@ impl PurchaseTransaction {
     fn new(date: Date, type_: PurchaseCostType, cost: Cash) -> PurchaseTransaction {
         PurchaseTransaction {date, type_, cost}
     }
-}
-
-pub struct LtoDeductible {
-    pub profit: Decimal,
-    pub years: u32,
 }

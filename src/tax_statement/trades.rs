@@ -398,7 +398,7 @@ impl<'a> TradesProcessor<'a> {
         let tax_payment_day = self.portfolio.tax_payment_day();
 
         for (&year, stat) in &mut self.tax_year_stat {
-            let (lto_deduction, lto_limit) = stat.lto_calculator.take().unwrap().calculate();
+            let (lto_deduction, lto_limit, _) = stat.lto_calculator.take().unwrap().calculate();
             if !lto_deduction.is_zero() {
                 stat.taxable_local_profit.amount -= lto_deduction;
                 self.lto_table.add_row(LtoRow {
