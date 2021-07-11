@@ -63,10 +63,10 @@ pub struct NetLtoDeductionCalculator {
     tax_years: HashMap<i32, TaxYearLto>
 }
 
-#[allow(dead_code)] // FIXME(konishchev): Remove
+#[derive(PartialEq, Debug)]
 pub struct NetLtoDeduction {
-    applied_above_limit: Decimal,
-    loss: Decimal,
+    pub applied_above_limit: Decimal,
+    pub loss: Decimal,
 }
 
 struct TaxYearLto {
@@ -95,7 +95,6 @@ impl NetLtoDeductionCalculator {
         stat.applied_loss += loss;
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn calculate(self) -> BTreeMap<i32, NetLtoDeduction> {
         let mut tax_years = BTreeMap::new();
 

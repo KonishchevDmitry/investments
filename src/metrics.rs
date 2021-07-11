@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
 
@@ -9,46 +10,50 @@ use crate::analysis::{self, PortfolioCurrencyStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::currency::converter::CurrencyConverter;
+use crate::taxes::NetLtoDeduction;
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::time;
 use crate::types::Decimal;
 
 lazy_static! {
     static ref UPDATE_TIME: Gauge = register_simple_metric(
-        "time", "Metrics generation time.");
+        "time", "Metrics generation time");
 
     static ref BROKERS: GaugeVec = register_metric(
-        "brokers", "Net asset value by broker.", &["currency", "broker", "country"]);
+        "brokers", "Net asset value by broker", &["currency", "broker", "country"]);
 
     static ref ASSETS: GaugeVec = register_instrument_metric(
-        "assets", "Open positions value.");
+        "assets", "Open positions value");
 
     static ref PERFORMANCE: GaugeVec = register_instrument_metric(
-        "performance", "Instrument performance.");
+        "performance", "Instrument performance");
 
     static ref INCOME_STRUCTURE: GaugeVec = register_structure_metric(
-        "income_structure", "Income structure.");
+        "income_structure", "Income structure");
 
     static ref EXPENCES_STRUCTURE: GaugeVec = register_structure_metric(
-        "expenses_structure", "Expenses structure.");
+        "expenses_structure", "Expenses structure");
 
     static ref PROFIT: GaugeVec = register_portfolio_metric(
-        "profit", "Profit.");
+        "profit", "Profit");
 
     static ref NET_PROFIT: GaugeVec = register_portfolio_metric(
-        "net_profit", "Net profit.");
+        "net_profit", "Net profit");
+
+    static ref LTO: GaugeVec = register_metric(
+        "lto", "Long-term ownership tax exemption applying results", &["year", "type"]);
 
     static ref PROJECTED_TAXES: GaugeVec = register_portfolio_metric(
-        "projected_taxes", "Projected taxes to pay.");
+        "projected_taxes", "Projected taxes to pay");
 
     static ref PROJECTED_TAX_DEDUCTIONS: GaugeVec = register_portfolio_metric(
-        "projected_tax_deductions", "Projected tax deductions.");
+        "projected_tax_deductions", "Projected tax deductions");
 
     static ref PROJECTED_COMMISSIONS: GaugeVec = register_portfolio_metric(
-        "projected_commissions", "Projected commissions to pay.");
+        "projected_commissions", "Projected commissions to pay");
 
     static ref FOREX_PAIRS: GaugeVec = register_metric(
-        "forex_pairs", "Forex quotes.", &["base", "quote"]);
+        "forex_pairs", "Forex quotes", &["base", "quote"]);
 }
 
 pub fn collect(config: &Config, path: &str) -> GenericResult<TelemetryRecordBuilder> {
@@ -57,11 +62,13 @@ pub fn collect(config: &Config, path: &str) -> GenericResult<TelemetryRecordBuil
 
     UPDATE_TIME.set(cast::f64(time::utc_now().timestamp()));
 
-    for statistics in statistics.currencies {
-        collect_portfolio_metrics(&statistics);
+    for statistics in &statistics.currencies {
+        collect_portfolio_metrics(statistics);
     }
 
+    collect_lto_metrics(&statistics.applied_lto);
     collect_forex_quotes(&converter, "USD", "RUB")?;
+
     save(path)?;
 
     Ok(telemetry)
@@ -104,6 +111,16 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     set_portfolio_metric(&PROJECTED_TAXES, currency, statistics.projected_taxes);
     set_portfolio_metric(&PROJECTED_TAX_DEDUCTIONS, currency, statistics.projected_tax_deductions);
     set_portfolio_metric(&PROJECTED_COMMISSIONS, currency, statistics.projected_commissions);
+}
+
+fn collect_lto_metrics(applied: &BTreeMap<i32, NetLtoDeduction>) {
+    for (year, result) in applied {
+        let year = year.to_string();
+        let year = year.as_str();
+
+        set_metric(&LTO, &[year, "applied-above-limit"], result.applied_above_limit);
+        set_metric(&LTO, &[year, "loss"], result.loss);
+    }
 }
 
 fn collect_forex_quotes(converter: &CurrencyConverter, base: &str, quote: &str) -> EmptyResult {

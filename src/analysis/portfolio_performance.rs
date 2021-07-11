@@ -9,8 +9,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
-use crate::taxes::{NetTax, NetTaxCalculator};
-use crate::taxes::long_term_ownership::NetLtoDeductionCalculator;
+use crate::taxes::{NetTax, NetTaxCalculator, NetLtoDeduction, NetLtoDeductionCalculator};
 use crate::time::{self, Date, DateOptTime};
 use crate::types::Decimal;
 
@@ -80,7 +79,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    pub fn analyse(mut self) -> GenericResult<PortfolioPerformanceAnalysis> {
+    pub fn analyse(mut self) -> GenericResult<(PortfolioPerformanceAnalysis, BTreeMap<i32, NetLtoDeduction>)> {
         let mut instrument_performance = BTreeMap::new();
 
         self.calculate_open_position_periods()?;
@@ -97,11 +96,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let portfolio_performance = self.analyse_portfolio_performance()?;
         self.income_structure.net_profit = portfolio_performance.net_profit();
 
-        Ok(PortfolioPerformanceAnalysis {
+        Ok((PortfolioPerformanceAnalysis {
             income_structure: self.income_structure,
             instruments: instrument_performance,
             portfolio: portfolio_performance,
-        })
+        }, self.net_lto_calc.calculate()))
     }
 
     fn analyse_instrument_performance(

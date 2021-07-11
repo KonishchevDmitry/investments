@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use log::warn;
+
 use crate::brokers::Broker;
 use crate::broker_statement::{BrokerStatement, ReadingStrictness, StockSellType};
 use crate::commissions::CommissionCalc;
@@ -8,7 +10,9 @@ use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
+use crate::localities::Country;
 use crate::quotes::Quotes;
+use crate::taxes::NetLtoDeduction;
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
@@ -22,12 +26,15 @@ mod portfolio_performance;
 mod sell_simulation;
 
 pub struct PortfolioStatistics {
+    country: Country,
     pub currencies: Vec<PortfolioCurrencyStatistics>,
+    pub applied_lto: BTreeMap<i32, NetLtoDeduction>,
 }
 
 impl PortfolioStatistics {
-    fn new() -> PortfolioStatistics {
+    fn new(country: Country) -> PortfolioStatistics {
         PortfolioStatistics {
+            country,
             currencies: ["USD", "RUB"].iter().map(|&currency| (
                 PortfolioCurrencyStatistics {
                     currency: currency.to_owned(),
@@ -41,10 +48,23 @@ impl PortfolioStatistics {
                     projected_commissions: dec!(0),
                 }
             )).collect(),
+            applied_lto: BTreeMap::new(),
         }
     }
 
     pub fn print(&self) {
+        for (year, result) in &self.applied_lto {
+            if !result.loss.is_zero() {
+                warn!("Long-term ownership tax deduction loss in {}: {}.",
+                      year, self.country.cash(result.loss));
+            }
+
+            if !result.applied_above_limit.is_zero() {
+                warn!("Long-term ownership tax deductions applied in {} have exceeded the total limit by {}.",
+                      year, self.country.cash(result.applied_above_limit));
+            }
+        }
+
         for statistics in &self.currencies {
             statistics.performance.as_ref().unwrap().print(&format!(
                 "Average rate of return from cash investments in {}", &statistics.currency));
@@ -91,7 +111,7 @@ pub fn analyse(
 
     let country = config.get_tax_country();
     let (converter, quotes) = load_tools(config)?;
-    let mut statistics = PortfolioStatistics::new();
+    let mut statistics = PortfolioStatistics::new(country.clone());
 
     for (_, statement) in &mut portfolios {
         statement.batch_quotes(&quotes)?;
@@ -173,6 +193,8 @@ pub fn analyse(
         }
     }
 
+    let mut applied_lto = None;
+
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
             &country, &statistics.currency, &converter, include_closed_positions);
@@ -181,9 +203,22 @@ pub fn analyse(
             analyser.add(&portfolio, &statement)?;
         }
 
-        statistics.performance.replace(analyser.analyse()?);
+        let (performance, lto) = analyser.analyse()?;
+        statistics.performance.replace(performance);
+
+        match applied_lto.as_ref() {
+            Some(prev) => {
+                assert_eq!(*prev, lto)
+            },
+            None => {
+                applied_lto = Some(lto);
+            },
+        };
+
         Ok(())
     })?;
+
+    statistics.applied_lto = applied_lto.unwrap();
 
     Ok((statistics, converter, telemetry))
 }
