@@ -1,12 +1,14 @@
 // Long-term ownership tax exemption logic
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::Datelike;
+use num_traits::Zero;
 
 use crate::time::Date;
 use crate::types::Decimal;
 
+#[derive(Clone, Copy)]
 pub struct LtoDeductibleProfit {
     pub profit: Decimal,
     pub years: u32,
@@ -56,7 +58,7 @@ impl LtoDeductionCalculator {
     }
 }
 
-#[allow(dead_code)] // FIXME(konishchev): Remove
+// Calculates result of a separate applying of LTO tax exemption by different tax agents
 pub struct NetLtoDeductionCalculator {
     tax_years: HashMap<i32, TaxYearLto>
 }
@@ -70,35 +72,41 @@ pub struct NetLtoDeduction {
 struct TaxYearLto {
     calc: LtoDeductionCalculator,
     applied_deduction: Decimal,
+    applied_loss: Decimal,
 }
 
 impl NetLtoDeductionCalculator {
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn new() -> NetLtoDeductionCalculator {
         NetLtoDeductionCalculator {
             tax_years: HashMap::new(),
         }
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn add_profit(&mut self, tax_year: i32, profit: Decimal, years: u32, out_of_limit: bool) {
         self.tax_year(tax_year).calc.add(profit, years, out_of_limit);
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
-    pub fn add_applied_deduction(&mut self, tax_year: i32, deduction: Decimal) {
+    pub fn add_applied_deduction(&mut self, tax_year: i32, deduction: Decimal, loss: Decimal) {
         assert!(deduction.is_sign_positive());
-        self.tax_year(tax_year).applied_deduction += deduction;
+        assert!(loss.is_sign_positive());
+
+        let stat = self.tax_year(tax_year);
+        stat.applied_deduction += deduction;
+        stat.applied_loss += loss;
     }
 
     #[allow(dead_code)] // FIXME(konishchev): Remove
-    pub fn calculate(self) -> HashMap<i32, NetLtoDeduction> {
-        let mut tax_years = HashMap::new();
+    pub fn calculate(self) -> BTreeMap<i32, NetLtoDeduction> {
+        let mut tax_years = BTreeMap::new();
 
         for (tax_year, stat) in self.tax_years.into_iter() {
-            let (_, limit, loss) = stat.calc.calculate();
+            let (_, limit, _) = stat.calc.calculate();
             let applied_above_limit = std::cmp::max(dec!(0), stat.applied_deduction - limit);
-            tax_years.insert(tax_year, NetLtoDeduction {applied_above_limit, loss});
+
+            tax_years.insert(tax_year, NetLtoDeduction {
+                applied_above_limit,
+                loss: stat.applied_loss,
+            });
         }
 
         tax_years
@@ -107,7 +115,8 @@ impl NetLtoDeductionCalculator {
     fn tax_year(&mut self, year: i32) -> &mut TaxYearLto {
         self.tax_years.entry(year).or_insert_with(|| TaxYearLto {
             calc: LtoDeductionCalculator::new(),
-            applied_deduction: dec!(0),
+            applied_deduction: Decimal::zero(),
+            applied_loss: Decimal::zero(),
         })
     }
 }

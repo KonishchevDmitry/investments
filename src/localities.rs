@@ -32,6 +32,10 @@ impl Country {
         Country {currency, default_tax_rate, tax_rates, tax_precision}
     }
 
+    pub fn cash(&self, amount: Decimal) -> Cash {
+        Cash::new(self.currency, amount)
+    }
+
     pub fn round_tax(&self, tax: Cash) -> Cash {
         assert_eq!(tax.currency, self.currency);
         tax.round().round_to(self.tax_precision)

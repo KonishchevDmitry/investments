@@ -10,6 +10,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
 use crate::taxes::{NetTax, NetTaxCalculator};
+use crate::taxes::long_term_ownership::NetLtoDeductionCalculator;
 use crate::time::{self, Date, DateOptTime};
 use crate::types::Decimal;
 
@@ -30,6 +31,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     transactions: Vec<Transaction>,
     income_structure: IncomeStructure,
     instruments: Option<BTreeMap<String, StockDepositView>>,
+    net_lto_calc: NetLtoDeductionCalculator,
     current_assets: Decimal,
 }
 
@@ -48,6 +50,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             transactions: Vec::new(),
             income_structure: Default::default(),
             instruments: Some(BTreeMap::new()),
+            net_lto_calc: NetLtoDeductionCalculator::new(),
             current_assets: dec!(0),
         }
     }
@@ -317,17 +320,30 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     }
 
                     let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-                    // FIXME(konishchev): Long term ownership support
-                    let details = trade.calculate(
-                        &self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
+                    let details = trade.calculate(&self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
 
-                    // FIXME(konishchev): LTO deductible
+                    let mut lto_deductibles = Vec::new();
+
+                    for fifo in &details.fifo {
+                        if let Some(lto) = fifo.long_term_ownership_deductible {
+                            self.net_lto_calc.add_profit(tax_year, lto.profit, lto.years, trade.emulation);
+                            lto_deductibles.push(lto);
+                        }
+                    }
+
+                    // FIXME(konishchev): Drop when will be supported
+                    lto_deductibles.clear();
+
                     stock_taxes.entry(&trade.symbol)
-                        .or_insert_with(|| NetTaxCalculator::new(self.country.clone(), portfolio.tax_payment_day()))
-                        .add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[], trade.emulation);
+                        .or_insert_with(|| NetTaxCalculator::new(
+                            self.country.clone(), portfolio.tax_payment_day()))
+                        .add_profit(
+                            trade.execution_date, details.local_profit, details.taxable_local_profit,
+                            &lto_deductibles, trade.emulation);
 
-                    // FIXME(konishchev): LTO deductible
-                    taxes.add_profit(trade.execution_date, details.local_profit, details.taxable_local_profit, &[], trade.emulation);
+                    taxes.add_profit(
+                        trade.execution_date, details.local_profit, details.taxable_local_profit,
+                        &lto_deductibles, trade.emulation);
                 },
                 StockSellType::CorporateAction => {
                     let deposit_view = self.get_deposit_view(&trade.symbol);
@@ -337,19 +353,20 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         for (symbol, symbol_taxes) in stock_taxes.into_iter() {
-            // FIXME(konishchev): LTO deduction, LTO loss
             for (_, NetTax{tax_payment_date, tax_to_pay, ..}) in symbol_taxes.calculate().into_iter() {
                 if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                     trace!("* {} selling {} tax: {}",
                            symbol, formatting::format_date(tax_payment_date), amount);
 
-                    self.get_deposit_view(symbol).transaction(tax_payment_date.into(), amount);
+                    self.get_deposit_view(&symbol).transaction(tax_payment_date.into(), amount);
                 }
             }
         }
 
-        // FIXME(konishchev): LTO deduction, LTO loss
-        for (_, NetTax{tax_payment_date, tax_to_pay, tax_deduction, ..}) in taxes.calculate().into_iter() {
+        for (tax_year, NetTax {
+            tax_payment_date, tax_to_pay, tax_deduction,
+            lto_deduction, lto_loss,
+        }) in taxes.calculate().into_iter() {
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* Stock selling {} tax: {}", formatting::format_date(tax_payment_date), amount);
                 self.transaction(tax_payment_date, amount);
@@ -360,6 +377,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 trace!("* {} tax deduction: {}", formatting::format_date(tax_payment_date), amount);
                 self.income_structure.tax_deductions += amount;
             }
+
+            self.net_lto_calc.add_applied_deduction(tax_year, lto_deduction.amount, lto_loss.amount);
         }
 
         Ok(())

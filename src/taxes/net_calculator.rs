@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::currency::Cash;
 use crate::localities::Country;
@@ -15,8 +15,10 @@ pub struct NetTaxCalculator {
 
 pub struct NetTax {
     pub tax_payment_date: Date,
-    pub tax_to_pay: Cash,
     pub tax_deduction: Cash,
+    pub tax_to_pay: Cash,
+
+    pub lto_deduction: Cash,
     pub lto_loss: Cash,
 }
 
@@ -56,14 +58,14 @@ impl NetTaxCalculator {
         }
     }
 
-    pub fn calculate(self) -> HashMap<i32, NetTax> {
-        let mut taxes = HashMap::new();
+    pub fn calculate(self) -> BTreeMap<i32, NetTax> {
+        let mut taxes = BTreeMap::new();
 
         for ((tax_year, tax_payment_date), profit) in self.profit.into_iter() {
             let (lto_deduction, _, lto_loss) = profit.lto.calculate();
 
-            let lto_deduction = Cash::new(self.country.currency, lto_deduction);
-            let lto_loss = Cash::new(self.country.currency, lto_loss);
+            let lto_deduction = self.country.cash(lto_deduction);
+            let lto_loss = self.country.cash(lto_loss);
 
             let tax_to_pay = self.country.tax_to_pay(
                 IncomeType::Trading, tax_year, profit.taxable - lto_deduction, None);
@@ -74,7 +76,10 @@ impl NetTaxCalculator {
             let tax_deduction = tax_without_deduction - tax_to_pay;
             assert!(!tax_deduction.is_negative());
 
-            let net_tax = NetTax {tax_payment_date, tax_to_pay, tax_deduction, lto_loss};
+            let net_tax = NetTax {
+                tax_payment_date, tax_deduction, tax_to_pay,
+                lto_deduction, lto_loss,
+            };
             assert!(taxes.insert(tax_year, net_tax).is_none());
         }
 

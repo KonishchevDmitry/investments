@@ -238,9 +238,9 @@ fn print_results(
         }
 
         lto_table.add_row(LtoRow {
-            deduction: Cash::new(country.currency, lto_deduction),
-            limit: Cash::new(country.currency, lto_limit),
-            loss: Cash::new(country.currency, lto_loss),
+            deduction: country.cash(lto_deduction),
+            limit: country.cash(lto_limit),
+            loss: country.cash(lto_loss),
         });
         lto_table.print("Long term ownership deduction");
     }
