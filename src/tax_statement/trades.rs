@@ -16,7 +16,7 @@ use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{IncomeType, TaxPaymentDaySpec};
 use crate::taxes::long_term_ownership::LtoDeductionCalculator;
-use crate::time::Date;
+use crate::time::{self, Date};
 use crate::trades::{self, RealProfit};
 use crate::types::Decimal;
 
@@ -443,8 +443,10 @@ impl<'a> TradesProcessor<'a> {
             total_tax_to_pay += tax_to_pay;
 
             if single_tax_year {
+                let tax_payment_date = tax_payment_day.get_for(year, true);
+
                 let real_profit = trades::calculate_real_profit(
-                    tax_payment_day.get_for(year, true),
+                    std::cmp::min(time::today(), tax_payment_date),
                     stat.purchase_cost.clone(), stat.purchase_local_cost,
                     stat.profit.clone(), stat.local_profit, tax_to_pay, self.converter)?;
 
