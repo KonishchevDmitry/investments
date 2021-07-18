@@ -10,7 +10,8 @@ use crate::brokers::Broker;
 use crate::core::EmptyResult;
 use crate::localities::Jurisdiction;
 
-pub use self::long_term_ownership::{LtoDeductibleProfit, NetLtoDeduction, NetLtoDeductionCalculator};
+pub use self::long_term_ownership::{
+    LtoDeductibleProfit, LtoDeductionCalculator, NetLtoDeduction, NetLtoDeductionCalculator};
 pub use self::net_calculator::{NetTax, NetTaxCalculator};
 pub use self::payment_day::{TaxPaymentDay, TaxPaymentDaySpec};
 pub use self::remapping::TaxRemapping;

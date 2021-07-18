@@ -180,8 +180,8 @@ fn print_results(
         });
     }
 
-    let (lto_deduction, lto_limit, lto_loss) = lto_calculator.calculate();
-    total_taxable_local_profit.amount -= lto_deduction;
+    let lto = lto_calculator.calculate();
+    total_taxable_local_profit.amount -= lto.deduction;
 
     let (tax_year, _) = portfolio.tax_payment_day().get(execution_date, true);
     let tax_without_deduction = country.tax_to_pay(
@@ -233,14 +233,14 @@ fn print_results(
 
     if long_term_ownership {
         let mut lto_table = LtoTable::new();
-        if lto_loss.is_zero() {
+        if lto.loss.is_zero() {
             lto_table.hide_loss();
         }
 
         lto_table.add_row(LtoRow {
-            deduction: country.cash(lto_deduction),
-            limit: country.cash(lto_limit),
-            loss: country.cash(lto_loss),
+            deduction: country.cash(lto.deduction),
+            limit: country.cash(lto.limit),
+            loss: country.cash(lto.loss),
         });
         lto_table.print("Long term ownership deduction");
     }

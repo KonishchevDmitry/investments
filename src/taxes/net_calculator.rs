@@ -62,10 +62,10 @@ impl NetTaxCalculator {
         let mut taxes = BTreeMap::new();
 
         for ((tax_year, tax_payment_date), profit) in self.profit.into_iter() {
-            let (lto_deduction, _, lto_loss) = profit.lto.calculate();
+            let lto = profit.lto.calculate();
 
-            let lto_deduction = self.country.cash(lto_deduction);
-            let lto_loss = self.country.cash(lto_loss);
+            let lto_deduction = self.country.cash(lto.deduction);
+            let lto_loss = self.country.cash(lto.loss);
 
             let tax_to_pay = self.country.tax_to_pay(
                 IncomeType::Trading, tax_year, profit.taxable - lto_deduction, None);

@@ -399,13 +399,13 @@ impl<'a> TradesProcessor<'a> {
         let tax_payment_day = self.portfolio.tax_payment_day();
 
         for (&year, stat) in &mut self.tax_year_stat {
-            let (lto_deduction, lto_limit, _) = stat.lto_calculator.take().unwrap().calculate();
-            if !lto_deduction.is_zero() {
-                stat.taxable_local_profit.amount -= lto_deduction;
+            let lto = stat.lto_calculator.take().unwrap().calculate();
+            if !lto.deduction.is_zero() {
+                stat.taxable_local_profit.amount -= lto.deduction;
                 self.lto_table.add_row(LtoRow {
                     year,
-                    deduction: Cash::new(local_currency, lto_deduction),
-                    limit: Cash::new(local_currency, lto_limit),
+                    deduction: Cash::new(local_currency, lto.deduction),
+                    limit: Cash::new(local_currency, lto.limit),
                 });
             }
         }

@@ -20,6 +20,13 @@ pub struct LtoDeductionCalculator {
     out_of_limit: Decimal,
 }
 
+#[cfg_attr(test, derive(PartialEq, Debug))]
+pub struct LtoDeduction {
+    pub deduction: Decimal,
+    pub limit: Decimal,
+    pub loss: Decimal,
+}
+
 impl LtoDeductionCalculator {
     pub fn new() -> LtoDeductionCalculator {
         LtoDeductionCalculator {
@@ -41,7 +48,7 @@ impl LtoDeductionCalculator {
         }
     }
 
-    pub fn calculate(self) -> (Decimal, Decimal, Decimal) {
+    pub fn calculate(self) -> LtoDeduction {
         let mut total_profit = self.out_of_limit;
         let mut total_limit = self.out_of_limit;
         let mut total_deduction = self.out_of_limit;
@@ -54,7 +61,11 @@ impl LtoDeductionCalculator {
             total_deduction += std::cmp::min(self.profit, limit);
         }
 
-        (total_deduction, total_limit, total_profit - total_deduction)
+        LtoDeduction {
+            deduction: total_deduction,
+            limit:     total_limit,
+            loss:      total_profit - total_deduction,
+        }
     }
 }
 
@@ -99,7 +110,7 @@ impl NetLtoDeductionCalculator {
         let mut tax_years = BTreeMap::new();
 
         for (tax_year, stat) in self.tax_years.into_iter() {
-            let (_, limit, _) = stat.calc.calculate();
+            let limit = stat.calc.calculate().limit;
             let applied_above_limit = std::cmp::max(dec!(0), stat.applied_deduction - limit);
 
             tax_years.insert(tax_year, NetLtoDeduction {
@@ -189,7 +200,11 @@ mod tests {
             if with_out_of_limit {
                 calculator.add(out_of_limit, 3, true);
             }
-            assert_eq!(calculator.calculate(), (out_of_limit, out_of_limit, dec!(0)));
+            assert_eq!(calculator.calculate(), LtoDeduction {
+                deduction: out_of_limit,
+                limit:     out_of_limit,
+                loss:      dec!(0),
+            });
         }
 
         {
@@ -200,10 +215,11 @@ mod tests {
                 calculator.add(out_of_limit, 3, true);
             }
 
-            assert_eq!(
-                calculator.calculate(),
-                (dec!(12_000_000) + out_of_limit, dec!(12_000_000) + out_of_limit, dec!(1_000_000)),
-            );
+            assert_eq!(calculator.calculate(), LtoDeduction {
+                deduction: dec!(12_000_000) + out_of_limit,
+                limit:     dec!(12_000_000) + out_of_limit,
+                loss:      dec!( 1_000_000),
+            });
         }
 
         {
@@ -219,10 +235,11 @@ mod tests {
                 calculator.add(out_of_limit, 3, true);
             }
 
-            assert_eq!(
-                calculator.calculate(),
-                (dec!(10_000_000) + out_of_limit, dec!(12_450_000) + out_of_limit, dec!(0)),
-            );
+            assert_eq!(calculator.calculate(), LtoDeduction {
+                deduction: dec!(10_000_000) + out_of_limit,
+                limit:     dec!(12_450_000) + out_of_limit,
+                loss:      dec!(0),
+            });
         }
     }
 }
