@@ -232,17 +232,7 @@ fn print_results(
     fifo_table.print("FIFO details");
 
     if long_term_ownership {
-        let mut lto_table = LtoTable::new();
-        if lto.loss.is_zero() {
-            lto_table.hide_loss();
-        }
-
-        lto_table.add_row(LtoRow {
-            deduction: country.cash(lto.deduction),
-            limit: country.cash(lto.limit),
-            loss: country.cash(lto.loss),
-        });
-        lto_table.print("Long term ownership deduction");
+        lto.print("Long term ownership deduction");
     }
 
     Ok(())
@@ -298,15 +288,4 @@ struct FifoRow {
     long_term_ownership: bool,
     #[column(name="Tax free", align="center")]
     tax_free: bool,
-}
-
-#[derive(StaticTable)]
-#[table(name="LtoTable")]
-struct LtoRow {
-    #[column(name="Deduction")]
-    deduction: Cash,
-    #[column(name="Limit")]
-    limit: Cash,
-    #[column(name="Loss")]
-    loss: Cash,
 }

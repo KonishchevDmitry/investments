@@ -5,6 +5,9 @@ use std::collections::{BTreeMap, HashMap};
 use chrono::Datelike;
 use num_traits::Zero;
 
+use static_table_derive::StaticTable;
+
+use crate::currency::Cash;
 use crate::time::Date;
 use crate::types::Decimal;
 
@@ -18,13 +21,6 @@ pub struct LtoDeductionCalculator {
     profit: Decimal,
     weighted_profit: Decimal,
     out_of_limit: Decimal,
-}
-
-#[cfg_attr(test, derive(PartialEq, Debug))]
-pub struct LtoDeduction {
-    pub deduction: Decimal,
-    pub limit: Decimal,
-    pub loss: Decimal,
 }
 
 impl LtoDeductionCalculator {
@@ -128,6 +124,43 @@ impl NetLtoDeductionCalculator {
             applied_deduction: Decimal::zero(),
             applied_loss: Decimal::zero(),
         })
+    }
+}
+
+#[cfg_attr(test, derive(PartialEq, Debug))]
+pub struct LtoDeduction {
+    pub deduction: Decimal,
+    pub limit: Decimal,
+    pub loss: Decimal,
+}
+
+#[derive(StaticTable)]
+#[table(name="LtoTable")]
+struct LtoRow {
+    #[column(name="Deduction")]
+    deduction: Cash,
+    #[column(name="Limit")]
+    limit: Cash,
+    #[column(name="Loss")]
+    loss: Cash,
+}
+
+impl LtoDeduction {
+    pub fn print(&self, title: &str) {
+        let currency = "RUB";
+
+        let mut table = LtoTable::new();
+        if self.loss.is_zero() {
+            table.hide_loss();
+        }
+
+        table.add_row(LtoRow {
+            deduction: Cash::new(currency, self.deduction),
+            limit: Cash::new(currency, self.limit),
+            loss: Cash::new(currency, self.loss),
+        });
+
+        table.print(title);
     }
 }
 
