@@ -12,7 +12,7 @@ use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
 use crate::localities::Country;
 use crate::quotes::Quotes;
-use crate::taxes::NetLtoDeduction;
+use crate::taxes::{IncomeType, LtoDeductionCalculator, LtoDeduction, NetLtoDeduction};
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
@@ -28,7 +28,12 @@ mod sell_simulation;
 pub struct PortfolioStatistics {
     country: Country,
     pub currencies: Vec<PortfolioCurrencyStatistics>,
-    pub applied_lto: BTreeMap<i32, NetLtoDeduction>,
+    pub lto: Option<LtoStatistics>,
+}
+
+pub struct LtoStatistics {
+    pub applied: BTreeMap<i32, NetLtoDeduction>,
+    pub projected: LtoDeduction,
 }
 
 impl PortfolioStatistics {
@@ -48,12 +53,12 @@ impl PortfolioStatistics {
                     projected_commissions: dec!(0),
                 }
             )).collect(),
-            applied_lto: BTreeMap::new(),
+            lto: None,
         }
     }
 
     pub fn print(&self) {
-        for (year, result) in &self.applied_lto {
+        for (year, result) in &self.lto.as_ref().unwrap().applied {
             if !result.loss.is_zero() {
                 warn!("Long-term ownership tax deduction loss in {}: {}.",
                       year, self.country.cash(result.loss));
@@ -69,6 +74,8 @@ impl PortfolioStatistics {
             statistics.performance.as_ref().unwrap().print(&format!(
                 "Average rate of return from cash investments in {}", &statistics.currency));
         }
+
+        // FIXME(konishchev): Show projected LTO
     }
 
     fn process<F>(&mut self, mut handler: F) -> EmptyResult
@@ -111,6 +118,7 @@ pub fn analyse(
 
     let country = config.get_tax_country();
     let (converter, quotes) = load_tools(config)?;
+    let mut lto_calc = LtoDeductionCalculator::new();
     let mut statistics = PortfolioStatistics::new(country.clone());
 
     for (_, statement) in &mut portfolios {
@@ -162,15 +170,34 @@ pub fn analyse(
                 _ => unreachable!(),
             };
             let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-            // FIXME(konishchev): Long term ownership support
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 
             statistics.process(|statistics| {
                 let currency = &statistics.currency;
                 let volume = converter.real_time_convert_to(volume, currency)?;
                 let commission = converter.real_time_convert_to(commission, currency)?;
-                let tax_to_pay = converter.real_time_convert_to(details.tax_to_pay, currency)?;
-                let tax_deduction = converter.real_time_convert_to(details.tax_deduction, currency)?;
+
+                let tax_without_deduction = country.tax_to_pay(
+                    IncomeType::Trading, tax_year, details.local_profit, None);
+
+                let mut taxable_local_profit = details.taxable_local_profit;
+                for source in &details.fifo {
+                    if let Some(deductible) = source.long_term_ownership_deductible {
+                        lto_calc.add(deductible.profit, deductible.years, false);
+                        if false { // FIXME(konishchev): Enable
+                            taxable_local_profit.amount -= deductible.profit;
+                        }
+                    }
+                }
+
+                let tax_to_pay = country.tax_to_pay(
+                    IncomeType::Trading, tax_year, taxable_local_profit, None);
+
+                let tax_deduction = tax_without_deduction - tax_to_pay;
+                assert!(!tax_deduction.is_negative());
+
+                let tax_to_pay = converter.real_time_convert_to(tax_to_pay, currency)?;
+                let tax_deduction = converter.real_time_convert_to(tax_deduction, currency)?;
 
                 statistics.add_assets(broker, &trade.symbol, volume);
                 statistics.projected_commissions += commission;
@@ -206,19 +233,18 @@ pub fn analyse(
         let (performance, lto) = analyser.analyse()?;
         statistics.performance.replace(performance);
 
-        match applied_lto.as_ref() {
-            Some(prev) => {
-                assert_eq!(*prev, lto)
-            },
-            None => {
-                applied_lto = Some(lto);
-            },
-        };
+        if let Some(prev) = applied_lto.take() {
+            assert_eq!(prev, lto);
+        }
+        applied_lto.replace(lto);
 
         Ok(())
     })?;
 
-    statistics.applied_lto = applied_lto.unwrap();
+    statistics.lto = Some(LtoStatistics {
+        applied: applied_lto.unwrap(),
+        projected: lto_calc.calculate()
+    });
 
     Ok((statistics, converter, telemetry))
 }
