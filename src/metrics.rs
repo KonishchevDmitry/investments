@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
 
@@ -6,11 +5,10 @@ use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, register_gauge_vec};
 
-use crate::analysis::{self, PortfolioCurrencyStatistics};
+use crate::analysis::{self, PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::currency::converter::CurrencyConverter;
-use crate::taxes::NetLtoDeduction;
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::time;
 use crate::types::Decimal;
@@ -40,9 +38,6 @@ lazy_static! {
     static ref NET_PROFIT: GaugeVec = register_portfolio_metric(
         "net_profit", "Net profit");
 
-    static ref LTO: GaugeVec = register_metric(
-        "lto", "Long-term ownership tax exemption applying results", &["year", "type"]);
-
     static ref PROJECTED_TAXES: GaugeVec = register_portfolio_metric(
         "projected_taxes", "Projected taxes to pay");
 
@@ -51,6 +46,12 @@ lazy_static! {
 
     static ref PROJECTED_COMMISSIONS: GaugeVec = register_portfolio_metric(
         "projected_commissions", "Projected commissions to pay");
+
+    static ref LTO: GaugeVec = register_metric(
+        "lto", "Long-term ownership tax exemption applying results", &["year", "type"]);
+
+    static ref PROJECTED_LTO: GaugeVec = register_metric(
+        "projected_lto", "Long-term ownership tax exemption projected results", &["type"]);
 
     static ref FOREX_PAIRS: GaugeVec = register_metric(
         "forex_pairs", "Forex quotes", &["base", "quote"]);
@@ -66,7 +67,7 @@ pub fn collect(config: &Config, path: &str) -> GenericResult<TelemetryRecordBuil
         collect_portfolio_metrics(statistics);
     }
 
-    collect_lto_metrics(&statistics.applied_lto);
+    collect_lto_metrics(statistics.lto.as_ref().unwrap());
     collect_forex_quotes(&converter, "USD", "RUB")?;
 
     save(path)?;
@@ -113,14 +114,22 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     set_portfolio_metric(&PROJECTED_COMMISSIONS, currency, statistics.projected_commissions);
 }
 
-fn collect_lto_metrics(applied: &BTreeMap<i32, NetLtoDeduction>) {
-    for (year, result) in applied {
+fn collect_lto_metrics(lto: &LtoStatistics) {
+    if true { // FIXME(konishchev): Enable
+        return;
+    }
+
+    for (year, result) in &lto.applied {
         let year = year.to_string();
         let year = year.as_str();
 
         set_metric(&LTO, &[year, "applied-above-limit"], result.applied_above_limit);
         set_metric(&LTO, &[year, "loss"], result.loss);
     }
+
+    set_metric(&PROJECTED_LTO, &["deduction"], lto.projected.deduction);
+    set_metric(&PROJECTED_LTO, &["limit"], lto.projected.limit);
+    set_metric(&PROJECTED_LTO, &["loss"], lto.projected.loss);
 }
 
 fn collect_forex_quotes(converter: &CurrencyConverter, base: &str, quote: &str) -> EmptyResult {
