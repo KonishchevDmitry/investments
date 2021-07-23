@@ -330,9 +330,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                         }
                     }
 
-                    // FIXME(konishchev): Drop when will be supported
-                    lto_deductibles.clear();
-
                     stock_taxes.entry(&trade.symbol)
                         .or_insert_with(|| NetTaxCalculator::new(
                             self.country.clone(), portfolio.tax_payment_day()))

@@ -173,32 +173,32 @@ pub fn analyse(
                 StockSellType::Trade {volume, commission, ..} => (volume, commission),
                 _ => unreachable!(),
             };
+
             let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
             let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
 
+            let mut taxable_local_profit = details.taxable_local_profit;
+            for source in &details.fifo {
+                if let Some(deductible) = source.long_term_ownership_deductible {
+                    lto_calc.add(deductible.profit, deductible.years, false);
+                    taxable_local_profit.amount -= deductible.profit;
+                }
+            }
+
+            let tax_without_deduction = country.tax_to_pay(
+                IncomeType::Trading, tax_year, details.local_profit, None);
+
+            let tax_to_pay = country.tax_to_pay(
+                IncomeType::Trading, tax_year, taxable_local_profit, None);
+
+            let tax_deduction = tax_without_deduction - tax_to_pay;
+            assert!(!tax_deduction.is_negative());
+
             statistics.process(|statistics| {
                 let currency = &statistics.currency;
+
                 let volume = converter.real_time_convert_to(volume, currency)?;
                 let commission = converter.real_time_convert_to(commission, currency)?;
-
-                let tax_without_deduction = country.tax_to_pay(
-                    IncomeType::Trading, tax_year, details.local_profit, None);
-
-                let mut taxable_local_profit = details.taxable_local_profit;
-                for source in &details.fifo {
-                    if let Some(deductible) = source.long_term_ownership_deductible {
-                        lto_calc.add(deductible.profit, deductible.years, false);
-                        if false { // FIXME(konishchev): Enable
-                            taxable_local_profit.amount -= deductible.profit;
-                        }
-                    }
-                }
-
-                let tax_to_pay = country.tax_to_pay(
-                    IncomeType::Trading, tax_year, taxable_local_profit, None);
-
-                let tax_deduction = tax_without_deduction - tax_to_pay;
-                assert!(!tax_deduction.is_negative());
 
                 let tax_to_pay = converter.real_time_convert_to(tax_to_pay, currency)?;
                 let tax_deduction = converter.real_time_convert_to(tax_deduction, currency)?;

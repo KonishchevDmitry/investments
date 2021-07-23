@@ -115,10 +115,6 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
 }
 
 fn collect_lto_metrics(lto: &LtoStatistics) {
-    if true { // FIXME(konishchev): Enable
-        return;
-    }
-
     for (year, result) in &lto.applied {
         let year = year.to_string();
         let year = year.as_str();
