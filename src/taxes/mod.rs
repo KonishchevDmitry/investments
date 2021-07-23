@@ -36,8 +36,7 @@ impl<'de> Deserialize<'de> for TaxExemption {
         Ok(match value.as_str() {
             "long-term-ownership" => TaxExemption::LongTermOwnership,
             "tax-free" => TaxExemption::TaxFree,
-            // FIXME(konishchev): Support
-            _ => return Err(D::Error::unknown_variant(&value, &["tax-free"])),
+            _ => return Err(D::Error::unknown_variant(&value, &["long-term-ownership", "tax-free"])),
         })
     }
 }

@@ -59,6 +59,23 @@ portfolios:
           - {name: Vanguard Total Bond Market ETF, symbol: BND, weight: 50%}
           - {name: Vanguard International Bond ETF, symbol: BNDX, weight: 50%}
 
+  - name: firstrade
+    broker: firstrade
+    statements: ~/Brokerage/Firstrade/Statements
+
+    # Firstrade may use outdated symbol names in broker statements. You can remap them to the actual ones.
+    symbol_remapping:
+      ISI: ITOT
+
+    # Some brokers don't provide instrument names or provide them in non-human-friendly form. You can specify your own
+    # instrument names.
+    instrument_names:
+      ITOT: iShares Core S&P Total U.S. Stock Market ETF
+      IXUS: iShares Core MSCI Total International Stock ETF
+      AGG:  iShares Core U.S. Aggregate Bond ETF
+      IAGG: iShares Core International Aggregate Bond ETF
+      REET: iShares Global REIT ETF
+
   - name: open
     broker: open-broker
     plan: Всё включено
@@ -90,23 +107,6 @@ portfolios:
               - {name: FinEx MSCI China UCITS ETF, symbol: FXCN, weight: 31%}
       - {name: FinEx Tradable Russian Corporate Bonds UCITS ETF, symbol: FXRU, weight: 20%}
 
-  - name: firstrade
-    broker: firstrade
-    statements: ~/Brokerage/Firstrade/Statements
-
-    # Firstrade may use outdated symbol names in broker statements. You can remap them to the actual ones.
-    symbol_remapping:
-      ISI: ITOT
-
-    # Some brokers don't provide instrument names or provide them in non-human-friendly form. You can specify your own
-    # instrument names.
-    instrument_names:
-      ITOT: iShares Core S&P Total U.S. Stock Market ETF
-      IXUS: iShares Core MSCI Total International Stock ETF
-      AGG:  iShares Core U.S. Aggregate Bond ETF
-      IAGG: iShares Core International Aggregate Bond ETF
-      REET: iShares Global REIT ETF
-
   - name: bcs
     broker: bcs
     plan: Инвестор
@@ -119,6 +119,9 @@ portfolios:
     broker: tinkoff
     plan: Инвестор
     statements: ~/Brokerage/Тинькофф/Отчеты Брокера
+
+    # Configures the account as account to which long-term ownership tax exemption can be applied
+    tax_exemptions: [long-term-ownership]
 
     # Tinkoff doesn't provide any information about corporate actions, so we have to specify them manually
     #corporate_actions:
