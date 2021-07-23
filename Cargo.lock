@@ -934,7 +934,7 @@ dependencies = [
 
 [[package]]
 name = "investments"
-version = "2.16.3"
+version = "3.0.0"
 dependencies = [
  "ansi_term 0.12.1",
  "bitflags",
