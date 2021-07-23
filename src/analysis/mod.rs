@@ -58,7 +58,9 @@ impl PortfolioStatistics {
     }
 
     pub fn print(&self) {
-        for (year, result) in &self.lto.as_ref().unwrap().applied {
+        let lto = self.lto.as_ref().unwrap();
+
+        for (year, result) in &lto.applied {
             if !result.loss.is_zero() {
                 warn!("Long-term ownership tax deduction loss in {}: {}.",
                       year, self.country.cash(result.loss));
@@ -75,7 +77,9 @@ impl PortfolioStatistics {
                 "Average rate of return from cash investments in {}", &statistics.currency));
         }
 
-        // FIXME(konishchev): Show projected LTO
+        if !lto.projected.deduction.is_zero() {
+            lto.projected.print("Projected LTO deduction")
+        }
     }
 
     fn process<F>(&mut self, mut handler: F) -> EmptyResult
