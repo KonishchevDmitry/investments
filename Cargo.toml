@@ -30,7 +30,7 @@ bitflags = "1.2.1"
 calamine = "0.18.0"
 chrono = "0.4.19"
 chrono-tz = "0.5.3"
-cast = "0.2.6"
+cast = "0.2.7"
 clap = "2.33.3"
 csv = "1.1.6"
 easy-logging = "0.1.2"
@@ -67,8 +67,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.21.0", features = ["bundled"] }
 
-static_table_derive = "0.1.28"
-xls_table_derive = "0.4.7"
+static_table_derive = "0.1.29"
+xls_table_derive = "0.4.8"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
