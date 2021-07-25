@@ -71,7 +71,7 @@ which can be grouped as:
 to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
 Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
 
-<img src="/docs/images/analyse-command.png?raw=true" width="90%" height="90%" alt="investments analyse" title="investments analyse">
+<img src="/docs/images/analyse-command.png?raw=true" width="80%" height="80%" alt="investments analyse" title="investments analyse">
 
 ### Portfolio rebalancing
 
