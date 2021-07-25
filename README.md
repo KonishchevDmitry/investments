@@ -35,8 +35,9 @@ cargo install --path . --force
 
 # Configuration
 
-Create `~/.investments/config.yaml` configuration file ([example](docs/config-example.yaml)). Don't forget to obtain API
-token for Finnhub and Twelve Data (see the comments in example config).
+Create `~/.investments/config.yaml` configuration file. See [example](docs/config-example.yaml) configuration which
+contains examples of typical configuration for each broker, tax exemptions that are applicable to the account and more.
+Don't forget to obtain API token for Finnhub and Twelve Data (see the comments in example config).
 
 # Usage
 
@@ -56,64 +57,45 @@ For now the following brokers are supported:
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
 which can be grouped as:
-* Analyse commands (`analyse`, [cash-flow](docs/taxes.md#cash-flow), [metrics](#metrics), `simulate-sell`,
-  [tax-statement](docs/taxes.md#tax-statement)) that read your broker statements and produce some results.
+* Analyse commands ([analyse](#analyse), [cash-flow](docs/taxes.md#cash-flow), [metrics](#metrics),
+  [simulate-sell](#simulate-sell), [tax-statement](docs/taxes.md#tax-statement)) that read your broker statements
+  and produce some results. These commands use the database only for quotes caching.
 * `sync` command that reads your broker statements and stores your current positions to the local database.
-* Portfolio rebalancing commands (`show`, `rebalance`, `cash`, `buy`, `sell`) that work only with local database.
+* Portfolio rebalancing commands ([show, rebalance, cash, buy, sell](docs/rebalancing.md))
+  that work only with local database.
 
-Local database is required for portfolio rebalancing because during rebalancing you submit buy/sell orders to your
-broker that modify your portfolio (free assets, open positions) and this information have to be saved somewhere until at
-least tomorrow when you'll be able to download a new broker statement which will include the changes.
+<a name="analyse"></a>
+### Performance analysis
 
-Here is an example of main commands output:
+`investments analyse` command calculates average rate of return from cash investments by comparing portfolio performance
+to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
+Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
 
-<img src="/images/analyse.png?raw=true" width="70%" height="70%" alt="investments analyse" title="investments analyse">
+<img src="/docs/images/analyse-command.png?raw=true" width="90%" height="90%" alt="investments analyse" title="investments analyse">
 
-![investments simulate-sell](/images/simulate-sell.png?raw=true "investments simulate-sell")
+### Portfolio rebalancing
 
-![investments tax-statement](/images/tax-statement.png?raw=true "investments tax-statement")
+See [instructions for portfolio rebalancing](docs/rebalancing.md).
 
-The screenshots are blurred for privacy reasons since they require a real broker statement, but I can emulate `sync`
-command by executing the following commands with a random fake data to provide a full example of `show` and `rebalance`
-commands:
-```
-$ investments buy ib 100 VTI 4000
-$ investments buy ib 30 VXUS 4000
-$ investments buy ib 40 BND 4000
-$ investments buy ib 60 BNDX 4000
-```
+![investments rebalance](/docs/images/rebalance-command.png?raw=true "investments rebalance")
 
-With these commands executed and provided example config we'll get the following results for `show` and `rebalance`
-commands:
-
-![investments show](/images/show.png?raw=true "investments show")
-
-![investments rebalance](/images/rebalance.png?raw=true "investments rebalance")
-
-Rebalancing actions in this case are assumed to be the following:
-1. View the instructions: `investments rebalance`
-2. Buy 50 VXUS using broker's terminal, got `$current_assets` left on your account
-3. Commit the results: `investments buy ib 50 VXUS $current_assets`
-4. View the instructions: `investments rebalance`
-5. Buy 12 BNDX using broker's terminal, got `$current_assets` left on your account
-6. Commit the results: `investments buy ib 12 BNDX $current_assets`
-7. View the instructions: `investments rebalance`
-8. Buy 9 BND using broker's terminal, got `$current_assets` left on your account
-9. Commit the results: `investments buy ib 9 BND $current_assets`
-10. View the result: `investments show`
-
-This iterative trading is not required - you can look at the results of `investments rebalance` and submit all orders at
-once, but it leaves a chance to spend more than you supposed to in case of highly volatile market. In practice, the
-simplest strategy here in case of relatively small price of all stocks - submit all orders except the last (one / two /
-few), commit the current result, execute `investments rebalance` and submit the rest.
-
-## Tax statement generation
+### Tax statement generation
 
 See [instructions for tax statement generation and recommendations for interacting with Russian Federal Tax
 Service](docs/taxes.md).
 
+![investments tax-statement](/docs/images/tax-statement-command.png?raw=true "investments tax-statement")
+
+<a name="simulate-sell"></a>
+### Sell simulation
+
+`investments simulate-sell` command simulates closing of the specified positions by current market price and allows
+you to estimate your profits, taxes and tax exemption applicability.
+
+![investments simulate-sell](/docs/images/simulate-sell-command.png?raw=true "investments simulate-sell")
+
 <a name="metrics"></a>
-## Prometheus metrics
+### Prometheus metrics
 
 `investments metrics` command allows you to export analysis results in [Prometheus](https://prometheus.io/) format to be
 collected by [Node exporter's Textfile Collector](https://github.com/prometheus/node_exporter#textfile-collector).
@@ -125,8 +107,8 @@ results for multiple portfolios opened in different brokers:
 
 ## Deposits
 
-Deposits are controlled via `deposits` command. You register your opened deposits in the configuration file and then
-execute `investments deposits` to view them all in one place:
+You can also view opened bank deposits all in one place and get notified about upcoming deposit closures. Register your
+opened deposits in the configuration file and then execute:
 
 ```
 $ investments deposits
@@ -158,10 +140,9 @@ The following deposits are closed:
 The program is focused on passive investing use cases and supports only those cases which I saw in my broker statements
 or statements sent to me by other people, which I assured to be handled properly and wrote regression tests for. For
 example, the following aren't supported yet:
-* Bonds
-* Futures
-* Options
-* Leverage trading
+* [Bonds](https://github.com/KonishchevDmitry/investments/issues/43)
+* [Margin trading](https://github.com/KonishchevDmitry/investments/issues/8)
+* [Futures and options](https://github.com/KonishchevDmitry/investments/issues/48)
 
 
 # Denial of responsibility
