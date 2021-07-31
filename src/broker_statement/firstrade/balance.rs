@@ -19,7 +19,7 @@ pub struct Balance {
     #[serde(rename = "BUYPOWER")]
     _buy_power: Ignore,
     #[serde(rename = "BALLIST")]
-    _other: Ignore,
+    _other: Option<Ignore>,
 }
 
 impl Balance {
