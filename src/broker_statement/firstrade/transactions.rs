@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest};
+use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Fee};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
@@ -87,6 +87,35 @@ struct CashFlowInfo {
     sub_account: String,
 }
 
+impl CashFlowInfo {
+    fn parse(self, parser: &mut StatementParser, ffs_balance: &mut Decimal, currency: &str) -> EmptyResult {
+        let transaction = self.transaction;
+
+        // These are some service transactions related to Securities Lending Income Program.
+        // They shouldn't affect account balance and always compensate each other.
+        match transaction.name.as_str() {
+            "XFER CASH FROM FFS" | "XFER FFS TO CASH" => {
+                *ffs_balance += transaction.amount;
+                return Ok(());
+            },
+            _ => {},
+        };
+
+        match transaction._type.as_str() {
+            "CREDIT" => transaction.parse_credit(parser, currency)?,
+            "DEBIT" => transaction.parse_debit(parser, currency)?,
+            _ => {
+                return Err!(
+                    "Got {:?} cash flow transaction of an unsupported type: {}",
+                    transaction.id, transaction._type);
+            },
+        };
+
+        validate_sub_account(&self.sub_account)?;
+        Ok(())
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CashFlowTransaction {
@@ -102,31 +131,46 @@ struct CashFlowTransaction {
     name: String,
 }
 
-impl CashFlowInfo {
-    fn parse(self, parser: &mut StatementParser, ffs_balance: &mut Decimal, currency: &str) -> EmptyResult {
-        let transaction = self.transaction;
-
-        // These are some service transactions related to Securities Lending Income Program.
-        // They shouldn't affect account balance and always compensate each other.
-        match transaction.name.as_str() {
-            "XFER CASH FROM FFS" | "XFER FFS TO CASH" => {
-                *ffs_balance += transaction.amount;
-                return Ok(());
-            }
-            _ => ()
-        };
-
-        if transaction._type != "CREDIT" {
+impl CashFlowTransaction {
+    fn parse_credit(self, parser: &mut StatementParser, currency: &str) -> EmptyResult {
+        if self.name != "Wire Funds Received" {
             return Err!(
-                "Got {:?} cash flow transaction of an unsupported type: {}",
-                transaction.id, transaction._type);
+                "Got an unsupported {:?} cash flow transaction: {:?}",
+                self.id, self.name);
         }
-        validate_sub_account(&self.sub_account)?;
 
         let amount = util::validate_named_decimal(
-            "transaction amount", transaction.amount, DecimalRestrictions::StrictlyPositive)?;
-        parser.statement.deposits_and_withdrawals.push(CashAssets::new(
-            transaction.date, currency, amount));
+            "transaction amount", self.amount,
+            DecimalRestrictions::StrictlyPositive)?;
+
+        let assets = CashAssets::new(self.date, currency, amount);
+        parser.statement.deposits_and_withdrawals.push(assets);
+
+        Ok(())
+    }
+
+    fn parse_debit(self, parser: &mut StatementParser, currency: &str) -> EmptyResult {
+        let amount = -util::validate_named_decimal(
+            "transaction amount", self.amount,
+            DecimalRestrictions::StrictlyNegative)?;
+
+        let amount = Cash::new(currency, amount);
+
+        match self.name.as_str() {
+            "WIRE TRANSFER" => {
+                let assets = CashAssets::new_from_cash(self.date, -amount);
+                parser.statement.deposits_and_withdrawals.push(assets);
+            },
+            "INTL WIRE FEE" => {
+                let fee = Fee::new(self.date, amount, None);
+                parser.statement.fees.push(fee);
+            },
+            _ => {
+                return Err!(
+                    "Got an unsupported {:?} cash flow transaction: {:?}",
+                    self.id, self.name);
+            },
+        }
 
         Ok(())
     }
