@@ -23,20 +23,34 @@ pub fn parse_dividend(
     if parser.reader.warn_on_missing_dividend_details {
         warn!(concat!(
             "Firstrade statements don't provide information about real dividend amount, so it ",
-            "will be deduced from paid amount and expected tax rate.",
+            "will be deduced from received amount and expected tax rate.",
         ));
         parser.reader.warn_on_missing_dividend_details = false;
     }
 
-    let stripped_description = util::fold_spaces(description.trim());
-    if !stripped_description.ends_with(" NON-QUALIFIED DIVIDEND NON-RES TAX WITHHELD") &&
-        !stripped_description.ends_with(" IN LIEU OF DIVIDEND NON-RES TAX WITHHELD") {
+    let mut non_res_tax_withheld = false;
+    let mut stripped_description = util::fold_spaces(description.trim()).to_string();
+
+    if let Some(stripped) = stripped_description.strip_suffix(" NON-RES TAX WITHHELD") {
+        stripped_description = stripped.to_owned();
+        non_res_tax_withheld = true;
+    }
+
+    if !stripped_description.ends_with(" NON-QUALIFIED DIVIDEND") &&
+        !stripped_description.ends_with(" IN LIEU OF DIVIDEND") {
         return Err!("Unexpected dividend description: {:?}", description);
     }
 
-    let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
-    let paid_tax = amount - income;
-    debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
+    let (amount, paid_tax) = if non_res_tax_withheld {
+        let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
+        let paid_tax = amount - income;
+        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
+        (amount, paid_tax)
+    } else {
+        let amount = income;
+        let paid_tax = foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None);
+        (amount, paid_tax)
+    };
 
     parser.statement.dividend_accruals(date, issuer, true).add(date, amount);
     parser.statement.tax_accruals(date, issuer, false).add(date, paid_tax);
