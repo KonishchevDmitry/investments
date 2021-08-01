@@ -75,16 +75,26 @@ pub fn compare_to_bank_deposit(
 }
 
 pub fn check_emulation_precision(
-    name: &str, currency: &str, transactions: &[Transaction], mut assets: Decimal, difference: Decimal,
+    name: &str, currency: &str, transactions: &[Transaction],
+    current_assets: Decimal, difference: Decimal,
 ) -> EmptyResult {
-    if assets.is_zero() {
-        assets = transactions.last().unwrap().amount;
-    }
+    // It's actually hard to find the suitable assets amount to check the difference against:
+    // 1. Cash assets may be very small or even zero
+    // 2. Last stock selling transaction very small (fractional shares as an extremum)
+    // 3. Stock selling transaction may be followed by years of inactivity and then - small tax
+    //    payment transaction (for accounts that are taxed on their close).
+    //
+    // Considering the said above, don't try to overcomplicate the logic just for the sake of
+    // emulation precision checking.
+
+    let assets = std::cmp::max(current_assets, transactions.iter().map(|transaction| {
+        transaction.amount.abs()
+    }).max().unwrap());
 
     let precision = (difference / assets).abs() * dec!(100);
     let difference = Cash::new(currency, difference).round();
 
-    if precision >= dec!(1) {
+    if precision >= dec!(0.1) {
         let message = format!(concat!(
             "Failed to compare {} {} performance to bank deposit: ",
             "got a result with too low precision ({}%, {})"

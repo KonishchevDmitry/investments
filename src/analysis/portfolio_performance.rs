@@ -113,7 +113,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         ).map(|(interest, difference)| -> GenericResult<Decimal> {
             deposit_performance::check_emulation_precision(
                 symbol, self.currency, &deposit_view.transactions,
-                deposit_view.last_sell_volume.unwrap(), difference)?;
+                dec!(0), difference)?;
             Ok(interest)
         }).transpose()?;
 
@@ -143,6 +143,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
         self.transactions.sort_by_key(|transaction| transaction.date);
 
+        // FIXME(konishchev): Handle abandoned portfolios properly here
         let activity_periods = vec![InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
@@ -150,7 +151,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             &self.transactions, &activity_periods, self.current_assets,
         ).map(|(interest, difference)| -> GenericResult<Decimal> {
             deposit_performance::check_emulation_precision(
-                "portfolio", self.currency, &self.transactions, self.current_assets, difference)?;
+                "portfolio", self.currency, &self.transactions,
+                self.current_assets, difference)?;
             Ok(interest)
         }).transpose()?;
 
@@ -312,7 +314,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                         deposit_view.transaction(trade.conclusion_time, -volume);
                         deposit_view.transaction(trade.conclusion_time, commission);
 
-                        deposit_view.last_sell_volume.replace(volume);
                         if trade.emulation {
                             deposit_view.closed = false;
                         }
@@ -489,7 +490,6 @@ struct StockDepositView {
     trades: BTreeMap<Date, Decimal>,
     transactions: Vec<Transaction>,
     interest_periods: Vec<InterestPeriod>,
-    last_sell_volume: Option<Decimal>,
     closed: bool,
 }
 
@@ -500,7 +500,6 @@ impl StockDepositView {
             trades: BTreeMap::new(),
             transactions: Vec::new(),
             interest_periods: Vec::new(),
-            last_sell_volume: None,
             closed: true,
         }
     }
