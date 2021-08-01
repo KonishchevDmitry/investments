@@ -31,7 +31,7 @@ pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRec
     statement.check_date();
 
     let assets = Assets::new(statement.cash_assets, statement.open_positions);
-    assets.validate(&portfolio)?;
+    assets.validate(portfolio)?;
     assets.save(database, &portfolio.name)?;
 
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
@@ -112,11 +112,11 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
     let portfolio_config = config.get_portfolio(portfolio_name)?;
     let database = db::connect(&config.db_path)?;
 
-    let quotes = Rc::new(Quotes::new(&config, database.clone())?);
+    let quotes = Rc::new(Quotes::new(config, database.clone())?);
     let converter = CurrencyConverter::new(database.clone(), Some(quotes.clone()), false);
 
     let assets = Assets::load(database, &portfolio_config.name)?;
-    assets.validate(&portfolio_config)?;
+    assets.validate(portfolio_config)?;
 
     let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &quotes)?;
     if rebalance {

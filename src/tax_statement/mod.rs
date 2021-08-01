@@ -49,7 +49,7 @@ pub fn generate_tax_statement(
     let converter = CurrencyConverter::new(database, None, true);
 
     let trades_tax = trades::process_income(
-        &country, &portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
+        &country, portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
     let dividends_tax = dividends::process_income(

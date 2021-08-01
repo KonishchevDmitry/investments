@@ -122,8 +122,8 @@ fn parse_cash_flows(parser: &mut XlsStatementParser, currencies: &HashSet<String
     }
 
     loop {
-        let row = xls::strip_row_expecting_columns(&parser.sheet.next_row_checked()?, 1)?;
-        let title = xls::get_string_cell(&row[0])?;
+        let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
+        let title = xls::get_string_cell(row[0])?;
 
         let currency = match currencies.get(title) {
             Some(currency) => currency.as_str(),

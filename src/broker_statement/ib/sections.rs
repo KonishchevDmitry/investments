@@ -65,7 +65,7 @@ impl SectionParsers {
     }
 
     pub fn select<'p, 'r>(&'p mut self, record: &'r StringRecord) -> GenericResult<(RecordSpec<'r>, &'p mut dyn RecordParser)> {
-        let spec = parse_header(&record);
+        let spec = parse_header(record);
         let mut parser: &mut dyn RecordParser = match spec.name {
             "Statement" => &mut self.statement_info_parser,
             "Account Information" => &mut self.account_information_parser,

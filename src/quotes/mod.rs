@@ -86,7 +86,7 @@ impl Quotes {
         for provider in &self.providers {
             let quotes = {
                 let symbols: Vec<&str> = batched_symbols.iter().filter_map(|symbol| {
-                    let is_currency_pair = is_currency_pair(&symbol);
+                    let is_currency_pair = is_currency_pair(symbol);
 
                     if
                         provider.supports_stocks() && !is_currency_pair ||
@@ -124,13 +124,13 @@ impl Quotes {
                     }
                 };
 
-                if let Ok((base, quote)) = parse_currency_pair(&symbol) {
+                if let Ok((base, quote)) = parse_currency_pair(symbol) {
                     let reverse_pair = get_currency_pair(quote, base);
                     let reverse_price = Cash::new(base, dec!(1) / price.amount);
                     self.cache.save(&reverse_pair, reverse_price)?;
                 }
 
-                self.cache.save(&symbol, price)?;
+                self.cache.save(symbol, price)?;
                 batched_symbols.remove(symbol);
             }
 

@@ -62,7 +62,7 @@ pub fn process_income(
         let amount = converter.convert_to_cash_rounding(interest.date, foreign_amount, country.currency)?;
         total_amount += amount;
 
-        let tax_to_pay = interest.tax_to_pay(&country, converter)?;
+        let tax_to_pay = interest.tax_to_pay(country, converter)?;
         total_tax_to_pay += tax_to_pay;
 
         let income = amount - tax_to_pay;

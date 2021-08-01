@@ -81,7 +81,7 @@ fn get_statement_files(
         let path = path.to_str().ok_or_else(|| format!(
             "Got an invalid path: {:?}", path.to_string_lossy()))?;
 
-        if !statement_reader.is_statement(&path)? {
+        if !statement_reader.is_statement(path)? {
             continue;
         }
 

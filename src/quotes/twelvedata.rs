@@ -161,7 +161,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 }
 
 fn parse_response<T: DeserializeOwned>(response: &str) -> GenericResult<T> {
-    Ok(serde_json::from_str(&response).map_err(|e| format!("Got an unexpected response: {}", e))?)
+    Ok(serde_json::from_str(response).map_err(|e| format!("Got an unexpected response: {}", e))?)
 }
 
 #[cfg(not(test))]

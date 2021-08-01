@@ -275,11 +275,11 @@ impl StockTradeTransaction {
 
         if buy {
             parser.statement.stock_buys.push(StockBuy::new_trade(
-                &symbol, quantity, price, volume, commission,
+                symbol, quantity, price, volume, commission,
                 self.info.conclusion_date.into(), self.info.execution_date, false));
         } else {
             parser.statement.stock_sells.push(StockSell::new_trade(
-                &symbol, quantity, price, volume, commission,
+                symbol, quantity, price, volume, commission,
                 self.info.conclusion_date.into(), self.info.execution_date, false, false));
         }
 
@@ -328,7 +328,7 @@ impl IncomeInfo {
                     DecimalRestrictions::StrictlyPositive)?;
 
                 dividends::parse_dividend(
-                    parser, self.info.conclusion_date, &issuer, amount, description)?;
+                    parser, self.info.conclusion_date, issuer, amount, description)?;
             },
             ("MISC", SecurityType::Interest) => {
                 let amount = util::validate_named_cash(

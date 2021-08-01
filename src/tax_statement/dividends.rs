@@ -80,7 +80,7 @@ pub fn process_income(
             dividend.date, foreign_amount, country.currency)?;
         total_amount += amount;
 
-        let tax = dividend.tax(&country, converter)?;
+        let tax = dividend.tax(country, converter)?;
 
         let foreign_paid_tax = dividend.paid_tax.round();
         total_foreign_paid_tax.deposit(foreign_paid_tax);
@@ -90,7 +90,7 @@ pub fn process_income(
             dividend.date, foreign_paid_tax, country.currency)?;
         total_paid_tax += paid_tax;
 
-        let tax_to_pay = dividend.tax_to_pay(&country, converter)?;
+        let tax_to_pay = dividend.tax_to_pay(country, converter)?;
         total_tax_to_pay += tax_to_pay;
 
         let tax_deduction = country.round_tax(paid_tax);

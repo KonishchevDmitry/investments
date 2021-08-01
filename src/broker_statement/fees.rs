@@ -14,7 +14,7 @@ impl Fee {
 
     pub fn local_description(&self) -> &str {
         match self.description.as_ref() {
-            Some(description) => &description,
+            Some(description) => description,
             None => if self.amount.is_negative() {
                 "Возврат излишне удержанной комиссии"
             } else {

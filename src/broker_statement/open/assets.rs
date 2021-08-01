@@ -78,7 +78,7 @@ impl Assets {
                     let symbol = get_symbol(securities, &asset.name)?;
                     let amount = parse_quantity(asset.end_amount, true)?;
                     if amount != 0 {
-                        statement.add_open_position(&symbol, amount.into())?
+                        statement.add_open_position(symbol, amount.into())?
                     }
                 },
                 "Денежные средства" => {

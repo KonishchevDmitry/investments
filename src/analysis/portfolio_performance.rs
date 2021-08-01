@@ -72,7 +72,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         for (symbol, deposit_view) in self.instruments.as_mut().unwrap().iter_mut() {
             if deposit_view.name.is_none() {
-                deposit_view.name.replace(statement.get_instrument_name(&symbol));
+                deposit_view.name.replace(statement.get_instrument_name(symbol));
             }
         }
 
@@ -319,7 +319,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     }
 
                     let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-                    let details = trade.calculate(&self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
+                    let details = trade.calculate(self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
 
                     let mut lto_deductibles = Vec::new();
 
@@ -354,7 +354,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     trace!("* {} selling {} tax: {}",
                            symbol, formatting::format_date(tax_payment_date), amount);
 
-                    self.get_deposit_view(&symbol).transaction(tax_payment_date.into(), amount);
+                    self.get_deposit_view(symbol).transaction(tax_payment_date.into(), amount);
                 }
             }
         }
@@ -390,7 +390,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             self.get_deposit_view(&dividend.issuer).transaction(dividend.date.into(), -income);
             self.income_structure.dividends += income;
 
-            let tax_to_pay = dividend.tax_to_pay(&self.country, self.converter)?;
+            let tax_to_pay = dividend.tax_to_pay(self.country, self.converter)?;
             let (_, tax_payment_date) = portfolio.tax_payment_day().get(dividend.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
@@ -412,7 +412,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             self.income_structure.interest += self.converter.convert_to(
                 interest.date, interest.amount, self.currency)?;
 
-            let tax_to_pay = interest.tax_to_pay(&self.country, self.converter)?;
+            let tax_to_pay = interest.tax_to_pay(self.country, self.converter)?;
             let (_, tax_payment_date) = portfolio.tax_payment_day().get(interest.date, false);
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {

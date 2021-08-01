@@ -85,12 +85,12 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     }
 
     for (instrument, &value) in &statistics.assets {
-        set_instrument_metric(&ASSETS, currency, &instrument, value);
+        set_instrument_metric(&ASSETS, currency, instrument, value);
     }
 
     for (instrument, analysis) in &performance.instruments {
         if let Some(interest) = analysis.interest {
-            set_instrument_metric(&PERFORMANCE, currency, &instrument, interest);
+            set_instrument_metric(&PERFORMANCE, currency, instrument, interest);
         }
     }
 

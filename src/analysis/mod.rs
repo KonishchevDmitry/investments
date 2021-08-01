@@ -231,7 +231,7 @@ pub fn analyse(
             &country, &statistics.currency, &converter, include_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
-            analyser.add(&portfolio, &statement)?;
+            analyser.add(portfolio, statement)?;
         }
 
         let (performance, lto) = analyser.analyse()?;
@@ -299,7 +299,7 @@ fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strictness: Read
 
 fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, Rc<Quotes>)> {
     let database = db::connect(&config.db_path)?;
-    let quotes = Rc::new(Quotes::new(&config, database.clone())?);
+    let quotes = Rc::new(Quotes::new(config, database.clone())?);
     let converter = CurrencyConverter::new(database, Some(quotes.clone()), false);
     Ok((converter, quotes))
 }

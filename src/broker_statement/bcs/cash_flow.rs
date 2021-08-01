@@ -22,7 +22,7 @@ impl SectionParser for CashFlowParser {
 
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let title_row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
-        let currency = parse_currency(xls::get_string_cell(&title_row[0])?)?;
+        let currency = parse_currency(xls::get_string_cell(title_row[0])?)?;
 
         for cash_flow in &xls::read_table::<CashFlowRow>(&mut parser.sheet)? {
             self.process_cash_flow(parser, currency, cash_flow)?;

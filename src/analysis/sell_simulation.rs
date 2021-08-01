@@ -44,12 +44,12 @@ pub fn simulate_sell(
                 "The portfolio has no open {:?} positions", symbol))?,
         };
 
-        let mut price = quotes.get(&symbol)?;
+        let mut price = quotes.get(symbol)?;
         if let Some(base_currency) = base_currency {
             price = trades::convert_price(price, quantity, base_currency, &converter)?;
         }
 
-        statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
+        statement.emulate_sell(symbol, quantity, price, &mut commission_calc)?;
     }
 
     statement.process_trades(None)?;
@@ -117,8 +117,8 @@ fn print_results(
         total_commission.deposit(commission);
 
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-        let details = trade.calculate(&country, tax_year, &portfolio.tax_exemptions, &converter)?;
-        let real = details.real_profit(&converter)?;
+        let details = trade.calculate(country, tax_year, &portfolio.tax_exemptions, converter)?;
+        let real = details.real_profit(converter)?;
         tax_exemptions |= details.tax_exemption_applied();
 
         total_purchase_cost.deposit(details.purchase_cost);
@@ -194,7 +194,7 @@ fn print_results(
 
     let total_real = trades::calculate_real_profit(
         converter.real_time_date(), total_purchase_cost, total_purchase_local_cost,
-        total_profit.clone(), total_local_profit, tax_to_pay, &converter)?;
+        total_profit.clone(), total_local_profit, tax_to_pay, converter)?;
 
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);

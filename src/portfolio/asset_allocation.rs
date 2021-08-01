@@ -54,7 +54,7 @@ impl Portfolio {
             quotes.batch(&symbol)?;
         }
 
-        let cash_assets = assets.cash.total_assets_real_time(&currency, converter)?;
+        let cash_assets = assets.cash.total_assets_real_time(currency, converter)?;
         let mut net_value = cash_assets;
 
         let mut stocks = assets.stocks;
@@ -63,7 +63,7 @@ impl Portfolio {
 
         for assets_config in &portfolio_config.assets {
             let mut asset_allocation = AssetAllocation::load(
-                &broker, assets_config, &currency, &mut symbols, &mut stocks,
+                &broker, assets_config, currency, &mut symbols, &mut stocks,
                 converter, quotes)?;
 
             asset_allocation.apply_restrictions(

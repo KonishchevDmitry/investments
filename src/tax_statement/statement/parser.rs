@@ -320,7 +320,7 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_str().unwrap();
 
-        TaxStatementWriter::write(&statement, path).unwrap();
+        TaxStatementWriter::write(statement, path).unwrap();
         assert_eq!(&get_contents(path), data);
     }
 

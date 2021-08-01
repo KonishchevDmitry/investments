@@ -152,7 +152,7 @@ impl CashFlowMapper {
 
         match cash_flow.type_ {
             CashFlowType::Dividend {date: dividend_date, ref issuer} => {
-                let mut description = statement.get_instrument_name(&issuer);
+                let mut description = statement.get_instrument_name(issuer);
                 if date.date != dividend_date {
                     description += &format!(" от {}", formatting::format_date(dividend_date));
                 };
@@ -164,7 +164,7 @@ impl CashFlowMapper {
                 });
             },
             CashFlowType::Tax {date: dividend_date, ref issuer, ..} => {
-                let mut description = statement.get_instrument_name(&issuer);
+                let mut description = statement.get_instrument_name(issuer);
                 if date.date != dividend_date {
                     description += &format!(" от {}", formatting::format_date(dividend_date));
                 };

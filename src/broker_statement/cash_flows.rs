@@ -21,8 +21,8 @@ impl CashFlow {
 
     pub fn symbol(&self) -> Option<&str> {
         Some(match self.type_ {
-            CashFlowType::Dividend {ref issuer, ..} => &issuer,
-            CashFlowType::Tax {ref issuer, ..} => &issuer,
+            CashFlowType::Dividend {ref issuer, ..} => issuer,
+            CashFlowType::Tax {ref issuer, ..} => issuer,
         })
     }
 

@@ -80,7 +80,7 @@ fn generate_summary_report(
     table.add_row(deposits_row);
     table.add_row(withdrawals_row);
     table.add_row(ending_assets_row);
-    table.print(&title);
+    table.print(title);
 }
 
 fn generate_details_report(

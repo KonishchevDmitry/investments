@@ -141,7 +141,7 @@ impl BrokerStatement {
         }
 
         for (symbol, new_symbol) in symbol_remapping.iter() {
-            statement.rename_symbol(&symbol, &new_symbol, None).map_err(|e| format!(
+            statement.rename_symbol(symbol, new_symbol, None).map_err(|e| format!(
                 "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
         }
 
@@ -240,7 +240,7 @@ impl BrokerStatement {
 
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
         for symbol in self.open_positions.keys() {
-            quotes.batch(&symbol)?;
+            quotes.batch(symbol)?;
         }
         Ok(())
     }

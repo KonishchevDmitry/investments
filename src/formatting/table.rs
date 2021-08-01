@@ -55,7 +55,7 @@ impl Table {
         for (index, column) in self.columns.iter().enumerate() {
             if !column.hidden {
                 columns.push(index);
-                titles.push(RawCell::new_align(&column.name, Alignment::CENTER));
+                titles.push(RawCell::new_align(column.name, Alignment::CENTER));
             }
         }
 

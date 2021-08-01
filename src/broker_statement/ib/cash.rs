@@ -61,7 +61,7 @@ impl RecordParser for StatementOfFundsParser {
 
         let mut currency = record.get_value("Currency")?;
         if currency == "Base Currency Summary" {
-            currency = &base_currency;
+            currency = base_currency;
         } else if currency == base_currency {
             // It duplicates "Base Currency Summary". Statements with one currency contain only
             // "Base Currency Summary" info.
