@@ -143,7 +143,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
         self.transactions.sort_by_key(|transaction| transaction.date);
 
-        // FIXME(konishchev): Handle abandoned portfolios properly here
         let activity_periods = vec![InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
