@@ -15,7 +15,7 @@ impl SectionParser for AssetsParser {
             let symbol = &asset.symbol;
 
             if asset.starting != 0 {
-                parser.statement.starting_assets.replace(true);
+                parser.statement.has_starting_assets.replace(true);
             }
 
             if asset.planned != 0 {

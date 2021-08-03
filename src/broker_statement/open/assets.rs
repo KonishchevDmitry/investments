@@ -38,7 +38,7 @@ impl AccountSummary {
         let has_starting_assets = has_starting_assets.ok_or(
             "Unable to find starting cash assets information")?;
 
-        statement.set_starting_assets(has_starting_assets)
+        statement.set_has_starting_assets(has_starting_assets)
     }
 }
 
@@ -90,7 +90,7 @@ impl Assets {
         }
 
         if has_starting_assets {
-            statement.starting_assets = Some(true);
+            statement.has_starting_assets = Some(true);
         }
 
         Ok(())

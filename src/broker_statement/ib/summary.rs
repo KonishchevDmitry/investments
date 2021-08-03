@@ -71,7 +71,7 @@ impl RecordParser for ChangeInNavParser {
         if record.get_value("Field Name")? == "Starting Value" {
             let currency = parser.base_currency()?;
             let amount = Cash::new_from_string(currency, record.get_value("Field Value")?)?;
-            parser.statement.set_starting_assets(!amount.is_zero())?;
+            parser.statement.set_has_starting_assets(!amount.is_zero())?;
         }
 
         Ok(())

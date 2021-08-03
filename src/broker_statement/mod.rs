@@ -159,7 +159,7 @@ impl BrokerStatement {
 
     fn new_empty_from(broker: BrokerInfo, statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
         let mut period = statement.get_period()?;
-        if statement.get_starting_assets()? {
+        if statement.get_has_starting_assets()? {
             return Err!(concat!(
                 "The first broker statement ({}) has a non-zero starting assets. ",
                 "Make sure that broker statements directory contains statements for all periods ",

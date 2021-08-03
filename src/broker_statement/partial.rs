@@ -17,7 +17,7 @@ use super::taxes::{TaxId, TaxAccruals, TaxWithholding};
 pub struct PartialBrokerStatement {
     pub period: Option<(Date, Date)>,
 
-    pub starting_assets: Option<bool>,
+    pub has_starting_assets: Option<bool>,
     pub deposits_and_withdrawals: Vec<CashAssets>,
     pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
@@ -44,7 +44,7 @@ impl PartialBrokerStatement {
         PartialBrokerStatement {
             period: None,
 
-            starting_assets: None,
+            has_starting_assets: None,
             deposits_and_withdrawals: Vec::new(),
             fees: Vec::new(),
             idle_cash_interest: Vec::new(),
@@ -77,12 +77,12 @@ impl PartialBrokerStatement {
         get_option("statement period", self.period)
     }
 
-    pub fn set_starting_assets(&mut self, exists: bool) -> EmptyResult {
-        set_option("starting assets", &mut self.starting_assets, exists)
+    pub fn set_has_starting_assets(&mut self, exists: bool) -> EmptyResult {
+        set_option("has starting assets", &mut self.has_starting_assets, exists)
     }
 
-    pub fn get_starting_assets(&self) -> GenericResult<bool> {
-        get_option("starting assets", self.starting_assets)
+    pub fn get_has_starting_assets(&self) -> GenericResult<bool> {
+        get_option("has starting assets", self.has_starting_assets)
     }
 
     pub fn add_open_position(&mut self, symbol: &str, quantity: Decimal) -> EmptyResult {
@@ -113,7 +113,7 @@ impl PartialBrokerStatement {
             return Err!("Invalid statement period: {}", formatting::format_period(period));
         }
 
-        self.get_starting_assets()?;
+        self.get_has_starting_assets()?;
 
         Ok(self)
     }

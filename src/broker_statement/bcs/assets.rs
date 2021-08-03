@@ -28,7 +28,7 @@ impl SectionParser for AssetsParser {
             }
         }
 
-        parser.statement.set_starting_assets(has_starting_assets)
+        parser.statement.set_has_starting_assets(has_starting_assets)
     }
 }
 

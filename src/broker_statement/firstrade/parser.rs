@@ -97,7 +97,7 @@ impl Ofx {
         }
         parser.statement.set_period((start_date, end_date))?;
 
-        parser.statement.set_starting_assets(false)?;
+        parser.statement.set_has_starting_assets(false)?;
         if parser.is_last {
             report.balance.parse(parser, &currency)?;
         }

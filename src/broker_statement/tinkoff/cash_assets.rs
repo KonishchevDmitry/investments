@@ -61,13 +61,13 @@ impl TableReader for AssetsRow {
 
 fn parse_current_assets(parser: &mut XlsStatementParser) -> GenericResult<HashSet<String>> {
     let mut currencies = HashSet::new();
-    parser.statement.starting_assets.get_or_insert(false);
+    parser.statement.has_starting_assets.get_or_insert(false);
 
     for assets in &xls::read_table::<AssetsRow>(&mut parser.sheet)? {
         currencies.insert(assets.currency.clone());
 
         if !assets.starting.is_zero() {
-            parser.statement.starting_assets.replace(true);
+            parser.statement.has_starting_assets.replace(true);
         }
 
         let planned = parse_cash(&assets.currency, assets.planned, DecimalRestrictions::No)?;
