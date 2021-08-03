@@ -1,5 +1,6 @@
 // Long-term ownership tax exemption logic
 
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 
 use chrono::Datelike;
@@ -183,11 +184,16 @@ fn calculate_ownership_years(buy_date: Date, sell_date: Date) -> u32 {
 
     let buy_month = buy_date.month();
     let sell_month = sell_date.month();
-    if sell_month < buy_month {
-        years -= 1;
-    } else if sell_month == buy_month {
-        if sell_date.day() < buy_date.day() && sell_date.succ().month() == sell_month {
+
+    match sell_month.cmp(&buy_month) {
+        Ordering::Greater => {},
+        Ordering::Less => {
             years -= 1;
+        },
+        Ordering::Equal => {
+            if sell_date.day() < buy_date.day() && sell_date.succ().month() == sell_month {
+                years -= 1;
+            }
         }
     }
 

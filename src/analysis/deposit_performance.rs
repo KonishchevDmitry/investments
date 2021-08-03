@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[cfg(test)] use chrono::Duration;
 
 use log::{debug, warn};
@@ -47,13 +49,15 @@ pub fn compare_to_bank_deposit(
             continue;
         }
 
-        if decreasing_difference < increasing_difference {
-            assert!(decreasing_difference < difference);
-            step = -step;
-        } else if decreasing_difference > increasing_difference {
-            assert!(increasing_difference < difference);
-        } else {
-            unreachable!();
+        match decreasing_difference.cmp(&increasing_difference) {
+            Ordering::Less => {
+                assert!(decreasing_difference < difference);
+                step = -step;
+            },
+            Ordering::Greater => {
+                assert!(increasing_difference < difference);
+            },
+            Ordering::Equal => unreachable!(),
         }
 
         interest += step;

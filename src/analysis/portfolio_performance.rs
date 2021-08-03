@@ -1,6 +1,8 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap};
 
 use log::{self, log_enabled, trace};
+use num_traits::Zero;
 
 use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
 use crate::config::PortfolioConfig;
@@ -193,13 +195,15 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 });
                 current.quantity += quantity;
 
-                if current.quantity > dec!(0) {
-                    continue;
-                } else if current.quantity < dec!(0) {
-                    return Err!(
-                        "Error while processing {} sell operations: Got a negative balance on {}",
-                        symbol, formatting::format_date(date));
-                }
+                match current.quantity.cmp(&Decimal::zero()) {
+                    Ordering::Greater => continue,
+                    Ordering::Equal => {},
+                    Ordering::Less => {
+                        return Err!(
+                            "Error while processing {} sell operations: Got a negative balance on {}",
+                            symbol, formatting::format_date(date));
+                    }
+                };
 
                 let start_date = current.start_date;
                 let end_date = if date == start_date {

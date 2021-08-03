@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap, hash_map, btree_map};
 use std::ops::Bound;
 
@@ -146,12 +147,10 @@ impl StockSplitController {
         let to_time = to_time.or_min_time();
         let mut multiplier = dec!(1);
 
-        let (start, end, divide) = if from_time < to_time {
-            (from_time, to_time, false)
-        } else if to_time < from_time {
-            (to_time, from_time, true)
-        } else {
-            return multiplier;
+        let (start, end, divide) = match from_time.cmp(&to_time) {
+            Ordering::Less => (from_time, to_time, false),
+            Ordering::Greater => (to_time, from_time, true),
+            Ordering::Equal => return multiplier,
         };
 
         let splits = match self.symbols.get(symbol) {

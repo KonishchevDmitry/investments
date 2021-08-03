@@ -27,7 +27,6 @@ main() {
 
     blacklist='
     collapsible_if
-    comparison_chain
     new_ret_no_self
     new_without_default
     redundant_field_names

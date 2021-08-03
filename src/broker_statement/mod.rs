@@ -18,8 +18,8 @@ mod ib;
 mod open;
 mod tinkoff;
 
-use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
-use std::collections::hash_map::Entry;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet, hash_map::Entry};
 
 use log::warn;
 
@@ -286,12 +286,16 @@ impl BrokerStatement {
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = open_position.get_mut();
 
-            if *available == quantity {
-                open_position.remove();
-            } else if *available > quantity {
-                *available = (*available - quantity).normalize();
-            } else {
-                return Err!("The portfolio has not enough open positions for {}", symbol);
+            match quantity.cmp(available) {
+                Ordering::Equal => {
+                    open_position.remove();
+                },
+                Ordering::Less => {
+                    *available = (*available - quantity).normalize();
+                },
+                Ordering::Greater => {
+                    return Err!("The portfolio has not enough open positions for {}", symbol);
+                },
             }
         } else {
             return Err!("The portfolio has no open {} position", symbol);
