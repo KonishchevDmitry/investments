@@ -74,19 +74,32 @@ statement + foreign income report).
 The program expects broker statements in `*.ofx` format (`Accounts -> History -> Download Account History -> Microsoft
 Money`).
 
+Please take into account the following issues with Firstrade statements:
+1. Firstrade doesn't provide information about real dividend amount, so it will be deduced from received amount and
+   expected tax rate.
+2. If you generate statements for the past, current cash assets and open positions information will always be got for 
+   today date. So you effectively aren't able to generate a valid statement with ending date different from today. But
+   you should split the statements for the following reasons:
+
+   3.1. Firstrade allows to generate the statement for past three years only.
+
+   3.2. You should have your statements split by years for [cash-flow](taxes.md#cash-flow) command.
+   
+   So, considering this, I recommend to generate new statement for the previous year on each January 1.
+
 
 <a name="open-broker"></a>
 ## Открытие Брокер
 
 The program expects broker statements in `*.xml` format.
 
-Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
-example of how they are look like in the broker statements (see [#19](https://github.com/KonishchevDmitry/investments/issues/19)).
+Dividends aren't parsed out from broker statements yet. I use ETFs which don't pay dividends, so I don't have an example
+of how they are look like in the broker statements (see [#19](https://github.com/KonishchevDmitry/investments/issues/19)).
 
 <a name="bcs"></a>
 ## БКС
 
 The program expects broker statements in `*.xls` format.
 
-Dividends aren't parsed out from broker statements yet. I use FinEx ETF which don't pay dividends, so I don't have an
-example of how they are look like in the broker statements.
+Dividends aren't parsed out from broker statements yet. I use ETFs which don't pay dividends, so I don't have an example
+of how they are look like in the broker statements.
