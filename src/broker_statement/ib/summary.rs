@@ -55,6 +55,15 @@ impl RecordParser for AccountInformationParser {
     }
 }
 
+pub struct NavParser {}
+
+impl RecordParser for NavParser {
+    // FIXME(konishchev): Implement
+    fn parse(&mut self, _parser: &mut StatementParser, _record: &Record) -> EmptyResult {
+        Ok(())
+    }
+}
+
 pub struct ChangeInNavParser {}
 
 impl RecordParser for ChangeInNavParser {

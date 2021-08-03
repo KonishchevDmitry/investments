@@ -13,13 +13,14 @@ use super::dividends::DividendsParser;
 use super::fees::FeesParser;
 use super::instruments::{OpenPositionsParser, FinancialInstrumentInformationParser};
 use super::interest::InterestParser;
-use super::summary::{AccountInformationParser, ChangeInNavParser, StatementInfoParser};
+use super::summary::{AccountInformationParser, NavParser, ChangeInNavParser, StatementInfoParser};
 use super::taxes::WithholdingTaxParser;
 use super::trades::TradesParser;
 
 pub struct SectionParsers {
     statement_info_parser: StatementInfoParser,
     account_information_parser: AccountInformationParser,
+    nav_parser: NavParser,
     change_in_nav_parser: ChangeInNavParser,
     cash_report_parser: CashReportParser,
     statement_of_funds_parser: StatementOfFundsParser,
@@ -44,6 +45,7 @@ impl SectionParsers {
         SectionParsers {
             statement_info_parser: StatementInfoParser {},
             account_information_parser: AccountInformationParser{},
+            nav_parser: NavParser{},
             change_in_nav_parser: ChangeInNavParser {},
             cash_report_parser: CashReportParser {},
             statement_of_funds_parser: StatementOfFundsParser {},
@@ -69,6 +71,7 @@ impl SectionParsers {
         let mut parser: &mut dyn RecordParser = match spec.name {
             "Statement" => &mut self.statement_info_parser,
             "Account Information" => &mut self.account_information_parser,
+            "Net Asset Value" => &mut self.nav_parser,
             "Change in NAV" => &mut self.change_in_nav_parser,
             "Cash Report" => &mut self.cash_report_parser,
             "Statement of Funds" => &mut self.statement_of_funds_parser,
@@ -92,14 +95,20 @@ impl SectionParsers {
                     let had_code_field = *entry.get();
 
                     match spec.name {
+                        // Rust complains on second mutable borrow if we try to assign
+                        // self.unknown_record_parser here, so we created a second parser - just
+                        // to workaround this issue.
+
+                        // This section has two different headers. Skip the second variant.
+                        "Net Asset Value" if spec.has_field("Time Weighted Rate of Return") => {
+                            parser = &mut self.duplicated_record_parser;
+                        },
+
                         // Custom Activity Statement contains duplicated sections because of legacy
                         // sections. Some of them have different names, but others - the same with
                         // modern ones. Here we detect legacy sections by Code field which doesn't
                         // exist in modern ones.
                         "Dividends" | "Deposits & Withdrawals" if !had_code_field && has_code_field => {
-                            // Rust complains on second mutable borrow if we try to assign
-                            // self.unknown_record_parser here, so we created a second parser - just
-                            // to workaround this issue.
                             parser = &mut self.duplicated_record_parser;
                         },
 
