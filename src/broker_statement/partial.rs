@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{CashAssets, MultiCurrencyCashAccount};
+use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
 use crate::types::{Date, Decimal};
 use crate::util::{DecimalRestrictions, validate_named_decimal};
@@ -35,8 +35,14 @@ pub struct PartialBrokerStatement {
 
     // Please note that some brokers (Firstrade) provide this information only for the last
     // statement (current date).
-    pub cash_assets: Option<MultiCurrencyCashAccount>,
+    pub assets: NetAssets,
     pub open_positions: HashMap<String, Decimal>,
+}
+
+// FIXME(konishchev): Support
+pub struct NetAssets {
+    pub cash: Option<MultiCurrencyCashAccount>,
+    pub other: Option<Cash>, // Supported only for some brokers
 }
 
 impl PartialBrokerStatement {
@@ -60,10 +66,13 @@ impl PartialBrokerStatement {
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
 
-            cash_assets: if zero_cash_assets {
-                Some(MultiCurrencyCashAccount::new())
-            } else {
-                None
+            assets: NetAssets {
+                cash: if zero_cash_assets {
+                    Some(MultiCurrencyCashAccount::new())
+                } else {
+                    None
+                },
+                other: None
             },
             open_positions: HashMap::new(),
         }

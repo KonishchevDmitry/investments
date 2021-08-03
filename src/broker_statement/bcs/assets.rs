@@ -40,7 +40,7 @@ impl AssetsParser {
         if is_currency {
             if let Some(amount) = asset.end_value {
                 let currency = &parse_currency(&asset.name)?;
-                statement.cash_assets.as_mut().unwrap().deposit(Cash::new(currency, amount))
+                statement.assets.cash.as_mut().unwrap().deposit(Cash::new(currency, amount))
             }
         } else {
             let quantity = asset.end_quantity.unwrap_or(0);

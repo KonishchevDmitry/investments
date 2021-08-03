@@ -72,7 +72,7 @@ fn parse_current_assets(parser: &mut XlsStatementParser) -> GenericResult<HashSe
 
         let planned = parse_cash(&assets.currency, assets.planned, DecimalRestrictions::No)?;
         if !planned.is_zero() {
-            parser.statement.cash_assets.as_mut().unwrap().deposit(planned);
+            parser.statement.assets.cash.as_mut().unwrap().deposit(planned);
         }
 
         if !assets.debt.is_zero() {

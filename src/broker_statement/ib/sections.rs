@@ -127,9 +127,9 @@ impl SectionParsers {
     pub fn commit(self, parser: &mut StatementParser) -> EmptyResult {
         // When statement has no non-base currency activity it contains only base currency summary
         // and we have to use it as the only source of current cash assets info.
-        if parser.statement.cash_assets.is_none() {
+        if parser.statement.assets.cash.is_none() {
             let amount = parser.base_currency_summary.ok_or("Unable to find base currency summary")?;
-            parser.statement.cash_assets.get_or_insert_with(Default::default).deposit(amount);
+            parser.statement.assets.cash.get_or_insert_with(Default::default).deposit(amount);
         }
 
         self.corporate_actions_parser.commit(parser)

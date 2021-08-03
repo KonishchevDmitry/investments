@@ -444,7 +444,7 @@ impl BrokerStatement {
         self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
 
-        if let Some(cash_assets) = statement.cash_assets {
+        if let Some(cash_assets) = statement.assets.cash {
             assert!(self.historical_cash_assets.insert(
                 self.last_date(), cash_assets.clone()
             ).is_none());

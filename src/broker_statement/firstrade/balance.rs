@@ -28,7 +28,7 @@ impl Balance {
             return Err!("Margin accounts are not supported");
         }
 
-        parser.statement.cash_assets.get_or_insert_with(Default::default)
+        parser.statement.assets.cash.get_or_insert_with(Default::default)
             .deposit(Cash::new(currency, self.cash));
 
         Ok(())

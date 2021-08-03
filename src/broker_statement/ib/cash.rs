@@ -26,7 +26,7 @@ impl RecordParser for CashReportParser {
                 return Err!("Got duplicated base currency summary");
             }
         } else {
-            let cash_assets = parser.statement.cash_assets.get_or_insert_with(Default::default);
+            let cash_assets = parser.statement.assets.cash.get_or_insert_with(Default::default);
             if cash_assets.has_assets(currency) {
                 return Err!("Got duplicated {} assets", currency);
             }

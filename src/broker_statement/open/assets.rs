@@ -82,7 +82,7 @@ impl Assets {
                     }
                 },
                 "Денежные средства" => {
-                    statement.cash_assets.as_mut().unwrap().deposit(
+                    statement.assets.cash.as_mut().unwrap().deposit(
                         Cash::new(&asset.code, asset.end_amount));
                 },
                 _ => return Err!("Unsupported asset type: {:?}", asset.type_),
