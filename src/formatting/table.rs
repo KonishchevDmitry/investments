@@ -12,6 +12,7 @@ pub use prettytable::format::Alignment;
 
 pub struct Table {
     columns: Vec<Column>,
+    show_titles: bool,
     rows: Vec<Row>,
 }
 
@@ -19,6 +20,7 @@ impl Table {
     pub fn new(columns: Vec<Column>) -> Table {
         Table {
             columns,
+            show_titles: true,
             rows: Vec::new(),
         }
     }
@@ -33,6 +35,10 @@ impl Table {
         let row = (0..self.columns.len()).map(|_| Cell::new_empty()).collect();
         self.rows.push(row);
         self.rows.last_mut().unwrap()
+    }
+
+    pub fn hide_titles(&mut self) {
+        self.show_titles = false;
     }
 
     pub fn rename_column(&mut self, index: usize, name: &'static str) {
@@ -55,12 +61,16 @@ impl Table {
         for (index, column) in self.columns.iter().enumerate() {
             if !column.hidden {
                 columns.push(index);
-                titles.push(RawCell::new_align(column.name, Alignment::CENTER));
+                if self.show_titles {
+                    titles.push(RawCell::new_align(column.name, Alignment::CENTER));
+                }
             }
         }
 
         table.set_format(FormatBuilder::new().padding(1, 1).build());
-        table.set_titles(RawRow::new(titles));
+        if !titles.is_empty() {
+            table.set_titles(RawRow::new(titles));
+        }
 
         for row in &self.rows {
             table.add_row(RawRow::new(columns.iter().map(|&index| {
