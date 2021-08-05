@@ -32,11 +32,8 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
         broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
         portfolio.get_tax_remapping()?, &portfolio.corporate_actions, ReadingStrictness::CASH_FLOW_DATES)?;
 
-    // FIXME(konishchev): Drop
-    let mut title_suffix = format!("по счету в {}", statement.broker.name);
     let (start_date, end_date) = match year {
         Some(year) => {
-            title_suffix += &format!(" за {} год", year);
             statement.check_period_against_tax_year(year)?;
 
             (
@@ -48,30 +45,23 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     };
 
     let (summaries, cash_flows) = calculator::calculate(&statement, start_date, end_date);
-
-    generate_cash_summary_report(
-        &format!("Движение денежных средств {}", title_suffix),
-        start_date, end_date, &summaries);
+    generate_cash_summary_report(start_date, end_date, &summaries);
 
     if statement.broker.type_.jurisdiction() == Jurisdiction::Usa {
         // FIXME(konishchev): Firstrade support
         if statement.broker.type_ == Broker::InteractiveBrokers {
             generate_other_summary_report(
-                &format!("Стоимость иных финансовых активов {}", title_suffix),
                 &statement, start_date, end_date, &cash_flows, &converter, "USD")?;
         }
     }
 
-    generate_details_report(
-        &format!("Детализация движения денежных средств {}", title_suffix),
-        &summaries, cash_flows);
+    generate_details_report(&summaries, cash_flows);
 
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
 fn generate_cash_summary_report(
-    title: &str, start_date: Date, end_date: Date,
-    summaries: &BTreeMap<&'static str, CashFlowSummary>,
+    start_date: Date, end_date: Date, summaries: &BTreeMap<&'static str, CashFlowSummary>,
 ) {
     let mut columns = vec![Column::new("")];
     let mut starting_assets_row = vec![start_date.into()];
@@ -100,12 +90,12 @@ fn generate_cash_summary_report(
     table.add_row(deposits_row);
     table.add_row(withdrawals_row);
     table.add_row(ending_assets_row);
-    table.print(title);
+    table.print("Движение денежных средств");
 }
 
 fn generate_other_summary_report(
-    title: &str, statement: &BrokerStatement, start_date: Date, end_date: Date,
-    cash_flows: &[CashFlow], converter: &CurrencyConverter, jurisdiction_currency: &str,
+    statement: &BrokerStatement, start_date: Date, end_date: Date, cash_flows: &[CashFlow],
+    converter: &CurrencyConverter, jurisdiction_currency: &str,
 ) -> EmptyResult {
     let mut missing = false;
     let mut currency = None;
@@ -159,10 +149,10 @@ fn generate_other_summary_report(
     table.add_row(vec!["Списания".into(), Cash::new(currency, withdrawals).into()]);
     table.add_row(vec![end_date.pred().into(), end_assets]);
     table.hide_titles();
-    table.print(title);
+    table.print("Стоимость иных финансовых активов");
 
     if missing {
-        let available_dates = statement.historical_assets.iter().filter_map(|(&date, assets)| {
+        let mut clarification = statement.historical_assets.iter().filter_map(|(&date, assets)| {
             if assets.other.is_some() {
                 Some(formatting::format_date(date))
             } else {
@@ -170,17 +160,20 @@ fn generate_other_summary_report(
             }
         }).join(", ");
 
-        eprintln!(); warn!(concat!(
-            "The broker statements don't contain net asset value information for the specified period. ",
-            "Available dates: {}."
-        ), available_dates);
+        if !clarification.is_empty() {
+            clarification = format!(" Available dates: {}.", clarification)
+        }
+
+        eprintln!(); warn!(
+            "The broker statements don't contain net asset value information for the specified period.{}",
+            clarification);
     }
 
     Ok(())
 }
 
 fn generate_details_report(
-    title: &str, summaries: &BTreeMap<&'static str, CashFlowSummary>, cash_flows: Vec<CashFlow>
+    summaries: &BTreeMap<&'static str, CashFlowSummary>, cash_flows: Vec<CashFlow>
 ) {
     let mut columns = vec![Column::new("Дата"), Column::new("Операция")];
     for &currency in summaries.keys() {
@@ -222,5 +215,5 @@ fn generate_details_report(
         table.add_row(row);
     }
 
-    table.print(title);
+    table.print("Детализация движения денежных средств");
 }
