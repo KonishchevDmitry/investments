@@ -9,7 +9,7 @@ use crate::time::DateOptTime;
 
 pub struct CashFlow {
     pub time: DateOptTime,
-    operation: Operation,
+    pub operation: Operation,
     pub amount: Cash,
     pub sibling_amount: Option<Cash>,
     pub description: String,
@@ -91,7 +91,7 @@ impl CashFlowMapper {
 
         if !trade.commission.is_zero() {
             let description = format!("Комиссия за конвертацию {} -> {}", trade.from, trade.to);
-            self.add(trade.conclusion_time, Operation::ForexTrade, -trade.commission, description);
+            self.add(trade.conclusion_time, Operation::Commission, -trade.commission, description);
         };
     }
 
@@ -103,7 +103,7 @@ impl CashFlowMapper {
 
                 if !commission.is_zero() {
                     let description = format!("Комиссия за покупку {} {}", trade.quantity, name);
-                    self.add(trade.conclusion_time, Operation::BuyTrade, -commission, description);
+                    self.add(trade.conclusion_time, Operation::Commission, -commission, description);
                 };
             },
             StockSource::CorporateAction => {},
@@ -118,7 +118,7 @@ impl CashFlowMapper {
 
                 if !commission.is_zero() {
                     let description = format!("Комиссия за продажу {} {}", trade.quantity, name);
-                    self.add(trade.conclusion_time, Operation::SellTrade, -commission, description);
+                    self.add(trade.conclusion_time, Operation::Commission, -commission, description);
                 };
             },
             StockSellType::CorporateAction => {},
@@ -193,8 +193,8 @@ impl CashFlowMapper {
     }
 }
 
-#[derive(Ord, PartialOrd, Eq, PartialEq)]
-enum Operation {
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy)]
+pub enum Operation {
     Deposit,
     Interest,
     Dividend,
@@ -202,6 +202,7 @@ enum Operation {
     ForexTrade,
     SellTrade,
     BuyTrade,
+    Commission,
 
     Fee,
     Tax,
@@ -211,6 +212,13 @@ enum Operation {
 fn cash_flow_comparator(a: &CashFlow, b: &CashFlow) -> Ordering {
     if a.time.date != b.time.date || a.time.time.is_some() && b.time.time.is_some() && a.time != b.time {
         return a.time.cmp(&b.time);
+    }
+
+    for (a, b) in [(a, b), (b, a)] {
+        let ops = (a.operation, b.operation);
+        if let (Operation::Commission, Operation::ForexTrade | Operation::SellTrade | Operation::BuyTrade) = ops {
+            return Ordering::Equal;
+        }
     }
 
     a.operation.cmp(&b.operation)
