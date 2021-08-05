@@ -60,7 +60,7 @@ pub struct BrokerStatement {
     pub period: (Date, Date),
 
     pub cash_assets: MultiCurrencyCashAccount,
-    pub historical_cash_assets: BTreeMap<Date, MultiCurrencyCashAccount>,
+    pub historical_assets: BTreeMap<Date, NetAssets>,
 
     pub fees: Vec<Fee>,
     pub cash_flows: Vec<CashFlow>,
@@ -174,7 +174,7 @@ impl BrokerStatement {
             period: period,
 
             cash_assets: MultiCurrencyCashAccount::new(),
-            historical_cash_assets: BTreeMap::new(),
+            historical_assets: BTreeMap::new(),
 
             fees: Vec::new(),
             cash_flows: Vec::new(),
@@ -444,12 +444,11 @@ impl BrokerStatement {
         self.broker.statements_merging_strategy.validate(self.period, period)?;
         self.period.1 = period.1;
 
-        if let Some(cash_assets) = statement.assets.cash {
-            assert!(self.historical_cash_assets.insert(
-                self.last_date(), cash_assets.clone()
-            ).is_none());
+        if let partial::NetAssets{cash: Some(cash), other} = statement.assets {
+            self.cash_assets = cash.clone();
 
-            self.cash_assets = cash_assets;
+            let assets = NetAssets{cash, other};
+            assert!(self.historical_assets.insert(self.last_date(), assets).is_none());
         } else if last {
             return Err!("Unable to find any information about current cash assets");
         }
@@ -645,4 +644,10 @@ impl BrokerStatement {
 
         Ok(())
     }
+}
+
+pub struct NetAssets {
+    pub cash: MultiCurrencyCashAccount,
+    // FIXME(konishchev): Support
+    pub other: Option<Cash>, // Supported only for some brokers
 }

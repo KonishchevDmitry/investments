@@ -20,11 +20,15 @@ pub struct CashFlowSummary {
 pub fn calculate(statement: &BrokerStatement, start_date: Date, end_date: Date) -> (
     BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>
 ) {
+    let historical_cash_assets = statement.historical_assets.iter().map(|(&date, assets)| {
+        (date, assets.cash.clone())
+    }).collect();
+
     let starting_assets_date = start_date.pred();
     let ending_assets_date = end_date.pred();
 
     let comparator = CashAssetsComparator::new(
-        &statement.historical_cash_assets, vec![starting_assets_date, ending_assets_date]);
+        &historical_cash_assets, vec![starting_assets_date, ending_assets_date]);
 
     Calculator {
         statement, comparator,
@@ -119,7 +123,7 @@ impl<'a> Calculator<'a> {
         if self.starting_assets.is_none() && self.starting_assets_date < date {
             self.starting_assets.replace(self.assets.clone());
 
-            if self.statement.historical_cash_assets.get(&self.starting_assets_date).is_none() {
+            if self.statement.historical_assets.get(&self.starting_assets_date).is_none() {
                 if self.statement.period.0 <= self.starting_assets_date {
                     warn!(
                         "There is no information about starting cash assets for {} in the broker statement.",
@@ -132,7 +136,7 @@ impl<'a> Calculator<'a> {
         if self.ending_assets.is_none() && self.ending_assets_date < date {
             self.ending_assets.replace(self.assets.clone());
 
-            if self.statement.historical_cash_assets.get(&self.ending_assets_date).is_none() {
+            if self.statement.historical_assets.get(&self.ending_assets_date).is_none() {
                 warn!(
                     "There is no information about ending cash assets for {} in the broker statement.",
                     format_date(self.ending_assets_date)

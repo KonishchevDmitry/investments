@@ -39,7 +39,6 @@ pub struct PartialBrokerStatement {
     pub open_positions: HashMap<String, Decimal>,
 }
 
-// FIXME(konishchev): Support
 pub struct NetAssets {
     pub cash: Option<MultiCurrencyCashAccount>,
     pub other: Option<Cash>, // Supported only for some brokers
