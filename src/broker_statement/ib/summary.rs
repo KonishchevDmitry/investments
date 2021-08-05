@@ -6,6 +6,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::time;
 use crate::types::Date;
+use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::common::{Record, RecordParser};
@@ -58,8 +59,27 @@ impl RecordParser for AccountInformationParser {
 pub struct NavParser {}
 
 impl RecordParser for NavParser {
-    // FIXME(konishchev): Implement
-    fn parse(&mut self, _parser: &mut StatementParser, _record: &Record) -> EmptyResult {
+    fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
+        let asset_class = record.get_value("Asset Class")?.trim_end();
+
+        let currency = parser.base_currency()?.to_owned();
+        parser.statement.assets.other.get_or_insert_with(|| Cash::zero(&currency));
+
+        match asset_class {
+            "Cash" | "Dividend Accruals" | "Interest Accruals"| "Total" => {},
+            "Stock" => {
+                if !record.parse_amount("Current Short", DecimalRestrictions::No)?.is_zero() {
+                    return Err!("Short positions aren't supported")
+                }
+
+                let amount = record.parse_amount(
+                    "Current Total", DecimalRestrictions::PositiveOrZero)?;
+
+                parser.statement.assets.other.as_mut().unwrap().amount += amount;
+            },
+            _ => return Err!("Unsupported asset class: {:?}", asset_class),
+        }
+
         Ok(())
     }
 }
@@ -69,8 +89,7 @@ pub struct ChangeInNavParser {}
 impl RecordParser for ChangeInNavParser {
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
         if record.get_value("Field Name")? == "Starting Value" {
-            let currency = parser.base_currency()?;
-            let amount = Cash::new_from_string(currency, record.get_value("Field Value")?)?;
+            let amount = record.parse_amount("Field Value", DecimalRestrictions::No)?;
             parser.statement.set_has_starting_assets(!amount.is_zero())?;
         }
 
