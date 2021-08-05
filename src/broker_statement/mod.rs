@@ -648,6 +648,5 @@ impl BrokerStatement {
 
 pub struct NetAssets {
     pub cash: MultiCurrencyCashAccount,
-    // FIXME(konishchev): Support
     pub other: Option<Cash>, // Supported only for some brokers
 }
