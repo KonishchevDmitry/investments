@@ -58,16 +58,6 @@ To generate Custom Activity Statement:
 ![Custom Activity Statement Parameters](images/ib-custom-activity-statement-parameters.png?raw=true "Custom Activity Statement Parameters")
 
 
-<a name="tinkoff"></a>
-## Тинькофф
-
-The program expects broker statements in `*.xlsx` format.
-
-Dividends are parsed out from broker statements, but without withheld tax information. See
-[#26](https://github.com/KonishchevDmitry/investments/issues/26#issuecomment-803274242) (I need an example of broker
-statement + foreign income report).
-
-
 <a name="firstrade"></a>
 ## Firstrade
 
@@ -77,15 +67,25 @@ Money`).
 Please take into account the following issues with Firstrade statements:
 1. Firstrade doesn't provide information about real dividend amount, so it will be deduced from received amount and
    expected tax rate.
-2. If you generate statements for the past, current cash assets and open positions information will always be got for 
-   today date. So you effectively aren't able to generate a valid statement with ending date different from today. But
-   you should split the statements for the following reasons:
+2. When you generate broker statements, current cash assets and open positions information will always be got for
+   yesterday date. So you effectively aren't able to generate a valid statement with ending date different from
+   yesterday. But you should split the statements for the following reasons:
 
    3.1. Firstrade allows to generate the statement for past three years only.
 
    3.2. You should have your statements split by years for [cash-flow](taxes.md#cash-flow) command.
    
    So, considering this, I recommend to generate new statement for the previous year on each January 1.
+
+
+<a name="tinkoff"></a>
+## Тинькофф
+
+The program expects broker statements in `*.xlsx` format.
+
+Dividends are parsed out from broker statements, but without withheld tax information. See
+[#26](https://github.com/KonishchevDmitry/investments/issues/26#issuecomment-803274242) (I need an example of broker
+statement + foreign income report).
 
 
 <a name="open-broker"></a>

@@ -7,7 +7,6 @@ use std::collections::BTreeMap;
 use itertools::Itertools;
 use log::warn;
 
-use crate::brokers::Broker;
 use crate::broker_statement::{BrokerStatement, ReadingStrictness, NetAssets};
 use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
@@ -48,11 +47,8 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     generate_cash_summary_report(start_date, end_date, &summaries);
 
     if statement.broker.type_.jurisdiction() == Jurisdiction::Usa {
-        // FIXME(konishchev): Firstrade support
-        if statement.broker.type_ == Broker::InteractiveBrokers {
-            generate_other_summary_report(
-                &statement, start_date, end_date, &cash_flows, &converter, "USD")?;
-        }
+        generate_other_summary_report(
+            &statement, start_date, end_date, &cash_flows, &converter, "USD")?;
     }
 
     generate_details_report(&summaries, cash_flows);
