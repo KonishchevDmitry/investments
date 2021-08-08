@@ -28,14 +28,9 @@ pub fn parse_currency(name: &str) -> GenericResult<&'static str> {
 }
 
 pub fn parse_symbol(name: &str) -> GenericResult<String> {
-    // For now use hardcoded ISIN mapping here
-    if name == "RU000A101X76" {
-        return Ok(s!("TMOS"))
-    }
-
     lazy_static! {
         static ref SYMBOL_REGEX: Regex = Regex::new(
-            r"^(?P<symbol>[A-Z]+)(?:[._][A-Z]+)?$").unwrap();
+            r"^(?P<symbol>[A-Z][A-Z0-9]*)(?:[._][A-Z]+)?$").unwrap();
     }
 
     let captures = SYMBOL_REGEX.captures(name).ok_or_else(|| format!(
@@ -50,9 +45,9 @@ mod tests {
     use rstest::rstest;
 
     #[rstest(name, symbol,
+        case("FXDM_RM", "FXDM"),
         case("FXRL_RX", "FXRL"),
         case("FXRU.MRG", "FXRU"),
-        case("RU000A101X76", "TMOS"),
     )]
     fn symbol_parsing(name: &str, symbol: &str) {
         assert_eq!(parse_symbol(name).unwrap(), symbol);

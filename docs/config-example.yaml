@@ -112,6 +112,12 @@ portfolios:
     plan: Инвестор
     statements: ~/Brokerage/БКС/Отчеты Брокера
 
+    # For some instruments BCS shows ISIN or symbol with some exchange-specific suffixes instead of actual symbol name.
+    # This mapping allows you to manually remap BCS names to actual symbol names.
+    symbol_remapping:
+      RU000A101X76: TMOS
+      RU000A100HQ5: VTBE
+
     # Configures the account as tax free. Suitable for Individual Investment Account (type B).
     tax_exemptions: [tax-free]
 
