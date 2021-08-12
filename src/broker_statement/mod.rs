@@ -88,7 +88,9 @@ impl BrokerStatement {
     ) -> GenericResult<BrokerStatement> {
         let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strictness)?;
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
+
         let last_index = statements.len() - 1;
+        let last_end_date = statements.last().unwrap().period.unwrap().1;
 
         let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
         let mut dividend_accruals = HashMap::new();
@@ -107,7 +109,7 @@ impl BrokerStatement {
                     .or_insert(accruals);
             }
 
-            statement.merge(partial, index == last_index).map_err(|e| format!(
+            statement.merge(partial, last_end_date, index == last_index).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
         }
 
@@ -439,9 +441,9 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn merge(&mut self, statement: PartialBrokerStatement, last: bool) -> EmptyResult {
+    fn merge(&mut self, statement: PartialBrokerStatement, last_end_date: Date, last: bool) -> EmptyResult {
         let period = statement.get_period()?;
-        self.broker.statements_merging_strategy.validate(self.period, period)?;
+        self.broker.statements_merging_strategy.validate(self.period, period, last_end_date)?;
         self.period.1 = period.1;
 
         if let partial::NetAssets{cash: Some(cash), other} = statement.assets {
