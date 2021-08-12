@@ -175,6 +175,8 @@ struct TradeRow {
     execution_date: String,
     #[column(name="Место сделки")]
     _16: SkipCell,
+    #[column(name="Примечание", optional=true)]
+    _17: Option<SkipCell>,
 }
 
 struct CurrentInstrument {
