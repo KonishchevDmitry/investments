@@ -111,17 +111,20 @@ struct CurrencyConversionInfo {
     #[serde(deserialize_with = "deserialize_date_time")]
     conclusion_time: DateTime,
 
+    #[serde(rename = "direction")]
+    direction: String,
+
     #[serde(rename = "currency_1")]
-    from_currency: String,
+    currency_1: String,
 
     #[serde(rename = "sum_1")]
-    from_volume: Decimal,
+    volume_1: Decimal,
 
     #[serde(rename = "currency_2")]
-    to_currency: String,
+    currency_2: String,
 
     #[serde(rename = "sum_2")]
-    to_volume: Decimal,
+    volume_2: Decimal,
 
     #[serde(rename = "brokers_fee")]
     commission: Decimal,
@@ -133,17 +136,23 @@ struct CurrencyConversionInfo {
 impl CurrencyConversions {
     pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         for trade in &self.trades {
-            let from = util::validate_named_cash(
-                "forex trade volume", parse_currency(&trade.from_currency), trade.from_volume,
+            let volume_1 = util::validate_named_cash(
+                "forex trade volume", parse_currency(&trade.currency_1), trade.volume_1,
                 DecimalRestrictions::StrictlyPositive)?.normalize();
 
-            let to = util::validate_named_cash(
-                "forex trade volume", parse_currency(&trade.to_currency), trade.to_volume,
+            let volume_2 = util::validate_named_cash(
+                "forex trade volume", parse_currency(&trade.currency_2), trade.volume_2,
                 DecimalRestrictions::StrictlyPositive)?.normalize();
 
             let commission = util::validate_named_cash(
                 "commission", parse_currency(&trade.commission_currency), trade.commission,
                 DecimalRestrictions::PositiveOrZero)?.normalize();
+
+            let (from, to) = match trade.direction.as_str() {
+                "B" => (volume_2, volume_1),
+                "S" => (volume_1, volume_2),
+                _ => return Err!("Unsupported currency conversion direction: {:?}", trade.direction),
+            };
 
             statement.forex_trades.push(ForexTrade::new(
                 trade.conclusion_time.into(), from, to, commission));
