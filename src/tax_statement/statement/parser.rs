@@ -256,7 +256,7 @@ mod tests {
         let year = statement.year;
 
         let mut incomes = Vec::new();
-        incomes.extend(statement.get_foreign_incomes().unwrap().drain(..));
+        incomes.append(statement.get_foreign_incomes().unwrap());
         assert_eq!(incomes.len(), 4);
 
         let date = date!(year, 1, 1);
