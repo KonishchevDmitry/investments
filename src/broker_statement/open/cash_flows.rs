@@ -1,3 +1,5 @@
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::Deserialize;
 
 use crate::broker_statement::fees::Fee;
@@ -15,6 +17,15 @@ pub struct CashFlows {
     cash_flows: Vec<CashFlow>,
 }
 
+impl CashFlows {
+    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        for cash_flow in &self.cash_flows {
+            cash_flow.parse(statement)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Deserialize)]
 struct CashFlow {
     #[serde(rename = "operation_date", deserialize_with = "deserialize_date")]
@@ -29,34 +40,50 @@ struct CashFlow {
     description: String,
 }
 
-impl CashFlows {
-    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
-        for cash_flow in &self.cash_flows {
-            let date = cash_flow.date;
-            let currency = &cash_flow.currency;
-            let amount = cash_flow.amount;
+impl CashFlow {
+    fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        let date = self.date;
+        let currency = &self.currency;
+        let amount = self.amount;
 
-            match CashFlowType::parse(&cash_flow.description)? {
-                CashFlowType::DepositOrWithdrawal => {
-                    let amount = util::validate_named_decimal(
-                        "deposit or withdrawal amount", amount,
-                        DecimalRestrictions::NonZero)?;
+        match CashFlowType::parse(&self.description)? {
+            CashFlowType::DepositOrWithdrawal => {
+                let amount = util::validate_named_decimal(
+                    "deposit or withdrawal amount", amount,
+                    DecimalRestrictions::NonZero)?;
 
-                    statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
-                        date, Cash::new(currency, amount)));
-                },
+                statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
+                    date, Cash::new(currency, amount)));
+            },
 
-                CashFlowType::Commission => {
-                    // It's taken into account during trades processing
-                },
+            CashFlowType::Commission => {
+                // It's taken into account during trades processing
+            },
 
-                CashFlowType::Fee(description) => {
-                    let amount = -util::validate_named_cash(
-                        "fee amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
-                    statement.fees.push(Fee::new(date, amount, Some(description)));
-                },
-            };
-        }
+            CashFlowType::Fee(description) => {
+                let amount = -util::validate_named_cash(
+                    "fee amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
+                statement.fees.push(Fee::new(date, amount, Some(description)));
+            },
+
+            CashFlowType::Dividend(_issuer) => {
+                // FIXME(konishchev): Support
+                // let amount = util::validate_named_cash(
+                //     "dividend amount", currency, amount, DecimalRestrictions::StrictlyPositive)?;
+                // statement.dividend_accruals(date, &issuer, true).add(date, amount);
+                // println!("{}", self.description);
+                return Err!("Unable to determine cash flow type by its description: {:?}", self.description);
+            },
+
+            CashFlowType::DividendTax(_issuer) => {
+                // FIXME(konishchev): Support
+                // let amount = -util::validate_named_cash(
+                //     "tax amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
+                // statement.tax_accruals(date, &issuer, true).add(date, amount);
+                // println!("{}", self.description);
+                return Err!("Unable to determine cash flow type by its description: {:?}", self.description);
+            },
+        };
 
         Ok(())
     }
@@ -65,8 +92,12 @@ impl CashFlows {
 #[derive(Debug)]
 enum CashFlowType {
     DepositOrWithdrawal,
+
     Commission,
     Fee(String),
+
+    Dividend(String),
+    DividendTax(String),
 }
 
 impl CashFlowType {
@@ -103,6 +134,30 @@ impl CashFlowType {
             if description.starts_with(fee_description) {
                 return Ok(CashFlowType::Fee(fee_description.to_owned()))
             }
+        }
+
+        lazy_static! {
+            static ref DIVIDEND_REGEXES: Vec<Regex> = [
+                r"^Выплата дохода клиент [^ ]+ дивиденды (?P<issuer>[^,]+), комиссия платежного агента",
+                r"^Выплата дохода клиент [^ ]+ дивиденды (?P<issuer>.+) налог к удержанию",
+            ].iter().map(|regex| Regex::new(regex).unwrap()).collect();
+        }
+
+        for regex in DIVIDEND_REGEXES.iter() {
+            if let Some(captures) = regex.captures(&description) {
+                let issuer = captures.name("issuer").unwrap().as_str().to_owned();
+                return Ok(CashFlowType::Dividend(issuer));
+            }
+        }
+
+        lazy_static! {
+            static ref DIVIDEND_TAX_REGEX: Regex = Regex::new(
+                r"^Удержан налог на доход по дивидендам (?P<issuer>.+) с клиента").unwrap();
+        }
+
+        if let Some(captures) = DIVIDEND_TAX_REGEX.captures(&description) {
+            let issuer = captures.name("issuer").unwrap().as_str().to_owned();
+            return Ok(CashFlowType::DividendTax(issuer));
         }
 
         return Err!("Unable to determine cash flow type by its description: {:?}", description);
@@ -156,6 +211,36 @@ mod tests {
         assert_matches!(
             CashFlowType::parse(description).unwrap(),
             CashFlowType::Fee(description) if description == expected
+        );
+    }
+
+    #[rstest(description, expected,
+        case("Выплата дохода клиент 123456 дивиденды ROS AGRO PLC-GDR, комиссия платежного агента 2.01 долларов",
+             "ROS AGRO PLC-GDR"),
+        case("Выплата дохода клиент 123456 дивиденды GLOBALTRANS-GDR, комиссия платежного агента 0.10 долларов",
+             "GLOBALTRANS-GDR"),
+        case("Выплата дохода клиент 123456 дивиденды ГАЗПРОМ-ао-2 налог к удержанию 11.00 рублей",
+             "ГАЗПРОМ-ао-2"),
+        case("Выплата дохода клиент 123456 дивиденды Татнфт 3ап налог к удержанию 13.00 рублей",
+             "Татнфт 3ап"),
+    )]
+    fn dividend_description_parsing(description: &str, expected: &str) {
+        assert_matches!(
+            CashFlowType::parse(description).unwrap(),
+            CashFlowType::Dividend(issuer) if issuer == expected
+        );
+    }
+
+    #[rstest(description, expected,
+        case("Удержан налог на доход  по дивидендам Татнфт 3ап с клиента 123456",
+             "Татнфт 3ап"),
+        case("Удержан налог на доход  по дивидендам ГАЗПРОМ-ао-2 с клиента 123456",
+             "ГАЗПРОМ-ао-2"),
+    )]
+    fn dividend_tax_description_parsing(description: &str, expected: &str) {
+        assert_matches!(
+            CashFlowType::parse(description).unwrap(),
+            CashFlowType::DividendTax(issuer) if issuer == expected
         );
     }
 }
