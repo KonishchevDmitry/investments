@@ -74,7 +74,7 @@ impl Assets {
             has_starting_assets |= !asset.start_amount.is_zero();
 
             match asset.type_.as_str() {
-                "Акции" | "ПАИ" => {
+                "Акции" | "ПАИ" | "GDR" => {
                     let symbol = get_symbol(securities, &asset.name)?;
                     let amount = parse_quantity(asset.end_amount, true)?;
                     if amount != 0 {
