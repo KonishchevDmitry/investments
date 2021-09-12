@@ -45,7 +45,7 @@ struct CashFlow {
 
 impl CashFlow {
     fn parse(
-        &self, statement: &mut PartialBrokerStatement, _instrument_internal_ids: &InstrumentInternalIds,
+        &self, statement: &mut PartialBrokerStatement, instrument_internal_ids: &InstrumentInternalIds,
     ) -> EmptyResult {
         let date = self.date;
         let currency = &self.currency;
@@ -71,22 +71,19 @@ impl CashFlow {
                 statement.fees.push(Fee::new(date, amount, Some(description)));
             },
 
-            CashFlowType::Dividend(_issuer) => {
-                // FIXME(konishchev): Support
-                // let amount = util::validate_named_cash(
-                //     "dividend amount", currency, amount, DecimalRestrictions::StrictlyPositive)?;
-                // statement.dividend_accruals(date, &issuer, true).add(date, amount);
-                // println!("{} -> {}", self.description, instrument_internal_ids.get_symbol(&issuer)?);
-                return Err!("Unable to determine cash flow type by its description: {:?}", self.description);
+            // FIXME(konishchev): Document it + don't declare dividends from local issuers
+            CashFlowType::Dividend(issuer) => {
+                let issuer = instrument_internal_ids.get_symbol(&issuer)?;
+                let amount = util::validate_named_cash(
+                    "dividend amount", currency, amount, DecimalRestrictions::StrictlyPositive)?;
+                statement.dividend_accruals(date, issuer, true).add(date, amount);
             },
 
-            CashFlowType::DividendTax(_issuer) => {
-                // FIXME(konishchev): Support
-                // let amount = -util::validate_named_cash(
-                //     "tax amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
-                // statement.tax_accruals(date, &issuer, true).add(date, amount);
-                // println!("{} -> {}", self.description, instrument_internal_ids.get_symbol(&issuer)?);
-                return Err!("Unable to determine cash flow type by its description: {:?}", self.description);
+            CashFlowType::DividendTax(issuer) => {
+                let issuer = instrument_internal_ids.get_symbol(&issuer)?;
+                let amount = -util::validate_named_cash(
+                    "tax amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
+                statement.tax_accruals(date, issuer, true).add(date, amount);
             },
         };
 

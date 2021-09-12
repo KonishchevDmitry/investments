@@ -40,6 +40,7 @@ fn generate_regression_tests() {
     t.add("IB symbol with space tax statement", "tax-statement ib-symbol-with-space").config("other");
     t.add("IB tax remapping tax statement", "tax-statement ib-tax-remapping").config("other");
     t.add("IB trading tax statement", "tax-statement ib-trading").config("other");
+    t.add("Open MOEX dividends tax statement", "tax-statement open-dividends-moex").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
 
     // cash-flow
@@ -52,6 +53,7 @@ fn generate_regression_tests() {
     t.add("IB trading cash flow", "cash-flow ib-trading").config("other");
     t.add("Open non-unified account cash-flow", "cash-flow open-first-iia-a").config("other");
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
+    t.add("Open MOEX dividends cash flow", "cash-flow open-dividends-moex").config("other");
     t.add("Tinkoff complex cash flow", "cash-flow tinkoff-complex").config("other");
 
     // metrics
