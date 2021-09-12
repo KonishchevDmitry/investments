@@ -76,6 +76,6 @@ mod tests {
         assert!(statement.dividends.is_empty());
 
         assert_eq!(statement.open_positions.is_empty(), name == "inactive-with-forex");
-        assert_eq!(statement.instrument_names.is_empty(), name == "inactive-with-forex");
+        assert_eq!(statement.instrument_info.is_empty(), name == "inactive-with-forex");
     }
 }

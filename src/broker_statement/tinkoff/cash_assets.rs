@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use chrono::Datelike;
+use itertools::Itertools;
 
 use xls_table_derive::XlsTableRow;
 
@@ -224,11 +225,20 @@ fn parse_cash_flow(
 }
 
 pub fn postprocess(statement: &mut PartialBrokerStatement) -> EmptyResult {
-    let symbols: HashMap<&str, &str> = statement.instrument_names.iter()
-        .map(|(symbol, name)| (name.as_str(), symbol.as_str())).collect();
+    let symbol_names = statement.instrument_info.name_mapping();
+    let get_symbol = |issuer: &str| -> GenericResult<&str> {
+        let symbols = symbol_names.get(issuer).ok_or_else(|| format!(
+            "Unable to find stock symbol by dividend issuer name: {:?}", issuer))?;
 
-    let get_symbol = |issuer: &str| symbols.get(issuer).copied().ok_or_else(|| format!(
-        "Unable to find stock symbol by dividend issuer name: {:?}", issuer));
+        if symbols.len() != 1 {
+            return Err!(concat!(
+                "Unable to find stock symbol by dividend issuer name ({}): ",
+                "It maps into multiple stock symbols: {}"
+            ), issuer, symbols.iter().join(", "));
+        }
+
+        Ok(symbols.iter().next().unwrap())
+    };
 
     let mut dividend_accruals = HashMap::new();
     for (mut dividend_id, accruals) in statement.dividend_accruals.drain() {

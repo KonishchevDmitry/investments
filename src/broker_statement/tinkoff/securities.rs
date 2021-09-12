@@ -12,7 +12,7 @@ pub struct SecuritiesInfoParser {
 impl SectionParser for SecuritiesInfoParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
-            parser.statement.instrument_names.insert(security.symbol, security.name);
+            parser.statement.instrument_info.get_or_add(&security.symbol).set_name(&security.name);
         }
 
         Ok(())

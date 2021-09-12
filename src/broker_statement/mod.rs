@@ -29,7 +29,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::instruments::InstrumentInternalIds;
+use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
@@ -78,7 +78,7 @@ pub struct BrokerStatement {
     pub stock_splits: StockSplitController,
 
     pub open_positions: HashMap<String, Decimal>,
-    instrument_names: HashMap<String, String>,
+    pub instrument_info: InstrumentInfo,
 }
 
 impl BrokerStatement {
@@ -151,9 +151,11 @@ impl BrokerStatement {
         }
 
         statement.corporate_actions.extend(corporate_actions.iter().cloned());
-        statement.instrument_names.extend(instrument_names.iter().map(|(symbol, name)| {
-            (symbol.clone(), name.clone())
-        }));
+
+        for (symbol, name) in instrument_names {
+            statement.instrument_info.get_or_add(symbol).set_name(name);
+        }
+
         statement.validate()?;
 
         process_corporate_actions(&mut statement)?;
@@ -196,7 +198,7 @@ impl BrokerStatement {
             stock_splits: StockSplitController::default(),
 
             open_positions: HashMap::new(),
-            instrument_names: HashMap::new(),
+            instrument_info: InstrumentInfo::new(),
         })
     }
 
@@ -233,14 +235,6 @@ impl BrokerStatement {
         }
 
         Ok(())
-    }
-
-    pub fn get_instrument_name(&self, symbol: &str) -> String {
-        if let Some(name) = self.instrument_names.get(symbol) {
-            format!("{} ({})", name, symbol)
-        } else {
-            symbol.to_owned()
-        }
     }
 
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
@@ -413,13 +407,8 @@ impl BrokerStatement {
 
         for (master_symbol, slave_symbols) in symbols_to_merge {
             for slave_symbol in slave_symbols {
+                self.instrument_info.merge_symbols(master_symbol, slave_symbol, strict)?;
                 symbol_mapping.insert(slave_symbol, master_symbol);
-            }
-        }
-
-        for &symbol in symbol_mapping.keys() {
-            if strict && self.instrument_names.remove(symbol).is_none() {
-                return Err!("The broker statement has no any activity for {:?} symbol", symbol);
             }
         }
 
@@ -470,7 +459,7 @@ impl BrokerStatement {
 
         self.corporate_actions.extend(statement.corporate_actions.into_iter());
         self.open_positions = statement.open_positions;
-        self.instrument_names.extend(statement.instrument_names.into_iter());
+        self.instrument_info.merge(statement.instrument_info);
 
         Ok(())
     }
@@ -503,7 +492,7 @@ impl BrokerStatement {
         };
 
         if remapping {
-            if self.open_positions.contains_key(new_symbol) || self.instrument_names.contains_key(new_symbol) {
+            if self.open_positions.contains_key(new_symbol) {
                 return Err!("The portfolio already has {} symbol", new_symbol);
             }
 
@@ -511,9 +500,7 @@ impl BrokerStatement {
                 self.open_positions.insert(new_symbol.to_owned(), quantity);
             }
 
-            if let Some(name) = self.instrument_names.remove(symbol) {
-                self.instrument_names.insert(new_symbol.to_owned(), name);
-            }
+            self.instrument_info.remap(symbol, new_symbol)?;
         } else {
             self.stock_splits.rename(symbol, new_symbol)?;
         }

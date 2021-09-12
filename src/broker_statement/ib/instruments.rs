@@ -47,11 +47,11 @@ impl RecordParser for FinancialInstrumentInformationParser {
             }
 
             let symbol = parse_symbol(symbol)?;
-            let name = record.get_value("Description")?.to_owned();
+            let name = record.get_value("Description")?;
 
             // It may be duplicated when the security changes its ID due to corporate action (stock
             // split for example).
-            parser.statement.instrument_names.insert(symbol, name);
+            parser.statement.instrument_info.get_or_add(&symbol).set_name(name);
         }
 
         Ok(())

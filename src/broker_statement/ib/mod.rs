@@ -271,7 +271,7 @@ mod tests {
         assert!(statement.dividends.is_empty());
 
         assert!(statement.open_positions.is_empty());
-        assert!(statement.instrument_names.is_empty());
+        assert!(statement.instrument_info.is_empty());
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod tests {
         assert!(statement.dividends.iter().any(|dividend| dividend.paid_tax.is_positive()));
 
         assert!(!statement.open_positions.is_empty());
-        assert!(!statement.instrument_names.is_empty());
+        assert!(!statement.instrument_info.is_empty());
     }
 
     #[rstest(name => [

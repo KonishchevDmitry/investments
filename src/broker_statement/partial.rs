@@ -4,6 +4,7 @@ use std::collections::hash_map::Entry;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
+use crate::instruments::InstrumentInfo;
 use crate::types::{Date, Decimal};
 use crate::util::{DecimalRestrictions, validate_named_decimal};
 
@@ -28,7 +29,6 @@ pub struct PartialBrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
-    pub instrument_names: HashMap<String, String>,
     pub corporate_actions: Vec<CorporateAction>,
     pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub tax_accruals: HashMap<TaxId, TaxAccruals>,
@@ -37,6 +37,7 @@ pub struct PartialBrokerStatement {
     // statement (current date).
     pub assets: NetAssets,
     pub open_positions: HashMap<String, Decimal>,
+    pub instrument_info: InstrumentInfo,
 }
 
 pub struct NetAssets {
@@ -60,7 +61,6 @@ impl PartialBrokerStatement {
             stock_sells: Vec::new(),
             dividends: Vec::new(),
 
-            instrument_names: HashMap::new(),
             corporate_actions: Vec::new(),
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
@@ -74,6 +74,7 @@ impl PartialBrokerStatement {
                 other: None
             },
             open_positions: HashMap::new(),
+            instrument_info: InstrumentInfo::new(),
         }
     }
 

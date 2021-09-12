@@ -200,7 +200,7 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
-        let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
+        let security = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         let (price, commission) = match trade.type_ {
             StockSellType::Trade {price, commission, ..} => (price, commission),
             _ => unreachable!(),
@@ -279,7 +279,7 @@ impl<'a> TradesProcessor<'a> {
     fn process_fifo(
         &mut self, trade_id: usize, trade: &FifoDetails, sell_execution_date: Date, first: bool,
     ) -> EmptyResult {
-        let security = self.broker_statement.get_instrument_name(&trade.original_symbol);
+        let security = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         self.stock_splits |= trade.multiplier != dec!(1);
 
         let mut execution_date_cell = None;
@@ -374,7 +374,7 @@ impl<'a> TradesProcessor<'a> {
         assert_eq!(details.taxable_local_profit, details.local_profit);
         assert!(details.fifo.iter().all(|trade| trade.long_term_ownership_deductible.is_none()));
 
-        let name = self.broker_statement.get_instrument_name(&trade.original_symbol);
+        let name = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
 
         let cost = details.total_local_cost.amount + additional_fees;

@@ -46,11 +46,11 @@ impl CashFlowMapper {
         }
 
         for trade in &statement.stock_sells {
-            self.stock_sell(&statement.get_instrument_name(&trade.original_symbol), trade);
+            self.stock_sell(&statement.instrument_info.get_name(&trade.original_symbol), trade);
         }
 
         for trade in &statement.stock_buys {
-            self.stock_buy(&statement.get_instrument_name(&trade.original_symbol), trade);
+            self.stock_buy(&statement.instrument_info.get_name(&trade.original_symbol), trade);
         }
 
         for fee in &statement.fees {
@@ -152,7 +152,7 @@ impl CashFlowMapper {
 
         match cash_flow.type_ {
             CashFlowType::Dividend {date: dividend_date, ref issuer} => {
-                let mut description = statement.get_instrument_name(issuer);
+                let mut description = statement.instrument_info.get_name(issuer);
                 if date.date != dividend_date {
                     description += &format!(" от {}", formatting::format_date(dividend_date));
                 };
@@ -164,7 +164,7 @@ impl CashFlowMapper {
                 });
             },
             CashFlowType::Tax {date: dividend_date, ref issuer, ..} => {
-                let mut description = statement.get_instrument_name(issuer);
+                let mut description = statement.instrument_info.get_name(issuer);
                 if date.date != dividend_date {
                     description += &format!(" от {}", formatting::format_date(dividend_date));
                 };

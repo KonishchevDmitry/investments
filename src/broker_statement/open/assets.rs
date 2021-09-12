@@ -126,9 +126,7 @@ impl Securities {
             }
 
             let name = parse_security_name(&security.name);
-            if statement.instrument_names.insert(security.symbol.clone(), name.to_owned()).is_some() {
-                return Err!("Duplicated security symbol: {}", security.symbol);
-            }
+            statement.instrument_info.add(&security.symbol)?.set_name(name);
         }
 
         Ok(securities)

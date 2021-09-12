@@ -74,7 +74,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         for (symbol, deposit_view) in self.instruments.as_mut().unwrap().iter_mut() {
             if deposit_view.name.is_none() {
-                deposit_view.name.replace(statement.get_instrument_name(symbol));
+                deposit_view.name.replace(statement.instrument_info.get_name(symbol));
             }
         }
 
