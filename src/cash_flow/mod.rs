@@ -28,8 +28,9 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     let converter = CurrencyConverter::new(database, None, year.is_some());
 
     let statement = BrokerStatement::read(
-        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, ReadingStrictness::CASH_FLOW_DATES)?;
+        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
+        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
+        ReadingStrictness::CASH_FLOW_DATES)?;
 
     let (start_date, end_date) = match year {
         Some(year) => {

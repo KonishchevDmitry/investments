@@ -81,6 +81,12 @@ portfolios:
     plan: Всё включено
     statements: ~/Brokerage/Открытие/Отчеты Брокера
 
+    # Dividends and corporate actions are identified by some internal stock names in Open Broker statements. There is no
+    # any mapping of them to stock symbols in the statements, so we have to specify it manually.
+    instrument_internal_ids:
+      ROS AGRO PLC-GDR: AGRO
+      ГАЗПРОМ-ао-2: GAZP
+
     # Specifies the day when tax is paid. Used in portfolio performance analysis. Accepted values:
     # * Date in DD.MM format
     # * on-close - for accounts that are taxable on their close. Suitable for Individual Investment Account (type A).

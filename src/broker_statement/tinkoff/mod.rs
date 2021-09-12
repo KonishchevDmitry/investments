@@ -149,7 +149,7 @@ mod tests {
         let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
         let path = format!("testdata/tinkoff/{}", name);
         BrokerStatement::read(
-            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[],
-            ReadingStrictness::all()).unwrap()
+            broker, &path, &Default::default(), &Default::default(), &Default::default(),
+            TaxRemapping::new(), &[], ReadingStrictness::all()).unwrap()
     }
 }

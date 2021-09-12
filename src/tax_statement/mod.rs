@@ -22,8 +22,8 @@ pub fn generate_tax_statement(
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
 
     let broker_statement = BrokerStatement::read(
-        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
+        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
+        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
         ReadingStrictness::TRADE_SETTLE_DATE)?;
 
     if let Some(year) = year {

@@ -8,6 +8,7 @@ mod trades;
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
+use crate::instruments::InstrumentInternalIds;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
@@ -15,23 +16,24 @@ use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use report::BrokerReport;
 
-pub struct StatementReader {
+pub struct StatementReader<'a> {
+    instrument_internal_ids: &'a InstrumentInternalIds,
 }
 
-impl StatementReader {
-    pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{}))
+impl<'a> StatementReader<'a> {
+    pub fn new(instrument_internal_ids: &'a InstrumentInternalIds) -> GenericResult<Box<dyn BrokerStatementReader + 'a>> {
+        Ok(Box::new(StatementReader{instrument_internal_ids}))
     }
 }
 
-impl BrokerStatementReader for StatementReader {
+impl<'a> BrokerStatementReader for StatementReader<'a> {
     fn is_statement(&self, path: &str) -> GenericResult<bool> {
         Ok(path.ends_with(".xml"))
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut statement = PartialBrokerStatement::new(true);
-        read_statement(path)?.parse(&mut statement)?;
+        read_statement(path)?.parse(&mut statement, self.instrument_internal_ids)?;
         statement.validate()
     }
 }
@@ -58,8 +60,8 @@ mod tests {
         let path = format!("testdata/open-broker/{}", name);
 
         let statement = BrokerStatement::read(
-            broker, &path, &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[],
-            ReadingStrictness::all()).unwrap();
+            broker, &path, &Default::default(), &Default::default(), &Default::default(),
+            TaxRemapping::new(), &[], ReadingStrictness::all()).unwrap();
 
         assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
         assert!(!statement.deposits_and_withdrawals.is_empty());

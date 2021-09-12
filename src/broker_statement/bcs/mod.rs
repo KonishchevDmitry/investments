@@ -81,7 +81,8 @@ mod tests {
 
         let statement = BrokerStatement::read(
             broker, &format!("testdata/bcs/{}", name),
-            &hashmap!{}, &hashmap!{}, TaxRemapping::new(), &[], ReadingStrictness::all()).unwrap();
+            &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(),
+            &[], ReadingStrictness::all()).unwrap();
 
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.deposits_and_withdrawals.is_empty());

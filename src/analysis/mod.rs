@@ -293,8 +293,9 @@ fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<
 fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strictness: ReadingStrictness) -> GenericResult<BrokerStatement> {
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
     BrokerStatement::read(
-        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_names,
-        portfolio.get_tax_remapping()?, &portfolio.corporate_actions, strictness)
+        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
+        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
+        strictness)
 }
 
 fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, Rc<Quotes>)> {

@@ -24,6 +24,7 @@ mod commissions;
 mod currency;
 mod forex;
 mod formatting;
+mod instruments;
 mod localities;
 mod quotes;
 mod rate_limiter;

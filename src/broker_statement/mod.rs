@@ -29,6 +29,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
+use crate::instruments::InstrumentInternalIds;
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
@@ -83,10 +84,12 @@ pub struct BrokerStatement {
 impl BrokerStatement {
     pub fn read(
         broker: BrokerInfo, statement_dir_path: &str,
-        symbol_remapping: &HashMap<String, String>, instrument_names: &HashMap<String, String>,
-        tax_remapping: TaxRemapping, corporate_actions: &[CorporateAction], strictness: ReadingStrictness,
+        symbol_remapping: &HashMap<String, String>, instrument_internal_ids: &InstrumentInternalIds,
+        instrument_names: &HashMap<String, String>, tax_remapping: TaxRemapping,
+        corporate_actions: &[CorporateAction], strictness: ReadingStrictness,
     ) -> GenericResult<BrokerStatement> {
-        let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strictness)?;
+        let mut statements = reader::read(
+            broker.type_, statement_dir_path, instrument_internal_ids, tax_remapping, strictness)?;
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
         let last_index = statements.len() - 1;

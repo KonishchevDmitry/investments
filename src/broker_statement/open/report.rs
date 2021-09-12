@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
+use crate::instruments::InstrumentInternalIds;
 use crate::types::Date;
 
 use super::assets::{AccountSummary, Assets, Securities};
@@ -47,7 +48,9 @@ pub struct BrokerReport {
 }
 
 impl BrokerReport {
-    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+    pub fn parse(
+        &self, statement: &mut PartialBrokerStatement, instrument_internal_ids: &InstrumentInternalIds,
+    ) -> EmptyResult {
         statement.period = Some((self.date_from, self.date_to.succ()));
         self.account_summary.parse(statement)?;
 
@@ -80,7 +83,7 @@ impl BrokerReport {
         }
 
         if let Some(ref cash_flow) = self.cash_flow {
-            cash_flow.parse(statement)?;
+            cash_flow.parse(statement, instrument_internal_ids)?;
         }
 
         // Actually, we should check trade execution dates on statements merging stage when we have

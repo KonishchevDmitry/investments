@@ -6,6 +6,7 @@ use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
+use crate::instruments::InstrumentInternalIds;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -18,9 +19,11 @@ pub struct CashFlows {
 }
 
 impl CashFlows {
-    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+    pub fn parse(
+        &self, statement: &mut PartialBrokerStatement, instrument_internal_ids: &InstrumentInternalIds,
+    ) -> EmptyResult {
         for cash_flow in &self.cash_flows {
-            cash_flow.parse(statement)?;
+            cash_flow.parse(statement, instrument_internal_ids)?;
         }
         Ok(())
     }
@@ -41,7 +44,9 @@ struct CashFlow {
 }
 
 impl CashFlow {
-    fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+    fn parse(
+        &self, statement: &mut PartialBrokerStatement, _instrument_internal_ids: &InstrumentInternalIds,
+    ) -> EmptyResult {
         let date = self.date;
         let currency = &self.currency;
         let amount = self.amount;
@@ -71,7 +76,7 @@ impl CashFlow {
                 // let amount = util::validate_named_cash(
                 //     "dividend amount", currency, amount, DecimalRestrictions::StrictlyPositive)?;
                 // statement.dividend_accruals(date, &issuer, true).add(date, amount);
-                // println!("{}", self.description);
+                // println!("{} -> {}", self.description, instrument_internal_ids.get_symbol(&issuer)?);
                 return Err!("Unable to determine cash flow type by its description: {:?}", self.description);
             },
 
@@ -80,7 +85,7 @@ impl CashFlow {
                 // let amount = -util::validate_named_cash(
                 //     "tax amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
                 // statement.tax_accruals(date, &issuer, true).add(date, amount);
-                // println!("{}", self.description);
+                // println!("{} -> {}", self.description, instrument_internal_ids.get_symbol(&issuer)?);
                 return Err!("Unable to determine cash flow type by its description: {:?}", self.description);
             },
         };

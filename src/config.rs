@@ -11,6 +11,7 @@ use crate::broker_statement::CorporateAction;
 use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
+use crate::instruments::InstrumentInternalIds;
 use crate::localities::{self, Country, Jurisdiction};
 use crate::taxes::{self, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::telemetry::TelemetryConfig;
@@ -178,6 +179,8 @@ pub struct PortfolioConfig {
     pub statements: String,
     #[serde(default)]
     pub symbol_remapping: HashMap<String, String>,
+    #[serde(default, deserialize_with = "InstrumentInternalIds::deserialize")]
+    pub instrument_internal_ids: InstrumentInternalIds,
     #[serde(default)]
     pub instrument_names: HashMap<String, String>,
     #[serde(default)]
