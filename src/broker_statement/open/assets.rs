@@ -105,14 +105,15 @@ pub struct Securities {
 
 #[derive(Deserialize)]
 struct Security {
+    // There is also `issuer_name` field which contains much more human readable names, but it's
+    // actually not security name - it's dividend issuer name. For example for GDR it will contain
+    // BNY Mellon / Citibank N.A. instead of actual stock name.
+
     #[serde(rename = "security_name")]
     name: String,
 
     #[serde(rename = "ticker")]
     symbol: String,
-
-    #[serde(rename = "issuer_name")]
-    description: String,
 }
 
 impl Securities {
@@ -124,8 +125,8 @@ impl Securities {
                 return Err!("Duplicated security name: {:?}", security.name);
             }
 
-            let description = parse_security_description(&security.description);
-            if statement.instrument_names.insert(security.symbol.clone(), description.to_owned()).is_some() {
+            let name = parse_security_name(&security.name);
+            if statement.instrument_names.insert(security.symbol.clone(), name.to_owned()).is_some() {
                 return Err!("Duplicated security symbol: {}", security.symbol);
             }
         }
@@ -134,26 +135,20 @@ impl Securities {
     }
 }
 
-pub fn parse_security_description(mut issuer: &str) -> &str {
-    if let Some(index) = issuer.find("п/у") {
-        issuer = &issuer[..index];
-    }
-
-    if let Some(index) = issuer.find('(') {
-        issuer = &issuer[..index];
-    }
-
-    issuer.trim()
+pub fn parse_security_name(name: &str) -> &str {
+    name.trim_end().trim_end_matches('_')
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn security_description_parsing() {
-        assert_eq!(parse_security_description(
-            "FinEx MSCI China UCITS ETF (USD Share Class) п/у FinEx Investment Management LLP"),
-            "FinEx MSCI China UCITS ETF");
+    #[rstest(name, expected,
+        case("AGRO-гдр  ", "AGRO-гдр"),
+        case("FXUK ETF_", "FXUK ETF"),
+    )]
+    fn security_name_parsing(name: &str, expected: &str) {
+        assert_eq!(parse_security_name(name), expected);
     }
 }
