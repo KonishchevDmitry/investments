@@ -108,10 +108,9 @@ struct Security {
     // There is also `issuer_name` field which contains much more human readable names, but it's
     // actually not security name - it's dividend issuer name. For example for GDR it will contain
     // BNY Mellon / Citibank N.A. instead of actual stock name.
-
     #[serde(rename = "security_name")]
     name: String,
-
+    isin: String,
     #[serde(rename = "ticker")]
     symbol: String,
 }
@@ -125,8 +124,9 @@ impl Securities {
                 return Err!("Duplicated security name: {:?}", security.name);
             }
 
-            let name = parse_security_name(&security.name);
-            statement.instrument_info.add(&security.symbol)?.set_name(name);
+            let instrument = statement.instrument_info.add(&security.symbol)?;
+            instrument.set_name(parse_security_name(&security.name));
+            instrument.add_isin(&security.isin)?;
         }
 
         Ok(securities)

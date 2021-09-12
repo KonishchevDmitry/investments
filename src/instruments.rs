@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::default::Default;
 
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::Deserialize;
 use serde::de::Deserializer;
 
@@ -53,6 +55,7 @@ impl InstrumentInfo {
         match self.0.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => Ok(entry.insert(Instrument {
                 name: None,
+                isin: HashSet::new(),
             })),
             Entry::Occupied(_) => Err!("Duplicated security symbol: {}", symbol),
         }
@@ -62,6 +65,7 @@ impl InstrumentInfo {
         match self.0.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(Instrument {
                 name: None,
+                isin: HashSet::new(),
             }),
             Entry::Occupied(entry) => entry.into_mut(),
         }
@@ -125,6 +129,7 @@ impl InstrumentInfo {
 
 pub struct Instrument {
     name: Option<String>,
+    isin: HashSet<String>,
 }
 
 impl Instrument {
@@ -132,9 +137,23 @@ impl Instrument {
         self.name.replace(name.to_owned());
     }
 
+    pub fn add_isin(&mut self, isin: &str) -> EmptyResult {
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$").unwrap();
+        }
+
+        if !REGEX.is_match(isin) {
+            return Err!("Invalid ISIN: {:?}", isin);
+        }
+
+        self.isin.insert(isin.to_owned());
+        Ok(())
+    }
+
     fn merge(&mut self, other: Instrument) {
         if let Some(name) = other.name {
             self.name.replace(name);
         }
+        self.isin.extend(other.isin);
     }
 }

@@ -12,7 +12,9 @@ pub struct SecuritiesInfoParser {
 impl SectionParser for SecuritiesInfoParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
-            parser.statement.instrument_info.get_or_add(&security.symbol).set_name(&security.name);
+            let instrument = parser.statement.instrument_info.get_or_add(&security.symbol);
+            instrument.set_name(&security.name);
+            instrument.add_isin(&security.isin)?;
         }
 
         Ok(())
@@ -26,7 +28,7 @@ struct SecuritiesInfoRow {
     #[column(name="Код актива")]
     symbol: String,
     #[column(name="ISIN")]
-    _2: SkipCell,
+    isin: String,
     #[column(name="Код государственной регистрации", alias="Номер гос.регистрации")]
     _3: SkipCell,
     #[column(name="Наименование эмитента")]
