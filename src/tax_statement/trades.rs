@@ -179,18 +179,16 @@ impl<'a> TradesProcessor<'a> {
             self.process_trade(trade_id, trade, &details)?;
             trade_id += 1;
 
-            if let Some(ref mut statement) = tax_statement {
-                if jurisdiction == Jurisdiction::Usa {
-                    let tax_year_stat = self.tax_year_stat.get_mut(&tax_year).unwrap();
-                    let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
-                    self.add_income(statement, trade, &details, additional_fees)?;
-                } else {
-                    warn!(concat!(
-                        "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
-                        "Don't adding it to the tax statement."
-                    ));
-                    tax_statement = None;
-                }
+            if tax_statement.is_some() && jurisdiction != Jurisdiction::Usa {
+                warn!(concat!(
+                    "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
+                    "Don't adding it to the tax statement."
+                ));
+                tax_statement = None;
+            } else if let Some(ref mut statement) = tax_statement {
+                let tax_year_stat = self.tax_year_stat.get_mut(&tax_year).unwrap();
+                let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
+                self.add_income(statement, trade, &details, additional_fees)?;
             }
         }
 
