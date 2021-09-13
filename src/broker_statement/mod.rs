@@ -88,6 +88,8 @@ impl BrokerStatement {
         instrument_names: &HashMap<String, String>, tax_remapping: TaxRemapping,
         corporate_actions: &[CorporateAction], strictness: ReadingStrictness,
     ) -> GenericResult<BrokerStatement> {
+        let jurisdiction = broker.type_.jurisdiction();
+
         let mut statements = reader::read(
             broker.type_, statement_dir_path, instrument_internal_ids, tax_remapping, strictness)?;
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
@@ -117,8 +119,11 @@ impl BrokerStatement {
         }
 
         for (dividend_id, accruals) in dividend_accruals {
+            let taxation_type = statement.instrument_info.get_issuer_taxation_type(
+                &dividend_id.issuer, jurisdiction)?;
+
             let (dividend, cash_flows) = process_dividend_accruals(
-                dividend_id, accruals, &mut tax_accruals, true)?;
+                dividend_id, taxation_type, accruals, &mut tax_accruals, true)?;
 
             if let Some(dividend) = dividend {
                 statement.dividends.push(dividend);
@@ -455,7 +460,6 @@ impl BrokerStatement {
         self.forex_trades.extend(statement.forex_trades.into_iter());
         self.stock_buys.extend(statement.stock_buys.into_iter());
         self.stock_sells.extend(statement.stock_sells.into_iter());
-        self.dividends.extend(statement.dividends.into_iter());
 
         self.corporate_actions.extend(statement.corporate_actions.into_iter());
         self.open_positions = statement.open_positions;

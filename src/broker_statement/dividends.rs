@@ -6,6 +6,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
+use crate::instruments::IssuerTaxationType;
 use crate::localities::Country;
 use crate::taxes::IncomeType;
 use crate::time::Date;
@@ -21,10 +22,13 @@ pub struct Dividend {
 
     pub amount: Cash,
     pub paid_tax: Cash,
+    pub taxation_type: IssuerTaxationType,
     pub skip_from_cash_flow: bool,
 }
 
 impl Dividend {
+    // FIXME(konishchev): Take taxation type into account
+
     pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
         let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
         Ok(country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, None))
@@ -56,7 +60,8 @@ impl DividendId {
 pub type DividendAccruals = Payments;
 
 pub fn process_dividend_accruals(
-    dividend: DividendId, accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>,
+    dividend: DividendId, taxation_type: IssuerTaxationType,
+    accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>,
     cash_flow_details: bool,
 ) -> GenericResult<(Option<Dividend>, Vec<CashFlow>)> {
     let mut cash_flows = Vec::new();
@@ -105,6 +110,7 @@ pub fn process_dividend_accruals(
 
             amount: amount,
             paid_tax: paid_tax.unwrap_or_else(|| Cash::zero(amount.currency)),
+            taxation_type: taxation_type,
             skip_from_cash_flow: cash_flow_details,
         }),
         None => {

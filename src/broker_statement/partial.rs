@@ -9,7 +9,7 @@ use crate::types::{Date, Decimal};
 use crate::util::{DecimalRestrictions, validate_named_decimal};
 
 use super::corporate_actions::CorporateAction;
-use super::dividends::{Dividend, DividendId, DividendAccruals};
+use super::dividends::{DividendId, DividendAccruals};
 use super::fees::Fee;
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
@@ -27,11 +27,10 @@ pub struct PartialBrokerStatement {
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
-    pub dividends: Vec<Dividend>,
 
-    pub corporate_actions: Vec<CorporateAction>,
     pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub tax_accruals: HashMap<TaxId, TaxAccruals>,
+    pub corporate_actions: Vec<CorporateAction>,
 
     // Please note that some brokers (Firstrade) provide this information only for the last
     // statement (current date).
@@ -59,11 +58,10 @@ impl PartialBrokerStatement {
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
-            dividends: Vec::new(),
 
-            corporate_actions: Vec::new(),
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
+            corporate_actions: Vec::new(),
 
             assets: NetAssets {
                 cash: if zero_cash_assets {

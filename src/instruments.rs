@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::default::Default;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 use serde::de::Deserializer;
 
 use crate::core::{GenericResult, EmptyResult};
+use crate::localities::Jurisdiction;
 
 pub struct InstrumentInternalIds(HashMap<String, String>);
 
@@ -49,6 +51,39 @@ impl InstrumentInfo {
         } else {
             symbol.to_owned()
         }
+    }
+
+    pub fn get_issuer_taxation_type(&self, symbol: &str, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
+        if broker_jurisdiction != Jurisdiction::Russia {
+            return Ok(IssuerTaxationType::Manual);
+        }
+
+        let isins = match self.0.get(symbol) {
+            Some(info) if !info.isin.is_empty() => &info.isin,
+            _ => return Err!(
+                "Unable to determine {} taxation type: there is no ISIN information for it",
+                symbol),
+        };
+
+        let mut result_taxation_type = None;
+
+        for isin in isins {
+            let taxation_type = if isin.starts_with("RU") {
+                IssuerTaxationType::TaxAgent
+            } else {
+                IssuerTaxationType::Manual
+            };
+
+            if let Some(prev) = result_taxation_type.replace(taxation_type) {
+                if prev != taxation_type {
+                    return Err!(
+                        "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
+                        symbol, isins.iter().join(", "))
+                }
+            }
+        }
+
+        Ok(result_taxation_type.unwrap())
     }
 
     pub fn add(&mut self, symbol: &str) -> GenericResult<&mut Instrument> {
@@ -156,4 +191,18 @@ impl Instrument {
         }
         self.isin.extend(other.isin);
     }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum IssuerTaxationType {
+    Manual,
+
+    // Russian brokers withhold tax for dividends issued by companies with Russian jurisdiction and
+    // don't withhold for other jurisdictions or Russian companies traded through ADR/GDR.
+    //
+    // Withheld tax may be less than 13%. It may be even zero if company distributes dividends from
+    // other companies for which tax has been already withheld.
+    //
+    // See https://smart-lab.ru/company/tinkoff_invest/blog/631922.php for details.
+    TaxAgent,
 }
