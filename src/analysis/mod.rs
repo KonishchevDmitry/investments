@@ -217,18 +217,19 @@ pub fn analyse(
                 "Invalid performance merging configuration: {}", e))?;
         }
 
-        if let Some(merge_performance) = merge_performance {
-            if !merge_performance.is_empty() {
-                statement.merge_symbols(merge_performance, false)?;
-            }
-        }
+        // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
+        // if let Some(merge_performance) = merge_performance {
+        //     if !merge_performance.is_empty() {
+        //         statement.merge_symbols(merge_performance, false)?;
+        //     }
+        // }
     }
 
     let mut applied_lto = None;
 
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            &country, &statistics.currency, &converter, include_closed_positions);
+            &country, &statistics.currency, &converter, merge_performance, include_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
             analyser.add(portfolio, statement)?;

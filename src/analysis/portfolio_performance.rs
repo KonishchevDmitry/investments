@@ -5,7 +5,7 @@ use log::{self, log_enabled, trace};
 use num_traits::Zero;
 
 use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
-use crate::config::PortfolioConfig;
+use crate::config::{PortfolioConfig, PerformanceMergingConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
@@ -27,6 +27,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     country: &'a Country,
     currency: &'a str,
     converter: &'a CurrencyConverter,
+    merge_performance: Option<&'a PerformanceMergingConfig>,
     include_closed_positions: bool,
 
     transactions: Vec<Transaction>,
@@ -39,13 +40,14 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
         country: &'a Country, currency: &'a str, converter: &'a CurrencyConverter,
-        include_closed_positions: bool,
+        merge_performance: Option<&'a PerformanceMergingConfig>, include_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
             today: time::today(),
             country,
             currency,
             converter,
+            merge_performance,
             include_closed_positions,
 
             transactions: Vec::new(),
@@ -460,6 +462,19 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn get_deposit_view(&mut self, symbol: &str) -> &mut StockDepositView {
+        // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
+        if let Some(merge_performance) = self.merge_performance.as_ref() {
+            for (master_symbol, slave_symbols) in merge_performance.iter() {
+                for slave_symbol in slave_symbols {
+                    if symbol == slave_symbol {
+                        return self.instruments.as_mut().unwrap()
+                            .entry(master_symbol.to_owned())
+                            .or_insert_with(StockDepositView::new)
+                    }
+                }
+            }
+        }
+
         self.instruments.as_mut().unwrap()
             .entry(symbol.to_owned())
             .or_insert_with(StockDepositView::new)
