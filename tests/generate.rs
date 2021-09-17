@@ -42,6 +42,7 @@ fn generate_regression_tests() {
     t.add("IB trading tax statement", "tax-statement ib-trading").config("other");
     t.add("Open MOEX dividends tax statement", "tax-statement open-dividends-moex").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
+    t.tax_statement("Tinkoff complex", 2020).config("other"); // Dividends from several jurisdictions
 
     // cash-flow
     t.add("IB margin RUB cash flow", "cash-flow ib-margin-rub").config("other");
