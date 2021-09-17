@@ -122,14 +122,14 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        let statement = parse("my");
+        let statement = parse("main", "my");
 
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
-        assert!(statement.tax_agent_withholdings.is_empty());
+        assert!(!statement.tax_agent_withholdings.is_empty());
 
         assert!(!statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
@@ -140,16 +140,27 @@ mod tests {
         assert!(!statement.instrument_info.is_empty());
     }
 
-    #[rstest(name => ["mixed-currency-trade"])]
+    #[rstest(name => ["complex", "mixed-currency-trade"])]
     fn parse_real_other(name: &str) {
-        parse(name);
+        let statement = parse("other", name);
+        assert_eq!(!statement.dividends.is_empty(), name == "complex");
     }
 
-    fn parse(name: &str) -> BrokerStatement {
+    fn parse(namespace: &str, name: &str) -> BrokerStatement {
+        let portfolio_name = match (namespace, name) {
+            ("main", "my") => s!("tinkoff"),
+            ("other", name) => format!("tinkoff-{}", name),
+            _ => name.to_owned(),
+        };
+
         let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
-        let path = format!("testdata/tinkoff/{}", name);
+        let config = Config::load(&format!("testdata/configs/{}/config.yaml", namespace)).unwrap();
+        let portfolio = config.get_portfolio(&portfolio_name).unwrap();
+
         BrokerStatement::read(
-            broker, &path, &Default::default(), &Default::default(), &Default::default(),
-            TaxRemapping::new(), &[], ReadingStrictness::all()).unwrap()
+            broker, &format!("testdata/tinkoff/{}", name),
+            &Default::default(), &Default::default(), &Default::default(),
+            TaxRemapping::new(), &portfolio.corporate_actions, ReadingStrictness::all(),
+        ).unwrap()
     }
 }

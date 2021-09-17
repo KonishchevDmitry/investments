@@ -77,12 +77,19 @@ mod tests {
 
     #[rstest(name => ["my", "kate", "kate-iia"])]
     fn parse_real(name: &str) {
+        let portfolio_name = match name {
+            "my" => "bcs",
+            _ => name,
+        };
+
         let broker = Broker::Bcs.get_info(&Config::mock(), None).unwrap();
+        let config = Config::load("testdata/configs/main/config.yaml").unwrap();
+        let corporate_actions = &config.get_portfolio(portfolio_name).unwrap().corporate_actions;
 
         let statement = BrokerStatement::read(
             broker, &format!("testdata/bcs/{}", name),
             &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(),
-            &[], ReadingStrictness::all()).unwrap();
+            corporate_actions, ReadingStrictness::all()).unwrap();
 
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.deposits_and_withdrawals.is_empty());
