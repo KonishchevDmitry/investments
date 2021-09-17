@@ -42,6 +42,7 @@ impl IncomeStructure {
         self.net_profit + self.taxes + self.commissions
     }
 
+    // FIXME(konishchev): Why we include dividend/interest taxes here?
     pub fn trading(&self) -> Decimal {
         self.profit() - self.dividends - self.interest - self.tax_deductions
     }

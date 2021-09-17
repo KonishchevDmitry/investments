@@ -27,17 +27,34 @@ pub struct Dividend {
 }
 
 impl Dividend {
-    // FIXME(konishchev): Take taxation type into account
-
     pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
-        Ok(country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, None))
+        Ok(match self.taxation_type {
+            IssuerTaxationType::Manual => {
+                let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
+                country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, None)
+            },
+            IssuerTaxationType::TaxAgent => {
+                if self.paid_tax.currency != country.currency {
+                    return Err!(
+                        "Got withheld tax for {} in an unexpected currency: {}",
+                        self.description(), self.paid_tax.currency)
+                }
+                self.paid_tax
+            },
+        })
     }
 
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
-        let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
-        Ok(country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax)))
+        Ok(match self.taxation_type {
+            IssuerTaxationType::Manual => {
+                let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
+                let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
+                country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax))
+            },
+            IssuerTaxationType::TaxAgent => {
+                Cash::zero(country.currency)
+            },
+        })
     }
 
     pub fn description(&self) -> String {

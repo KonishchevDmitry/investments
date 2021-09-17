@@ -71,7 +71,6 @@ impl CashFlow {
                 statement.fees.push(Fee::new(date, amount, Some(description)));
             },
 
-            // FIXME(konishchev): Document it + don't declare dividends from local issuers
             CashFlowType::Dividend(issuer) => {
                 let issuer = instrument_internal_ids.get_symbol(&issuer)?;
                 let amount = util::validate_named_cash(

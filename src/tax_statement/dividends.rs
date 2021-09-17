@@ -1,4 +1,7 @@
+use std::collections::BTreeSet;
+
 use chrono::Datelike;
+use itertools::Itertools;
 use log::warn;
 
 use static_table_derive::StaticTable;
@@ -8,7 +11,8 @@ use crate::brokers::Broker;
 use crate::core::GenericResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::localities::Country;
+use crate::instruments::IssuerTaxationType;
+use crate::localities::{Country, Jurisdiction};
 use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
@@ -49,6 +53,7 @@ pub fn process_income(
 ) -> GenericResult<Cash> {
     let mut table = Table::new();
     let mut same_currency = true;
+    let mut tax_agent_issuers = BTreeSet::new();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
     let mut total_amount = Cash::zero(country.currency);
@@ -94,6 +99,12 @@ pub fn process_income(
         total_tax_to_pay += tax_to_pay;
 
         let tax_deduction = country.round_tax(paid_tax);
+        if dividend.taxation_type == IssuerTaxationType::TaxAgent && tax_deduction != paid_tax {
+            return Err!(
+                "Got an unexpected withheld tax for {}: {} vs {}",
+                dividend.description(), paid_tax, tax_deduction);
+        }
+
         if !tax_to_pay.is_zero() {
             assert_eq!(tax_deduction, tax - tax_to_pay);
         }
@@ -118,22 +129,36 @@ pub fn process_income(
             tax, foreign_paid_tax, paid_tax, tax_deduction, tax_to_pay, income,
         });
 
-        if let Some(ref mut tax_statement) = tax_statement {
-            let description = format!("{}: Дивиденд от {}", broker_statement.broker.name, issuer);
+        match dividend.taxation_type {
+            IssuerTaxationType::Manual => {
+                if let Some(ref mut tax_statement) = tax_statement {
+                    let description = format!("{}: Дивиденд от {}", broker_statement.broker.name, issuer);
 
-            if foreign_paid_tax.currency != foreign_amount.currency {
-                return Err!(
-                    "{}: Tax currency is different from dividend currency: {} vs {}",
-                    dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
-            }
+                    if foreign_paid_tax.currency != foreign_amount.currency {
+                        return Err!(
+                            "{}: Tax currency is different from dividend currency: {} vs {}",
+                            dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
+                    }
 
-            tax_statement.add_dividend_income(
-                &description, dividend.date, foreign_amount.currency, precise_currency_rate,
-                foreign_amount.amount, foreign_paid_tax.amount, amount.amount, paid_tax.amount
-            ).map_err(|e| format!(
-                "Unable to add {} to the tax statement: {}", dividend.description(), e
-            ))?;
+                    tax_statement.add_dividend_income(
+                        &description, dividend.date, foreign_amount.currency, precise_currency_rate,
+                        foreign_amount.amount, foreign_paid_tax.amount, amount.amount, paid_tax.amount
+                    ).map_err(|e| format!(
+                        "Unable to add {} to the tax statement: {}", dividend.description(), e
+                    ))?;
+                }
+            },
+            IssuerTaxationType::TaxAgent => {
+                tax_agent_issuers.insert(&dividend.original_issuer);
+            },
         }
+    }
+
+    if !tax_agent_issuers.is_empty() {
+        // FIXME(konishchev): Document it
+        eprintln!(); warn!(
+            "The following dividend issuers are identified as taxed by broker's tax agent: {}.",
+            tax_agent_issuers.iter().join(", "));
     }
 
     if same_currency {
@@ -143,21 +168,31 @@ pub fn process_income(
     }
 
     if !table.is_empty() {
-        if broker_statement.broker.type_ == Broker::Tinkoff {
-            // https://github.com/KonishchevDmitry/investments/issues/26
-            let url = "http://bit.ly/investments-tinkoff-dividends";
-            let mut messages = vec![format!(
-                "The following calculations for dividend income are very inaccurate (see {}).", url,
-            )];
+        if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
+            let mut messages = Vec::new();
+
+            if broker_statement.broker.type_ == Broker::Tinkoff {
+                // https://github.com/KonishchevDmitry/investments/issues/26
+                let url = "http://bit.ly/investments-tinkoff-dividends";
+                messages.push(format!(
+                    "The following calculations for dividend income are very inaccurate (see {}).",
+                    url,
+                ));
+
+                if tax_statement.is_some() {
+                    messages.push(s!("The result tax statement must be corrected manually."))
+                }
+            }
 
             if tax_statement.is_some() {
-                messages.push(concat!(
-                    "The result tax statement must be corrected manually. Please also take into ",
-                    "account that all dividends will be declared with USA jurisdiction."
-                ).to_owned());
+                // FIXME(konishchev): Determine income country
+                messages.push(s!(
+                    "Please take into account that all dividends will be declared with USA jurisdiction."));
             };
 
-            eprintln!(); warn!("{}", messages.join(" "));
+            if !messages.is_empty() {
+                eprintln!(); warn!("{}", messages.join(" "));
+            }
         }
 
         let mut totals = table.add_empty_row();
