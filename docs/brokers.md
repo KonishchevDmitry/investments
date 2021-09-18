@@ -93,9 +93,6 @@ statement + foreign income report).
 
 The program expects broker statements in `*.xml` format.
 
-Dividends aren't parsed out from broker statements yet. I use ETFs which don't pay dividends, so I don't have an example
-of how they are look like in the broker statements (see [#19](https://github.com/KonishchevDmitry/investments/issues/19)).
-
 <a name="bcs"></a>
 ## БКС
 

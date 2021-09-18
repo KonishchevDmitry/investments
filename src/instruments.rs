@@ -59,7 +59,8 @@ impl InstrumentInfo {
         match broker_jurisdiction {
             Jurisdiction::Russia => {},
             Jurisdiction::Usa => {
-                // FIXME(konishchev): Document it
+                // See https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#foreign-income-jurisdiction
+                // for details.
                 let income_jurisdiction = broker_jurisdiction.code();
                 return Ok(IssuerTaxationType::Manual(income_jurisdiction.to_owned()));
             }

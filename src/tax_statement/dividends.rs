@@ -158,10 +158,11 @@ pub fn process_income(
     }
 
     if !tax_agent_issuers.is_empty() {
-        // FIXME(konishchev): Document it
+        // https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#russian-brokers
+        let url = "https://bit.ly/investments-russian-brokers-taxes";
         eprintln!(); warn!(
-            "The following dividend issuers are identified as taxed by broker's tax agent: {}.",
-            tax_agent_issuers.iter().join(", "));
+            "The following dividend issuers are identified as taxed by broker's tax agent: {} (see {}).",
+            tax_agent_issuers.iter().join(", "), url);
     }
 
     if same_currency {
