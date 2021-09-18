@@ -54,8 +54,15 @@ impl InstrumentInfo {
     }
 
     pub fn get_issuer_taxation_type(&self, symbol: &str, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
-        if broker_jurisdiction != Jurisdiction::Russia {
-            return Ok(IssuerTaxationType::Manual);
+        let country_of_residence = Jurisdiction::Russia.code();
+
+        match broker_jurisdiction {
+            Jurisdiction::Russia => {},
+            Jurisdiction::Usa => {
+                // FIXME(konishchev): Document it
+                let income_jurisdiction = broker_jurisdiction.code();
+                return Ok(IssuerTaxationType::Manual(income_jurisdiction.to_owned()));
+            }
         }
 
         let isins = match self.0.get(symbol) {
@@ -68,18 +75,22 @@ impl InstrumentInfo {
         let mut result_taxation_type = None;
 
         for isin in isins {
-            let taxation_type = if isin.starts_with("RU") {
+            let issuer_jurisdiction = parse_isin(isin)?;
+
+            let taxation_type = if issuer_jurisdiction == country_of_residence {
                 IssuerTaxationType::TaxAgent
             } else {
-                IssuerTaxationType::Manual
+                IssuerTaxationType::Manual(issuer_jurisdiction.to_owned())
             };
 
-            if let Some(prev) = result_taxation_type.replace(taxation_type) {
-                if prev != taxation_type {
+            if let Some(prev) = result_taxation_type.as_ref() {
+                if *prev != taxation_type {
                     return Err!(
                         "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
                         symbol, isins.iter().join(", "))
                 }
+            } else {
+                result_taxation_type.replace(taxation_type);
             }
         }
 
@@ -173,14 +184,7 @@ impl Instrument {
     }
 
     pub fn add_isin(&mut self, isin: &str) -> EmptyResult {
-        lazy_static! {
-            static ref REGEX: Regex = Regex::new(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$").unwrap();
-        }
-
-        if !REGEX.is_match(isin) {
-            return Err!("Invalid ISIN: {:?}", isin);
-        }
-
+        parse_isin(isin)?;
         self.isin.insert(isin.to_owned());
         Ok(())
     }
@@ -193,9 +197,9 @@ impl Instrument {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum IssuerTaxationType {
-    Manual,
+    Manual(String),
 
     // Russian brokers withhold tax for dividends issued by companies with Russian jurisdiction and
     // don't withhold for other jurisdictions or Russian companies traded through ADR/GDR.
@@ -205,4 +209,30 @@ pub enum IssuerTaxationType {
     //
     // See https://smart-lab.ru/company/tinkoff_invest/blog/631922.php for details.
     TaxAgent,
+}
+
+fn parse_isin(isin: &str) -> GenericResult<&str> {
+    lazy_static! {
+        static ref REGEX: Regex = Regex::new(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$").unwrap();
+    }
+
+    if !REGEX.is_match(isin) {
+        return Err!("Invalid ISIN: {:?}", isin);
+    }
+
+    Ok(&isin[..2])
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use super::*;
+
+    #[rstest(isin, country,
+        case("US7802592060", "US"),
+        case("RU0009084396", "RU"),
+    )]
+    fn isin_parsing(isin: &str, country: &str) {
+        assert_eq!(parse_isin(isin).unwrap(), country);
+    }
 }

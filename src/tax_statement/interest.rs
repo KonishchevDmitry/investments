@@ -35,6 +35,8 @@ pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> GenericResult<Cash> {
+    let broker_jurisdiction = broker_statement.broker.type_.jurisdiction();
+
     let mut table = Table::new();
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
@@ -80,23 +82,29 @@ pub fn process_income(
             amount, tax_to_pay, income,
         });
 
-        if tax_statement.is_some() && broker_statement.broker.type_.jurisdiction() != Jurisdiction::Usa {
-            warn!(concat!(
-                "Tax statement generation for interest income is supported only for brokers with USA jurisdiction. ",
-                "Don't adding it to the tax statement."
-            ));
-            tax_statement = None;
-        } else if let Some(ref mut tax_statement) = tax_statement {
-            let description = format!(
-                "{}: Проценты на остаток по брокерскому счету", broker_statement.broker.name);
+        if let Some(ref mut statement) = tax_statement {
+            match broker_jurisdiction {
+                Jurisdiction::Usa => {
+                    let description = format!(
+                        "{}: Проценты на остаток по брокерскому счету",
+                        broker_statement.broker.name);
 
-            tax_statement.add_interest_income(
-                &description, interest.date, foreign_amount.currency, precise_currency_rate,
-                foreign_amount.amount, amount.amount
-            ).map_err(|e| format!(
-                "Unable to add interest income from {} to the tax statement: {}",
-                formatting::format_date(interest.date), e
-            ))?;
+                    statement.add_interest_income(
+                        &description, interest.date, foreign_amount.currency, precise_currency_rate,
+                        foreign_amount.amount, amount.amount
+                    ).map_err(|e| format!(
+                        "Unable to add interest income from {} to the tax statement: {}",
+                        formatting::format_date(interest.date), e
+                    ))?;
+                },
+                Jurisdiction::Russia => {
+                    warn!(concat!(
+                        "Don't declare interest income in the tax statement ",
+                        "assuming that it will be declared by broker's tax agent.",
+                    ));
+                    tax_statement = None;
+                }
+            }
         }
     }
 

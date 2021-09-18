@@ -153,7 +153,7 @@ impl<'a> TradesProcessor<'a> {
 
     fn process_trades(&mut self, mut tax_statement: Option<&'a mut TaxStatement>) -> EmptyResult {
         let mut fees = self.pre_process_fees()?;
-        let jurisdiction = self.broker_statement.broker.type_.jurisdiction();
+        let broker_jurisdiction = self.broker_statement.broker.type_.jurisdiction();
 
         let mut trade_id = 0;
 
@@ -179,16 +179,21 @@ impl<'a> TradesProcessor<'a> {
             self.process_trade(trade_id, trade, &details)?;
             trade_id += 1;
 
-            if tax_statement.is_some() && jurisdiction != Jurisdiction::Usa {
-                warn!(concat!(
-                    "Tax statement generation for income from trading is supported only for brokers with USA jurisdiction. ",
-                    "Don't adding it to the tax statement."
-                ));
-                tax_statement = None;
-            } else if let Some(ref mut statement) = tax_statement {
-                let tax_year_stat = self.tax_year_stat.get_mut(&tax_year).unwrap();
-                let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
-                self.add_income(statement, trade, &details, additional_fees)?;
+            if let Some(ref mut statement) = tax_statement {
+                match broker_jurisdiction {
+                    Jurisdiction::Usa => {
+                        let tax_year_stat = self.tax_year_stat.get_mut(&tax_year).unwrap();
+                        let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
+                        self.add_income(statement, trade, &details, additional_fees)?;
+                    },
+                    Jurisdiction::Russia => {
+                        warn!(concat!(
+                            "Don't declare income from trading in the tax statement ",
+                            "assuming that it will be declared by broker's tax agent.",
+                        ));
+                        tax_statement = None;
+                    }
+                }
             }
         }
 

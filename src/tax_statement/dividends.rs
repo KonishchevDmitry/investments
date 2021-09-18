@@ -12,7 +12,7 @@ use crate::core::GenericResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::instruments::IssuerTaxationType;
-use crate::localities::{Country, Jurisdiction};
+use crate::localities::Country;
 use crate::types::{Date, Decimal};
 
 use super::statement::{TaxStatement, CountryCode};
@@ -130,7 +130,7 @@ pub fn process_income(
         });
 
         match dividend.taxation_type {
-            IssuerTaxationType::Manual => {
+            IssuerTaxationType::Manual(ref income_country) => {
                 if let Some(ref mut tax_statement) = tax_statement {
                     let description = format!("{}: Дивиденд от {}", broker_statement.broker.name, issuer);
 
@@ -140,7 +140,7 @@ pub fn process_income(
                             dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
                     }
 
-                    let country_code = CountryCode::Usa;
+                    let country_code = CountryCode::new(income_country)?;
 
                     tax_statement.add_dividend_income(
                         &description, dividend.date, country_code, foreign_amount.currency,
@@ -171,31 +171,19 @@ pub fn process_income(
     }
 
     if !table.is_empty() {
-        if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
-            let mut messages = Vec::new();
+        if broker_statement.broker.type_ == Broker::Tinkoff {
+            // https://github.com/KonishchevDmitry/investments/issues/26
+            let url = "http://bit.ly/investments-tinkoff-dividends";
 
-            if broker_statement.broker.type_ == Broker::Tinkoff {
-                // https://github.com/KonishchevDmitry/investments/issues/26
-                let url = "http://bit.ly/investments-tinkoff-dividends";
-                messages.push(format!(
-                    "The following calculations for dividend income are very inaccurate (see {}).",
-                    url,
-                ));
-
-                if tax_statement.is_some() {
-                    messages.push(s!("The result tax statement must be corrected manually."))
-                }
-            }
+            let mut messages = vec![format!(
+                "The following calculations for dividend income are very inaccurate (see {}).", url,
+            )];
 
             if tax_statement.is_some() {
-                // FIXME(konishchev): Determine income country
-                messages.push(s!(
-                    "Please take into account that all dividends will be declared with USA jurisdiction."));
-            };
-
-            if !messages.is_empty() {
-                eprintln!(); warn!("{}", messages.join(" "));
+                messages.push(s!("The result tax statement must be corrected manually."))
             }
+
+            eprintln!(); warn!("{}", messages.join(" "));
         }
 
         let mut totals = table.add_empty_row();

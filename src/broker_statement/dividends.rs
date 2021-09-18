@@ -29,7 +29,7 @@ pub struct Dividend {
 impl Dividend {
     pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
         Ok(match self.taxation_type {
-            IssuerTaxationType::Manual => {
+            IssuerTaxationType::Manual(_) => {
                 let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
                 country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, None)
             },
@@ -46,7 +46,7 @@ impl Dividend {
 
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
         Ok(match self.taxation_type {
-            IssuerTaxationType::Manual => {
+            IssuerTaxationType::Manual(_) => {
                 let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
                 let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
                 country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax))

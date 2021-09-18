@@ -93,7 +93,14 @@ impl Jurisdiction {
     pub fn name(self) -> &'static str {
         match self {
             Jurisdiction::Russia => "Russia",
-            Jurisdiction::Usa => "USA",
+            Jurisdiction::Usa    => "USA",
+        }
+    }
+
+    pub fn code(self) -> &'static str {
+        match self {
+            Jurisdiction::Russia => "RU",
+            Jurisdiction::Usa    => "US",
         }
     }
 }
