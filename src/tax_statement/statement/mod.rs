@@ -1,18 +1,22 @@
+#[macro_use] mod record;
+
+mod countries;
+mod encoding;
+mod foreign_income;
+mod parser;
+mod types;
+
 use std::fs;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
 
-use self::foreign_income::{ForeignIncome, CurrencyIncome, CountryCode, CurrencyInfo, DeductionInfo,
-                           IncomeType, ControlledForeignCompanyInfo};
+use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, DeductionInfo, IncomeType,
+                           ControlledForeignCompanyInfo};
 use self::record::Record;
 use self::parser::{TaxStatementReader, TaxStatementWriter};
 
-#[macro_use] mod record;
-mod encoding;
-mod foreign_income;
-mod parser;
-mod types;
+pub use self::countries::CountryCode;
 
 #[derive(Debug)]
 pub struct TaxStatement {
@@ -44,13 +48,14 @@ impl TaxStatement {
     }
 
     pub fn add_dividend_income(
-        &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
+        &mut self, description: &str, date: Date,
+        country: CountryCode, currency: &str, currency_rate: Decimal,
         amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Dividend,
             description: description.to_owned(),
-            county_code: CountryCode::Usa,
+            county_code: country,
 
             date: date,
             tax_payment_date: date,

@@ -17,6 +17,7 @@ use crate::time;
 #[cfg(test)] use crate::util;
 
 use super::TaxStatement;
+#[cfg(test)] use super::countries::CountryCode;
 use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
@@ -273,7 +274,7 @@ mod tests {
 
             // 1010 - Дивиденды
             statement.add_dividend_income(
-                "Дивиденд", date, currency, currency_rate,
+                "Дивиденд", date, CountryCode::Usa, currency, currency_rate,
                 amount, paid_tax, local_amount, local_paid_tax).unwrap();
 
             // 1530 - (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)

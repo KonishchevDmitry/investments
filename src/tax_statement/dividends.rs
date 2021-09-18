@@ -15,7 +15,7 @@ use crate::instruments::IssuerTaxationType;
 use crate::localities::{Country, Jurisdiction};
 use crate::types::{Date, Decimal};
 
-use super::statement::TaxStatement;
+use super::statement::{TaxStatement, CountryCode};
 
 #[derive(StaticTable)]
 struct Row {
@@ -140,9 +140,12 @@ pub fn process_income(
                             dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
                     }
 
+                    let country_code = CountryCode::Usa;
+
                     tax_statement.add_dividend_income(
-                        &description, dividend.date, foreign_amount.currency, precise_currency_rate,
-                        foreign_amount.amount, foreign_paid_tax.amount, amount.amount, paid_tax.amount
+                        &description, dividend.date, country_code, foreign_amount.currency,
+                        precise_currency_rate, foreign_amount.amount, foreign_paid_tax.amount,
+                        amount.amount, paid_tax.amount
                     ).map_err(|e| format!(
                         "Unable to add {} to the tax statement: {}", dividend.description(), e
                     ))?;
@@ -207,7 +210,8 @@ pub fn process_income(
         totals.set_income(total_income);
 
         table.print(&format!(
-            "Расчет дохода от дивидендов, полученных через {}", broker_statement.broker.name));
+            "Расчет дохода от дивидендов, полученных через {}",
+            broker_statement.broker.name));
     }
 
     Ok(total_tax_to_pay)

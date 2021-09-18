@@ -4,6 +4,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency;
 use crate::types::{Date, Decimal};
 
+use super::countries::CountryCode;
 use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::record::Record;
@@ -187,31 +188,6 @@ impl TaxStatementType for IncomeType {
         writer.write_value(&unknown)?;
         writer.write_value(&code)?;
         writer.write_value(&name)?;
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-pub enum CountryCode {
-    Usa,
-    Unknown(Integer),
-}
-
-impl TaxStatementType for CountryCode {
-    fn read(reader: &mut TaxStatementReader) -> GenericResult<CountryCode> {
-        Ok(match reader.read_value()? {
-            840 => CountryCode::Usa,
-            code => CountryCode::Unknown(code),
-        })
-    }
-
-    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
-        let code = match *self {
-            CountryCode::Usa => 840,
-            CountryCode::Unknown(code) => code,
-        };
-        writer.write_value(&code)?;
         Ok(())
     }
 }
