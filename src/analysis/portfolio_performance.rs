@@ -519,6 +519,7 @@ impl StockDepositView {
         }
     }
 
+    // FIXME(konishchev): Pass symbol + portfolio id to work properly with stock splits
     fn trade(&mut self, time: DateOptTime, quantity: Decimal) {
         self.trades.entry(time.date)
             .and_modify(|total| *total += quantity)
