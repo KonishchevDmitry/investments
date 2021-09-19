@@ -1,3 +1,10 @@
+pub mod config;
+pub mod deposit_emulator;
+mod deposit_performance;
+mod portfolio_analysis;
+mod portfolio_performance;
+mod sell_simulation;
+
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -6,7 +13,7 @@ use log::warn;
 use crate::brokers::Broker;
 use crate::broker_statement::{BrokerStatement, ReadingStrictness, StockSellType};
 use crate::commissions::CommissionCalc;
-use crate::config::{Config, PortfolioConfig, PerformanceMergingConfig};
+use crate::config::{Config, PortfolioConfig};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
@@ -16,14 +23,9 @@ use crate::taxes::{IncomeType, LtoDeductionCalculator, LtoDeduction, NetLtoDeduc
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
+use self::config::PerformanceMergingConfig;
 use self::portfolio_analysis::PortfolioPerformanceAnalysis;
 use self::portfolio_performance::PortfolioPerformanceAnalyser;
-
-pub mod deposit_emulator;
-mod deposit_performance;
-mod portfolio_analysis;
-mod portfolio_performance;
-mod sell_simulation;
 
 pub struct PortfolioStatistics {
     country: Country,
@@ -211,28 +213,20 @@ pub fn analyse(
                 Ok(())
             })?;
         }
-
-        if !portfolio.merge_performance.is_empty() {
-            statement.merge_symbols(&portfolio.merge_performance, true).map_err(|e| format!(
-                "Invalid performance merging configuration: {}", e))?;
-        }
-
-        // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
-        // if let Some(merge_performance) = merge_performance {
-        //     if !merge_performance.is_empty() {
-        //         statement.merge_symbols(merge_performance, false)?;
-        //     }
-        // }
     }
 
     let mut applied_lto = None;
 
     statistics.process(|statistics| {
         let mut analyser = PortfolioPerformanceAnalyser::new(
-            &country, &statistics.currency, &converter, merge_performance, include_closed_positions);
+            &country, &statistics.currency, &converter, include_closed_positions);
 
         for (portfolio, statement) in &mut portfolios {
-            analyser.add(portfolio, statement)?;
+            let mut performance_merging_config = portfolio.merge_performance.clone();
+            if let Some(merge_performance) = merge_performance {
+                performance_merging_config.add(merge_performance)?;
+            }
+            analyser.add(portfolio, statement, performance_merging_config)?;
         }
 
         let (performance, lto) = analyser.analyse()?;

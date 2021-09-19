@@ -5,7 +5,7 @@ use log::{self, log_enabled, trace};
 use num_traits::Zero;
 
 use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
-use crate::config::{PortfolioConfig, PerformanceMergingConfig};
+use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
@@ -15,6 +15,7 @@ use crate::taxes::{NetTax, NetTaxCalculator, NetLtoDeduction, NetLtoDeductionCal
 use crate::time::{self, Date, DateOptTime};
 use crate::types::Decimal;
 
+use super::config::PerformanceMergingConfig;
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
 use super::portfolio_analysis::{
@@ -27,7 +28,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     country: &'a Country,
     currency: &'a str,
     converter: &'a CurrencyConverter,
-    merge_performance: Option<&'a PerformanceMergingConfig>,
+    merge_performance: PerformanceMergingConfig,
     include_closed_positions: bool,
 
     transactions: Vec<Transaction>,
@@ -40,14 +41,14 @@ pub struct PortfolioPerformanceAnalyser<'a> {
 impl <'a> PortfolioPerformanceAnalyser<'a> {
     pub fn new(
         country: &'a Country, currency: &'a str, converter: &'a CurrencyConverter,
-        merge_performance: Option<&'a PerformanceMergingConfig>, include_closed_positions: bool,
+        include_closed_positions: bool,
     ) -> PortfolioPerformanceAnalyser<'a> {
         PortfolioPerformanceAnalyser {
             today: time::today(),
             country,
             currency,
             converter,
-            merge_performance,
+            merge_performance: Default::default(),
             include_closed_positions,
 
             transactions: Vec::new(),
@@ -58,7 +59,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
     }
 
-    pub fn add(&mut self, portfolio: &PortfolioConfig, statement: &BrokerStatement) -> EmptyResult {
+    pub fn add(
+        &mut self, portfolio: &PortfolioConfig, statement: &BrokerStatement,
+        merge_performance: PerformanceMergingConfig,
+    ) -> EmptyResult {
+        // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
+        self.merge_performance = merge_performance;
+
         // Assume that the caller has simulated sellout and just check it here
         if !statement.open_positions.is_empty() {
             return Err!(
@@ -463,20 +470,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
     fn get_deposit_view(&mut self, symbol: &str) -> &mut StockDepositView {
         // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
-        if let Some(merge_performance) = self.merge_performance.as_ref() {
-            for (master_symbol, slave_symbols) in merge_performance.iter() {
-                for slave_symbol in slave_symbols {
-                    if symbol == slave_symbol {
-                        return self.instruments.as_mut().unwrap()
-                            .entry(master_symbol.to_owned())
-                            .or_insert_with(StockDepositView::new)
-                    }
-                }
-            }
-        }
+        let mapped_symbol = self.merge_performance.map(symbol);
 
         self.instruments.as_mut().unwrap()
-            .entry(symbol.to_owned())
+            .entry(mapped_symbol.to_owned())
             .or_insert_with(StockDepositView::new)
     }
 

@@ -401,6 +401,7 @@ impl BrokerStatement {
         Ok(())
     }
 
+    #[allow(dead_code)] // FIXME(konishchev): Deprecated
     pub fn merge_symbols(
         &mut self, symbols_to_merge: &HashMap<String, HashSet<String>>, strict: bool,
     ) -> EmptyResult {

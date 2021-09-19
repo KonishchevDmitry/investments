@@ -7,6 +7,7 @@ use chrono::Duration;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
+use crate::analysis::config::PerformanceMergingConfig;
 use crate::broker_statement::CorporateAction;
 use crate::brokers::Broker;
 use crate::core::{GenericResult, EmptyResult};
@@ -107,8 +108,6 @@ impl Config {
                 }
             }
         }
-
-        validate_performance_merging_configuration(&config.metrics.merge_performance)?;
 
         Ok(config)
     }
@@ -265,7 +264,6 @@ impl PortfolioConfig {
         }
 
         taxes::validate_tax_exemptions(self.broker, &self.tax_exemptions)?;
-        validate_performance_merging_configuration(&self.merge_performance)?;
 
         Ok(())
     }
@@ -428,28 +426,4 @@ fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
         }).ok_or_else(|| D::Error::custom(format!("Invalid weight: {}", weight)))?;
 
     Ok(weight / dec!(100))
-}
-
-pub type PerformanceMergingConfig = HashMap<String, HashSet<String>>;
-
-fn validate_performance_merging_configuration(config: &PerformanceMergingConfig) -> EmptyResult {
-    let mut symbols_to_merge: HashSet<&str> = HashSet::new();
-
-    for (master_symbol, slave_symbols) in config {
-        if !symbols_to_merge.insert(master_symbol) {
-            return Err!(
-                "Invalid performance merging configuration: Duplicated {} symbol",
-                master_symbol);
-        }
-
-        for slave_symbol in slave_symbols {
-            if !symbols_to_merge.insert(slave_symbol) {
-                return Err!(
-                    "Invalid performance merging configuration: Duplicated {} symbol",
-                    slave_symbol);
-            }
-        }
-    }
-
-    Ok(())
 }
