@@ -1,8 +1,7 @@
-use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap};
 
+use itertools::Itertools;
 use log::{self, log_enabled, trace};
-use num_traits::Zero;
 
 use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
 use crate::config::PortfolioConfig;
@@ -18,6 +17,7 @@ use crate::types::Decimal;
 use super::config::PerformanceMergingConfig;
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
+use super::instrument_view::InstrumentDepositView;
 use super::portfolio_analysis::{
     PortfolioPerformanceAnalysis, InstrumentPerformanceAnalysis, IncomeStructure};
 
@@ -28,12 +28,12 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     country: &'a Country,
     currency: &'a str,
     converter: &'a CurrencyConverter,
-    merge_performance: PerformanceMergingConfig,
     include_closed_positions: bool,
+    performance_merging_config: Option<PerformanceMergingConfig>,
 
     transactions: Vec<Transaction>,
     income_structure: IncomeStructure,
-    instruments: Option<BTreeMap<String, StockDepositView>>,
+    instruments: Option<BTreeMap<String, InstrumentDepositView>>,
     net_lto_calc: NetLtoDeductionCalculator,
     current_assets: Decimal,
 }
@@ -48,8 +48,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             country,
             currency,
             converter,
-            merge_performance: Default::default(),
             include_closed_positions,
+            performance_merging_config: None,
 
             transactions: Vec::new(),
             income_structure: Default::default(),
@@ -63,9 +63,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         &mut self, portfolio: &PortfolioConfig, statement: &BrokerStatement,
         merge_performance: PerformanceMergingConfig,
     ) -> EmptyResult {
-        // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
-        self.merge_performance = merge_performance;
+        self.performance_merging_config.replace(merge_performance);
+        let result = self.add_inner(portfolio, statement);
+        self.performance_merging_config.take();
+        result
+    }
 
+    fn add_inner(&mut self, portfolio: &PortfolioConfig, statement: &BrokerStatement) -> EmptyResult {
         // Assume that the caller has simulated sellout and just check it here
         if !statement.open_positions.is_empty() {
             return Err!(
@@ -115,7 +119,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn analyse_instrument_performance(
-        &mut self, symbol: &str, mut deposit_view: StockDepositView
+        &mut self, symbol: &str, mut deposit_view: InstrumentDepositView
     ) -> GenericResult<InstrumentPerformanceAnalysis> {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
@@ -181,71 +185,16 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn calculate_open_position_periods(&mut self) -> EmptyResult {
-        struct OpenPosition {
-            start_date: Date,
-            quantity: Decimal,
-        }
-
         trace!("Open positions periods:");
 
         for (symbol, deposit_view) in self.instruments.as_mut().unwrap() {
-            if deposit_view.trades.is_empty() {
-                return Err!("Got an unexpected transaction for {} which has no trades", symbol)
-            }
-
-            let mut open_position = None;
-
-            for (&date, &quantity) in &deposit_view.trades {
-                let current = open_position.get_or_insert_with(|| {
-                    OpenPosition {
-                        start_date: date,
-                        quantity: dec!(0),
-                    }
-                });
-                current.quantity += quantity;
-
-                match current.quantity.cmp(&Decimal::zero()) {
-                    Ordering::Greater => continue,
-                    Ordering::Equal => {},
-                    Ordering::Less => {
-                        return Err!(
-                            "Error while processing {} sell operations: Got a negative balance on {}",
-                            symbol, formatting::format_date(date));
-                    }
-                };
-
-                let start_date = current.start_date;
-                let end_date = if date == start_date {
-                    date.succ()
-                } else {
-                    date
-                };
-
-                match deposit_view.interest_periods.last_mut() {
-                    Some(ref mut period) if period.end >= start_date => {
-                        assert_eq!(period.end, start_date);
-                        assert!(period.end < end_date);
-                        period.end = end_date;
-                    },
-                    _ => deposit_view.interest_periods.push(InterestPeriod::new(start_date, end_date)),
-                };
-
-                open_position = None;
-            }
-
-            if open_position.is_some() {
-                return Err!(
-                    "The portfolio contains unsold {} stocks when sellout simulation is expected",
-                    symbol);
-            }
-            assert!(!deposit_view.interest_periods.is_empty());
+            deposit_view.calculate_open_position_periods()?;
 
             if log_enabled!(log::Level::Trace) {
                 let periods = deposit_view.interest_periods.iter()
                     .map(|period| format!(
                         "{} - {}", formatting::format_date(period.start),
                         formatting::format_date(period.end)))
-                    .collect::<Vec<_>>()
                     .join(", ");
 
                 trace!("* {}: {}", symbol, periods);
@@ -294,13 +243,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     self.income_structure.commissions += commission;
 
                     let deposit_view = self.get_deposit_view(&trade.symbol);
-                    deposit_view.trade(trade.conclusion_time, quantity);
+                    deposit_view.trade(&portfolio.name, &trade.symbol, trade.conclusion_time, quantity);
                     deposit_view.transaction(trade.conclusion_time, volume);
                     deposit_view.transaction(trade.conclusion_time, commission);
                 },
                 StockSource::CorporateAction => {
-                    let deposit_view = self.get_deposit_view(&trade.symbol);
-                    deposit_view.trade(trade.conclusion_time, quantity);
+                    self.get_deposit_view(&trade.symbol).trade(
+                        &portfolio.name, &trade.symbol, trade.conclusion_time, quantity);
                 },
             };
         }
@@ -322,7 +271,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     {
                         let deposit_view = self.get_deposit_view(&trade.symbol);
 
-                        deposit_view.trade(trade.conclusion_time, -quantity);
+                        deposit_view.trade(&portfolio.name, &trade.symbol, trade.conclusion_time, -quantity);
                         deposit_view.transaction(trade.conclusion_time, -volume);
                         deposit_view.transaction(trade.conclusion_time, commission);
 
@@ -355,8 +304,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                         &lto_deductibles, trade.emulation);
                 },
                 StockSellType::CorporateAction => {
-                    let deposit_view = self.get_deposit_view(&trade.symbol);
-                    deposit_view.trade(trade.conclusion_time, -quantity);
+                    self.get_deposit_view(&trade.symbol).trade(
+                        &portfolio.name, &trade.symbol, trade.conclusion_time, -quantity);
                 },
             };
         }
@@ -468,13 +417,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         Ok(())
     }
 
-    fn get_deposit_view(&mut self, symbol: &str) -> &mut StockDepositView {
-        // FIXME(konishchev): A temporary workaround for merge performance conflicts with stock split
-        let mapped_symbol = self.merge_performance.map(symbol);
-
+    fn get_deposit_view(&mut self, symbol: &str) -> &mut InstrumentDepositView {
+        let mapped_symbol = self.performance_merging_config.as_ref().unwrap().map(symbol);
         self.instruments.as_mut().unwrap()
             .entry(mapped_symbol.to_owned())
-            .or_insert_with(StockDepositView::new)
+            .or_insert_with(|| InstrumentDepositView::new(mapped_symbol))
     }
 
     fn transaction(&mut self, date: Date, amount: Decimal) {
@@ -497,41 +444,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         };
 
         Ok(Some(self.converter.convert_to(conversion_date, tax_to_pay, self.currency)?))
-    }
-}
-
-struct StockDepositView {
-    name: Option<String>,
-    trades: BTreeMap<Date, Decimal>,
-    transactions: Vec<Transaction>,
-    interest_periods: Vec<InterestPeriod>,
-    closed: bool,
-}
-
-impl StockDepositView {
-    fn new() -> StockDepositView {
-        StockDepositView {
-            name: None,
-            trades: BTreeMap::new(),
-            transactions: Vec::new(),
-            interest_periods: Vec::new(),
-            closed: true,
-        }
-    }
-
-    // FIXME(konishchev): Pass symbol + portfolio id to work properly with stock splits
-    fn trade(&mut self, time: DateOptTime, quantity: Decimal) {
-        self.trades.entry(time.date)
-            .and_modify(|total| *total += quantity)
-            .or_insert(quantity);
-    }
-
-    fn transaction(&mut self, time: DateOptTime, amount: Decimal) {
-        // Some assets can be acquired for free due to corporate actions or other non-trading
-        // operations.
-        if !amount.is_zero() {
-            self.transactions.push(Transaction::new(time.date, amount))
-        }
     }
 }
 

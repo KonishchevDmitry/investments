@@ -1,6 +1,7 @@
 pub mod config;
 pub mod deposit_emulator;
 mod deposit_performance;
+mod instrument_view;
 mod portfolio_analysis;
 mod portfolio_performance;
 mod sell_simulation;
