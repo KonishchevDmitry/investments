@@ -2,12 +2,11 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
+use crate::broker_statement::open::common::{parse_quantity, get_symbol};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::types::Decimal;
-
-use super::common::{parse_quantity, get_symbol};
 
 #[derive(Deserialize)]
 pub struct AccountSummary {

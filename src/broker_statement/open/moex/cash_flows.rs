@@ -3,14 +3,13 @@ use regex::Regex;
 use serde::Deserialize;
 
 use crate::broker_statement::fees::Fee;
+use crate::broker_statement::open::common::deserialize_date;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::instruments::InstrumentInternalIds;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
-
-use super::common::deserialize_date;
 
 #[derive(Deserialize)]
 pub struct CashFlows {

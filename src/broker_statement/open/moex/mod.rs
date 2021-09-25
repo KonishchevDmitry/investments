@@ -1,6 +1,5 @@
 mod assets;
 mod cash_flows;
-mod common;
 mod forex;
 mod trades;
 
@@ -14,9 +13,10 @@ use crate::core::GenericResult;
 use crate::instruments::InstrumentInternalIds;
 use crate::types::Date;
 
+use super::common::deserialize_date;
+
 use assets::{AccountSummary, Assets, Securities};
 use cash_flows::CashFlows;
-use common::deserialize_date;
 use forex::{CurrencyConversions, ForexTrades};
 use trades::{ConcludedTrades, ExecutedTrades};
 

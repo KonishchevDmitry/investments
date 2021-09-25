@@ -1,6 +1,3 @@
-mod moex;
-mod spb;
-
 use encoding_rs::Encoding;
 use serde::Deserialize;
 use xml::reader::{EventReader, XmlEvent};
@@ -13,6 +10,10 @@ use crate::instruments::InstrumentInternalIds;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
+
+mod common;
+mod moex;
+mod spb;
 
 pub struct StatementReader<'a> {
     instrument_internal_ids: &'a InstrumentInternalIds,
@@ -97,6 +98,7 @@ fn preprocess_statement(data: &[u8]) -> GenericResult<(String, String)> {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+
     use super::*;
 
     #[rstest(name => ["main/my", "main/iia", "other/first-iia-a", "other/inactive-with-forex"])]
