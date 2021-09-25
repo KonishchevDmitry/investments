@@ -19,7 +19,7 @@ mod open;
 mod tinkoff;
 
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet, hash_map::Entry};
+use std::collections::{HashMap, BTreeMap, BTreeSet, hash_map::Entry};
 
 use log::warn;
 
@@ -396,44 +396,6 @@ impl BrokerStatement {
 
         if until.is_none() {
             self.validate_open_positions()?;
-        }
-
-        Ok(())
-    }
-
-    #[allow(dead_code)] // FIXME(konishchev): Deprecated
-    pub fn merge_symbols(
-        &mut self, symbols_to_merge: &HashMap<String, HashSet<String>>, strict: bool,
-    ) -> EmptyResult {
-        assert!(self.open_positions.is_empty());
-        assert!(!self.stock_buys.iter().any(|stock_buy| !stock_buy.is_sold()));
-        assert!(!self.stock_sells.iter().any(|stock_sell| !stock_sell.is_processed()));
-
-        let mut symbol_mapping: HashMap<&String, &String> = HashMap::new();
-
-        for (master_symbol, slave_symbols) in symbols_to_merge {
-            for slave_symbol in slave_symbols {
-                self.instrument_info.merge_symbols(master_symbol, slave_symbol, strict)?;
-                symbol_mapping.insert(slave_symbol, master_symbol);
-            }
-        }
-
-        for stock_buy in &mut self.stock_buys {
-            if let Some(&symbol) = symbol_mapping.get(&stock_buy.symbol) {
-                stock_buy.symbol = symbol.clone();
-            }
-        }
-
-        for stock_sell in &mut self.stock_sells {
-            if let Some(&symbol) = symbol_mapping.get(&stock_sell.symbol) {
-                stock_sell.symbol = symbol.clone();
-            }
-        }
-
-        for dividend in &mut self.dividends {
-            if let Some(&issuer) = symbol_mapping.get(&dividend.issuer) {
-                dividend.issuer = issuer.clone();
-            }
         }
 
         Ok(())

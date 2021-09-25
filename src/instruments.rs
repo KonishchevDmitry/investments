@@ -154,24 +154,6 @@ impl InstrumentInfo {
             };
         }
     }
-
-    pub fn merge_symbols(&mut self, master_symbol: &str, slave_symbol: &str, strict: bool) -> EmptyResult {
-        let mut result = match self.0.remove(slave_symbol) {
-            Some(info) => info,
-            None => if strict {
-                return Err!("The broker statement has no any activity for {:?} symbol", slave_symbol);
-            } else {
-                return Ok(());
-            },
-        };
-
-        if let Some(info) = self.0.remove(master_symbol) {
-            result.merge(info);
-        }
-
-        self.0.insert(master_symbol.to_owned(), result);
-        Ok(())
-    }
 }
 
 pub struct Instrument {
