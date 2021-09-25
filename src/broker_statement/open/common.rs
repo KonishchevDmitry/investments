@@ -7,6 +7,21 @@ use crate::core::GenericResult;
 use crate::time::{self, Date, Time, DateTime};
 use crate::types::Decimal;
 
+pub enum InstrumentType {
+    Stock,
+    DepositaryReceipt,
+}
+
+impl InstrumentType {
+    pub fn parse(name: &str) -> GenericResult<InstrumentType> {
+        Ok(match name {
+            "Акции" | "АО" | "ПАИ" => InstrumentType::Stock,
+            "ADR" | "GDR" => InstrumentType::DepositaryReceipt,
+            _ => return Err!("Unsupported instrument type: {:?}", name),
+        })
+    }
+}
+
 fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%Y-%m-%dT00:00:00")
 }

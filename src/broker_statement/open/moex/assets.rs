@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use crate::broker_statement::open::common::{parse_quantity, get_symbol};
+use crate::broker_statement::open::common::{InstrumentType, get_symbol, parse_quantity};
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::core::{EmptyResult, GenericResult};
+use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::types::Decimal;
 
@@ -24,7 +24,7 @@ struct AccountSummaryItem {
 }
 
 impl AccountSummary {
-    pub fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+    pub fn parse(&self) -> GenericResult<bool> {
         let mut has_starting_assets = None;
 
         for item in &self.items {
@@ -34,10 +34,7 @@ impl AccountSummary {
             }
         }
 
-        let has_starting_assets = has_starting_assets.ok_or(
-            "Unable to find starting cash assets information")?;
-
-        statement.set_has_starting_assets(has_starting_assets)
+        Ok(has_starting_assets.ok_or("Unable to find starting cash assets information")?)
     }
 }
 
@@ -66,33 +63,29 @@ struct Asset {
 }
 
 impl Assets {
-    pub fn parse(&self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>) -> EmptyResult {
+    pub fn parse(&self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>) -> GenericResult<bool> {
         let mut has_starting_assets = false;
 
         for asset in &self.assets {
             has_starting_assets |= !asset.start_amount.is_zero();
 
-            match asset.type_.as_str() {
-                "Акции" | "ПАИ" | "GDR" => {
+            match InstrumentType::parse(&asset.type_) {
+                Ok(InstrumentType::Stock | InstrumentType::DepositaryReceipt) => {
                     let symbol = get_symbol(securities, &asset.name)?;
                     let amount = parse_quantity(asset.end_amount, true)?;
                     if amount != 0 {
                         statement.add_open_position(symbol, amount.into())?
                     }
                 },
-                "Денежные средства" => {
+                Err(_) if asset.type_ == "Денежные средства" => {
                     statement.assets.cash.as_mut().unwrap().deposit(
                         Cash::new(&asset.code, asset.end_amount));
                 },
                 _ => return Err!("Unsupported asset type: {:?}", asset.type_),
-            };
+            }
         }
 
-        if has_starting_assets {
-            statement.has_starting_assets = Some(true);
-        }
-
-        Ok(())
+        Ok(has_starting_assets)
     }
 }
 
@@ -104,12 +97,13 @@ pub struct Securities {
 
 #[derive(Deserialize)]
 struct Security {
-    // There is also `issuer_name` field which contains much more human readable names, but it's
-    // actually not security name - it's dividend issuer name. For example for GDR it will contain
-    // BNY Mellon / Citibank N.A. instead of actual stock name.
     #[serde(rename = "security_name")]
     name: String,
+    #[serde(rename = "issuer_name")]
+    issuer: String,
     isin: String,
+    #[serde(rename = "security_type")]
+    type_: String,
     #[serde(rename = "ticker")]
     symbol: String,
 }
@@ -119,12 +113,17 @@ impl Securities {
         let mut securities = HashMap::new();
 
         for security in &self.securities {
+            let name = match InstrumentType::parse(&security.type_)? {
+                InstrumentType::Stock => parse_issuer_name(&security.issuer),
+                InstrumentType::DepositaryReceipt => parse_security_name(&security.name),
+            };
+
             if securities.insert(security.name.clone(), security.symbol.clone()).is_some() {
                 return Err!("Duplicated security name: {:?}", security.name);
             }
 
             let instrument = statement.instrument_info.add(&security.symbol)?;
-            instrument.set_name(parse_security_name(&security.name));
+            instrument.set_name(name);
             instrument.add_isin(&security.isin)?;
         }
 
@@ -132,8 +131,24 @@ impl Securities {
     }
 }
 
-pub fn parse_security_name(name: &str) -> &str {
+fn parse_security_name(name: &str) -> &str {
     name.trim_end().trim_end_matches('_')
+}
+
+fn parse_issuer_name(mut issuer: &str) -> &str {
+    if let Some(index) = issuer.find("п/у") {
+        if index != 0 {
+            issuer = &issuer[..index];
+        }
+    }
+
+    if let Some(index) = issuer.find('(') {
+        if index != 0 {
+            issuer = &issuer[..index];
+        }
+    }
+
+    issuer.trim()
 }
 
 #[cfg(test)]
@@ -147,5 +162,12 @@ mod tests {
     )]
     fn security_name_parsing(name: &str, expected: &str) {
         assert_eq!(parse_security_name(name), expected);
+    }
+
+    #[test]
+    fn issuer_name_parsing() {
+        assert_eq!(parse_issuer_name(
+            "FinEx MSCI China UCITS ETF (USD Share Class) п/у FinEx Investment Management LLP"),
+            "FinEx MSCI China UCITS ETF");
     }
 }
