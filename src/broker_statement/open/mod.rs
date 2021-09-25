@@ -1,4 +1,5 @@
 mod moex;
+mod spb;
 
 use encoding_rs::Encoding;
 use serde::Deserialize;
@@ -45,6 +46,13 @@ impl<'a> BrokerStatementReader for StatementReader<'a> {
             "https://account.open-broker.ru/common/report/broker_report_unified.xsl" => {
                 let report: moex::BrokerReport = serde_xml_rs::from_str(&data)?;
                 report.parse(self.instrument_internal_ids)?
+            },
+
+            // FIXME(konishchev): Implement
+            "https://account.open-broker.ru/common/report/broker_report_spb.xsl" if cfg!(debug_assertions) => {
+                let report: spb::BrokerReport = serde_xml_rs::from_str(&data)?;
+                report.parse()?;
+                return Err!("Unsupported Open Broker report type: {}", report_type);
             },
 
             _ => return Err!("Unsupported Open Broker report type: {}", report_type),
@@ -116,6 +124,12 @@ mod tests {
     fn parse_real_dividends(name: &str) {
         let statement = parse("other", name);
         assert!(!statement.dividends.is_empty());
+    }
+
+    #[rstest]
+    #[should_panic(expected="Unsupported Open Broker report type: https://account.open-broker.ru/common/report/broker_report_spb.xsl")]
+    fn parse_real_spb() {
+        parse("other", "dividends/spb");
     }
 
     fn parse(namespace: &str, name: &str) -> BrokerStatement {
