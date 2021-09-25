@@ -10,7 +10,7 @@ use log::error;
 use serde::Deserialize;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::core::EmptyResult;
+use crate::core::GenericResult;
 use crate::instruments::InstrumentInternalIds;
 use crate::types::Date;
 
@@ -54,28 +54,27 @@ pub struct BrokerReport {
 }
 
 impl BrokerReport {
-    pub fn parse(
-        &self, statement: &mut PartialBrokerStatement, instrument_internal_ids: &InstrumentInternalIds,
-    ) -> EmptyResult {
+    pub fn parse(&self, instrument_internal_ids: &InstrumentInternalIds) -> GenericResult<PartialBrokerStatement> {
+        let mut statement = PartialBrokerStatement::new(true);
         statement.period = Some((self.date_from, self.date_to.succ()));
-        self.account_summary.parse(statement)?;
+        self.account_summary.parse(&mut statement)?;
 
         let securities = if let Some(ref securities) = self.securities {
-            securities.parse(statement)?
+            securities.parse(&mut statement)?
         } else {
             HashMap::new()
         };
 
         if let Some(ref assets) = self.assets {
-            assets.parse(statement, &securities)?;
+            assets.parse(&mut statement, &securities)?;
         }
 
         if let Some(ref trades) = self.forex_trades {
-            trades.parse(statement)?;
+            trades.parse(&mut statement)?;
         }
 
         if let Some(ref conversion) = self.currency_conversions {
-            conversion.parse(statement)?;
+            conversion.parse(&mut statement)?;
         }
 
         let mut trades_with_shifted_execution_date = if let Some(ref trades) = self.executed_trades {
@@ -85,11 +84,11 @@ impl BrokerReport {
         };
 
         if let Some(ref trades) = self.concluded_trades {
-            trades.parse(statement, &securities, &mut trades_with_shifted_execution_date)?;
+            trades.parse(&mut statement, &securities, &mut trades_with_shifted_execution_date)?;
         }
 
         if let Some(ref cash_flow) = self.cash_flow {
-            cash_flow.parse(statement, instrument_internal_ids)?;
+            cash_flow.parse(&mut statement, instrument_internal_ids)?;
         }
 
         // Actually, we should check trade execution dates on statements merging stage when we have
@@ -106,6 +105,6 @@ impl BrokerReport {
                 "can't be fixed: {}."), trade_ids.join(", "));
         }
 
-        Ok(())
+        Ok(statement)
     }
 }

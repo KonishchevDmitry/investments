@@ -1009,6 +1009,7 @@ dependencies = [
  "url",
  "uuid",
  "xls_table_derive",
+ "xml-rs",
 ]
 
 [[package]]

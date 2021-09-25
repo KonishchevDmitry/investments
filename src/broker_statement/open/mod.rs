@@ -1,5 +1,9 @@
 mod moex;
 
+use encoding_rs::Encoding;
+use serde::Deserialize;
+use xml::reader::{EventReader, XmlEvent};
+
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
@@ -8,8 +12,6 @@ use crate::instruments::InstrumentInternalIds;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
-
-use moex::BrokerReport;
 
 pub struct StatementReader<'a> {
     instrument_internal_ids: &'a InstrumentInternalIds,
@@ -27,21 +29,61 @@ impl<'a> BrokerStatementReader for StatementReader<'a> {
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
-        let mut statement = PartialBrokerStatement::new(true);
-        read_statement(path)?.parse(&mut statement, self.instrument_internal_ids)?;
+        let data = std::fs::read(path)?;
+        let (encoding_name, report_type) = preprocess_statement(&data)?;
+
+        let encoding = Encoding::for_label(encoding_name.as_bytes()).ok_or_else(|| format!(
+            "Unsupported document encoding: {:?}", encoding_name))?;
+
+        let (data, _, errors) = encoding.decode(data.as_slice());
+        if errors {
+            return Err!("Got an invalid {} encoded data", encoding_name);
+        }
+
+        let statement = match report_type.as_str() {
+            "https://account.open-broker.ru/common/report/broker_report_spot.xsl" |
+            "https://account.open-broker.ru/common/report/broker_report_unified.xsl" => {
+                let report: moex::BrokerReport = serde_xml_rs::from_str(&data)?;
+                report.parse(self.instrument_internal_ids)?
+            },
+
+            _ => return Err!("Unsupported Open Broker report type: {}", report_type),
+        };
+
         statement.validate()
     }
 }
 
-fn read_statement(path: &str) -> GenericResult<BrokerReport> {
-    let data = std::fs::read(path)?;
+fn preprocess_statement(data: &[u8]) -> GenericResult<(String, String)> {
+    let mut document_encoding = None;
+    let reader = EventReader::new(data);
 
-    let (data, _, errors) = encoding_rs::WINDOWS_1251.decode(data.as_slice());
-    if errors {
-        return Err!("Got an invalid Windows-1251 encoded data");
+    for event in reader {
+        match event? {
+            XmlEvent::StartDocument {encoding, ..} => {
+                document_encoding.replace(encoding);
+            },
+
+            XmlEvent::ProcessingInstruction {name, data} if name == "xml-stylesheet" => {
+                let data = data.unwrap_or_default();
+
+                #[derive(Deserialize)]
+                pub struct XmlStylesheet {
+                    href: String,
+                }
+
+                let to_decode = format!("<{} {}/>", name, data);
+                let xml_stylesheet: XmlStylesheet = serde_xml_rs::from_str(&to_decode).map_err(|_| format!(
+                    "Unexpected {} contents: {:?}", name, data))?;
+
+                return Ok((document_encoding.unwrap(), xml_stylesheet.href))
+            },
+
+            _ => {},
+        }
     }
 
-    Ok(serde_xml_rs::from_str(&data).map_err(|e| e.to_string())?)
+    Err!("The statement file has an unexpected contents")
 }
 
 #[cfg(test)]
