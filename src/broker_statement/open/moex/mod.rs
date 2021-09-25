@@ -1,3 +1,9 @@
+mod assets;
+mod cash_flows;
+mod common;
+mod forex;
+mod trades;
+
 use std::collections::HashMap;
 
 use log::error;
@@ -8,11 +14,11 @@ use crate::core::EmptyResult;
 use crate::instruments::InstrumentInternalIds;
 use crate::types::Date;
 
-use super::assets::{AccountSummary, Assets, Securities};
-use super::cash_flows::CashFlows;
-use super::forex::{CurrencyConversions, ForexTrades};
-use super::trades::{ConcludedTrades, ExecutedTrades};
-use super::common::deserialize_date;
+use assets::{AccountSummary, Assets, Securities};
+use cash_flows::CashFlows;
+use common::deserialize_date;
+use forex::{CurrencyConversions, ForexTrades};
+use trades::{ConcludedTrades, ExecutedTrades};
 
 #[derive(Deserialize)]
 pub struct BrokerReport {

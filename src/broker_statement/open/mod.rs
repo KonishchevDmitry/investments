@@ -1,9 +1,4 @@
-mod assets;
-mod cash_flows;
-mod common;
-mod forex;
-mod report;
-mod trades;
+mod moex;
 
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
@@ -14,7 +9,7 @@ use crate::instruments::InstrumentInternalIds;
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
-use report::BrokerReport;
+use moex::BrokerReport;
 
 pub struct StatementReader<'a> {
     instrument_internal_ids: &'a InstrumentInternalIds,
