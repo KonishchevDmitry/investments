@@ -39,7 +39,6 @@ pub struct IncomeStructure {
     pub trading_tax_deductions: Decimal,
     pub additional_tax_deductions: Decimal,
 
-    // FIXME(konishchev): Fees?
     pub commissions: Decimal,
 }
 
