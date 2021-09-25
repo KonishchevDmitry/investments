@@ -31,20 +31,41 @@ pub struct IncomeStructure {
 
     pub dividends: Decimal,
     pub interest: Decimal,
-    pub tax_deductions: Decimal,
 
-    pub taxes: Decimal,
+    pub trading_taxes: Decimal,
+    pub dividend_taxes: Decimal,
+    pub interest_taxes: Decimal,
+
+    pub trading_tax_deductions: Decimal,
+    pub additional_tax_deductions: Decimal,
+
+    // FIXME(konishchev): Fees?
     pub commissions: Decimal,
 }
 
 impl IncomeStructure {
     pub fn profit(&self) -> Decimal {
-        self.net_profit + self.taxes + self.commissions
+        self.net_profit + self.taxes() + self.commissions
     }
 
-    // FIXME(konishchev): Why we include dividend/interest taxes here?
-    pub fn trading(&self) -> Decimal {
-        self.profit() - self.dividends - self.interest - self.tax_deductions
+    pub fn net_trading_income(&self) -> Decimal {
+        self.net_profit - self.net_dividend_income() - self.net_interest_income() - self.tax_deductions()
+    }
+
+    pub fn net_dividend_income(&self) -> Decimal {
+        self.dividends - self.dividend_taxes
+    }
+
+    pub fn net_interest_income(&self) -> Decimal {
+        self.interest - self.interest_taxes
+    }
+
+    pub fn taxes(&self) -> Decimal {
+        self.trading_taxes + self.dividend_taxes + self.interest_taxes
+    }
+
+    pub fn tax_deductions(&self) -> Decimal {
+        self.trading_tax_deductions + self.additional_tax_deductions
     }
 }
 

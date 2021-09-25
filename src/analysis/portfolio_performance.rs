@@ -328,12 +328,12 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                 trace!("* Stock selling {} tax: {}", formatting::format_date(tax_payment_date), amount);
                 self.transaction(tax_payment_date, amount);
-                self.income_structure.taxes += amount;
+                self.income_structure.trading_taxes += amount;
             }
 
             if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_deduction)? {
                 trace!("* {} tax deduction: {}", formatting::format_date(tax_payment_date), amount);
-                self.income_structure.tax_deductions += amount;
+                self.income_structure.trading_tax_deductions += amount;
             }
 
             self.net_lto_calc.add_applied_deduction(tax_year, lto_deduction.amount, lto_loss.amount);
@@ -362,7 +362,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
                 self.get_deposit_view(&dividend.issuer).transaction(tax_payment_date.into(), amount);
                 self.transaction(tax_payment_date, amount);
-                self.income_structure.taxes += amount;
+                self.income_structure.dividend_taxes += amount;
             }
         }
 
@@ -383,7 +383,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                        formatting::format_date(tax_payment_date), amount);
 
                 self.transaction(tax_payment_date, amount);
-                self.income_structure.taxes += amount;
+                self.income_structure.interest_taxes += amount;
             }
         }
 
@@ -405,7 +405,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             let amount = self.converter.convert(self.country.currency, self.currency, date, amount)?;
             trace!("* Tax deduction {}: {}", formatting::format_date(date), amount);
             self.transaction(date, -amount);
-            self.income_structure.tax_deductions += amount;
+            self.income_structure.additional_tax_deductions += amount;
         }
 
         Ok(())

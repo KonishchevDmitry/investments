@@ -27,7 +27,7 @@ lazy_static! {
         "performance", "Instrument performance");
 
     static ref INCOME_STRUCTURE: GaugeVec = register_structure_metric(
-        "income_structure", "Income structure");
+        "income_structure", "Net income structure");
 
     static ref EXPENCES_STRUCTURE: GaugeVec = register_structure_metric(
         "expenses_structure", "Expenses structure");
@@ -101,12 +101,12 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     set_portfolio_metric(&PROFIT, currency, income_structure.profit());
     set_portfolio_metric(&NET_PROFIT, currency, income_structure.net_profit);
 
-    set_structure_metric(&INCOME_STRUCTURE, currency, "Trading", income_structure.trading());
-    set_structure_metric(&INCOME_STRUCTURE, currency, "Dividends", income_structure.dividends);
-    set_structure_metric(&INCOME_STRUCTURE, currency, "Interest", income_structure.interest);
-    set_structure_metric(&INCOME_STRUCTURE, currency, "Tax deductions", income_structure.tax_deductions);
+    set_structure_metric(&INCOME_STRUCTURE, currency, "Trading", income_structure.net_trading_income());
+    set_structure_metric(&INCOME_STRUCTURE, currency, "Dividends", income_structure.net_dividend_income());
+    set_structure_metric(&INCOME_STRUCTURE, currency, "Interest", income_structure.net_interest_income());
+    set_structure_metric(&INCOME_STRUCTURE, currency, "Tax deductions", income_structure.tax_deductions());
 
-    set_structure_metric(&EXPENCES_STRUCTURE, currency, "Taxes", income_structure.taxes);
+    set_structure_metric(&EXPENCES_STRUCTURE, currency, "Taxes", income_structure.taxes());
     set_structure_metric(&EXPENCES_STRUCTURE, currency, "Commissions", income_structure.commissions);
 
     set_portfolio_metric(&PROJECTED_TAXES, currency, statistics.projected_taxes);
