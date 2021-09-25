@@ -6,13 +6,13 @@ use crate::currency::Cash;
 use crate::types::Decimal;
 
 #[derive(Deserialize)]
-pub struct AccountSummary {
+pub struct CashAssets {
     #[serde(rename = "item")]
-    cash_assets: Vec<CashAssets>,
+    cash_assets: Vec<CashAssetsItem>,
 }
 
 #[derive(Deserialize)]
-struct CashAssets {
+struct CashAssetsItem {
     #[serde(rename = "currencycode")]
     currency: String,
 
@@ -23,7 +23,7 @@ struct CashAssets {
     end_amount: Decimal,
 }
 
-impl AccountSummary {
+impl CashAssets {
     pub fn parse(&self, statement: &mut PartialBrokerStatement) -> GenericResult<bool> {
         let mut has_starting_assets = false;
 

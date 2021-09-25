@@ -1,4 +1,5 @@
 mod cash_assets;
+mod open_positions;
 
 use serde::Deserialize;
 
@@ -7,7 +8,8 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
 use crate::types::Date;
 
-use cash_assets::AccountSummary;
+use cash_assets::CashAssets;
+use open_positions::OpenPositions;
 
 #[derive(Deserialize)]
 pub struct BrokerReport {
@@ -18,7 +20,10 @@ pub struct BrokerReport {
     date_to: Date,
 
     #[serde(rename = "account_totally_line")]
-    account_summary: AccountSummary,
+    cash_assets: CashAssets,
+
+    #[serde(rename = "briefcase_position")]
+    open_positions: OpenPositions,
 }
 
 impl BrokerReport {
@@ -26,10 +31,9 @@ impl BrokerReport {
         let mut statement = PartialBrokerStatement::new(true);
         statement.period = Some((self.date_from, self.date_to.succ()));
 
-        self.account_summary.parse(&mut statement)?;
-
-        // FIXME(konishchev): Support
-        // statement.set_has_starting_assets(has_starting_assets)
+        let mut has_starting_assets = self.cash_assets.parse(&mut statement)?;
+        has_starting_assets |= self.open_positions.parse(&mut statement)?;
+        statement.set_has_starting_assets(has_starting_assets)?;
 
         Ok(statement)
     }

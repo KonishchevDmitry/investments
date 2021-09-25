@@ -72,9 +72,9 @@ impl Assets {
             match InstrumentType::parse(&asset.type_) {
                 Ok(InstrumentType::Stock | InstrumentType::DepositaryReceipt) => {
                     let symbol = get_symbol(securities, &asset.name)?;
-                    let amount = parse_quantity(asset.end_amount, true)?;
-                    if amount != 0 {
-                        statement.add_open_position(symbol, amount.into())?
+                    let quantity = parse_quantity(asset.end_amount, true)?;
+                    if quantity != 0 {
+                        statement.add_open_position(symbol, quantity.into())?
                     }
                 },
                 Err(_) if asset.type_ == "Денежные средства" => {
