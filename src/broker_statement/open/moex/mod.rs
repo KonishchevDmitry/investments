@@ -28,10 +28,10 @@ pub struct BrokerReport {
     #[serde(deserialize_with = "deserialize_date")]
     date_to: Date,
 
-    #[serde(alias = "spot_account_totally", alias = "unified_account_totally")]
+    #[serde(rename = "spot_account_totally", alias = "unified_account_totally")]
     account_summary: AccountSummary,
 
-    #[serde(alias = "spot_assets", alias = "unified_closing_assets")]
+    #[serde(rename = "spot_assets", alias = "unified_closing_assets")]
     assets: Option<Assets>,
 
     #[serde(rename = "made_deal")]
@@ -46,7 +46,7 @@ pub struct BrokerReport {
     #[serde(rename = "spot_main_deals_executed")]
     executed_trades: Option<ExecutedTrades>,
 
-    #[serde(alias = "spot_non_trade_money_operations", alias = "unified_non_trade_money_operations")]
+    #[serde(rename = "spot_non_trade_money_operations", alias = "unified_non_trade_money_operations")]
     cash_flow: Option<CashFlows>,
 
     #[serde(rename = "spot_portfolio_security_params")]
