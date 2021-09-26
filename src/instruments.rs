@@ -194,9 +194,11 @@ pub enum IssuerTaxationType {
     TaxAgent,
 }
 
+pub const ISIN_REGEX: &str = r"[A-Z]{2}[A-Z0-9]{9}[0-9]";
+
 fn parse_isin(isin: &str) -> GenericResult<&str> {
     lazy_static! {
-        static ref REGEX: Regex = Regex::new(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$").unwrap();
+        static ref REGEX: Regex = Regex::new(&format!("^{}$", ISIN_REGEX)).unwrap();
     }
 
     if !REGEX.is_match(isin) {

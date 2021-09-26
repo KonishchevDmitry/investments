@@ -15,10 +15,8 @@ pub struct CashAssets {
 struct CashAssetsItem {
     #[serde(rename = "currencycode")]
     currency: String,
-
     #[serde(rename = "amountin")]
     start_amount: Decimal,
-
     #[serde(rename = "amountplaneout")]
     end_amount: Decimal,
 }

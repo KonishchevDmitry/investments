@@ -1,4 +1,5 @@
 mod cash_assets;
+mod cash_flows;
 mod common;
 mod open_positions;
 mod trades;
@@ -11,6 +12,7 @@ use crate::core::GenericResult;
 use crate::types::Date;
 
 use cash_assets::CashAssets;
+use cash_flows::CashFlows;
 use open_positions::OpenPositions;
 use trades::Trades;
 
@@ -26,6 +28,8 @@ pub struct BrokerReport {
     open_positions: OpenPositions,
     #[serde(rename = "closed_deal")]
     trades: Trades,
+    #[serde(rename = "nontrade_money_operation")]
+    cash_flows: CashFlows,
 }
 
 impl BrokerReport {
@@ -38,6 +42,11 @@ impl BrokerReport {
         statement.set_has_starting_assets(has_starting_assets)?;
 
         self.trades.parse(&mut statement)?;
+        // FIXME(konishchev): Implement
+        if false {
+            self.cash_flows.parse(&mut statement)?;
+        }
+
         Ok(statement)
     }
 }
