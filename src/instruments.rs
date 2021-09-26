@@ -10,6 +10,13 @@ use serde::de::Deserializer;
 use crate::core::{GenericResult, EmptyResult};
 use crate::localities::Jurisdiction;
 
+pub enum InstrumentId {
+    // FIXME(konishchev): Drop
+    #[allow(dead_code)]
+    Isin(String),
+    Symbol(String),
+}
+
 pub struct InstrumentInternalIds(HashMap<String, String>);
 
 impl Default for InstrumentInternalIds {
@@ -53,49 +60,58 @@ impl InstrumentInfo {
         }
     }
 
-    pub fn get_issuer_taxation_type(&self, symbol: &str, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
+    pub fn get_issuer_taxation_type(&self, issuer_id: &InstrumentId, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
         let country_of_residence = Jurisdiction::Russia.code();
 
-        match broker_jurisdiction {
-            Jurisdiction::Russia => {},
+        let get_taxation_type = match broker_jurisdiction {
+            Jurisdiction::Russia => |isin| -> GenericResult<IssuerTaxationType> {
+                let issuer_jurisdiction = parse_isin(isin)?;
+
+                Ok(if issuer_jurisdiction == country_of_residence {
+                    IssuerTaxationType::TaxAgent
+                } else {
+                    IssuerTaxationType::Manual(issuer_jurisdiction.to_owned())
+                })
+            },
             Jurisdiction::Usa => {
                 // See https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#foreign-income-jurisdiction
                 // for details.
                 let income_jurisdiction = broker_jurisdiction.code();
                 return Ok(IssuerTaxationType::Manual(income_jurisdiction.to_owned()));
             }
-        }
-
-        let isins = match self.0.get(symbol) {
-            Some(info) if !info.isin.is_empty() => &info.isin,
-            _ => return Err!(
-                "Unable to determine {} taxation type: there is no ISIN information for it",
-                symbol),
         };
 
-        let mut result_taxation_type = None;
+        Ok(match issuer_id {
+            InstrumentId::Isin(isin) => {
+                get_taxation_type(isin)?
+            },
+            InstrumentId::Symbol(symbol) => {
+                let isins = match self.0.get(symbol) {
+                    Some(info) if !info.isin.is_empty() => &info.isin,
+                    _ => return Err!(
+                            "Unable to determine {} taxation type: there is no ISIN information for it",
+                            symbol),
+                };
 
-        for isin in isins {
-            let issuer_jurisdiction = parse_isin(isin)?;
+                let mut result_taxation_type = None;
 
-            let taxation_type = if issuer_jurisdiction == country_of_residence {
-                IssuerTaxationType::TaxAgent
-            } else {
-                IssuerTaxationType::Manual(issuer_jurisdiction.to_owned())
-            };
+                for isin in isins {
+                    let taxation_type = get_taxation_type(isin)?;
 
-            if let Some(prev) = result_taxation_type.as_ref() {
-                if *prev != taxation_type {
-                    return Err!(
-                        "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
-                        symbol, isins.iter().join(", "))
+                    if let Some(prev) = result_taxation_type.as_ref() {
+                        if *prev != taxation_type {
+                            return Err!(
+                                "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
+                                symbol, isins.iter().join(", "))
+                        }
+                    } else {
+                        result_taxation_type.replace(taxation_type);
+                    }
                 }
-            } else {
-                result_taxation_type.replace(taxation_type);
-            }
-        }
 
-        Ok(result_taxation_type.unwrap())
+                result_taxation_type.unwrap()
+            },
+        })
     }
 
     pub fn add(&mut self, symbol: &str) -> GenericResult<&mut Instrument> {

@@ -77,7 +77,7 @@ impl DividendId {
 pub type DividendAccruals = Payments;
 
 pub fn process_dividend_accruals(
-    dividend: DividendId, taxation_type: IssuerTaxationType,
+    dividend: DividendId, issuer: &str, taxation_type: IssuerTaxationType,
     accruals: DividendAccruals, taxes: &mut HashMap<TaxId, TaxAccruals>,
     cash_flow_details: bool,
 ) -> GenericResult<(Option<Dividend>, Vec<CashFlow>)> {
@@ -85,7 +85,7 @@ pub fn process_dividend_accruals(
 
     let (amount, dividend_transactions) = accruals.get_result().map_err(|e| format!(
         "Failed to process {} dividend from {}: {}",
-        dividend.issuer, formatting::format_date(dividend.date), e
+        issuer, formatting::format_date(dividend.date), e
     ))?;
 
     let tax_id = TaxId::new(dividend.date, &dividend.issuer);
@@ -102,7 +102,7 @@ pub fn process_dividend_accruals(
                 amount: transaction.cash,
                 type_: CashFlowType::Dividend {
                     date: dividend.date,
-                    issuer: dividend.issuer.clone(),
+                    issuer: issuer.to_owned(),
                 },
             })
         }
@@ -113,7 +113,7 @@ pub fn process_dividend_accruals(
                 amount: -transaction.cash,
                 type_: CashFlowType::Tax {
                     date: dividend.date,
-                    issuer: dividend.issuer.clone(),
+                    issuer: issuer.to_owned(),
                 },
             })
         }
@@ -122,8 +122,8 @@ pub fn process_dividend_accruals(
     let dividend = match amount {
         Some(amount) => Some(Dividend {
             date: dividend.date,
-            issuer: dividend.issuer.clone(),
-            original_issuer: dividend.issuer,
+            issuer: issuer.to_owned(),
+            original_issuer: issuer.to_owned(),
 
             amount: amount,
             paid_tax: paid_tax.unwrap_or_else(|| Cash::zero(amount.currency)),
@@ -133,7 +133,7 @@ pub fn process_dividend_accruals(
         None => {
             if paid_tax.is_some() {
                 return Err!("Got paid tax for reversed {} dividend from {}",
-                            dividend.issuer, formatting::format_date(dividend.date));
+                            issuer, formatting::format_date(dividend.date));
             }
             None
         },

@@ -29,7 +29,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
+use crate::instruments::{InstrumentId, InstrumentInternalIds, InstrumentInfo};
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
@@ -88,7 +88,7 @@ impl BrokerStatement {
         instrument_names: &HashMap<String, String>, tax_remapping: TaxRemapping,
         corporate_actions: &[CorporateAction], strictness: ReadingStrictness,
     ) -> GenericResult<BrokerStatement> {
-        let jurisdiction = broker.type_.jurisdiction();
+        let broker_jurisdiction = broker.type_.jurisdiction();
 
         let mut statements = reader::read(
             broker.type_, statement_dir_path, instrument_internal_ids, tax_remapping, strictness)?;
@@ -119,11 +119,13 @@ impl BrokerStatement {
         }
 
         for (dividend_id, accruals) in dividend_accruals {
+            let issuer = dividend_id.issuer.clone();
+            let issuer_id = InstrumentId::Symbol(dividend_id.issuer.clone());
             let taxation_type = statement.instrument_info.get_issuer_taxation_type(
-                &dividend_id.issuer, jurisdiction)?;
+                &issuer_id, broker_jurisdiction)?;
 
             let (dividend, cash_flows) = process_dividend_accruals(
-                dividend_id, taxation_type, accruals, &mut tax_accruals, true)?;
+                dividend_id, &issuer, taxation_type, accruals, &mut tax_accruals, true)?;
 
             if let Some(dividend) = dividend {
                 statement.dividends.push(dividend);
