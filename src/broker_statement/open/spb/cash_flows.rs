@@ -96,8 +96,8 @@ fn parse_dividend_description(description: &str) -> GenericResult<(&str, Option<
             r"ставка {amount} (?P<currency>{currency}), ",
             r"удержан налог эмитентом (?P<paid_tax>{amount}), ",
             r"{issuer_type}, {issuer_name}, (?P<isin>{isin}), дата среза {date}$",
-        ), quantity=r"\d+", amount=r"(:?0|[1-9][0-9]*)(:?\.[0-9]+)?", currency=r"[A-Z]{3}",
-           issuer_type=r"[^,]+", issuer_name=r"[^,]+", isin=ISIN_REGEX,
+        ), quantity=r"\d+", amount=r"(?:0|[1-9][0-9]*)(?:\.[0-9]+)?", currency=r"[A-Z]{3}",
+           issuer_type=r"[^,]+", issuer_name=r"[^,]+(?:, [^,]+)?", isin=ISIN_REGEX,
            date=r"\d{2}\.\d{2}\.\d{4}"),
         ).unwrap();
     }
@@ -127,6 +127,16 @@ mod tests {
             "Начисление дивидендов: количество 1, ставка 0.42 USD, удержан налог эмитентом 0.04, ",
             "АО, The Coca-Cola Company, US1912161007, дата среза 15.06.2021"
         ), "US1912161007", Some(Cash::new("USD", dec!(0.04)))),
+
+        case(concat!(
+            "Начисление дивидендов: количество 25, ставка 0.86 USD, удержан налог эмитентом 2.15, ",
+            "АО, Altria Group, Inc., US02209S1033, дата среза 15.06.2021"
+        ), "US02209S1033", Some(Cash::new("USD", dec!(2.15)))),
+
+        // FIXME(konishchev): Support
+        // case(concat!(
+        //     "Выплата дохода клиент <123456> дивиденды <ABBVIE INC-ао>",
+        // ), None, None),
     )]
     fn dividend_description_parsing(description: &str, isin: &str, paid_tax: Option<Cash>) {
         assert_eq!(parse_dividend_description(description).unwrap(), (isin, paid_tax));
