@@ -134,6 +134,34 @@ impl InstrumentInfo {
         }
     }
 
+    pub fn get_or_add_by_id<'id, 'info: 'id>(
+        &'info mut self, instrument_id: &'id InstrumentId,
+    ) -> GenericResult<(&'id str, &'info Instrument)> {
+        Ok(match instrument_id {
+            InstrumentId::Symbol(symbol) => {
+                (symbol, self.get_or_add(symbol))
+            },
+            InstrumentId::Isin(isin) => {
+                let mut results: Vec<(&str, &Instrument)> = Vec::with_capacity(1);
+
+                for (symbol, instrument) in &self.0 {
+                    if instrument.isin.contains(isin) {
+                        results.push((symbol, instrument));
+                    }
+                }
+
+                match results.len() {
+                    1 => *results.first().unwrap(),
+                    0 => return Err!(
+                        "Unable to find any information about instrument with {} ISIN", isin),
+                    _ => return Err!(
+                        "Unable to map {} ISIN to instrument symbol: it maps into several symbols: {}",
+                        isin, results.iter().map(|result| result.0).join(", ")),
+                }
+            },
+        })
+    }
+
     pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
         if self.0.contains_key(new_symbol) {
             return Err!("The portfolio already has {} symbol", new_symbol);

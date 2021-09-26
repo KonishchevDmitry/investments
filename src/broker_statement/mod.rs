@@ -119,8 +119,11 @@ impl BrokerStatement {
         }
 
         for (dividend_id, accruals) in dividend_accruals {
-            let issuer = dividend_id.issuer.clone();
             let issuer_id = InstrumentId::Symbol(dividend_id.issuer.clone());
+
+            let (issuer, _) = statement.instrument_info.get_or_add_by_id(&issuer_id)?;
+            let issuer = issuer.to_owned();
+
             let taxation_type = statement.instrument_info.get_issuer_taxation_type(
                 &issuer_id, broker_jurisdiction)?;
 
