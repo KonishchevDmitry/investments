@@ -121,14 +121,11 @@ impl BrokerStatement {
         for (dividend_id, accruals) in dividend_accruals {
             let issuer_id = InstrumentId::Symbol(dividend_id.issuer.clone());
 
-            let (issuer, _) = statement.instrument_info.get_or_add_by_id(&issuer_id)?;
-            let issuer = issuer.to_owned();
-
-            let taxation_type = statement.instrument_info.get_issuer_taxation_type(
-                &issuer_id, broker_jurisdiction)?;
+            let instrument = statement.instrument_info.get_or_add_by_id(&issuer_id)?;
+            let taxation_type = instrument.get_taxation_type(broker_jurisdiction)?;
 
             let (dividend, cash_flows) = process_dividend_accruals(
-                dividend_id, &issuer, taxation_type, accruals, &mut tax_accruals, true)?;
+                dividend_id, &instrument.symbol, taxation_type, accruals, &mut tax_accruals, true)?;
 
             if let Some(dividend) = dividend {
                 statement.dividends.push(dividend);

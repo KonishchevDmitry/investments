@@ -60,65 +60,12 @@ impl InstrumentInfo {
         }
     }
 
-    pub fn get_issuer_taxation_type(&self, issuer_id: &InstrumentId, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
-        let country_of_residence = Jurisdiction::Russia.code();
-
-        let get_taxation_type = match broker_jurisdiction {
-            Jurisdiction::Russia => |isin| -> GenericResult<IssuerTaxationType> {
-                let issuer_jurisdiction = parse_isin(isin)?;
-
-                Ok(if issuer_jurisdiction == country_of_residence {
-                    IssuerTaxationType::TaxAgent
-                } else {
-                    IssuerTaxationType::Manual(issuer_jurisdiction.to_owned())
-                })
-            },
-            Jurisdiction::Usa => {
-                // See https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#foreign-income-jurisdiction
-                // for details.
-                let income_jurisdiction = broker_jurisdiction.code();
-                return Ok(IssuerTaxationType::Manual(income_jurisdiction.to_owned()));
-            }
-        };
-
-        Ok(match issuer_id {
-            InstrumentId::Isin(isin) => {
-                get_taxation_type(isin)?
-            },
-            InstrumentId::Symbol(symbol) => {
-                let isins = match self.0.get(symbol) {
-                    Some(info) if !info.isin.is_empty() => &info.isin,
-                    _ => return Err!(
-                            "Unable to determine {} taxation type: there is no ISIN information for it",
-                            symbol),
-                };
-
-                let mut result_taxation_type = None;
-
-                for isin in isins {
-                    let taxation_type = get_taxation_type(isin)?;
-
-                    if let Some(prev) = result_taxation_type.as_ref() {
-                        if *prev != taxation_type {
-                            return Err!(
-                                "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
-                                symbol, isins.iter().join(", "))
-                        }
-                    } else {
-                        result_taxation_type.replace(taxation_type);
-                    }
-                }
-
-                result_taxation_type.unwrap()
-            },
-        })
-    }
-
     pub fn add(&mut self, symbol: &str) -> GenericResult<&mut Instrument> {
         match self.0.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => Ok(entry.insert(Instrument {
-                name: None,
-                isin: HashSet::new(),
+                symbol: symbol.to_owned(),
+                name:   None,
+                isin:   HashSet::new(),
             })),
             Entry::Occupied(_) => Err!("Duplicated security symbol: {}", symbol),
         }
@@ -127,36 +74,33 @@ impl InstrumentInfo {
     pub fn get_or_add(&mut self, symbol: &str) -> &mut Instrument {
         match self.0.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(Instrument {
-                name: None,
-                isin: HashSet::new(),
+                symbol: symbol.to_owned(),
+                name:   None,
+                isin:   HashSet::new(),
             }),
             Entry::Occupied(entry) => entry.into_mut(),
         }
     }
 
-    pub fn get_or_add_by_id<'id, 'info: 'id>(
-        &'info mut self, instrument_id: &'id InstrumentId,
-    ) -> GenericResult<(&'id str, &'info Instrument)> {
+    pub fn get_or_add_by_id(&mut self, instrument_id: &InstrumentId) -> GenericResult<&Instrument> {
         Ok(match instrument_id {
-            InstrumentId::Symbol(symbol) => {
-                (symbol, self.get_or_add(symbol))
-            },
+            InstrumentId::Symbol(symbol) => self.get_or_add(symbol),
             InstrumentId::Isin(isin) => {
-                let mut results: Vec<(&str, &Instrument)> = Vec::with_capacity(1);
+                let mut results = Vec::with_capacity(1);
 
-                for (symbol, instrument) in &self.0 {
+                for instrument in self.0.values() {
                     if instrument.isin.contains(isin) {
-                        results.push((symbol, instrument));
+                        results.push(instrument);
                     }
                 }
 
                 match results.len() {
-                    1 => *results.first().unwrap(),
+                    1 => results.first().unwrap(),
                     0 => return Err!(
                         "Unable to find any information about instrument with {} ISIN", isin),
                     _ => return Err!(
                         "Unable to map {} ISIN to instrument symbol: it maps into several symbols: {}",
-                        isin, results.iter().map(|result| result.0).join(", ")),
+                        isin, results.iter().map(|result| &result.symbol).join(", ")),
                 }
             },
         })
@@ -167,7 +111,8 @@ impl InstrumentInfo {
             return Err!("The portfolio already has {} symbol", new_symbol);
         }
 
-        if let Some(info) = self.0.remove(old_symbol) {
+        if let Some(mut info) = self.0.remove(old_symbol) {
+            info.symbol = new_symbol.to_owned();
             self.0.insert(new_symbol.to_owned(), info);
         }
 
@@ -177,9 +122,9 @@ impl InstrumentInfo {
     pub fn name_mapping(&self) -> HashMap<String, HashSet<String>> {
         let mut mapping = HashMap::<String, HashSet<String>>::new();
 
-        for (symbol, info) in self.0.iter() {
+        for info in self.0.values() {
             if let Some(ref name) = info.name {
-                mapping.entry(name.to_owned()).or_default().insert(symbol.to_owned());
+                mapping.entry(name.to_owned()).or_default().insert(info.symbol.to_owned());
             }
         }
 
@@ -201,6 +146,7 @@ impl InstrumentInfo {
 }
 
 pub struct Instrument {
+    pub symbol: String,
     name: Option<String>,
     isin: HashSet<String>,
 }
@@ -214,6 +160,48 @@ impl Instrument {
         parse_isin(isin)?;
         self.isin.insert(isin.to_owned());
         Ok(())
+    }
+
+    pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
+        let country_of_residence = Jurisdiction::Russia.code();
+
+        let get_taxation_type = match broker_jurisdiction {
+            Jurisdiction::Russia => |isin| -> GenericResult<IssuerTaxationType> {
+                let issuer_jurisdiction = parse_isin(isin)?;
+
+                Ok(if issuer_jurisdiction == country_of_residence {
+                    IssuerTaxationType::TaxAgent
+                } else {
+                    IssuerTaxationType::Manual(issuer_jurisdiction.to_owned())
+                })
+            },
+            Jurisdiction::Usa => {
+                // See https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#foreign-income-jurisdiction
+                // for details.
+                let income_jurisdiction = broker_jurisdiction.code();
+                return Ok(IssuerTaxationType::Manual(income_jurisdiction.to_owned()));
+            }
+        };
+
+        let mut result_taxation_type = None;
+
+        for isin in &self.isin {
+            let taxation_type = get_taxation_type(isin)?;
+
+            if let Some(prev) = result_taxation_type.as_ref() {
+                if *prev != taxation_type {
+                    return Err!(
+                        "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
+                        self.symbol, self.isin.iter().join(", "))
+                }
+            } else {
+                result_taxation_type.replace(taxation_type);
+            }
+        }
+
+        Ok(result_taxation_type.ok_or_else(|| format!(
+            "Unable to determine {} taxation type: there is no ISIN information for it",
+            self.symbol))?)
     }
 
     fn merge(&mut self, other: Instrument) {
