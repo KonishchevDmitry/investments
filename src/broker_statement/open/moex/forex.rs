@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::broker_statement::open::common::{deserialize_date, deserialize_time, deserialize_date_time};
+use crate::broker_statement::open::common::deserialize_date;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::ForexTrade;
 use crate::core::EmptyResult;
@@ -8,6 +8,8 @@ use crate::forex::parse_forex_code;
 use crate::time::{Date, Time, DateTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
+
+use super::common::{deserialize_time, deserialize_date_time};
 
 #[derive(Deserialize)]
 pub struct ForexTrades {

@@ -1,5 +1,6 @@
 mod assets;
 mod cash_flows;
+mod common;
 mod forex;
 mod trades;
 

@@ -3,14 +3,15 @@ use std::collections::HashMap;
 use log::warn;
 use serde::Deserialize;
 
-use crate::broker_statement::open::common::{
-    deserialize_date, deserialize_date_time, parse_quantity, get_symbol};
+use crate::broker_statement::open::common::{deserialize_date, parse_quantity};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, DateTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
+
+use super::common::{deserialize_date_time, get_symbol};
 
 #[derive(Deserialize)]
 pub struct ConcludedTrades {

@@ -1,5 +1,7 @@
 mod cash_assets;
+mod common;
 mod open_positions;
+mod trades;
 
 use serde::Deserialize;
 
@@ -10,20 +12,20 @@ use crate::types::Date;
 
 use cash_assets::CashAssets;
 use open_positions::OpenPositions;
+use trades::Trades;
 
 #[derive(Deserialize)]
 pub struct BrokerReport {
     #[serde(deserialize_with = "deserialize_date")]
     date_from: Date,
-
     #[serde(deserialize_with = "deserialize_date")]
     date_to: Date,
-
     #[serde(rename = "account_totally_line")]
     cash_assets: CashAssets,
-
     #[serde(rename = "briefcase_position")]
     open_positions: OpenPositions,
+    #[serde(rename = "closed_deal")]
+    trades: Trades,
 }
 
 impl BrokerReport {
@@ -35,6 +37,7 @@ impl BrokerReport {
         has_starting_assets |= self.open_positions.parse(&mut statement)?;
         statement.set_has_starting_assets(has_starting_assets)?;
 
+        self.trades.parse(&mut statement)?;
         Ok(statement)
     }
 }

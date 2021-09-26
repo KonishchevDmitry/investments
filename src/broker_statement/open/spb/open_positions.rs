@@ -5,6 +5,8 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
 use crate::types::Decimal;
 
+use super::common::parse_security_code;
+
 #[derive(Deserialize)]
 pub struct OpenPositions {
     #[serde(rename = "item")]
@@ -54,22 +56,5 @@ impl OpenPositions {
         }
 
         Ok(has_starting_assets)
-    }
-}
-
-fn parse_security_code(code: &str) -> GenericResult<&str> {
-    match code.strip_suffix("_SPB") {
-        Some(symbol) => Ok(symbol),
-        None => Err!("Got a security code in an unexpected format: {:?}", code),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn security_code_parsing() {
-        assert_eq!(parse_security_code("KO_SPB").unwrap(), "KO");
     }
 }
