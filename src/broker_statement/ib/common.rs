@@ -13,7 +13,7 @@ use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
 pub const STOCK_ID_REGEX: &str = "[A-Z0-9]+?";
-pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?(:? [A-Z0-9]+)?";
+pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?(?: [A-Z0-9]+)?";
 
 pub struct RecordSpec<'a> {
     pub name: &'a str,

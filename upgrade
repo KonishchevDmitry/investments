@@ -12,6 +12,6 @@ cargo upgrade
 sed -ri '/^libsqlite3-sys =/ s/version\s*=\s*"[^"]+"/version = ">=0.8.0, <0.23.0"/' Cargo.toml
 
 # Pin rust_decimal version since it's not stable enough yet
-sed -ri 's/^(rust_decimal(:?_macros)? = ")/\1~/' Cargo.toml
+sed -ri 's/^(rust_decimal(_macros)? = ")/\1~/' Cargo.toml
 
 cargo update
