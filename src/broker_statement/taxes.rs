@@ -4,17 +4,18 @@ use crate::broker_statement::payments::Payments;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::formatting::format_date;
+use crate::instruments::InstrumentId;
 use crate::types::Date;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct TaxId {
     pub date: Date,
-    pub issuer: String,
+    pub issuer: InstrumentId,
 }
 
 impl TaxId {
-    pub fn new(date: Date, issuer: &str) -> TaxId {
-        TaxId { date, issuer: issuer.to_owned() }
+    pub fn new(date: Date, issuer: InstrumentId) -> TaxId {
+        TaxId {date, issuer}
     }
 }
 

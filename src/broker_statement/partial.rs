@@ -4,7 +4,7 @@ use std::collections::hash_map::Entry;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::formatting;
-use crate::instruments::InstrumentInfo;
+use crate::instruments::{InstrumentId, InstrumentInfo};
 use crate::types::{Date, Decimal};
 use crate::util::{DecimalRestrictions, validate_named_decimal};
 
@@ -104,13 +104,13 @@ impl PartialBrokerStatement {
         Ok(())
     }
 
-    pub fn dividend_accruals(&mut self, date: Date, symbol: &str, strict: bool) -> &mut DividendAccruals {
-        self.dividend_accruals.entry(DividendId::new(date, symbol))
+    pub fn dividend_accruals(&mut self, date: Date, issuer: InstrumentId, strict: bool) -> &mut DividendAccruals {
+        self.dividend_accruals.entry(DividendId::new(date, issuer))
             .or_insert_with(|| DividendAccruals::new(strict))
     }
 
-    pub fn tax_accruals(&mut self, date: Date, symbol: &str, strict: bool) -> &mut TaxAccruals {
-        self.tax_accruals.entry(TaxId::new(date, symbol))
+    pub fn tax_accruals(&mut self, date: Date, issuer: InstrumentId, strict: bool) -> &mut TaxAccruals {
+        self.tax_accruals.entry(TaxId::new(date, issuer))
             .or_insert_with(|| TaxAccruals::new(strict))
     }
 

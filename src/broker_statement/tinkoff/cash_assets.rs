@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use chrono::Datelike;
-use itertools::Itertools;
 
 use xls_table_derive::XlsTableRow;
 
@@ -12,6 +11,7 @@ use crate::broker_statement::taxes::TaxWithholding;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
+use crate::instruments::InstrumentId;
 use crate::time::{Date, Time};
 use crate::types::Decimal;
 use crate::util::DecimalRestrictions;
@@ -198,17 +198,19 @@ fn parse_cash_flow(
             statement.fees.push(Fee::new(date, amount, Some(description)));
         },
 
-        // The issuer here is company short name, not its symbol. We'll postprocess the accruals
-        // later and replace company name with symbol when this mapping will be available.
         "Выплата дивидендов" => {
-            let issuer = parse_dividend_description(cash_flow.comment.as_deref().unwrap_or_default())?;
+            let description = cash_flow.comment.as_deref().unwrap_or_default();
+            let issuer_name = parse_dividend_description(description)?;
+            let issuer_id = InstrumentId::Name(issuer_name.to_owned());
             let amount = check_amount(deposit)?;
-            statement.dividend_accruals(date, issuer, true).add(date, amount);
+            statement.dividend_accruals(date, issuer_id, true).add(date, amount);
         },
         "Налог (дивиденды)" => {
-            let issuer = parse_dividend_description(cash_flow.comment.as_deref().unwrap_or_default())?;
+            let description = cash_flow.comment.as_deref().unwrap_or_default();
+            let issuer_name = parse_dividend_description(description)?;
+            let issuer_id = InstrumentId::Name(issuer_name.to_owned());
             let amount = check_amount(withdrawal)?;
-            statement.tax_accruals(date, issuer, true).add(date, amount);
+            statement.tax_accruals(date, issuer_id, true).add(date, amount);
         },
 
         "Налог" => {
@@ -225,31 +227,28 @@ fn parse_cash_flow(
 }
 
 pub fn postprocess(statement: &mut PartialBrokerStatement) -> EmptyResult {
-    let symbol_names = statement.instrument_info.name_mapping();
-    let get_symbol = |issuer: &str| -> GenericResult<&str> {
-        let symbols = symbol_names.get(issuer).ok_or_else(|| format!(
-            "Unable to find stock symbol by dividend issuer name: {:?}", issuer))?;
-
-        if symbols.len() != 1 {
-            return Err!(concat!(
-                "Unable to find stock symbol by dividend issuer name ({}): ",
-                "It maps into multiple stock symbols: {}"
-            ), issuer, symbols.iter().join(", "));
-        }
-
-        Ok(symbols.iter().next().unwrap())
-    };
-
     let mut dividend_accruals = HashMap::new();
     for (mut dividend_id, accruals) in statement.dividend_accruals.drain() {
-        dividend_id.issuer = get_symbol(&dividend_id.issuer)?.to_owned();
+        match dividend_id.issuer {
+            InstrumentId::Name(_) => {
+                let instrument = statement.instrument_info.get_or_add_by_id(&dividend_id.issuer)?;
+                dividend_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
+            },
+            _ => unreachable!(),
+        }
         assert!(dividend_accruals.insert(dividend_id, accruals).is_none());
     }
     statement.dividend_accruals = dividend_accruals;
 
     let mut tax_accruals = HashMap::new();
     for (mut tax_id, accruals) in statement.tax_accruals.drain() {
-        tax_id.issuer = get_symbol(&tax_id.issuer)?.to_owned();
+        match tax_id.issuer {
+            InstrumentId::Name(_) => {
+                let instrument = statement.instrument_info.get_or_add_by_id(&tax_id.issuer)?;
+                tax_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
+            },
+            _ => unreachable!(),
+        }
         assert!(tax_accruals.insert(tax_id, accruals).is_none());
     }
     statement.tax_accruals = tax_accruals;
@@ -276,8 +275,9 @@ mod tests {
 
     #[test]
     fn dividend_parsing() {
-        let description = "Ростел -ап/ 20 шт.";
-        let issuer = "Ростел -ап";
-        assert_eq!(parse_dividend_description(description).unwrap(), issuer);
+        assert_eq!(
+            parse_dividend_description("Ростел -ап/ 20 шт.").unwrap(),
+            "Ростел -ап",
+        );
     }
 }

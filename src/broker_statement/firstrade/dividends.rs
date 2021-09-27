@@ -5,6 +5,7 @@ use regex::Regex;
 
 use crate::core::EmptyResult;
 use crate::currency::Cash;
+use crate::instruments::InstrumentId;
 use crate::localities;
 use crate::taxes::IncomeType;
 use crate::types::Date;
@@ -52,8 +53,9 @@ pub fn parse_dividend(
         (amount, paid_tax)
     };
 
-    parser.statement.dividend_accruals(date, issuer, true).add(date, amount);
-    parser.statement.tax_accruals(date, issuer, false).add(date, paid_tax);
+    let issuer_id = InstrumentId::Symbol(issuer.to_owned());
+    parser.statement.dividend_accruals(date, issuer_id.clone(), true).add(date, amount);
+    parser.statement.tax_accruals(date, issuer_id, false).add(date, paid_tax);
 
     Ok(())
 }

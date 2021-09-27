@@ -7,7 +7,7 @@ use crate::broker_statement::open::common::deserialize_date;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
-use crate::instruments::InstrumentInternalIds;
+use crate::instruments::{InstrumentId, InstrumentInternalIds};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -71,17 +71,23 @@ impl CashFlow {
             },
 
             CashFlowType::Dividend(issuer) => {
+                // FIXME(konishchev): Deprecate?
                 let issuer = instrument_internal_ids.get_symbol(&issuer)?;
                 let amount = util::validate_named_cash(
                     "dividend amount", currency, amount, DecimalRestrictions::StrictlyPositive)?;
-                statement.dividend_accruals(date, issuer, true).add(date, amount);
+
+                let issuer_id = InstrumentId::Symbol(issuer.to_owned());
+                statement.dividend_accruals(date, issuer_id, true).add(date, amount);
             },
 
             CashFlowType::DividendTax(issuer) => {
+                // FIXME(konishchev): Deprecate?
                 let issuer = instrument_internal_ids.get_symbol(&issuer)?;
                 let amount = -util::validate_named_cash(
                     "tax amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
-                statement.tax_accruals(date, issuer, true).add(date, amount);
+
+                let issuer_id = InstrumentId::Symbol(issuer.to_owned());
+                statement.tax_accruals(date, issuer_id, true).add(date, amount);
             },
         };
 

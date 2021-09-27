@@ -29,7 +29,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::instruments::{InstrumentId, InstrumentInternalIds, InstrumentInfo};
+use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
@@ -119,9 +119,7 @@ impl BrokerStatement {
         }
 
         for (dividend_id, accruals) in dividend_accruals {
-            let issuer_id = InstrumentId::Symbol(dividend_id.issuer.clone());
-
-            let instrument = statement.instrument_info.get_or_add_by_id(&issuer_id)?;
+            let instrument = statement.instrument_info.get_or_add_by_id(&dividend_id.issuer)?;
             let taxation_type = instrument.get_taxation_type(broker_jurisdiction)?;
 
             let (dividend, cash_flows) = process_dividend_accruals(

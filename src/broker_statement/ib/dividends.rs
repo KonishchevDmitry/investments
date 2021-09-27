@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::instruments::InstrumentId;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -25,11 +26,13 @@ impl RecordParser for DividendsParser {
         let cash_flow_id = CashFlowId::new(statement_date, description, amount);
         let cash_flow_date = parser.cash_flows.map(&parser.statement, cash_flow_id, statement_date)?;
 
-        let accruals = parser.statement.dividend_accruals(statement_date, &issuer, true);
+        let accruals = parser.statement.dividend_accruals(
+            statement_date, InstrumentId::Symbol(issuer), true);
+
         if amount.is_negative() {
-            accruals.reverse(cash_flow_date, -amount)
+            accruals.reverse(cash_flow_date, -amount);
         } else {
-            accruals.add(cash_flow_date, amount)
+            accruals.add(cash_flow_date, amount);
         }
 
         Ok(())

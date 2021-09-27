@@ -4,6 +4,7 @@ use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Fee};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
+use crate::instruments::InstrumentId;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -342,7 +343,9 @@ impl IncomeInfo {
                     let amount = util::validate_named_cash(
                         "tax reversal amount", currency, amount,
                         DecimalRestrictions::StrictlyPositive)?;
-                    parser.statement.tax_accruals(tax_date, symbol, false).reverse(date, amount);
+
+                    let issuer_id = InstrumentId::Symbol(symbol.to_owned());
+                    parser.statement.tax_accruals(tax_date, issuer_id, false).reverse(date, amount);
                 } else {
                     return Err!("Got an unsupported income from {}: {:?}", symbol, description);
                 }

@@ -6,7 +6,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
-use crate::instruments::IssuerTaxationType;
+use crate::instruments::{InstrumentId, IssuerTaxationType};
 use crate::localities::Country;
 use crate::taxes::IncomeType;
 use crate::time::Date;
@@ -65,12 +65,12 @@ impl Dividend {
 #[derive(PartialEq, Eq, Hash)]
 pub struct DividendId {
     pub date: Date,
-    pub issuer: String,
+    pub issuer: InstrumentId,
 }
 
 impl DividendId {
-    pub fn new(date: Date, issuer: &str) -> DividendId {
-        DividendId {date, issuer: issuer.to_owned()}
+    pub fn new(date: Date, issuer: InstrumentId) -> DividendId {
+        DividendId {date, issuer}
     }
 }
 
@@ -88,7 +88,7 @@ pub fn process_dividend_accruals(
         issuer, formatting::format_date(dividend.date), e
     ))?;
 
-    let tax_id = TaxId::new(dividend.date, &dividend.issuer);
+    let tax_id = TaxId::new(dividend.date, dividend.issuer.clone());
     let (paid_tax, tax_transactions) = taxes.remove(&tax_id).map_or_else(|| Ok((None, Vec::new())), |tax_accruals| {
         tax_accruals.get_result().map_err(|e| format!(
             "Failed to process {} tax from {}: {}",

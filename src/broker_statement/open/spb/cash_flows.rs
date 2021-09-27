@@ -9,7 +9,7 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
-use crate::instruments::ISIN_REGEX;
+use crate::instruments::{InstrumentId, ISIN_REGEX};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -62,9 +62,8 @@ impl CashFlow {
             },
 
             "Зачисление дивидендов" => {
-                let (isin, paid_tax) = parse_dividend_description(&self.description)?;
+                let (issuer_id, paid_tax) = parse_dividend_description(&self.description)?;
 
-                let issuer_id = isin; // FIXME(konishchev): Implement
                 let mut amount = util::validate_named_cash(
                     "dividend amount", currency, amount,
                     DecimalRestrictions::StrictlyPositive)?;
@@ -73,10 +72,10 @@ impl CashFlow {
                     if paid_tax.currency != amount.currency {
                         return Err!(
                             "Got paid tax for {} dividend ({}) in an unexpected currency: {} vs {}",
-                            isin, formatting::format_date(date), paid_tax.currency, amount.currency);
+                            issuer_id, formatting::format_date(date), paid_tax.currency, amount.currency);
                     }
                     amount += paid_tax;
-                    statement.tax_accruals(date, issuer_id, true).add(date, paid_tax);
+                    statement.tax_accruals(date, issuer_id.clone(), true).add(date, paid_tax);
                 }
 
                 statement.dividend_accruals(date, issuer_id, true).add(date, amount);
@@ -89,7 +88,7 @@ impl CashFlow {
     }
 }
 
-fn parse_dividend_description(description: &str) -> GenericResult<(&str, Option<Cash>)> {
+fn parse_dividend_description(description: &str) -> GenericResult<(InstrumentId, Option<Cash>)> {
     lazy_static! {
         static ref REGEX: Regex = Regex::new(&format!(concat!(
             r"^Начисление дивидендов: количество {quantity}, ",
@@ -102,7 +101,7 @@ fn parse_dividend_description(description: &str) -> GenericResult<(&str, Option<
         ).unwrap();
     }
 
-    let (isin, currency, paid_tax) = REGEX.captures(description).and_then(|captures| {
+    Ok(REGEX.captures(description).and_then(|captures| {
         let isin = captures.name("isin").unwrap().as_str();
         let currency = captures.name("currency").unwrap().as_str();
 
@@ -111,10 +110,11 @@ fn parse_dividend_description(description: &str) -> GenericResult<(&str, Option<
             Err(_) => return None,
         };
 
-        Some((isin, currency, paid_tax))
-    }).ok_or_else(|| format!("Unsupported dividend description: {:?}", description))?;
-
-    Ok((isin, Some(Cash::new(currency, paid_tax))))
+        Some((
+            InstrumentId::Isin(isin.to_owned()),
+            Some(Cash::new(currency, paid_tax)),
+        ))
+    }).ok_or_else(|| format!("Unsupported dividend description: {:?}", description))?)
 }
 
 #[cfg(test)]
@@ -122,23 +122,23 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    #[rstest(description, isin, paid_tax,
+    #[rstest(description, issuer_id, paid_tax,
         case(concat!(
             "Начисление дивидендов: количество 1, ставка 0.42 USD, удержан налог эмитентом 0.04, ",
             "АО, The Coca-Cola Company, US1912161007, дата среза 15.06.2021"
-        ), "US1912161007", Some(Cash::new("USD", dec!(0.04)))),
+        ), InstrumentId::Isin(s!("US1912161007")), Some(Cash::new("USD", dec!(0.04)))),
 
         case(concat!(
             "Начисление дивидендов: количество 25, ставка 0.86 USD, удержан налог эмитентом 2.15, ",
             "АО, Altria Group, Inc., US02209S1033, дата среза 15.06.2021"
-        ), "US02209S1033", Some(Cash::new("USD", dec!(2.15)))),
+        ), InstrumentId::Isin(s!("US02209S1033")), Some(Cash::new("USD", dec!(2.15)))),
 
         // FIXME(konishchev): Support
         // case(concat!(
         //     "Выплата дохода клиент <123456> дивиденды <ABBVIE INC-ао>",
         // ), None, None),
     )]
-    fn dividend_description_parsing(description: &str, isin: &str, paid_tax: Option<Cash>) {
-        assert_eq!(parse_dividend_description(description).unwrap(), (isin, paid_tax));
+    fn dividend_description_parsing(description: &str, issuer_id: InstrumentId, paid_tax: Option<Cash>) {
+        assert_eq!(parse_dividend_description(description).unwrap(), (issuer_id, paid_tax));
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::default::Default;
+use std::fmt;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -10,11 +11,21 @@ use serde::de::Deserializer;
 use crate::core::{GenericResult, EmptyResult};
 use crate::localities::Jurisdiction;
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum InstrumentId {
-    // FIXME(konishchev): Drop
-    #[allow(dead_code)]
-    Isin(String),
     Symbol(String),
+    Isin(String),
+    Name(String),
+}
+
+impl fmt::Display for InstrumentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            InstrumentId::Symbol(symbol) => symbol,
+            InstrumentId::Isin(isin) => isin,
+            InstrumentId::Name(name) => name,
+        })
+    }
 }
 
 pub struct InstrumentInternalIds(HashMap<String, String>);
@@ -96,11 +107,27 @@ impl InstrumentInfo {
 
                 match results.len() {
                     1 => results.first().unwrap(),
-                    0 => return Err!(
-                        "Unable to find any information about instrument with {} ISIN", isin),
+                    0 => return Err!("Unable to find instrument information by its ISIN: {}", isin),
                     _ => return Err!(
                         "Unable to map {} ISIN to instrument symbol: it maps into several symbols: {}",
                         isin, results.iter().map(|result| &result.symbol).join(", ")),
+                }
+            },
+            InstrumentId::Name(name) => {
+                let mut results = Vec::with_capacity(1);
+
+                for instrument in self.0.values() {
+                    if matches!(instrument.name, Some(ref other) if other == name) {
+                        results.push(instrument);
+                    }
+                }
+
+                match results.len() {
+                    1 => results.first().unwrap(),
+                    0 => return Err!("Unable to find instrument information by its name: {:?}", name),
+                    _ => return Err!(
+                        "Unable to map {:?} to instrument symbol: it maps into several symbols: {}",
+                        name, results.iter().map(|result| &result.symbol).join(", ")),
                 }
             },
         })
@@ -117,18 +144,6 @@ impl InstrumentInfo {
         }
 
         Ok(())
-    }
-
-    pub fn name_mapping(&self) -> HashMap<String, HashSet<String>> {
-        let mut mapping = HashMap::<String, HashSet<String>>::new();
-
-        for info in self.0.values() {
-            if let Some(ref name) = info.name {
-                mapping.entry(name.to_owned()).or_default().insert(info.symbol.to_owned());
-            }
-        }
-
-        mapping
     }
 
     pub fn merge(&mut self, other: InstrumentInfo) {

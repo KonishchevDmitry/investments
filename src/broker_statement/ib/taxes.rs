@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::{GenericResult, EmptyResult};
+use crate::instruments::InstrumentId;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -45,7 +46,9 @@ impl RecordParser for WithholdingTaxParser {
         let cash_flow_id = CashFlowId::new(statement_date, description, tax);
         let cash_flow_date = parser.cash_flows.map(&parser.statement, cash_flow_id, actual_date)?;
 
-        let accruals = parser.statement.tax_accruals(actual_date, &issuer, true);
+        let accruals = parser.statement.tax_accruals(
+            actual_date, InstrumentId::Symbol(issuer), true);
+
         if tax.is_positive() {
             accruals.reverse(cash_flow_date, tax);
         } else {
