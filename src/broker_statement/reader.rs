@@ -5,7 +5,6 @@ use bitflags::bitflags;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::brokers::Broker;
-use crate::instruments::InstrumentInternalIds;
 use crate::taxes::TaxRemapping;
 
 use super::{bcs, firstrade, ib, open, tinkoff};
@@ -26,8 +25,7 @@ pub trait BrokerStatementReader {
 }
 
 pub fn read(
-    broker: Broker, statement_dir_path: &str,
-    instrument_internal_ids: &InstrumentInternalIds, tax_remapping: TaxRemapping,
+    broker: Broker, statement_dir_path: &str, tax_remapping: TaxRemapping,
     strictness: ReadingStrictness,
 ) -> GenericResult<Vec<PartialBrokerStatement>> {
     let mut tax_remapping = Some(tax_remapping);
@@ -36,7 +34,7 @@ pub fn read(
         Broker::Firstrade => firstrade::StatementReader::new(),
         Broker::InteractiveBrokers => ib::StatementReader::new(
             tax_remapping.take().unwrap(), strictness),
-        Broker::Open => open::StatementReader::new(instrument_internal_ids),
+        Broker::Open => open::StatementReader::new(),
         Broker::Tinkoff => tinkoff::StatementReader::new(),
     }?;
 

@@ -5,7 +5,6 @@ use xml::reader::{EventReader, XmlEvent};
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
-use crate::instruments::InstrumentInternalIds;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
@@ -15,17 +14,16 @@ mod common;
 mod moex;
 mod spb;
 
-pub struct StatementReader<'a> {
-    instrument_internal_ids: &'a InstrumentInternalIds,
+pub struct StatementReader {
 }
 
-impl<'a> StatementReader<'a> {
-    pub fn new(instrument_internal_ids: &'a InstrumentInternalIds) -> GenericResult<Box<dyn BrokerStatementReader + 'a>> {
-        Ok(Box::new(StatementReader{instrument_internal_ids}))
+impl StatementReader {
+    pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
+        Ok(Box::new(StatementReader{}))
     }
 }
 
-impl<'a> BrokerStatementReader for StatementReader<'a> {
+impl BrokerStatementReader for StatementReader {
     fn is_statement(&self, path: &str) -> GenericResult<bool> {
         Ok(path.ends_with(".xml"))
     }
@@ -46,7 +44,7 @@ impl<'a> BrokerStatementReader for StatementReader<'a> {
             "https://account.open-broker.ru/common/report/broker_report_spot.xsl" |
             "https://account.open-broker.ru/common/report/broker_report_unified.xsl" => {
                 let report: moex::BrokerReport = serde_xml_rs::from_str(&data)?;
-                report.parse(self.instrument_internal_ids)?
+                report.parse()?
             },
 
             // FIXME(konishchev): Implement

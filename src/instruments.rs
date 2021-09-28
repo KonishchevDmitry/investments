@@ -16,6 +16,7 @@ pub enum InstrumentId {
     Symbol(String),
     Isin(String),
     Name(String),
+    InternalId(String), // Some broker-specific ID
 }
 
 impl fmt::Display for InstrumentId {
@@ -24,10 +25,12 @@ impl fmt::Display for InstrumentId {
             InstrumentId::Symbol(symbol) => symbol,
             InstrumentId::Isin(isin) => isin,
             InstrumentId::Name(name) => name,
+            InstrumentId::InternalId(id) => id,
         })
     }
 }
 
+#[derive(Clone)]
 pub struct InstrumentInternalIds(HashMap<String, String>);
 
 impl Default for InstrumentInternalIds {
@@ -37,9 +40,9 @@ impl Default for InstrumentInternalIds {
 }
 
 impl InstrumentInternalIds {
-    pub fn get_symbol(&self, id: &str) -> GenericResult<&str> {
+    fn get_symbol(&self, id: &str) -> GenericResult<&str> {
         Ok(self.0.get(id).ok_or_else(|| format!(concat!(
-            "Unable to determine stock symbol by its internal ID ({}). ",
+            "Unable to determine stock symbol by its broker-specific internal ID ({}). ",
             "Please specify the mapping via `instrument_internal_ids` configuration option"
         ), id))?)
     }
@@ -51,20 +54,30 @@ impl InstrumentInternalIds {
     }
 }
 
-pub struct InstrumentInfo(HashMap<String, Instrument>);
+pub struct InstrumentInfo {
+    instruments: HashMap<String, Instrument>,
+    internal_ids: Option<InstrumentInternalIds>,
+}
 
 impl InstrumentInfo {
     pub fn new() -> InstrumentInfo {
-        InstrumentInfo(HashMap::new())
+        InstrumentInfo {
+            instruments: HashMap::new(),
+            internal_ids: None,
+        }
     }
 
     #[cfg(test)]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.instruments.is_empty()
+    }
+
+    pub fn set_internal_ids(&mut self, ids: InstrumentInternalIds) {
+        self.internal_ids.replace(ids);
     }
 
     pub fn get_name(&self, symbol: &str) -> String {
-        if let Some(name) = self.0.get(symbol).and_then(|info| info.name.as_ref()) {
+        if let Some(name) = self.instruments.get(symbol).and_then(|info| info.name.as_ref()) {
             format!("{} ({})", name, symbol)
         } else {
             symbol.to_owned()
@@ -72,7 +85,7 @@ impl InstrumentInfo {
     }
 
     pub fn add(&mut self, symbol: &str) -> GenericResult<&mut Instrument> {
-        match self.0.entry(symbol.to_owned()) {
+        match self.instruments.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => Ok(entry.insert(Instrument {
                 symbol: symbol.to_owned(),
                 name:   None,
@@ -83,7 +96,7 @@ impl InstrumentInfo {
     }
 
     pub fn get_or_add(&mut self, symbol: &str) -> &mut Instrument {
-        match self.0.entry(symbol.to_owned()) {
+        match self.instruments.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(Instrument {
                 symbol: symbol.to_owned(),
                 name:   None,
@@ -95,11 +108,14 @@ impl InstrumentInfo {
 
     pub fn get_or_add_by_id(&mut self, instrument_id: &InstrumentId) -> GenericResult<&Instrument> {
         Ok(match instrument_id {
-            InstrumentId::Symbol(symbol) => self.get_or_add(symbol),
+            InstrumentId::Symbol(symbol) => {
+                self.get_or_add(symbol)
+            },
+
             InstrumentId::Isin(isin) => {
                 let mut results = Vec::with_capacity(1);
 
-                for instrument in self.0.values() {
+                for instrument in self.instruments.values() {
                     if instrument.isin.contains(isin) {
                         results.push(instrument);
                     }
@@ -113,10 +129,11 @@ impl InstrumentInfo {
                         isin, results.iter().map(|result| &result.symbol).join(", ")),
                 }
             },
+
             InstrumentId::Name(name) => {
                 let mut results = Vec::with_capacity(1);
 
-                for instrument in self.0.values() {
+                for instrument in self.instruments.values() {
                     if matches!(instrument.name, Some(ref other) if other == name) {
                         results.push(instrument);
                     }
@@ -130,25 +147,32 @@ impl InstrumentInfo {
                         name, results.iter().map(|result| &result.symbol).join(", ")),
                 }
             },
+
+            InstrumentId::InternalId(id) => {
+                let symbol = self.internal_ids.as_ref().unwrap().get_symbol(id)?.to_owned();
+                self.get_or_add(&symbol)
+            },
         })
     }
 
     pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
-        if self.0.contains_key(new_symbol) {
+        if self.instruments.contains_key(new_symbol) {
             return Err!("The portfolio already has {} symbol", new_symbol);
         }
 
-        if let Some(mut info) = self.0.remove(old_symbol) {
+        if let Some(mut info) = self.instruments.remove(old_symbol) {
             info.symbol = new_symbol.to_owned();
-            self.0.insert(new_symbol.to_owned(), info);
+            self.instruments.insert(new_symbol.to_owned(), info);
         }
 
         Ok(())
     }
 
     pub fn merge(&mut self, other: InstrumentInfo) {
-        for (symbol, info) in other.0 {
-            match self.0.entry(symbol) {
+        assert!(other.internal_ids.is_none());
+
+        for (symbol, info) in other.instruments {
+            match self.instruments.entry(symbol) {
                 Entry::Occupied(mut entry) => {
                     entry.get_mut().merge(info);
                 },

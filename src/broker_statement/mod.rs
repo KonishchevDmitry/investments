@@ -90,14 +90,15 @@ impl BrokerStatement {
     ) -> GenericResult<BrokerStatement> {
         let broker_jurisdiction = broker.type_.jurisdiction();
 
-        let mut statements = reader::read(
-            broker.type_, statement_dir_path, instrument_internal_ids, tax_remapping, strictness)?;
+        let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strictness)?;
         statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
 
         let last_index = statements.len() - 1;
         let last_end_date = statements.last().unwrap().period.unwrap().1;
 
         let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
+        statement.instrument_info.set_internal_ids(instrument_internal_ids.clone());
+
         let mut dividend_accruals = HashMap::new();
         let mut tax_accruals = HashMap::new();
 
