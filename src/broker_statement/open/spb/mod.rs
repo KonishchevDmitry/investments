@@ -42,10 +42,7 @@ impl BrokerReport {
         statement.set_has_starting_assets(has_starting_assets)?;
 
         self.trades.parse(&mut statement)?;
-        // FIXME(konishchev): Implement
-        if false {
-            self.cash_flows.parse(&mut statement)?;
-        }
+        self.cash_flows.parse(&mut statement)?;
 
         Ok(statement)
     }
