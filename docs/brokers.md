@@ -78,6 +78,16 @@ Please take into account the following issues with Firstrade statements:
    So, considering this, I recommend to generate new statement for the previous year on each January 1.
 
 
+<a name="open-broker"></a>
+## Открытие Брокер
+
+The program expects broker statements in `*.xml` format.
+
+Dividend records in the statement are identified by some broker-specific instrument ID and there is no any mapping of it
+to instrument symbol in the statement, so the program will ask you to specify this mapping manually via
+`instrument_internal_ids` configuration option.
+
+
 <a name="tinkoff"></a>
 ## Тинькофф
 
@@ -87,11 +97,6 @@ Dividends are parsed out from broker statements, but without withheld tax inform
 [#26](https://github.com/KonishchevDmitry/investments/issues/26#issuecomment-803274242) (I need an example of broker
 statement + foreign income report).
 
-
-<a name="open-broker"></a>
-## Открытие Брокер
-
-The program expects broker statements in `*.xml` format.
 
 <a name="bcs"></a>
 ## БКС

@@ -47,8 +47,7 @@ impl BrokerStatementReader for StatementReader {
                 report.parse()?
             },
 
-            // FIXME(konishchev): Implement
-            "https://account.open-broker.ru/common/report/broker_report_spb.xsl" if cfg!(debug_assertions) => {
+            "https://account.open-broker.ru/common/report/broker_report_spb.xsl" => {
                 let report: spb::BrokerReport = serde_xml_rs::from_str(&data)?;
                 report.parse()?
             },
