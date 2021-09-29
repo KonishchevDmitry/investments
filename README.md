@@ -50,9 +50,9 @@ assets and statements' periods mustn't overlap or have missing days in between.
 
 For now the following brokers are supported:
 * Interactive Brokers ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#interactive-brokers))
+* Открытие Брокер ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#open-broker))
 * Тинькофф ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff))
 * Firstrade ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#firstrade))
-* Открытие Брокер ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#open-broker))
 * БКС ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#bcs))
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands
