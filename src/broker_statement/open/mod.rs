@@ -50,8 +50,7 @@ impl BrokerStatementReader for StatementReader {
             // FIXME(konishchev): Implement
             "https://account.open-broker.ru/common/report/broker_report_spb.xsl" if cfg!(debug_assertions) => {
                 let report: spb::BrokerReport = serde_xml_rs::from_str(&data)?;
-                report.parse()?;
-                return Err!("Unsupported Open Broker report type: {}", report_type);
+                report.parse()?
             },
 
             _ => return Err!("Unsupported Open Broker report type: {}", report_type),
@@ -120,16 +119,10 @@ mod tests {
         assert_eq!(statement.instrument_info.is_empty(), name == "inactive-with-forex");
     }
 
-    #[rstest(name => ["dividends/moex"])]
+    #[rstest(name => ["dividends/moex", "dividends/spb"])]
     fn parse_real_dividends(name: &str) {
         let statement = parse("other", name);
         assert!(!statement.dividends.is_empty());
-    }
-
-    #[rstest]
-    #[should_panic(expected="Unsupported Open Broker report type: https://account.open-broker.ru/common/report/broker_report_spb.xsl")]
-    fn parse_real_spb() {
-        parse("other", "dividends/spb");
     }
 
     fn parse(namespace: &str, name: &str) -> BrokerStatement {
