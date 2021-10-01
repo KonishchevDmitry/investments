@@ -1,7 +1,7 @@
 mod cell;
-mod reader;
+mod sheet;
 mod table;
 
 pub use self::cell::*;
-pub use self::reader::*;
+pub use self::sheet::*;
 pub use self::table::*;
