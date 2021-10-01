@@ -4,7 +4,6 @@ use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
-use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::forex::parse_forex_code;
@@ -12,7 +11,7 @@ use crate::formatting::format_date;
 use crate::time::{Date, Time, DateTime};
 use crate::types::Decimal;
 use crate::util::DecimalRestrictions;
-use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
+use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{
     read_next_table_row, parse_cash, parse_date_cell, parse_decimal_cell, parse_quantity_cell,

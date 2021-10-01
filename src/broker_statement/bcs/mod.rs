@@ -10,11 +10,10 @@ use std::rc::Rc;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
-use crate::xls::SheetParser;
+use crate::xls::{XlsStatementParser, Section, SheetParser};
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
-use super::xls::{XlsStatementParser, Section};
 
 use assets::AssetsParser;
 use cash_flow::CashFlowParser;

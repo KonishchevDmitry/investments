@@ -10,7 +10,6 @@ mod reader;
 mod taxes;
 mod trades;
 mod validators;
-mod xls;
 
 mod bcs;
 mod firstrade;

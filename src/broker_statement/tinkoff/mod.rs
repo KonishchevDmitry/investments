@@ -15,11 +15,10 @@ use regex::{self, Regex};
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
-use crate::xls::{SheetParser, Cell};
+use crate::xls::{XlsStatementParser, Section, SheetParser, SectionParserRc, Cell};
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
-use super::xls::{XlsStatementParser, Section, SectionParserRc};
 
 use assets::AssetsParser;
 use cash_assets::CashAssetsParser;

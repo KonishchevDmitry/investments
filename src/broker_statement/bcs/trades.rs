@@ -2,13 +2,12 @@ use num_traits::cast::ToPrimitive;
 
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::trades::{StockBuy, StockSell};
-use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::time::{DateTime, DateOptTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, SheetReader, TableRow, SkipCell, ColumnsMapping};
+use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, TableRow, SkipCell, ColumnsMapping};
 
 use xls_table_derive::XlsTableRow;
 

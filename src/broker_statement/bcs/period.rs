@@ -2,11 +2,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
-use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::time;
 use crate::types::Date;
-use crate::xls;
+use crate::xls::{self, XlsStatementParser, SectionParser};
 
 use super::common::parse_date;
 

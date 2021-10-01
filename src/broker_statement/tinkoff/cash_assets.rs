@@ -8,14 +8,13 @@ use xls_table_derive::XlsTableRow;
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::taxes::TaxWithholding;
-use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::instruments::InstrumentId;
 use crate::time::{Date, Time};
 use crate::types::Decimal;
 use crate::util::DecimalRestrictions;
-use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
+use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{
     read_next_table_row, parse_cash, parse_date_cell, parse_decimal_cell, parse_time_cell};
