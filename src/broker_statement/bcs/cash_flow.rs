@@ -1,4 +1,5 @@
 use crate::broker_statement::fees::Fee;
+use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::taxes::TaxWithholding;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
@@ -13,6 +14,13 @@ use xls_table_derive::XlsTableRow;
 use super::common::{parse_short_date, parse_currency};
 
 pub struct CashFlowParser {
+    statement: PartialBrokerStatementRc,
+}
+
+impl CashFlowParser {
+    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
+        Box::new(CashFlowParser {statement})
+    }
 }
 
 impl SectionParser for CashFlowParser {
@@ -21,73 +29,13 @@ impl SectionParser for CashFlowParser {
     }
 
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
+        let mut statement = self.statement.borrow_mut();
+
         let title_row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
         let currency = parse_currency(xls::get_string_cell(title_row[0])?)?;
 
         for cash_flow in &xls::read_table::<CashFlowRow>(&mut parser.sheet)? {
-            self.process_cash_flow(parser, currency, cash_flow)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl CashFlowParser {
-    fn process_cash_flow(&self, parser: &mut XlsStatementParser, currency: &str, cash_flow: &CashFlowRow) -> EmptyResult {
-        let date = parse_short_date(&cash_flow.date)?;
-        let operation = cash_flow.operation.as_str();
-
-        let mut deposit_restrictions = DecimalRestrictions::Zero;
-        let mut withdrawal_restrictions = DecimalRestrictions::Zero;
-
-        match operation {
-            "Приход ДС" => {
-                deposit_restrictions = DecimalRestrictions::StrictlyPositive;
-                parser.statement.deposits_and_withdrawals.push(CashAssets::new(
-                    date, currency, cash_flow.deposit));
-            },
-            "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
-                deposit_restrictions = DecimalRestrictions::PositiveOrZero;
-                withdrawal_restrictions = DecimalRestrictions::PositiveOrZero;
-            },
-            "Урегулирование сделок" |
-            "Вознаграждение компании" |
-            "Комиссия за перенос позиции" |
-            "Фиксированное вознаграждение по тарифу" |
-            "Вознаграждение за обслуживание счета депо" => {
-                let amount = Cash::new(currency, cash_flow.withdrawal);
-                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
-
-                let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
-                let description = format!("Комиссия брокера: {}", formatting::untitle(description));
-
-                parser.statement.fees.push(Fee::new(date, amount, Some(description)));
-            },
-            "НДФЛ" => {
-                let withheld_tax = Cash::new(currency, cash_flow.withdrawal);
-                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
-
-                let comment = cash_flow.comment.as_deref().unwrap_or_default();
-                let year = comment.parse::<u16>().map_err(|_| format!(
-                    "Got an unexpected comment for {:?} operation: {:?}",
-                    operation, comment,
-                ))? as i32;
-
-                let tax_withholding = TaxWithholding::new(date, year, withheld_tax)?;
-                parser.statement.tax_agent_withholdings.push(tax_withholding);
-            },
-            _ => return Err!("Unsupported cash flow operation: {:?}", cash_flow.operation),
-        };
-
-        for &(name, value, restrictions) in &[
-            ("deposit", cash_flow.deposit, deposit_restrictions),
-            ("withdrawal", cash_flow.withdrawal, withdrawal_restrictions),
-            ("tax", cash_flow.tax, DecimalRestrictions::Zero),
-            ("warranty", cash_flow.warranty, DecimalRestrictions::Zero),
-            ("margin", cash_flow.margin, DecimalRestrictions::Zero),
-        ] {
-            util::validate_decimal(value, restrictions).map_err(|_| format!(
-                "Unexpected {} amount for {:?} operation: {}", name, operation, value))?;
+            cash_flow.parse(&mut statement, currency)?;
         }
 
         Ok(())
@@ -126,5 +74,67 @@ impl TableReader for CashFlowRow {
             xls::get_string_cell(row[0].unwrap())?.starts_with("Итого по валюте ") ||
                 xls::get_string_cell(row[1].unwrap())? == "Итого:"
         )
+    }
+}
+
+impl CashFlowRow {
+    fn parse(&self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
+        let date = parse_short_date(&self.date)?;
+        let operation = self.operation.as_str();
+
+        let mut deposit_restrictions = DecimalRestrictions::Zero;
+        let mut withdrawal_restrictions = DecimalRestrictions::Zero;
+
+        match operation {
+            "Приход ДС" => {
+                deposit_restrictions = DecimalRestrictions::StrictlyPositive;
+                statement.deposits_and_withdrawals.push(CashAssets::new(
+                    date, currency, self.deposit));
+            },
+            "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
+                deposit_restrictions = DecimalRestrictions::PositiveOrZero;
+                withdrawal_restrictions = DecimalRestrictions::PositiveOrZero;
+            },
+            "Урегулирование сделок" |
+            "Вознаграждение компании" |
+            "Комиссия за перенос позиции" |
+            "Фиксированное вознаграждение по тарифу" |
+            "Вознаграждение за обслуживание счета депо" => {
+                let amount = Cash::new(currency, self.withdrawal);
+                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
+
+                let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
+                let description = format!("Комиссия брокера: {}", formatting::untitle(description));
+
+                statement.fees.push(Fee::new(date, amount, Some(description)));
+            },
+            "НДФЛ" => {
+                let withheld_tax = Cash::new(currency, self.withdrawal);
+                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
+
+                let comment = self.comment.as_deref().unwrap_or_default();
+                let year = comment.parse::<u16>().map_err(|_| format!(
+                    "Got an unexpected comment for {:?} operation: {:?}",
+                    operation, comment,
+                ))? as i32;
+
+                let tax_withholding = TaxWithholding::new(date, year, withheld_tax)?;
+                statement.tax_agent_withholdings.push(tax_withholding);
+            },
+            _ => return Err!("Unsupported cash flow operation: {:?}", self.operation),
+        };
+
+        for &(name, value, restrictions) in &[
+            ("deposit", self.deposit, deposit_restrictions),
+            ("withdrawal", self.withdrawal, withdrawal_restrictions),
+            ("tax", self.tax, DecimalRestrictions::Zero),
+            ("warranty", self.warranty, DecimalRestrictions::Zero),
+            ("margin", self.margin, DecimalRestrictions::Zero),
+        ] {
+            util::validate_decimal(value, restrictions).map_err(|_| format!(
+                "Unexpected {} amount for {:?} operation: {}", name, operation, value))?;
+        }
+
+        Ok(())
     }
 }

@@ -1,23 +1,18 @@
 mod sections;
 
-use crate::core::{GenericResult, EmptyResult};
-use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::core::EmptyResult;
 use crate::xls::{SheetReader, SheetParser};
 
 use self::sections::SectionState;
 pub use self::sections::{Section, SectionParser, SectionParserRc};
 
 pub struct XlsStatementParser {
-    pub statement: PartialBrokerStatement,
     pub sheet: SheetReader,
 }
 
 impl XlsStatementParser {
-    pub fn read(
-        path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>,
-    ) -> GenericResult<PartialBrokerStatement> {
+    pub fn read(path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>) -> EmptyResult {
         let mut parser = XlsStatementParser {
-            statement: PartialBrokerStatement::new(true),
             sheet: SheetReader::new(path, parser)?,
         };
 
@@ -25,7 +20,7 @@ impl XlsStatementParser {
             return Err(parser.sheet.detalize_error(&e.to_string()).into());
         }
 
-        parser.statement.validate()
+        Ok(())
     }
 
     fn parse(&mut self, sections: Vec<Section>) -> EmptyResult {

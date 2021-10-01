@@ -4,6 +4,8 @@ mod common;
 mod period;
 mod trades;
 
+use std::rc::Rc;
+
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
@@ -35,9 +37,10 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
+        let statement = PartialBrokerStatement::new_rc(true);
 
         XlsStatementParser::read(path, parser, vec![
-            Section::new("Период:").parser(Box::new(PeriodParser{})).required(),
+            Section::new("Период:").parser(PeriodParser::new(statement.clone())).required(),
 
             Section::new("1. Движение денежных средств").required(),
             Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
@@ -49,15 +52,17 @@ impl BrokerStatementReader for StatementReader {
                 .alias("Задолженность перед Компанией на начало периода (Рубль):").required(),
             Section::new("Остаток денежных средств на конец периода (Рубль):")
                 .alias("Задолженность перед Компанией на конец периода (Рубль):").required(),
-            Section::new("Рубль").parser(Box::new(CashFlowParser{})),
+            Section::new("Рубль").parser(CashFlowParser::new(statement.clone())),
 
             Section::new("2.1. Сделки:"),
-            Section::new("Пай").parser(Box::new(TradesParser{})),
+            Section::new("Пай").parser(TradesParser::new(statement.clone())),
             Section::new("2.3. Незавершенные сделки"),
 
             Section::new("3. Активы:").required(),
-            Section::new("Вид актива").parser(Box::new(AssetsParser{})).required(),
-        ])
+            Section::new("Вид актива").parser(AssetsParser::new(statement.clone())).required(),
+        ])?;
+
+        Rc::try_unwrap(statement).ok().unwrap().into_inner().validate()
     }
 }
 

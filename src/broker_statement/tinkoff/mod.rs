@@ -42,29 +42,36 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
-        let sheet_parser = Box::new(StatementSheetParser{});
-        let period_parser: SectionParserRc = Rc::new(RefCell::new(Box::new(PeriodParser::default())));
+        let parser = Box::new(StatementSheetParser{});
+        let statement = PartialBrokerStatement::new_rc(true);
 
-        let mut statement = XlsStatementParser::read(path, sheet_parser, vec![
-            Section::new(PeriodParser::CALCULATION_DATE_PREFIX)
-                .by_prefix().parser_rc(period_parser.clone()).required(),
-            Section::new(PeriodParser::PERIOD_PREFIX)
-                .by_prefix().parser_rc(period_parser).required(),
+        let period_parser: SectionParserRc = Rc::new(RefCell::new(
+            PeriodParser::new(statement.clone())));
+
+        let trades_parser: SectionParserRc = Rc::new(RefCell::new(
+            TradesParser::new(statement.clone())));
+
+        XlsStatementParser::read(path, parser, vec![
+            Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix()
+                .parser_rc(period_parser.clone()).required(),
+            Section::new(PeriodParser::PERIOD_PREFIX).by_prefix()
+                .parser_rc(period_parser).required(),
             Section::new("1.1 Информация о совершенных и исполненных сделках на конец отчетного периода")
-                .parser(Box::new(TradesParser {})).required(),
+                .parser_rc(trades_parser.clone()).required(),
             Section::new("1.2 Информация о неисполненных сделках на конец отчетного периода")
-                .parser(Box::new(TradesParser {})).required(),
+                .parser_rc(trades_parser).required(),
             Section::new("2. Операции с денежными средствами")
-                .parser(Box::new(CashAssetsParser {})).required(),
+                .parser(CashAssetsParser::new(statement.clone())).required(),
             Section::new("3.1 Движение по ценным бумагам инвестора")
                 .alias("3. Движение финансовых активов инвестора")
-                .parser(Box::new(AssetsParser {})).required(),
+                .parser(AssetsParser::new(statement.clone())).required(),
             Section::new("4.1 Информация о ценных бумагах")
-                .parser(Box::new(SecuritiesInfoParser {})).required(),
+                .parser(SecuritiesInfoParser::new(statement.clone())).required(),
         ])?;
 
+        let mut statement = Rc::try_unwrap(statement).ok().unwrap().into_inner();
         cash_assets::postprocess(&mut statement)?;
-        Ok(statement)
+        statement.validate()
     }
 }
 

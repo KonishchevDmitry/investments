@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::{self, Regex};
 
+use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting;
@@ -10,14 +11,21 @@ use crate::xls;
 
 use super::common::parse_date;
 
-#[derive(Default)]
 pub struct PeriodParser {
+    statement: PartialBrokerStatementRc,
     calculation_date: Option<Date>,
 }
 
 impl PeriodParser {
     pub const CALCULATION_DATE_PREFIX: &'static str = "Дата расчета: ";
     pub const PERIOD_PREFIX: &'static str = "Отчет о сделках и операциях за период ";
+
+    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
+        Box::new(PeriodParser {
+            statement: statement,
+            calculation_date: None,
+        })
+    }
 }
 
 impl SectionParser for PeriodParser {
@@ -42,7 +50,7 @@ impl SectionParser for PeriodParser {
                 return Err!("Got an invalid statement period: {}", formatting::format_period(period));
             }
 
-            parser.statement.set_period(period)?;
+            self.statement.borrow_mut().set_period(period)?;
         } else {
             return Err!("Got an unexpected cell value: {:?}", cell);
         }

@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::rc::Rc;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
@@ -14,6 +16,8 @@ use super::fees::Fee;
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxAccruals, TaxWithholding};
+
+pub type PartialBrokerStatementRc = Rc<RefCell<PartialBrokerStatement>>;
 
 pub struct PartialBrokerStatement {
     pub period: Option<(Date, Date)>,
@@ -74,6 +78,10 @@ impl PartialBrokerStatement {
             open_positions: HashMap::new(),
             instrument_info: InstrumentInfo::new(),
         }
+    }
+
+    pub fn new_rc(zero_cash_assets: bool) -> PartialBrokerStatementRc {
+        Rc::new(RefCell::new(PartialBrokerStatement::new(zero_cash_assets)))
     }
 
     pub fn set_period(&mut self, period: (Date, Date)) -> EmptyResult {

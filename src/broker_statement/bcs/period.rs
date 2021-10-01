@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
 use crate::time;
@@ -10,6 +11,13 @@ use crate::xls;
 use super::common::parse_date;
 
 pub struct PeriodParser {
+    statement: PartialBrokerStatementRc,
+}
+
+impl PeriodParser {
+    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
+        Box::new(PeriodParser {statement})
+    }
 }
 
 impl SectionParser for PeriodParser {
@@ -18,7 +26,7 @@ impl SectionParser for PeriodParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 2)?;
         let period = parse_period(xls::get_string_cell(row[1])?)?;
-        parser.statement.set_period(period)?;
+        self.statement.borrow_mut().set_period(period)?;
         Ok(())
     }
 }

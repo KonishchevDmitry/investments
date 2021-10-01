@@ -1,5 +1,6 @@
 use xls_table_derive::XlsTableRow;
 
+use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
@@ -7,12 +8,21 @@ use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 use super::common::read_next_table_row;
 
 pub struct SecuritiesInfoParser {
+    statement: PartialBrokerStatementRc,
+}
+
+impl SecuritiesInfoParser {
+    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
+        Box::new(SecuritiesInfoParser {statement})
+    }
 }
 
 impl SectionParser for SecuritiesInfoParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
+        let mut statement = self.statement.borrow_mut();
+
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
-            let instrument = parser.statement.instrument_info.get_or_add(&security.symbol);
+            let instrument = statement.instrument_info.get_or_add(&security.symbol);
             instrument.set_name(&security.name);
             instrument.add_isin(&security.isin)?;
         }

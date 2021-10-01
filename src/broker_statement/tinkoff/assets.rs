@@ -1,5 +1,6 @@
 use xls_table_derive::XlsTableRow;
 
+use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::EmptyResult;
 use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
@@ -7,19 +8,28 @@ use crate::xls::{self, SheetReader, Cell, SkipCell, TableReader};
 use super::common::{read_next_table_row, parse_quantity_cell};
 
 pub struct AssetsParser {
+    statement: PartialBrokerStatementRc,
+}
+
+impl AssetsParser {
+    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
+        Box::new(AssetsParser {statement})
+    }
 }
 
 impl SectionParser for AssetsParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
+        let mut statement = self.statement.borrow_mut();
+
         for asset in &xls::read_table::<AssetsRow>(&mut parser.sheet)? {
             let symbol = &asset.symbol;
 
             if asset.starting != 0 {
-                parser.statement.has_starting_assets.replace(true);
+                statement.has_starting_assets.replace(true);
             }
 
             if asset.planned != 0 {
-                parser.statement.add_open_position(symbol, asset.planned.into())?;
+                statement.add_open_position(symbol, asset.planned.into())?;
             }
         }
 

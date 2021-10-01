@@ -2,6 +2,7 @@ use num_traits::FromPrimitive;
 
 use xls_table_derive::XlsTableRow;
 
+use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::broker_statement::xls::{XlsStatementParser, SectionParser};
 use crate::core::{EmptyResult, GenericResult};
@@ -18,74 +19,24 @@ use super::common::{
     parse_time_cell};
 
 pub struct TradesParser {
+    statement: PartialBrokerStatementRc,
+}
+
+impl TradesParser {
+    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
+        Box::new(TradesParser {statement})
+    }
 }
 
 impl SectionParser for TradesParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
+        let mut statement = self.statement.borrow_mut();
+
         let mut trades = xls::read_table::<TradeRow>(&mut parser.sheet)?;
         trades.sort_by_key(|trade| (trade.date, trade.time, trade.id));
 
         for trade in trades {
-            if !trade.accumulated_coupon_income.is_zero() {
-                return Err!("Bonds aren't supported yet");
-            } else if trade.leverage_rate.is_some() {
-                return Err!("Leverage is not supported yet");
-            }
-
-            let conclusion_time = DateTime::new(trade.date, trade.time);
-            if trade.quantity == 0 {
-                return Err!("Invalid {} trade quantity: {:?}", trade.symbol, trade.quantity);
-            }
-
-            let price = parse_cash(
-                &trade.price_currency, trade.price, DecimalRestrictions::StrictlyPositive)?;
-
-            let volume = parse_cash(
-                &trade.settlement_currency, trade.volume, DecimalRestrictions::StrictlyPositive)?;
-            debug_assert_eq!(volume, (price * trade.quantity).round());
-
-            let commission = match trade.commission_currency {
-                Some(currency) => {
-                    parse_cash(&currency, trade.commission, DecimalRestrictions::PositiveOrZero)?
-                }
-                None if trade.commission.is_zero() => {
-                    Cash::new(&trade.settlement_currency, trade.commission)
-                },
-                None => return Err!(
-                    "Got {} trade at {} without commission currency",
-                    trade.symbol, format_date(conclusion_time),
-                ),
-            };
-
-            let forex = parse_forex_code(&trade.symbol);
-
-            match trade.operation.as_str() {
-                "Покупка" => {
-                    if let Ok((base, _quote, _lot_size)) = forex {
-                        let from = volume;
-                        let to = Cash::new(base, Decimal::from_u32(trade.quantity).unwrap());
-                        parser.statement.forex_trades.push(ForexTrade::new(
-                            conclusion_time.into(), from, to, commission));
-                    } else {
-                        parser.statement.stock_buys.push(StockBuy::new_trade(
-                            &trade.symbol, trade.quantity.into(), price, volume, commission,
-                            conclusion_time.into(), trade.execution_date, false));
-                    }
-                },
-                "Продажа" => {
-                    if let Ok((base, _quote, _lot_size)) = forex {
-                        let from = Cash::new(base, Decimal::from_u32(trade.quantity).unwrap());
-                        let to = volume;
-                        parser.statement.forex_trades.push(ForexTrade::new(
-                            conclusion_time.into(), from, to, commission));
-                    } else {
-                        parser.statement.stock_sells.push(StockSell::new_trade(
-                            &trade.symbol, trade.quantity.into(), price, volume,
-                            commission, conclusion_time.into(), trade.execution_date, false, false));
-                    }
-                },
-                _ => return Err!("Unsupported trade operation: {:?}", trade.operation),
-            }
+            trade.parse(&mut statement)?;
         }
 
         Ok(())
@@ -165,6 +116,73 @@ struct TradeRow {
 impl TableReader for TradeRow {
     fn next_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
         read_next_table_row(sheet)
+    }
+}
+
+impl TradeRow {
+    fn parse(self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        if !self.accumulated_coupon_income.is_zero() {
+            return Err!("Bonds aren't supported yet");
+        } else if self.leverage_rate.is_some() {
+            return Err!("Leverage is not supported yet");
+        }
+
+        let conclusion_time = DateTime::new(self.date, self.time);
+        if self.quantity == 0 {
+            return Err!("Invalid {} trade quantity: {:?}", self.symbol, self.quantity);
+        }
+
+        let price = parse_cash(
+            &self.price_currency, self.price, DecimalRestrictions::StrictlyPositive)?;
+
+        let volume = parse_cash(
+            &self.settlement_currency, self.volume, DecimalRestrictions::StrictlyPositive)?;
+        debug_assert_eq!(volume, (price * self.quantity).round());
+
+        let commission = match self.commission_currency {
+            Some(currency) => {
+                parse_cash(&currency, self.commission, DecimalRestrictions::PositiveOrZero)?
+            }
+            None if self.commission.is_zero() => {
+                Cash::new(&self.settlement_currency, self.commission)
+            },
+            None => return Err!(
+                "Got {} trade at {} without commission currency",
+                self.symbol, format_date(conclusion_time),
+            ),
+        };
+
+        let forex = parse_forex_code(&self.symbol);
+
+        match self.operation.as_str() {
+            "Покупка" => {
+                if let Ok((base, _quote, _lot_size)) = forex {
+                    let from = volume;
+                    let to = Cash::new(base, Decimal::from_u32(self.quantity).unwrap());
+                    statement.forex_trades.push(ForexTrade::new(
+                        conclusion_time.into(), from, to, commission));
+                } else {
+                    statement.stock_buys.push(StockBuy::new_trade(
+                        &self.symbol, self.quantity.into(), price, volume, commission,
+                        conclusion_time.into(), self.execution_date, false));
+                }
+            },
+            "Продажа" => {
+                if let Ok((base, _quote, _lot_size)) = forex {
+                    let from = Cash::new(base, Decimal::from_u32(self.quantity).unwrap());
+                    let to = volume;
+                    statement.forex_trades.push(ForexTrade::new(
+                        conclusion_time.into(), from, to, commission));
+                } else {
+                    statement.stock_sells.push(StockSell::new_trade(
+                        &self.symbol, self.quantity.into(), price, volume,
+                        commission, conclusion_time.into(), self.execution_date, false, false));
+                }
+            },
+            _ => return Err!("Unsupported trade operation: {:?}", self.operation),
+        }
+
+        Ok(())
     }
 }
 
