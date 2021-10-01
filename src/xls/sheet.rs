@@ -16,11 +16,9 @@ pub struct SheetReader {
 
 impl SheetReader {
     pub fn new(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
-        let mut workbook = open_workbook_auto(path)?;
         let sheet_name = parser.sheet_name();
-
-        let sheet = workbook.worksheet_range(sheet_name).ok_or_else(|| format!(
-            "There is no {:?} sheet in the workbook", sheet_name))??;
+        let sheet = open_sheet(path, sheet_name)?.ok_or_else(|| format!(
+            "There is no {:?} sheet in the workbook", sheet_name))?;
 
         Ok(SheetReader {
             sheet, parser,
@@ -87,6 +85,11 @@ pub trait SheetParser {
     fn repeatable_table_column_titles(&self) -> bool {
         false
     }
+}
+
+pub fn open_sheet(path: &str, name: &str) -> GenericResult<Option<Range<Cell>>> {
+    let mut workbook = open_workbook_auto(path)?;
+    Ok(workbook.worksheet_range(name).transpose()?)
 }
 
 pub fn is_empty_row(row: &[Cell]) -> bool {
