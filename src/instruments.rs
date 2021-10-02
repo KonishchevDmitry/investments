@@ -187,7 +187,7 @@ impl InstrumentInfo {
 pub struct Instrument {
     pub symbol: String,
     name: Option<String>,
-    isin: HashSet<String>,
+    pub isin: HashSet<String>,
 }
 
 impl Instrument {
