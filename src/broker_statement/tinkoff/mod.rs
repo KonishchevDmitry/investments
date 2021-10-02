@@ -6,15 +6,19 @@ mod period;
 mod securities;
 mod trades;
 
+use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use lazy_static::lazy_static;
 use regex::{self, Regex};
 
+use crate::broker_statement::dividends::{DividendId, DividendAccruals};
+use crate::broker_statement::taxes::TaxAccruals;
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
+use crate::formatting;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::xls::{XlsStatementParser, Section, SheetParser, SectionParserRc, Cell};
 
@@ -23,21 +27,49 @@ use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
+use foreign_income::ForeignIncomeStatementReader;
 use period::PeriodParser;
 use securities::SecuritiesInfoParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
+    foreign_income: RefCell<HashMap<DividendId, (DividendAccruals, TaxAccruals)>>
 }
 
 impl StatementReader {
     pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{}))
+        Ok(Box::new(StatementReader{
+            foreign_income: RefCell::new(HashMap::new()),
+        }))
+    }
+
+    // FIXME(konishchev): Validate on close()
+    fn parse_foreign_income_statement(&self, path: &str) -> EmptyResult {
+        let mut income = self.foreign_income.borrow_mut();
+
+        for (dividend_id, details) in ForeignIncomeStatementReader::read(path)? {
+            if income.insert(dividend_id.clone(), details).is_some() {
+                return Err!(
+                    "Got a duplicated {}/{} dividend from different foreign income statements",
+                    formatting::format_date(dividend_id.date), dividend_id.issuer);
+            }
+        }
+
+        Ok(())
     }
 }
 
 impl BrokerStatementReader for StatementReader {
     fn is_statement(&self, path: &str) -> GenericResult<bool> {
+        let is_foreign_income_statement = ForeignIncomeStatementReader::is_statement(path).map_err(|e| format!(
+            "Error while reading {:?}: {}", path, e))?;
+
+        if is_foreign_income_statement {
+            self.parse_foreign_income_statement(path).map_err(|e| format!(
+                "Error while reading {:?} foreign income statement: {}", path, e))?;
+            return Ok(false);
+        }
+
         Ok(path.ends_with(".xlsx"))
     }
 

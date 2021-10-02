@@ -62,7 +62,7 @@ impl Dividend {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct DividendId {
     pub date: Date,
     pub issuer: InstrumentId,

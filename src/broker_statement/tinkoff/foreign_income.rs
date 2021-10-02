@@ -26,7 +26,6 @@ pub struct ForeignIncomeStatementReader {
 }
 
 impl ForeignIncomeStatementReader {
-    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn is_statement(path: &str) -> GenericResult<bool> {
         if !path.ends_with(".xlsx") {
             return Ok(false);
@@ -47,8 +46,7 @@ impl ForeignIncomeStatementReader {
         Ok(false)
     }
 
-    #[allow(dead_code)] // FIXME(konishchev): Remove
-    fn read(path: &str) -> GenericResult<HashMap<DividendId, (DividendAccruals, TaxAccruals)>> {
+    pub fn read(path: &str) -> GenericResult<HashMap<DividendId, (DividendAccruals, TaxAccruals)>> {
         let parser = Box::new(ForeignIncomeSheetParser {});
         let foreign_income = Rc::new(RefCell::new(HashMap::new()));
 
