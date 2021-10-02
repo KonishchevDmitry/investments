@@ -24,7 +24,7 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn is_statement(&self, path: &str) -> GenericResult<bool> {
+    fn check(&mut self, path: &str) -> GenericResult<bool> {
         Ok(path.ends_with(".xml"))
     }
 

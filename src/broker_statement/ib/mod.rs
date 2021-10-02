@@ -12,7 +12,6 @@ mod summary;
 mod taxes;
 mod trades;
 
-use std::cell::RefCell;
 use std::iter::Iterator;
 
 #[cfg(test)] use chrono::Datelike;
@@ -35,8 +34,8 @@ use self::common::{Record, format_record};
 use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
-    tax_remapping: RefCell<TaxRemapping>,
-    trade_execution_dates: RefCell<TradeExecutionDates>,
+    tax_remapping: TaxRemapping,
+    trade_execution_dates: TradeExecutionDates,
 
     warn_on_margin_account: bool,
     warn_on_missing_execution_date: bool,
@@ -46,8 +45,8 @@ pub struct StatementReader {
 impl StatementReader {
     pub fn new(tax_remapping: TaxRemapping, strictness: ReadingStrictness) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
-            tax_remapping: RefCell::new(tax_remapping),
-            trade_execution_dates: RefCell::new(TradeExecutionDates::new()),
+            tax_remapping: tax_remapping,
+            trade_execution_dates: TradeExecutionDates::new(),
 
             warn_on_margin_account: true,
             warn_on_missing_execution_date: strictness.contains(ReadingStrictness::TRADE_SETTLE_DATE),
@@ -57,17 +56,12 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn is_statement(&self, path: &str) -> GenericResult<bool> {
+    fn check(&mut self, path: &str) -> GenericResult<bool> {
         if !path.ends_with(".csv") {
             return Ok(false)
         }
 
-        // This is a hack. We exploit here our knowledge that this method will be called for each
-        // file before any statement reading. This is done because for now adding generalizations
-        // for this functionality to the trait will overcomplicate it, so for now the hack is
-        // preferable.
-        let trade_execution_dates = &mut self.trade_execution_dates.borrow_mut();
-        let is_confirmation_report = confirmation::try_parse(path, trade_execution_dates)
+        let is_confirmation_report = confirmation::try_parse(path, &mut self.trade_execution_dates)
             .map_err(|e| format!("Error while reading {:?}: {}", path, e))?;
 
         Ok(!is_confirmation_report)
@@ -81,8 +75,8 @@ impl BrokerStatementReader for StatementReader {
             base_currency_summary: None,
             cash_flows: CashFlows::new(self.warn_on_missing_cash_flow_info),
 
-            tax_remapping: &mut self.tax_remapping.borrow_mut(),
-            trade_execution_dates: &self.trade_execution_dates.borrow(),
+            tax_remapping: &mut self.tax_remapping,
+            trade_execution_dates: &self.trade_execution_dates,
 
             warn_on_margin_account: &mut self.warn_on_margin_account,
             warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
@@ -91,7 +85,7 @@ impl BrokerStatementReader for StatementReader {
     }
 
     fn close(self: Box<StatementReader>) -> EmptyResult {
-        self.tax_remapping.borrow().ensure_all_mapped()
+        self.tax_remapping.ensure_all_mapped()
     }
 }
 

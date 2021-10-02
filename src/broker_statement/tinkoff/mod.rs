@@ -33,22 +33,20 @@ use securities::SecuritiesInfoParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
-    foreign_income: RefCell<HashMap<DividendId, (DividendAccruals, TaxAccruals)>>
+    foreign_income: HashMap<DividendId, (DividendAccruals, TaxAccruals)>
 }
 
 impl StatementReader {
     pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader{
-            foreign_income: RefCell::new(HashMap::new()),
+            foreign_income: HashMap::new(),
         }))
     }
 
     // FIXME(konishchev): Validate on close()
-    fn parse_foreign_income_statement(&self, path: &str) -> EmptyResult {
-        let mut income = self.foreign_income.borrow_mut();
-
+    fn parse_foreign_income_statement(&mut self, path: &str) -> EmptyResult {
         for (dividend_id, details) in ForeignIncomeStatementReader::read(path)? {
-            if income.insert(dividend_id.clone(), details).is_some() {
+            if self.foreign_income.insert(dividend_id.clone(), details).is_some() {
                 return Err!(
                     "Got a duplicated {}/{} dividend from different foreign income statements",
                     formatting::format_date(dividend_id.date), dividend_id.issuer);
@@ -60,7 +58,7 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn is_statement(&self, path: &str) -> GenericResult<bool> {
+    fn check(&mut self, path: &str) -> GenericResult<bool> {
         let is_foreign_income_statement = ForeignIncomeStatementReader::is_statement(path).map_err(|e| format!(
             "Error while reading {:?}: {}", path, e))?;
 

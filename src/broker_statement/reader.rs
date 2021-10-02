@@ -18,7 +18,7 @@ bitflags! {
 }
 
 pub trait BrokerStatementReader {
-    fn is_statement(&self, path: &str) -> GenericResult<bool>;
+    fn check(&mut self, path: &str) -> GenericResult<bool>;
     fn read(&mut self, path: &str, is_last: bool) -> GenericResult<PartialBrokerStatement>;
     #[allow(clippy::boxed_local)]
     fn close(self: Box<Self>) -> EmptyResult { Ok(()) }
@@ -38,7 +38,7 @@ pub fn read(
         Broker::Tinkoff => tinkoff::StatementReader::new(),
     }?;
 
-    let mut file_names = get_statement_files(statement_dir_path, statement_reader.as_ref())
+    let mut file_names = preprocess_statement_directory(statement_dir_path, statement_reader.as_mut())
         .map_err(|e| format!("Error while reading {:?}: {}", statement_dir_path, e))?;
 
     if file_names.is_empty() {
@@ -69,8 +69,8 @@ pub fn read(
     Ok(statements)
 }
 
-fn get_statement_files(
-    statement_dir_path: &str, statement_reader: &dyn BrokerStatementReader
+fn preprocess_statement_directory(
+    statement_dir_path: &str, statement_reader: &mut dyn BrokerStatementReader
 ) -> GenericResult<Vec<String>> {
     let mut file_names = Vec::new();
 
@@ -81,7 +81,7 @@ fn get_statement_files(
         let path = path.to_str().ok_or_else(|| format!(
             "Got an invalid path: {:?}", path.to_string_lossy()))?;
 
-        if !statement_reader.is_statement(path)? {
+        if !statement_reader.check(path)? {
             continue;
         }
 
