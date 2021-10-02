@@ -4,7 +4,7 @@ use calamine::{Range, Reader, open_workbook_auto};
 
 use crate::core::GenericResult;
 
-use super::Cell;
+use super::{Cell, is_empty_row};
 
 pub struct SheetReader {
     sheet: Range<Cell>,
@@ -78,11 +78,11 @@ impl SheetReader {
 pub trait SheetParser {
     fn sheet_name(&self) -> &str;
 
-    fn skip_row(&self, _row: &[Cell]) -> bool {
+    fn repeatable_table_column_titles(&self) -> bool {
         false
     }
 
-    fn repeatable_table_column_titles(&self) -> bool {
+    fn skip_row(&self, _row: &[Cell]) -> bool {
         false
     }
 }
@@ -90,27 +90,4 @@ pub trait SheetParser {
 pub fn open_sheet(path: &str, name: &str) -> GenericResult<Option<Range<Cell>>> {
     let mut workbook = open_workbook_auto(path)?;
     Ok(workbook.worksheet_range(name).transpose()?)
-}
-
-pub fn is_empty_row(row: &[Cell]) -> bool {
-    row.iter().all(|cell| matches!(cell, Cell::Empty))
-}
-
-pub fn strip_row_expecting_columns(row: &[Cell], columns: usize) -> GenericResult<Vec<&Cell>> {
-    let mut stripped = Vec::with_capacity(columns);
-
-    for cell in row {
-        match cell {
-            Cell::Empty => {},
-            _ => stripped.push(cell),
-        };
-    }
-
-    if stripped.len() != columns {
-        return Err!(
-            "Got an unexpected number of non-empty columns in row: {} instead of {}",
-            stripped.len(), columns);
-    }
-
-    Ok(stripped)
 }

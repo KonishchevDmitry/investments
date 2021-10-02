@@ -1,6 +1,7 @@
 mod assets;
 mod cash_assets;
 mod common;
+mod foreign_income;
 mod period;
 mod securities;
 mod trades;
