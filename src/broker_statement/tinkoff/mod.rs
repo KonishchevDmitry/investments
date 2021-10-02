@@ -19,6 +19,7 @@ use crate::broker_statement::taxes::TaxAccruals;
 #[cfg(test)] use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
+use crate::instruments::InstrumentId;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::xls::{XlsStatementParser, Section, SheetParser, SectionParserRc, Cell};
 
@@ -54,6 +55,43 @@ impl StatementReader {
         }
 
         Ok(())
+    }
+
+    fn postprocess(&self, mut statement: PartialBrokerStatement) -> GenericResult<PartialBrokerStatement> {
+        let mut dividend_accruals = HashMap::new();
+        let mut tax_accruals = HashMap::new();
+
+        for (mut dividend_id, accruals) in statement.dividend_accruals.drain() {
+            // FIXME(konishchev): Implement
+            // let mut tax_id = TaxId::new(dividend_id.date, dividend_id.issuer);
+            // let tax_accruals = statement.tax_accruals.remove(&tax_id);
+
+            let instrument = match dividend_id.issuer {
+                InstrumentId::Name(_) => statement.instrument_info.get_or_add_by_id(&dividend_id.issuer)?,
+                _ => unreachable!(),
+            };
+
+            // FIXME(konishchev): Implement
+            // let (accruals, _tax_accruals) = match_statement_dividends_to_foreign_income_data(
+            //     &dividend_id, instrument, accruals, tax_accruals, foreign_income)?;
+
+            dividend_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
+            assert!(dividend_accruals.insert(dividend_id, accruals).is_none());
+        }
+
+        for (mut tax_id, accruals) in statement.tax_accruals.drain() {
+            let instrument = match tax_id.issuer {
+                InstrumentId::Name(_) => statement.instrument_info.get_or_add_by_id(&tax_id.issuer)?,
+                _ => unreachable!(),
+            };
+
+            tax_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
+            assert!(tax_accruals.insert(tax_id, accruals).is_none());
+        }
+
+        statement.dividend_accruals = dividend_accruals;
+        statement.tax_accruals = tax_accruals;
+        statement.validate()
     }
 }
 
@@ -99,9 +137,7 @@ impl BrokerStatementReader for StatementReader {
                 .parser(SecuritiesInfoParser::new(statement.clone())).required(),
         ])?;
 
-        let mut statement = Rc::try_unwrap(statement).ok().unwrap().into_inner();
-        cash_assets::postprocess(&mut statement)?;
-        statement.validate()
+        self.postprocess(Rc::try_unwrap(statement).ok().unwrap().into_inner())
     }
 }
 

@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use chrono::Datelike;
 
@@ -236,36 +236,6 @@ impl CashFlowRow {
 
         Ok(())
     }
-}
-
-pub fn postprocess(statement: &mut PartialBrokerStatement) -> EmptyResult {
-    let mut dividend_accruals = HashMap::new();
-    for (mut dividend_id, accruals) in statement.dividend_accruals.drain() {
-        match dividend_id.issuer {
-            InstrumentId::Name(_) => {
-                let instrument = statement.instrument_info.get_or_add_by_id(&dividend_id.issuer)?;
-                dividend_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
-            },
-            _ => unreachable!(),
-        }
-        assert!(dividend_accruals.insert(dividend_id, accruals).is_none());
-    }
-    statement.dividend_accruals = dividend_accruals;
-
-    let mut tax_accruals = HashMap::new();
-    for (mut tax_id, accruals) in statement.tax_accruals.drain() {
-        match tax_id.issuer {
-            InstrumentId::Name(_) => {
-                let instrument = statement.instrument_info.get_or_add_by_id(&tax_id.issuer)?;
-                tax_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
-            },
-            _ => unreachable!(),
-        }
-        assert!(tax_accruals.insert(tax_id, accruals).is_none());
-    }
-    statement.tax_accruals = tax_accruals;
-
-    Ok(())
 }
 
 fn parse_dividend_description(description: &str) -> GenericResult<&str> {
