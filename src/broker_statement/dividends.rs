@@ -72,6 +72,10 @@ impl DividendId {
     pub fn new(date: Date, issuer: InstrumentId) -> DividendId {
         DividendId {date, issuer}
     }
+
+    pub fn description(&self) -> String {
+        format!("{} dividend from {}", self.issuer, formatting::format_date(self.date))
+    }
 }
 
 pub type DividendAccruals = Payments;

@@ -6,11 +6,12 @@ use matches::matches;
 use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::dividends::{DividendId, DividendAccruals};
-use crate::broker_statement::taxes::TaxAccruals;
+use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::formatting;
-use crate::instruments::InstrumentId;
+use crate::instruments::{InstrumentId, Instrument, IssuerTaxationType};
+use crate::localities::Jurisdiction;
 use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions, RoundingMethod};
@@ -197,6 +198,98 @@ impl ForeignIncomeRow {
 
         Ok((dividend_id, dividend_amount, tax_withheld))
     }
+}
+
+// FIXME(konishchev): Implement
+#[allow(dead_code)]
+fn match_statement_dividends_to_foreign_income_data(
+    dividend_id: &DividendId, instrument: &Instrument,
+    dividend_accruals: DividendAccruals, tax_accruals: Option<TaxAccruals>,
+    foreign_income: &mut HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
+) -> GenericResult<(DividendAccruals, Option<TaxAccruals>)> {
+    if instrument.isin.is_empty() {
+        return Err!(
+            "Failed to process {}: there is no ISIN information for the instrument",
+            dividend_id.description());
+    }
+
+    let mut foreign_income_details = None;
+
+    for isin in &instrument.isin {
+        let foreign_dividend_id = DividendId::new(
+            dividend_id.date, InstrumentId::Isin(isin.to_owned()));
+
+        if let Some((dividends, taxes)) = foreign_income.remove(&foreign_dividend_id) {
+            if foreign_income_details.replace((foreign_dividend_id, dividends, taxes)).is_some() {
+                return Err!(
+                    "Failed to process {}: Got multiple dividends with different ISIN",
+                    dividend_id.description());
+            }
+        }
+    }
+
+    let is_foreign = match instrument.get_taxation_type(Jurisdiction::Russia)? {
+        IssuerTaxationType::Manual(_) => true,
+        IssuerTaxationType::TaxAgent => false,
+    };
+
+    let (
+        foreign_dividend_id, foreign_dividend_accruals, foreign_tax_accruals,
+    ) = if let Some(details) = foreign_income_details {
+        if !is_foreign {
+            return Err!(
+                "Got foreign dividend income from {} which is not expected to be foreign",
+                instrument.symbol);
+        }
+        details
+    } else {
+        if is_foreign {
+            // FIXME(konishchev): Move warning here
+        }
+        return Ok((dividend_accruals, tax_accruals))
+    };
+
+    let tax_id = TaxId::new(dividend_id.date, dividend_id.issuer.clone());
+    let foreign_tax_id = TaxId::new(foreign_dividend_id.date, foreign_dividend_id.issuer.clone());
+
+    let (foreign_amount, _) = foreign_dividend_accruals.clone().get_result().map_err(|e| format!(
+        "Failed to process {}: {}", foreign_dividend_id.description(), e))?;
+
+    let (foreign_tax, _) = foreign_tax_accruals.clone().get_result().map_err(|e| format!(
+        "Failed to process {}: {}", foreign_tax_id.description(), e))?;
+
+    let (statement_amount, _) = dividend_accruals.get_result().map_err(|e| format!(
+        "Failed to process {}: {}", dividend_id.description(), e))?;
+
+    let foreign_amount = foreign_amount.unwrap();
+    let statement_amount = statement_amount.unwrap();
+    let foreign_tax = foreign_tax.unwrap_or_else(|| Cash::zero(foreign_amount.currency));
+
+    if let Some(tax_accruals) = tax_accruals {
+        let (statement_tax, _) = tax_accruals.get_result().map_err(|e| format!(
+            "Failed to process {}: {}", tax_id.description(), e))?;
+        let statement_tax = statement_tax.unwrap();
+
+        if statement_amount != foreign_amount || statement_tax != foreign_tax {
+            return Err!(concat!(
+                "The broker and foreign income statements have different dividend / withheld tax ",
+                "amounts for {}: {} / {} vs {} / {}"
+            ), dividend_id.description(), statement_amount, statement_tax, foreign_amount, foreign_tax)
+        }
+    } else {
+        let paid_amount = foreign_amount.sub(foreign_tax).map_err(|_| format!(
+            "Failed to process {}: dividend and withheld tax currency aren't the same",
+            foreign_dividend_id.description()))?;
+
+        if statement_amount != paid_amount {
+            return Err!(concat!(
+                "The broker and foreign income statements have different paid dividend amount ",
+                "for {}: {} vs {}",
+            ), dividend_id.description(), statement_amount, paid_amount)
+        }
+    }
+
+    Ok((foreign_dividend_accruals, Some(foreign_tax_accruals)))
 }
 
 #[cfg(test)]

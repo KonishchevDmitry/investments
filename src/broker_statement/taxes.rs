@@ -3,7 +3,7 @@ use chrono::Datelike;
 use crate::broker_statement::payments::Payments;
 use crate::core::GenericResult;
 use crate::currency::Cash;
-use crate::formatting::format_date;
+use crate::formatting;
 use crate::instruments::InstrumentId;
 use crate::types::Date;
 
@@ -16,6 +16,10 @@ pub struct TaxId {
 impl TaxId {
     pub fn new(date: Date, issuer: InstrumentId) -> TaxId {
         TaxId {date, issuer}
+    }
+
+    pub fn description(&self) -> String {
+        format!("{} tax withheld at {}", self.issuer, formatting::format_date(self.date))
     }
 }
 
@@ -30,7 +34,9 @@ pub struct TaxWithholding {
 impl TaxWithholding {
     pub fn new(date: Date, year: i32, amount: Cash) -> GenericResult<TaxWithholding> {
         if year != date.year() && year != date.year() - 1 {
-            return Err!("Got an unexpected {} year tax withholding on {}", year, format_date(date));
+            return Err!(
+                "Got an unexpected {} year tax withholding on {}",
+                year, formatting::format_date(date));
         }
         Ok(TaxWithholding {date, year, amount})
     }

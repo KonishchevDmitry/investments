@@ -3,6 +3,7 @@ use crate::currency::{Cash, CashAssets};
 use crate::time::Date;
 
 /// Calculates result amount from a series of payments and reversals.
+#[derive(Clone)]
 pub struct Payments {
     strict: bool,
     transactions: Vec<CashAssets>,
