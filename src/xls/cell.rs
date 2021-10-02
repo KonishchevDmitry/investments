@@ -32,18 +32,6 @@ impl CellType for String {
     }
 }
 
-impl CellType for i32 {
-    fn parse(cell: &Cell) -> GenericResult<i32> {
-        parse_integer(cell, "i32")
-    }
-}
-
-impl CellType for u32 {
-    fn parse(cell: &Cell) -> GenericResult<u32> {
-        parse_integer(cell, "u32")
-    }
-}
-
 fn parse_integer<I>(cell: &Cell, type_name: &str) -> GenericResult<I> where I: FromPrimitive {
     Ok(match cell {
         Cell::Int(value) => I::from_i64(*value),
@@ -59,6 +47,18 @@ fn parse_integer<I>(cell: &Cell, type_name: &str) -> GenericResult<I> where I: F
         "Got an unexpected cell value where {} is expected: {:?}", type_name, cell
     ))?)
 }
+
+macro_rules! impl_integer_parser {
+    ($name:ident) => {
+        impl CellType for $name {
+            fn parse(cell: &Cell) -> GenericResult<$name> {
+                parse_integer(cell, stringify!($name))
+            }
+        }
+    }
+}
+impl_integer_parser!(i32);
+impl_integer_parser!(u32);
 
 impl CellType for Decimal {
     fn parse(cell: &Cell) -> GenericResult<Decimal> {
