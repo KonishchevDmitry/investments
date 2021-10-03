@@ -44,7 +44,6 @@ impl StatementReader {
         }))
     }
 
-    // FIXME(konishchev): Validate on close()
     fn parse_foreign_income_statement(&mut self, path: &str) -> EmptyResult {
         for (dividend_id, details) in ForeignIncomeStatementReader::read(path)? {
             if self.foreign_income.insert(dividend_id.clone(), details).is_some() {
@@ -140,6 +139,16 @@ impl BrokerStatementReader for StatementReader {
         ])?;
 
         self.postprocess(Rc::try_unwrap(statement).ok().unwrap().into_inner())
+    }
+
+    fn close(self: Box<Self>) -> EmptyResult {
+        if let Some(dividend_id) = self.foreign_income.keys().next() {
+            return Err!(
+                "Unable to match {} from foreign income report to any dividend from broker statement",
+                dividend_id.description(),
+            )
+        }
+        Ok(())
     }
 }
 
