@@ -214,14 +214,14 @@ impl CashFlowRow {
                 let issuer_name = parse_dividend_description(description)?;
                 let issuer_id = InstrumentId::Name(issuer_name.to_owned());
                 let amount = check_amount(deposit)?;
-                statement.dividend_accruals(date, issuer_id, true).add(date, amount);
+                statement.dividend_accruals(self.execution_date, issuer_id, true).add(date, amount);
             },
             "Налог (дивиденды)" => {
                 let description = self.comment.as_deref().unwrap_or_default();
                 let issuer_name = parse_dividend_description(description)?;
                 let issuer_id = InstrumentId::Name(issuer_name.to_owned());
                 let amount = check_amount(withdrawal)?;
-                statement.tax_accruals(date, issuer_id, true).add(date, amount);
+                statement.tax_accruals(self.execution_date, issuer_id, true).add(date, amount);
             },
 
             "Налог" => {
