@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use regex::{self, Regex};
 
 use crate::broker_statement::dividends::{DividendId, DividendAccruals};
-use crate::broker_statement::taxes::TaxAccruals;
+use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
@@ -57,40 +57,42 @@ impl StatementReader {
         Ok(())
     }
 
-    fn postprocess(&self, mut statement: PartialBrokerStatement) -> GenericResult<PartialBrokerStatement> {
-        let mut dividend_accruals = HashMap::new();
-        let mut tax_accruals = HashMap::new();
+    fn postprocess(&mut self, mut statement: PartialBrokerStatement) -> GenericResult<PartialBrokerStatement> {
+        let mut dividends = HashMap::new();
+        let mut taxes = HashMap::new();
 
-        for (mut dividend_id, accruals) in statement.dividend_accruals.drain() {
-            // FIXME(konishchev): Implement
-            // let mut tax_id = TaxId::new(dividend_id.date, dividend_id.issuer);
-            // let tax_accruals = statement.tax_accruals.remove(&tax_id);
-
+        for (mut dividend_id, dividend_accruals) in statement.dividend_accruals.drain() {
             let instrument = match dividend_id.issuer {
-                InstrumentId::Name(_) => statement.instrument_info.get_or_add_by_id(&dividend_id.issuer)?,
+                InstrumentId::Name(_) => {
+                    statement.instrument_info.get_or_add_by_id(&dividend_id.issuer).map_err(|e| format!(
+                        "Failed to process {}: {}", dividend_id.description(), e))?
+                },
                 _ => unreachable!(),
             };
 
-            // FIXME(konishchev): Implement
-            // let (accruals, _tax_accruals) = match_statement_dividends_to_foreign_income_data(
-            //     &dividend_id, instrument, accruals, tax_accruals, foreign_income)?;
+            let mut tax_id = TaxId::new(dividend_id.date, dividend_id.issuer.clone());
+            let tax_accruals = statement.tax_accruals.remove(&tax_id);
+
+            let (dividend_accruals, tax_accruals) = foreign_income::match_statement_dividends_to_foreign_income(
+                &dividend_id, instrument, dividend_accruals, tax_accruals, &mut self.foreign_income)?;
 
             dividend_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
-            assert!(dividend_accruals.insert(dividend_id, accruals).is_none());
+            assert!(dividends.insert(dividend_id, dividend_accruals).is_none());
+
+            if let Some(tax_accruals) = tax_accruals {
+                tax_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
+                assert!(taxes.insert(tax_id, tax_accruals).is_none());
+            }
         }
 
-        for (mut tax_id, accruals) in statement.tax_accruals.drain() {
-            let instrument = match tax_id.issuer {
-                InstrumentId::Name(_) => statement.instrument_info.get_or_add_by_id(&tax_id.issuer)?,
-                _ => unreachable!(),
-            };
-
-            tax_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
-            assert!(tax_accruals.insert(tax_id, accruals).is_none());
+        if let Some(tax_id) = statement.tax_accruals.keys().next() {
+            return Err!(
+                "Got tax withholding for {} dividend from {} without the dividend itself",
+                tax_id.issuer, formatting::format_date(tax_id.date));
         }
 
-        statement.dividend_accruals = dividend_accruals;
-        statement.tax_accruals = tax_accruals;
+        statement.dividend_accruals = dividends;
+        statement.tax_accruals = taxes;
         statement.validate()
     }
 }

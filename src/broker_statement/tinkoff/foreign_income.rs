@@ -200,9 +200,7 @@ impl ForeignIncomeRow {
     }
 }
 
-// FIXME(konishchev): Implement
-#[allow(dead_code)]
-fn match_statement_dividends_to_foreign_income_data(
+pub fn match_statement_dividends_to_foreign_income(
     dividend_id: &DividendId, instrument: &Instrument,
     dividend_accruals: DividendAccruals, tax_accruals: Option<TaxAccruals>,
     foreign_income: &mut HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
