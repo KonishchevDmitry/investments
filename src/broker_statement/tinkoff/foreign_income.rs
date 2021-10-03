@@ -297,7 +297,7 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    #[rstest(name => ["dividends-report-example.xlsx"])]
+    #[rstest(name => ["foreign-income/report.xlsx"])]
     fn parse_real(name: &str) {
         let path = format!("testdata/tinkoff/{}", name);
 
