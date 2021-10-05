@@ -14,7 +14,7 @@ Helps you with managing your investments:
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
 Targeted for Russian investors who use [Interactive Brokers](https://interactivebrokers.com/),
-[Тинькофф](https://www.tinkoff.ru/), [Firstrade](https://www.firstrade.com/), [Открытие Брокер](https://open-broker.ru/)
+[Открытие Брокер](https://open-broker.ru/), [Тинькофф](https://www.tinkoff.ru/), [Firstrade](https://www.firstrade.com/)
 or [БКС](https://broker.ru/).
 
 # Installation
