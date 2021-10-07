@@ -12,6 +12,7 @@ pub struct SheetReader {
 
     prev_row_id: Option<usize>,
     next_row_id: usize,
+    eof_reached: bool,
 }
 
 impl SheetReader {
@@ -24,6 +25,7 @@ impl SheetReader {
             sheet, parser,
             prev_row_id: None,
             next_row_id: 0,
+            eof_reached: false,
         })
     }
 
@@ -44,6 +46,7 @@ impl SheetReader {
             return Some(row);
         }
 
+        self.eof_reached = true;
         None
     }
 
@@ -53,6 +56,7 @@ impl SheetReader {
 
     pub fn step_back(&mut self) {
         self.next_row_id = self.prev_row_id.take().unwrap();
+        self.eof_reached = false;
     }
 
     #[allow(dead_code)]
@@ -66,7 +70,7 @@ impl SheetReader {
     }
 
     pub fn detalize_error(&self, error: &str) -> String {
-        if self.next_row_id == 0 {
+        if self.next_row_id == 0 || self.eof_reached {
             error.to_owned()
         } else {
             format!("Starting from #{} row: {:?}: {}",

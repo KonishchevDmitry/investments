@@ -11,8 +11,7 @@ fn trim_row(row: &[Cell]) -> &[Cell] {
     trim_row_right(trim_row_left(row))
 }
 
-#[allow(dead_code)]
-fn trim_row_left(mut row: &[Cell]) -> &[Cell] {
+pub fn trim_row_left(mut row: &[Cell]) -> &[Cell] {
     while let Some(Cell::Empty) = row.first() {
         row = &row[1..]
     }
