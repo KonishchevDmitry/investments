@@ -4,7 +4,7 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{self, DeriveInput, Fields, Data, DataStruct, Meta, MetaList, MetaNameValue};
+use syn::{self, Data, DataStruct, DeriveInput, Expr, ExprArray, Fields, Lit, Meta, MetaList, MetaNameValue};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type GenericResult<T> = Result<T, GenericError>;
@@ -105,6 +105,8 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         regex: bool,
         #[darling(default)]
         alias: Option<String>,
+        #[darling(default, map="parse_string_array")]
+        aliases: Vec<String>,
         #[darling(default)]
         parse_with: Option<String>,
         #[darling(default)]
@@ -145,10 +147,10 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
             "Column name is not specified for {:?} field", field_name
         ))?;
 
-        // darling doesn't support Vec<String> parsing yet, so use comma-separated list for now
-        let aliases = column_params.alias
-            .map(|alias| alias.split(',').map(ToOwned::to_owned).collect())
-            .unwrap_or_else(Vec::new);
+        let mut aliases = column_params.aliases;
+        if let Some(alias) = column_params.alias {
+            aliases.push(alias);
+        }
 
         columns.push(Column {
             field: field_name,
@@ -161,6 +163,25 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     }
 
     Ok(columns)
+}
+
+// Please note that due to Darling limitations the array must be specified as `array = r#"["a", "b"]"#`
+fn parse_string_array(value: Lit) -> Vec<String> {
+    let expr_array = ExprArray::from_value(&value).map_err(|e| format!(
+        "Unexpected literal where string array is expected: {}", e)).unwrap();
+
+    let mut array = Vec::new();
+
+    for expr in expr_array.elems.iter() {
+        let item = match expr {
+            Expr::Lit(lit) => String::from_value(&lit.lit).map_err(|e| format!(
+                "Unexpected literal where string array item is expected: {}", e)).unwrap(),
+            _ => panic!("Unexpected expression where string array item is expected"),
+        };
+        array.push(item);
+    }
+
+    array
 }
 
 fn match_attribute_name(meta: &Meta, name: &str) -> bool {
