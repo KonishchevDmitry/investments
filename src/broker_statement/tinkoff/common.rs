@@ -3,7 +3,7 @@ use crate::currency::Cash;
 use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, SheetReader, Cell};
+use crate::xls::{self, SheetReader, Cell, CellType};
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%Y")
@@ -27,8 +27,13 @@ pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
 }
 
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
-    let value = xls::get_string_cell(cell)?.replace(',', ".");
-    util::parse_decimal(&value, DecimalRestrictions::No)
+    match cell {
+        Cell::String(value) => {
+            let value = value.replace(',', ".");
+            util::parse_decimal(&value, DecimalRestrictions::No)
+        },
+        _ => Decimal::parse(cell),
+    }
 }
 
 pub fn parse_cash(currency: &str, amount: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
