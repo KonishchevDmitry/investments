@@ -108,21 +108,27 @@ struct ForeignIncomeRow {
     _0: SkipCell,
     #[column(name="Дата выплаты", parse_with="parse_date_cell")]
     date: Date,
-    #[column(name="Тип выплаты*")]
+    #[column(name="Тип*", alias="Тип выплаты*")]
     type_: String,
     #[column(name="Наименование ценной бумаги")]
     name: String,
     #[column(name="ISIN")]
     isin: String,
-    #[column(name="Страна эмитента")]
+    #[column(name="Страна эмитента**", alias="Страна эмитента")]
     _5: SkipCell,
     #[column(name="Количество ценных бумаг", parse_with="parse_quantity_cell")]
     quantity: u32,
     #[column(name="Выплата на одну бумагу", parse_with="parse_decimal_cell")]
     amount_per_stock: Decimal,
-    #[column(name="Комиссия внешних платежных агентов**", parse_with="parse_decimal_cell")]
+    #[column(name="Комиссия внешних платежных агентов***",
+             alias="Комиссия внешних платежных агентов**",
+             parse_with="parse_decimal_cell")]
     commission: Decimal,
-    #[column(name="Сумма налога, удержанного эмитентом", parse_with="parse_decimal_cell")]
+    #[column(name="Сумма до удержания налога", parse_with="parse_decimal_cell", optional=true)]
+    result_amount: Option<Decimal>,
+    #[column(name="Сумма налога, удержанного агентом",
+             alias="Сумма налога, удержанного эмитентом",
+             parse_with="parse_decimal_cell")]
     tax_withheld: Decimal,
     #[column(name="Итоговая сумма выплаты", parse_with="parse_decimal_cell")]
     paid_amount: Decimal,
