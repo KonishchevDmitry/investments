@@ -144,10 +144,16 @@ impl TableReader for ForeignIncomeRow {
                 None => return None,
             };
 
-            if let Some(Cell::String(value)) = row.iter().next() {
-                if value.starts_with(TITLE_PREFIX) || value.starts_with("Депонент: ") {
+            let left_trimmed_row = xls::trim_row_left(row);
+
+            if let Some(Cell::String(value)) = left_trimmed_row.iter().next() {
+                if value.starts_with(TITLE_PREFIX) {
                     continue;
-                } else if value.starts_with("*Типы выплат: ") {
+                } else if value.starts_with("Депонент: ") &&
+                    value.split_once('\n').unwrap_or_default().1.starts_with("Депозитарный(е) договор(ы) №") {
+                    continue;
+                } else if (value.starts_with("* Типы выплат: ") || value.starts_with("*Типы выплат: ")) &&
+                    xls::trim_row_right(left_trimmed_row).len() == 1 {
                     return None;
                 }
             }
