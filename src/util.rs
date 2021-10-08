@@ -63,6 +63,7 @@ pub fn round(value: Decimal, points: u32) -> Decimal {
 pub enum RoundingMethod {
     Round,
     Truncate,
+    ToBigger,
 }
 
 pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decimal {
@@ -71,6 +72,8 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
             points, RoundingStrategy::MidpointAwayFromZero),
         RoundingMethod::Truncate => value.round_dp_with_strategy(
             points, RoundingStrategy::ToZero),
+        RoundingMethod::ToBigger => value.round_dp_with_strategy(
+            points, RoundingStrategy::AwayFromZero),
     };
 
     if round_value.is_zero() && round_value.is_sign_negative() {
@@ -117,13 +120,13 @@ mod tests {
         case(dec!(-1),   dec!(-1)),
         case(dec!(-0.5), dec!(-1)),
         case(dec!(-0.4), dec!(0)),
-        case(dec!( 0), dec!(0)),
-        case(dec!(-0), dec!(0)),
-        case(dec!(0.4), dec!(0)),
-        case(dec!(0.5), dec!(1)),
-        case(dec!(1),   dec!(1)),
-        case(dec!(1.4), dec!(1)),
-        case(dec!(1.5), dec!(2)),
+        case(dec!( 0),   dec!(0)),
+        case(dec!(-0),   dec!(0)),
+        case(dec!( 0.4), dec!(0)),
+        case(dec!( 0.5), dec!(1)),
+        case(dec!( 1),   dec!(1)),
+        case(dec!( 1.4), dec!(1)),
+        case(dec!( 1.5), dec!(2)),
     )]
     fn rounding(value: Decimal, expected: Decimal) {
         assert_eq!(round(value, 0), expected);
@@ -135,15 +138,33 @@ mod tests {
         case(dec!(-1),   dec!(-1)),
         case(dec!(-0.6), dec!(0)),
         case(dec!(-0.4), dec!(0)),
-        case(dec!( 0), dec!(0)),
-        case(dec!(-0), dec!(0)),
-        case(dec!(0.4), dec!(0)),
-        case(dec!(0.6), dec!(0)),
-        case(dec!(1),   dec!(1)),
-        case(dec!(1.4), dec!(1)),
-        case(dec!(1.6), dec!(1)),
+        case(dec!( 0),   dec!(0)),
+        case(dec!(-0),   dec!(0)),
+        case(dec!( 0.4), dec!(0)),
+        case(dec!( 0.6), dec!(0)),
+        case(dec!( 1),   dec!(1)),
+        case(dec!( 1.4), dec!(1)),
+        case(dec!( 1.6), dec!(1)),
     )]
     fn truncate_rounding(value: Decimal, expected: Decimal) {
         assert_eq!(round_with(value, 0, RoundingMethod::Truncate), expected);
+    }
+
+    #[rstest(value, expected,
+        case(dec!(-1.6), dec!(-2)),
+        case(dec!(-1.4), dec!(-2)),
+        case(dec!(-1),   dec!(-1)),
+        case(dec!(-0.6), dec!(-1)),
+        case(dec!(-0.4), dec!(-1)),
+        case(dec!( 0),   dec!(0)),
+        case(dec!(-0),   dec!(0)),
+        case(dec!( 0.4), dec!(1)),
+        case(dec!( 0.6), dec!(1)),
+        case(dec!( 1),   dec!(1)),
+        case(dec!( 1.4), dec!(2)),
+        case(dec!( 1.6), dec!(2)),
+    )]
+    fn to_bigger_rounding(value: Decimal, expected: Decimal) {
+        assert_eq!(round_with(value, 0, RoundingMethod::ToBigger), expected);
     }
 }

@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use log::warn;
 use matches::matches;
 use xls_table_derive::XlsTableRow;
 
@@ -147,6 +148,7 @@ impl TableReader for ForeignIncomeRow {
             let left_trimmed_row = xls::trim_row_left(row);
 
             if let Some(Cell::String(value)) = left_trimmed_row.iter().next() {
+                #[allow(clippy::if_same_then_else)]
                 if value.starts_with(TITLE_PREFIX) {
                     continue;
                 } else if value.starts_with("Депонент: ") &&
@@ -186,7 +188,7 @@ impl ForeignIncomeRow {
         let commission = util::validate_named_decimal(
             "commission", self.commission, DecimalRestrictions::PositiveOrZero)?;
 
-        let tax_withheld = util::validate_named_decimal(
+        let mut tax_withheld = util::validate_named_decimal(
             "withheld tax amount", self.tax_withheld,
             DecimalRestrictions::PositiveOrZero)?;
 
@@ -194,21 +196,73 @@ impl ForeignIncomeRow {
             "dividend paid amount", self.paid_amount,
             DecimalRestrictions::StrictlyPositive)?;
 
-        let expected_paid_amount = amount_per_stock * stock_quantity - commission - tax_withheld;
+        let mut expected_result_amount = amount_per_stock * stock_quantity - commission;
 
-        if
-            util::round_with(expected_paid_amount, 2, RoundingMethod::Round) != paid_amount &&
-            util::round_with(expected_paid_amount, 2, RoundingMethod::Truncate) != paid_amount
-        {
-            return Err!(
-                "Got an unexpected dividend paid amount: {} vs {}",
-                paid_amount, expected_paid_amount);
-        }
+        // It looks like dividend and paid amounts are always valid, but withheld tax amount might
+        // be invalid.
+        let result_amount = match self.result_amount {
+            Some(result_amount) => {
+                if
+                    result_amount != util::round_with(expected_result_amount, 2, RoundingMethod::Truncate) &&
+                    result_amount != util::round_with(expected_result_amount, 2, RoundingMethod::ToBigger)
+                {
+                    return Err!(
+                        "Got an unexpected dividend result amount: {} vs {}",
+                        result_amount, expected_result_amount);
+                }
 
-        let dividend_amount = Cash::new(&self.currency, paid_amount + tax_withheld);
+                if paid_amount > result_amount {
+                    return Err!(
+                        "Got an invalid dividend result and paid amount pair: {} and {}",
+                        result_amount, paid_amount);
+                }
+
+                let expected_tax_withheld = result_amount - paid_amount;
+                if expected_tax_withheld != tax_withheld {
+                    warn!(concat!(
+                        "Got an unexpected withheld tax amount for {} dividend from {}: {}. ",
+                        "Using {} instead."
+                    ), self.name, formatting::format_date(self.date), tax_withheld, expected_tax_withheld);
+                    tax_withheld = expected_tax_withheld;
+                }
+
+                result_amount
+            },
+            None => {
+                if paid_amount > expected_result_amount {
+                    if paid_amount > util::round_with(expected_result_amount, 2, RoundingMethod::ToBigger) {
+                        return Err!(
+                            "Got an unexpected dividend result and paid amount pair: {} and {}",
+                            expected_result_amount, paid_amount);
+                    }
+                    expected_result_amount = paid_amount;
+                }
+
+                let mut result_amount = paid_amount + tax_withheld;
+
+                if
+                    result_amount != util::round_with(expected_result_amount, 2, RoundingMethod::Round) &&
+                    result_amount != util::round_with(expected_result_amount, 2, RoundingMethod::Truncate)
+                {
+                    let expected_tax_withheld = expected_result_amount - paid_amount;
+
+                    warn!(concat!(
+                        "Got an unexpected withheld tax amount for {} dividend from {}: {}. ",
+                        "Using {} instead."
+                    ), self.name, formatting::format_date(self.date), tax_withheld, expected_tax_withheld);
+
+                    result_amount = expected_result_amount;
+                    tax_withheld = expected_tax_withheld;
+                }
+
+                result_amount
+            },
+        };
+
+        let result_amount = Cash::new(&self.currency, result_amount);
         let tax_withheld = Cash::new(&self.currency, tax_withheld);
 
-        Ok((dividend_id, dividend_amount, tax_withheld))
+        Ok((dividend_id, result_amount, tax_withheld))
     }
 }
 
@@ -307,7 +361,7 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    #[rstest(name => ["foreign-income/report.xlsx"])]
+    #[rstest(name => ["foreign-income/report.xlsx", "complex-full/foreign-income-report.xlsx"])]
     fn parse_real(name: &str) {
         let path = format!("testdata/tinkoff/{}", name);
 
