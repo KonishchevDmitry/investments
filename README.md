@@ -39,7 +39,7 @@ If you don't want to install Rust just to try out investments, you can run it in
 
 1. Install or upgrade:
 ```
-docker build --pull --build-arg CACHE_DATE="$(date)" -t investments https://raw.githubusercontent.com/KonishchevDmitry/investments/master/install.dockerfile
+DOCKER_BUILDKIT=1 docker build --pull --build-arg CACHE_DATE="$(date)" -t investments https://raw.githubusercontent.com/KonishchevDmitry/investments/master/install.dockerfile
 ```
 2. Run:
 ```
