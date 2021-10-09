@@ -33,6 +33,19 @@ cd investments
 cargo install --path . --force
 ```
 
+## Docker
+
+If you don't want to install Rust just to try out investments, you can run it in Docker:
+
+1. Install or upgrade:
+```
+docker build --pull --build-arg CACHE_DATE="$(date)" -t investments https://raw.githubusercontent.com/KonishchevDmitry/investments/master/install.dockerfile
+```
+2. Run:
+```
+docker run --rm -t --user "$(id -u):$(id -g)" -v ~/.investments:/.investments investments
+```
+
 # Configuration
 
 Create `~/.investments/config.yaml` configuration file. See [example](docs/config-example.yaml) configuration which
