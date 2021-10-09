@@ -170,6 +170,8 @@ impl TableReader for ForeignIncomeRow {
 
 impl ForeignIncomeRow {
     fn parse(&self) -> GenericResult<(DividendId, Cash, Cash)> {
+        let cash = |amount| Cash::new(&self.currency, amount);
+
         if self.type_.trim() != "1" {
             return Err!("Unsupported payment type: {:?}", self.type_);
         }
@@ -208,13 +210,13 @@ impl ForeignIncomeRow {
                 {
                     return Err!(
                         "Got an unexpected dividend result amount: {} vs {}",
-                        result_amount, expected_result_amount);
+                        cash(result_amount), cash(expected_result_amount));
                 }
 
                 if paid_amount > result_amount {
                     return Err!(
                         "Got an invalid dividend result and paid amount pair: {} and {}",
-                        result_amount, paid_amount);
+                        cash(result_amount), cash(paid_amount));
                 }
 
                 let expected_tax_withheld = result_amount - paid_amount;
@@ -222,7 +224,7 @@ impl ForeignIncomeRow {
                     warn!(concat!(
                         "Got an unexpected withheld tax amount for {} dividend from {}: {}. ",
                         "Using {} instead."
-                    ), self.name, formatting::format_date(self.date), tax_withheld, expected_tax_withheld);
+                    ), self.name, formatting::format_date(self.date), cash(tax_withheld), cash(expected_tax_withheld));
                     tax_withheld = expected_tax_withheld;
                 }
 
@@ -233,7 +235,7 @@ impl ForeignIncomeRow {
                     if paid_amount > util::round_with(expected_result_amount, 2, RoundingMethod::ToBigger) {
                         return Err!(
                             "Got an unexpected dividend result and paid amount pair: {} and {}",
-                            expected_result_amount, paid_amount);
+                            cash(expected_result_amount), cash(paid_amount));
                     }
                     expected_result_amount = paid_amount;
                 }
@@ -249,7 +251,7 @@ impl ForeignIncomeRow {
                     warn!(concat!(
                         "Got an unexpected withheld tax amount for {} dividend from {}: {}. ",
                         "Using {} instead."
-                    ), self.name, formatting::format_date(self.date), tax_withheld, expected_tax_withheld);
+                    ), self.name, formatting::format_date(self.date), cash(tax_withheld), cash(expected_tax_withheld));
 
                     result_amount = expected_result_amount;
                     tax_withheld = expected_tax_withheld;
@@ -259,10 +261,7 @@ impl ForeignIncomeRow {
             },
         };
 
-        let result_amount = Cash::new(&self.currency, result_amount);
-        let tax_withheld = Cash::new(&self.currency, tax_withheld);
-
-        Ok((dividend_id, result_amount, tax_withheld))
+        Ok((dividend_id, cash(result_amount), cash(tax_withheld)))
     }
 }
 
