@@ -10,6 +10,7 @@ use std::time::{Instant, SystemTime, Duration};
 
 use diesel::{self, prelude::*};
 use log::{trace, error};
+use platforms::target::OS;
 use reqwest::blocking::Client;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
@@ -18,6 +19,7 @@ use uuid::Uuid;
 use crate::brokers::Broker;
 use crate::core::{EmptyResult, GenericResult, GenericError};
 use crate::db::{self, schema::{settings, telemetry}, models};
+use crate::util;
 
 #[derive(Serialize, Clone)]
 pub struct TelemetryRecord {
@@ -26,6 +28,8 @@ pub struct TelemetryRecord {
 
     os: &'static str,
     version: &'static str,
+    #[serde(skip_serializing_if = "util::is_default")]
+    container: bool,
 
     command: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -68,6 +72,7 @@ impl TelemetryRecordBuilder {
         brokers.sort();
 
         let id = Uuid::new_v4().to_string();
+        let os = platforms::TARGET_OS;
         let time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default()
             .as_secs();
@@ -75,8 +80,9 @@ impl TelemetryRecordBuilder {
         TelemetryRecord {
             id, time,
 
-            os: platforms::TARGET_OS.as_str(),
+            os: os.as_str(),
             version: env!("CARGO_PKG_VERSION"),
+            container: os == OS::Linux && std::process::id() == 1,
 
             command: command.to_owned(),
             brokers,
