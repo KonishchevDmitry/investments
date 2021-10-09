@@ -93,9 +93,12 @@ to instrument symbol in the statement, so the program will ask you to specify th
 
 The program expects broker statements in `*.xlsx` format.
 
-Dividends are parsed out from broker statements, but without withheld tax information. See
-[#26](https://github.com/KonishchevDmitry/investments/issues/26#issuecomment-803274242) (I need an example of broker
-statement + foreign income report).
+<a name="tinkoff-foreign-income"></a>
+Tinkoff broker statements don't contain dividend and tax withheld amounts for dividends from non-Russian issuers - only
+result amount which has been paid. This information is provided in a separate foreign income statement (Справка о
+доходах за пределами РФ) which is only available as *.pdf (very unsuitable for parsing) from your account page. But you
+can ask support for *.xlsx version of it and place it to the broker statements directory. The program will find it and
+merge its information with broker statement.
 
 
 <a name="bcs"></a>
