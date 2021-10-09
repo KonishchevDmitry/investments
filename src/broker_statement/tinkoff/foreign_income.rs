@@ -269,6 +269,7 @@ pub fn match_statement_dividends_to_foreign_income(
     dividend_id: &DividendId, instrument: &Instrument,
     dividend_accruals: DividendAccruals, tax_accruals: Option<TaxAccruals>,
     foreign_income: &mut HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
+    show_missing_foreign_income_info_warning: &mut bool,
 ) -> GenericResult<(DividendAccruals, Option<TaxAccruals>)> {
     if instrument.isin.is_empty() {
         return Err!(
@@ -306,8 +307,18 @@ pub fn match_statement_dividends_to_foreign_income(
         }
         details
     } else {
-        if is_foreign {
-            // FIXME(konishchev): Move warning here
+        if is_foreign && *show_missing_foreign_income_info_warning {
+            // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff-foreign-income
+            let url = "https://bit.ly/investments-tinkoff-foreign-income";
+
+            warn!(concat!(
+                "There is no information about some dividend details from foreign issuers. ",
+                "All calculations for such dividends will be very inaccurate, ",
+                "foreign income statement is required (see {}). ",
+                "First occurred dividend: {} from {}",
+            ), url, dividend_id.issuer, formatting::format_date(dividend_id.date));
+
+            *show_missing_foreign_income_info_warning = false;
         }
         return Ok((dividend_accruals, tax_accruals))
     };

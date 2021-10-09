@@ -32,15 +32,18 @@ use foreign_income::ForeignIncomeStatementReader;
 use period::PeriodParser;
 use securities::SecuritiesInfoParser;
 use trades::TradesParser;
+use itertools::Itertools;
 
 pub struct StatementReader {
-    foreign_income: HashMap<DividendId, (DividendAccruals, TaxAccruals)>
+    foreign_income: HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
+    show_missing_foreign_income_info_warning: bool,
 }
 
 impl StatementReader {
     pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader{
             foreign_income: HashMap::new(),
+            show_missing_foreign_income_info_warning: true,
         }))
     }
 
@@ -60,7 +63,9 @@ impl StatementReader {
         let mut dividends = HashMap::new();
         let mut taxes = HashMap::new();
 
-        for (mut dividend_id, dividend_accruals) in statement.dividend_accruals.drain() {
+        for (mut dividend_id, dividend_accruals) in statement.dividend_accruals.drain().sorted_by_key(|(dividend_id, _)| {
+            (dividend_id.date, dividend_id.issuer.to_string())
+        }) {
             let instrument = match dividend_id.issuer {
                 InstrumentId::Name(_) => {
                     statement.instrument_info.get_or_add_by_id(&dividend_id.issuer).map_err(|e| format!(
@@ -73,7 +78,8 @@ impl StatementReader {
             let tax_accruals = statement.tax_accruals.remove(&tax_id);
 
             let (dividend_accruals, tax_accruals) = foreign_income::match_statement_dividends_to_foreign_income(
-                &dividend_id, instrument, dividend_accruals, tax_accruals, &mut self.foreign_income)?;
+                &dividend_id, instrument, dividend_accruals, tax_accruals,
+                &mut self.foreign_income, &mut self.show_missing_foreign_income_info_warning)?;
 
             dividend_id.issuer = InstrumentId::Symbol(instrument.symbol.clone());
             assert!(dividends.insert(dividend_id, dividend_accruals).is_none());
