@@ -147,6 +147,9 @@ example, the following aren't supported yet:
 
 # Denial of responsibility
 
+Any automation is imperfect and the author is a software developer, not a tax lawyer, so always be critical to all
+program's calculation results.
+
 The project is developed as a pet project, mainly for my personal use. The code is written in a way that if it finds
 something unusual in broker statement it returns an error and doesn't try to pass through the error to avoid the case
 when it will get you to misleading results, so there may be many cases that it's not able to handle yet and I can't
