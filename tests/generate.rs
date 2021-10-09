@@ -43,7 +43,8 @@ fn generate_regression_tests() {
     t.add("Open MOEX dividends tax statement", "tax-statement open-dividends-moex").config("other");
     t.add("Open SPB dividends tax statement", "tax-statement open-dividends-spb").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
-    t.tax_statement("Tinkoff complex", 2020).config("other"); // Dividends from several jurisdictions
+    t.add("Tinkoff complex full tax statement", "tax-statement tinkoff-complex-full").config("other");
+    t.tax_statement("Tinkoff complex full", 2020).config("other"); // Dividends from several jurisdictions
 
     // cash-flow
     t.add("IB margin RUB cash flow", "cash-flow ib-margin-rub").config("other");
@@ -58,6 +59,7 @@ fn generate_regression_tests() {
     t.add("Open MOEX dividends cash flow", "cash-flow open-dividends-moex").config("other");
     t.add("Open SPB dividends cash flow", "cash-flow open-dividends-spb").config("other");
     t.add("Tinkoff complex cash flow", "cash-flow tinkoff-complex").config("other");
+    t.add("Tinkoff complex full cash flow", "cash-flow tinkoff-complex-full").config("other");
 
     // metrics
     t.add("Metrics", "metrics $OUT_PATH/metrics");
