@@ -90,6 +90,10 @@ pub fn fold_spaces(string: &str) -> Cow<str> {
     SPACES_REGEX.replace_all(string, " ")
 }
 
+pub fn is_default<T: Default + PartialEq>(value: &T) -> bool {
+    *value == T::default()
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
