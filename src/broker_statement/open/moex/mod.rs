@@ -1,6 +1,7 @@
 mod assets;
 mod cash_flows;
 mod common;
+mod corporate_actions;
 mod forex;
 mod trades;
 
@@ -17,6 +18,7 @@ use super::common::deserialize_date;
 
 use assets::{AccountSummary, Assets, Securities};
 use cash_flows::CashFlows;
+use corporate_actions::CorporateActions;
 use forex::{CurrencyConversions, ForexTrades};
 use trades::{ConcludedTrades, ExecutedTrades};
 
@@ -48,6 +50,9 @@ pub struct BrokerReport {
 
     #[serde(rename = "spot_non_trade_money_operations", alias = "unified_non_trade_money_operations")]
     cash_flow: Option<CashFlows>,
+
+    #[serde(rename = "spot_non_trade_security_operations")]
+    corporate_actions: Option<CorporateActions>,
 
     #[serde(rename = "spot_portfolio_security_params")]
     securities: Option<Securities>,
@@ -90,6 +95,10 @@ impl BrokerReport {
 
         if let Some(ref cash_flow) = self.cash_flow {
             cash_flow.parse(&mut statement)?;
+        }
+
+        if let Some(ref corporate_actions) = self.corporate_actions {
+            corporate_actions.parse(&mut statement)?;
         }
 
         // Actually, we should check trade execution dates on statements merging stage when we have
