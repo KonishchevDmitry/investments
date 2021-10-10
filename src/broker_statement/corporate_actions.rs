@@ -21,14 +21,14 @@ use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct CorporateAction {
-    // Time when the corporate action has occurred. If time is not present, assuming:
+    // Date + time when the corporate action has occurred. If time is not present, assuming:
     // * The changes are made at the end of the trading day.
     // * All trade operations from this day are assumed to be issued after the corporate action has
     //   occurred and are actually a part of the corporate action.
     #[serde(rename="date", deserialize_with = "deserialize_date_opt_time")]
     pub time: DateOptTime,
 
-    // Report date from IB statements. Typically, it's T+1 date, so use it as trade execution date.
+    // Report date from broker statements. Typically, it's T+1 date, so use it as trade execution date.
     #[serde(skip)]
     pub report_date: Option<Date>,
 

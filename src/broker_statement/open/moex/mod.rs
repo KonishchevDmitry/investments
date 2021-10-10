@@ -3,6 +3,7 @@ mod cash_flows;
 mod common;
 mod corporate_actions;
 mod forex;
+mod securities;
 mod trades;
 
 use std::collections::HashMap;
@@ -16,10 +17,11 @@ use crate::types::Date;
 
 use super::common::deserialize_date;
 
-use assets::{AccountSummary, Assets, Securities};
+use assets::{AccountSummary, Assets};
 use cash_flows::CashFlows;
 use corporate_actions::CorporateActions;
 use forex::{CurrencyConversions, ForexTrades};
+use securities::Securities;
 use trades::{ConcludedTrades, ExecutedTrades};
 
 #[derive(Deserialize)]
@@ -98,7 +100,7 @@ impl BrokerReport {
         }
 
         if let Some(ref corporate_actions) = self.corporate_actions {
-            corporate_actions.parse(&mut statement)?;
+            corporate_actions.parse(&mut statement, &securities)?;
         }
 
         // Actually, we should check trade execution dates on statements merging stage when we have

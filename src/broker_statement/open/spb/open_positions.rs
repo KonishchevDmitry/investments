@@ -4,6 +4,7 @@ use crate::broker_statement::open::common::{InstrumentType, parse_quantity};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
 use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
 use super::common::parse_security_code;
 
@@ -34,14 +35,21 @@ impl OpenPositions {
         let mut has_starting_assets = false;
 
         for security in &self.open_positions {
-            has_starting_assets |= parse_quantity(security.start_quantity, true)? != 0;
+            let start_quantity = util::validate_named_decimal(
+                "open position quantity", parse_quantity(security.start_quantity),
+                DecimalRestrictions::PositiveOrZero)?;
+
+            let end_quantity = util::validate_named_decimal(
+                "open position quantity", parse_quantity(security.end_quantity),
+                DecimalRestrictions::PositiveOrZero)?;
+
+            has_starting_assets |= !start_quantity.is_zero();
 
             let instrument_type = InstrumentType::parse(&security.category)?;
             let symbol = parse_security_code(&security.code)?;
 
-            let quantity = parse_quantity(security.end_quantity, true)?;
-            if quantity != 0 {
-                statement.add_open_position(symbol, quantity.into())?
+            if !end_quantity.is_zero() {
+                statement.add_open_position(symbol, end_quantity)?
             }
 
             let instrument = statement.instrument_info.add(symbol)?;

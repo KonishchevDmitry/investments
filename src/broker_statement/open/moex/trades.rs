@@ -97,19 +97,21 @@ impl ConcludedTrades {
 
             match (trade.buy_quantity, trade.sell_quantity) {
                 (Some(quantity), None) => {
-                    let quantity = parse_quantity(quantity, false)?;
+                    let quantity = util::validate_decimal(
+                        parse_quantity(quantity), DecimalRestrictions::StrictlyPositive)?;
                     debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_buys.push(StockBuy::new_trade(
-                        symbol, quantity.into(), price, volume, commission,
+                        symbol, quantity, price, volume, commission,
                         trade.conclusion_time.into(), execution_date, false));
                 },
                 (None, Some(quantity)) => {
-                    let quantity = parse_quantity(quantity, false)?;
+                    let quantity = util::validate_decimal(
+                        parse_quantity(quantity), DecimalRestrictions::StrictlyPositive)?;
                     debug_assert_eq!(volume, price * quantity);
 
                     statement.stock_sells.push(StockSell::new_trade(
-                        symbol, quantity.into(), price, volume, commission,
+                        symbol, quantity, price, volume, commission,
                         trade.conclusion_time.into(), execution_date, false, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")

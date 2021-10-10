@@ -85,7 +85,8 @@ impl Trade {
             TradeType::Sell => self.volume,
         }, DecimalRestrictions::StrictlyPositive)?.normalize();
 
-        let quantity = parse_quantity(self.quantity, false)?;
+        let quantity = util::validate_decimal(
+            parse_quantity(self.quantity), DecimalRestrictions::StrictlyPositive)?;
         debug_assert_eq!(volume, price * quantity);
 
         let commission = util::validate_named_cash(
@@ -95,12 +96,12 @@ impl Trade {
         match action {
             TradeType::Buy => {
                 statement.stock_buys.push(StockBuy::new_trade(
-                    symbol, quantity.into(), price, volume, commission,
+                    symbol, quantity, price, volume, commission,
                     conclusion_time.into(), self.execution_date, false));
             },
             TradeType::Sell => {
                 statement.stock_sells.push(StockSell::new_trade(
-                    symbol, quantity.into(), price, volume, commission,
+                    symbol, quantity, price, volume, commission,
                     conclusion_time.into(), self.execution_date, false, false));
             },
         }

@@ -1,4 +1,3 @@
-use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::core::GenericResult;
@@ -31,18 +30,8 @@ pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
     parse_date(&value).map_err(D::Error::custom)
 }
 
-pub fn parse_quantity(decimal_quantity: Decimal, allow_zero: bool) -> GenericResult<u32> {
-    Ok(decimal_quantity.to_u32().and_then(|quantity| {
-        if Decimal::from_u32(quantity).unwrap() != decimal_quantity {
-            return None;
-        }
-
-        if !allow_zero && quantity == 0 {
-            return None;
-        }
-
-        Some(quantity)
-    }).ok_or_else(|| format!("Invalid quantity: {}", decimal_quantity))?)
+pub fn parse_quantity(quantity: Decimal) -> Decimal {
+    quantity.normalize()
 }
 
 #[cfg(test)]
