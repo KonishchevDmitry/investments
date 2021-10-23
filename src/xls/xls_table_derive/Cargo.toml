@@ -1,18 +1,18 @@
 [package]
 name = "xls_table_derive"
-version = "0.5.0"
+version = "0.5.1"
 description = "Procedural macros for investments crate"
 
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
 homepage = "https://github.com/KonishchevDmitry/investments"
 license = "GPL-3.0+"
-edition = "2018"
+edition = "2021"
 
 [lib]
 proc-macro = true
 
 [dependencies]
 darling = "0.13.0"
-proc-macro2 = "1.0.29"
+proc-macro2 = "1.0.30"
 quote = "1.0.10"
 syn = "1.0.80"
