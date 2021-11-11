@@ -3,8 +3,7 @@ use std::ops::Range;
 use std::rc::Rc;
 
 use crate::core::{EmptyResult, GenericResult};
-
-use super::{Cell, SheetReader, SheetParser};
+use crate::xls::{self, Cell, SheetReader, SheetParser};
 
 pub struct XlsStatementParser {
     pub sheet: SheetReader,
@@ -113,6 +112,8 @@ impl SectionState {
     }
 
     pub fn match_section(&mut self, row: &[Cell]) -> GenericResult<Option<&mut Section>> {
+        let row = xls::util::trim_row_left(row);
+
         if row.is_empty() {
             return Ok(None);
         }

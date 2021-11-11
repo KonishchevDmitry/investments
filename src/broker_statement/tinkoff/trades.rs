@@ -48,18 +48,20 @@ struct TradeRow {
     id: u64,
     #[column(name="Номер поручения")]
     _1: SkipCell,
+    #[column(name="Признак исполнения", optional=true)]
+    _2: Option<SkipCell>,
     #[column(name="Дата заключения", parse_with="parse_date_cell")]
     date: Date,
     #[column(name="Время", parse_with="parse_time_cell")]
     time: Time,
     #[column(name="Торговая площадка")]
-    _4: SkipCell,
-    #[column(name="Режим торгов")]
     _5: SkipCell,
+    #[column(name="Режим торгов")]
+    _6: SkipCell,
     #[column(name="Вид сделки")]
     operation: String,
     #[column(name="Сокращенное наименование актива")]
-    _7: SkipCell,
+    _8: SkipCell,
     #[column(name="Код актива")]
     symbol: String,
     #[column(name="Цена за единицу", parse_with="parse_decimal_cell")]
@@ -69,7 +71,7 @@ struct TradeRow {
     #[column(name="Количество", parse_with="parse_quantity_cell")]
     quantity: u32,
     #[column(name="Сумма (без НКД)")]
-    _12: SkipCell,
+    _13: SkipCell,
     #[column(name="НКД", parse_with="parse_decimal_cell")]
     accumulated_coupon_income: Decimal,
     #[column(name="Сумма сделки", parse_with="parse_decimal_cell")]
@@ -84,13 +86,13 @@ struct TradeRow {
 
     // The following fees are actually included into brokerage commission:
     #[column(name="Комиссия биржи", optional=true)]
-    _18: Option<String>,
-    #[column(name="Валюта комиссии биржи", optional=true)]
     _19: Option<String>,
-    #[column(name="Комиссия клир. центра", optional=true)]
+    #[column(name="Валюта комиссии биржи", optional=true)]
     _20: Option<String>,
-    #[column(name="Валюта комиссии клир. центра", optional=true)]
+    #[column(name="Комиссия клир. центра", optional=true)]
     _21: Option<String>,
+    #[column(name="Валюта комиссии клир. центра", optional=true)]
+    _22: Option<String>,
 
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
