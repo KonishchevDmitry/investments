@@ -215,7 +215,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
         }
 
         let mut cur_date = date;
-        let min_date = localities::get_russian_stock_exchange_min_last_working_day(cur_date);
+        let min_date = localities::get_russian_central_bank_min_last_working_day(cur_date);
 
         while cur_date >= min_date {
             let multiplier = if from == cbr::BASE_CURRENCY {
@@ -320,7 +320,7 @@ mod tests {
         ] {
             let mut date = date!(2018, 9, 4);
 
-            for _ in 0..4 {
+            for _ in 0..6 {
                 check(from, to, date, value, result);
                 date = date.succ();
             }
