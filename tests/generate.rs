@@ -18,7 +18,7 @@ fn generate_regression_tests() {
     t.add("Show flat", "show ib --flat");
 
     // analyse
-    t.add("Analyse", "analyse all --all");
+    t.add("Analyse", "analyse --all");
     t.add("Analyse complex", "analyse ib-complex --all").config("other");
     t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
 

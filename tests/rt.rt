@@ -42,7 +42,6 @@ STDOUT: analyse
 APP: tests/investments
      main
      analyse
-     all
      --all
 
 [6]

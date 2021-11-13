@@ -89,15 +89,16 @@ pub fn initialize() -> (Config, String, Action) {
             .help("Sets the level of verbosity"))
         .subcommand(SubCommand::with_name("analyse")
             .about("Analyze portfolio performance")
-            .arg(Arg::with_name("all")
-                .short("a")
-                .long("all")
-                .help("Don't hide closed positions"))
             .long_about(concat!(
                 "\nCalculates average rate of return from cash investments by comparing portfolio ",
                 "performance to performance of a bank deposit with exactly the same investments ",
                 "and monthly capitalization."))
-            .arg(portfolio_all::arg()))
+            .arg(Arg::with_name("all")
+                .short("a")
+                .long("all")
+                .help("Don't hide closed positions"))
+            .arg(Arg::with_name("PORTFOLIO")
+                .help("Portfolio name (omit to show an aggregated result for all portfolios)")))
         .subcommand(SubCommand::with_name("show")
             .about("Show portfolio's asset allocation")
             .arg(Arg::with_name("flat")
@@ -237,38 +238,15 @@ fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<(
 }
 
 fn parse_command(command: &str, matches: &ArgMatches) -> GenericResult<Action> {
-    match command {
-        "deposits" => {
-            let date = match matches.value_of("date") {
-                Some(date) => time::parse_date(date, "%d.%m.%Y")?,
-                None => time::today(),
-            };
-
-            return Ok(Action::Deposits {
-                date: date,
-                cron_mode: matches.is_present("cron"),
-            });
-        },
-        "metrics" => {
-            let path = matches.value_of("PATH").unwrap().to_owned();
-            return Ok(Action::Metrics(path))
-        },
-        _ => {},
-    }
-
-    let name = portfolio::get(matches);
-
     Ok(match command {
         "analyse" => Action::Analyse {
-            name: match name.as_str() {
-                "all" => None,
-                _ => Some(name),
-            },
+            name: matches.value_of("PORTFOLIO").map(ToOwned::to_owned),
             show_closed_positions: matches.is_present("all"),
         },
 
-        "sync" => Action::Sync(name),
+        "sync" => Action::Sync(portfolio::get(matches)),
         "buy" | "sell" | "cash" => {
+            let name = portfolio::get(matches);
             let cash_assets = Decimal::from_str(&cash_assets::get(matches))
                 .map_err(|_| "Invalid cash assets value")?;
 
@@ -289,14 +267,17 @@ fn parse_command(command: &str, matches: &ArgMatches) -> GenericResult<Action> {
         },
 
         "show" => Action::Show {
-            name,
+            name: portfolio::get(matches),
             flat: matches.is_present("flat"),
         },
+
         "rebalance" => Action::Rebalance {
-            name,
+            name: portfolio::get(matches),
             flat: matches.is_present("flat"),
         },
+
         "simulate-sell" => {
+            let name = portfolio::get(matches);
             let base_currency = matches.value_of("base_currency").map(ToOwned::to_owned);
 
             let mut positions = Vec::new();
@@ -326,16 +307,34 @@ fn parse_command(command: &str, matches: &ArgMatches) -> GenericResult<Action> {
             let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
             Action::TaxStatement {
-                name,
+                name: portfolio::get(matches),
                 year: get_year(matches)?,
                 tax_statement_path: tax_statement_path,
             }
         },
+
         "cash-flow" => {
             Action::CashFlow {
-                name,
+                name: portfolio::get(matches),
                 year: get_year(matches)?,
             }
+        },
+
+        "deposits" => {
+            let date = match matches.value_of("date") {
+                Some(date) => time::parse_date(date, "%d.%m.%Y")?,
+                None => time::today(),
+            };
+
+            return Ok(Action::Deposits {
+                date: date,
+                cron_mode: matches.is_present("cron"),
+            });
+        },
+
+        "metrics" => {
+            let path = matches.value_of("PATH").unwrap().to_owned();
+            return Ok(Action::Metrics(path))
         },
 
         _ => unreachable!(),
@@ -373,7 +372,6 @@ macro_rules! arg {
 }
 
 arg!(portfolio, "PORTFOLIO", "Portfolio name");
-arg!(portfolio_all, "PORTFOLIO", r"Portfolio name (use 'all' to show an aggregated result for all portfolios)");
 arg!(shares, "SHARES", "Shares");
 arg!(symbol, "SYMBOL", "Symbol");
 arg!(cash_assets, "CASH_ASSETS", "Current cash assets");
