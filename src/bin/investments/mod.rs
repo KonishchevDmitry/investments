@@ -1,3 +1,7 @@
+mod action;
+mod init;
+mod positions;
+
 extern crate investments;
 #[macro_use] extern crate maplit;
 
@@ -17,9 +21,8 @@ use investments::portfolio;
 use investments::tax_statement;
 use investments::telemetry::{Telemetry, TelemetryRecordBuilder};
 
-use self::init::{Action, initialize};
-
-mod init;
+use self::action::Action;
+use self::init::initialize;
 
 // TODO: Features to implement:
 // * Declare loss from previous years in tax statement
@@ -60,10 +63,10 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
             &config, &name, positions, base_currency.as_deref())?,
 
         Action::Sync(name) => portfolio::sync(&config, &name)?,
-        Action::Buy {name, shares, symbol, cash_assets} =>
-            portfolio::buy(&config, &name, shares, &symbol, cash_assets)?,
-        Action::Sell {name, shares, symbol, cash_assets} =>
-            portfolio::sell(&config, &name, shares, &symbol, cash_assets)?,
+        Action::Buy {name, positions, cash_assets} =>
+            portfolio::buy(&config, &name, &positions, cash_assets)?,
+        Action::Sell {name, positions, cash_assets} =>
+            portfolio::sell(&config, &name, &positions, cash_assets)?,
         Action::SetCashAssets(name, cash_assets) =>
             portfolio::set_cash_assets(&config, &name, cash_assets)?,
 

@@ -38,38 +38,56 @@ pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRec
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-pub fn buy(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> GenericResult<TelemetryRecordBuilder> {
+pub fn buy(
+    config: &Config, portfolio_name: &str, positions: &[(String, Decimal)], cash_assets: Decimal,
+) -> GenericResult<TelemetryRecordBuilder> {
     modify_assets(config, portfolio_name, |portfolio, assets| {
-        if portfolio.get_stock_symbols().get(symbol).is_none() {
-            return Err!("Unable to buy {}: it's not specified in asset allocation configuration",
-                symbol);
-        }
+        let asset_allocation_symbols = portfolio.get_stock_symbols();
 
-        assets.stocks.entry(symbol.to_owned())
-            .and_modify(|current_shares| *current_shares = (*current_shares + shares).normalize())
-            .or_insert(shares);
+        for (symbol, quantity) in positions {
+            if asset_allocation_symbols.get(symbol).is_none() {
+                return Err!(
+                    "Unable to buy {}: it's not specified in asset allocation configuration",
+                    symbol);
+            }
+
+            assets.stocks.entry(symbol.to_owned())
+                .and_modify(|current| *current = (*current + quantity).normalize())
+                .or_insert(*quantity);
+        }
 
         set_cash_assets_impl(portfolio, assets, cash_assets)
     })
 }
 
-pub fn sell(config: &Config, portfolio_name: &str, shares: Decimal, symbol: &str, cash_assets: Decimal) -> GenericResult<TelemetryRecordBuilder> {
+pub fn sell(
+    config: &Config, portfolio_name: &str, positions: &[(String, Option<Decimal>)],
+    cash_assets: Decimal,
+) -> GenericResult<TelemetryRecordBuilder> {
     modify_assets(config, portfolio_name, |portfolio, assets| {
-        let mut entry = match assets.stocks.entry(symbol.to_owned()) {
-            Entry::Occupied(entry) => entry,
-            Entry::Vacant(_) => return Err!("The portfolio has no open {} positions", symbol),
-        };
+        for (symbol, quantity) in positions {
+            let mut entry = match assets.stocks.entry(symbol.to_owned()) {
+                Entry::Occupied(entry) => entry,
+                Entry::Vacant(_) => return Err!("The portfolio has no open {} positions", symbol),
+            };
 
-        let current_shares = entry.get_mut();
-        if shares > *current_shares {
-            return Err!("Unable to sell {} shares of {}: the portfolio contains only {} shares",
-                shares, symbol, current_shares);
-        }
+            let current = entry.get_mut();
+            let quantity = match *quantity {
+                Some(quantity) => quantity,
+                None => *current,
+            };
 
-        if shares == *current_shares {
-            entry.remove();
-        } else {
-            *current_shares = (*current_shares - shares).normalize();
+            if quantity > *current {
+                return Err!(
+                    "Unable to sell {} shares of {}: the portfolio contains only {} shares",
+                    quantity, symbol, current);
+            }
+
+            if quantity == *current {
+                entry.remove();
+            } else {
+                *current = (*current - quantity).normalize();
+            }
         }
 
         set_cash_assets_impl(portfolio, assets, cash_assets)

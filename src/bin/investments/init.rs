@@ -10,63 +10,18 @@ use investments::config::Config;
 use investments::core::GenericResult;
 use investments::time;
 use investments::types::{Date, Decimal};
-use investments::util::{self, DecimalRestrictions};
 
-pub enum Action {
-    Analyse {
-        name: Option<String>,
-        show_closed_positions: bool,
-    },
-    SimulateSell {
-        name: String,
-        positions: Vec<(String, Option<Decimal>)>,
-        base_currency: Option<String>,
-    },
-
-    Sync(String),
-    Buy {
-        name: String,
-        shares: Decimal,
-        symbol: String,
-        cash_assets: Decimal,
-    },
-    Sell {
-        name: String,
-        shares: Decimal,
-        symbol: String,
-        cash_assets: Decimal,
-    },
-    SetCashAssets(String, Decimal),
-
-    Show {
-        name: String,
-        flat: bool,
-    },
-    Rebalance {
-        name: String,
-        flat: bool,
-    },
-
-    TaxStatement {
-        name: String,
-        year: Option<i32>,
-        tax_statement_path: Option<String>,
-    },
-    CashFlow {
-        name: String,
-        year: Option<i32>,
-    },
-
-    Deposits {
-        date: Date,
-        cron_mode: bool,
-    },
-
-    Metrics(String),
-}
+use super::action::Action;
+use super::positions::PositionsParser;
 
 pub fn initialize() -> (Config, String, Action) {
     let default_config_dir_path = "~/.investments";
+
+    let parser = Parser {
+        bought: PositionsParser::new("Bought shares", false, true),
+        sold: PositionsParser::new("Sold shares", true, true),
+        to_sell: PositionsParser::new("Positions to sell", true, false),
+    };
 
     let matches = App::new("Investments")
         .about("\nHelps you with managing your investments")
@@ -112,14 +67,12 @@ pub fn initialize() -> (Config, String, Action) {
         .subcommand(SubCommand::with_name("buy")
             .about("Add the specified stock shares to the portfolio")
             .arg(portfolio::arg())
-            .arg(shares::arg())
-            .arg(symbol::arg())
+            .arg(parser.bought.arg())
             .arg(cash_assets::arg()))
         .subcommand(SubCommand::with_name("sell")
             .about("Remove the specified stock shares from the portfolio")
             .arg(portfolio::arg())
-            .arg(shares::arg())
-            .arg(symbol::arg())
+            .arg(parser.sold.arg())
             .arg(cash_assets::arg()))
         .subcommand(SubCommand::with_name("cash")
             .about("Set current cash assets")
@@ -141,9 +94,7 @@ pub fn initialize() -> (Config, String, Action) {
                 .takes_value(true)
                 .help("Actual asset base currency to calculate the profit in"))
             .arg(portfolio::arg())
-            .arg(Arg::with_name("POSITIONS")
-                .multiple(true)
-                .help("Positions to sell in $quantity|all $symbol format")))
+            .arg(parser.to_sell.arg()))
         .subcommand(SubCommand::with_name("tax-statement")
             .about("Generate tax statement")
             .long_about(concat!(
@@ -214,7 +165,7 @@ pub fn initialize() -> (Config, String, Action) {
     };
     config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
 
-    let (command, action) = match parse_arguments(&mut config, &matches) {
+    let (command, action) = match parser.parse(&mut config, &matches) {
         Ok(result) => result,
         Err(err) => {
             error!("{}.", err);
@@ -225,120 +176,107 @@ pub fn initialize() -> (Config, String, Action) {
     (config, command, action)
 }
 
-fn parse_arguments(config: &mut Config, matches: &ArgMatches) -> GenericResult<(String, Action)> {
-    if let Some(expire_time) = matches.value_of("cache_expire_time") {
-        config.cache_expire_time = time::parse_duration(expire_time).map_err(|_| format!(
-            "Invalid cache expire time: {:?}", expire_time))?;
-    };
-
-    let (command, matches) = matches.subcommand();
-    let action = parse_command(command, matches.unwrap())?;
-
-    Ok((command.to_owned(), action))
+struct Parser {
+    bought: PositionsParser,
+    sold: PositionsParser,
+    to_sell: PositionsParser,
 }
 
-fn parse_command(command: &str, matches: &ArgMatches) -> GenericResult<Action> {
-    Ok(match command {
-        "analyse" => Action::Analyse {
-            name: matches.value_of("PORTFOLIO").map(ToOwned::to_owned),
-            show_closed_positions: matches.is_present("all"),
-        },
+impl Parser {
+    fn parse(&self, config: &mut Config, matches: &ArgMatches) -> GenericResult<(String, Action)> {
+        if let Some(expire_time) = matches.value_of("cache_expire_time") {
+            config.cache_expire_time = time::parse_duration(expire_time).map_err(|_| format!(
+                "Invalid cache expire time: {:?}", expire_time))?;
+        };
 
-        "sync" => Action::Sync(portfolio::get(matches)),
-        "buy" | "sell" | "cash" => {
-            let name = portfolio::get(matches);
-            let cash_assets = Decimal::from_str(&cash_assets::get(matches))
-                .map_err(|_| "Invalid cash assets value")?;
+        let (command, matches) = matches.subcommand();
+        let action = self.parse_command(command, matches.unwrap())?;
 
-            if command == "cash" {
-                Action::SetCashAssets(name, cash_assets)
-            } else {
-                let shares = util::parse_decimal(
-                    &shares::get(matches), DecimalRestrictions::StrictlyPositive)
-                    .map_err(|_| "Invalid shares number")?.normalize();
-                let symbol = symbol::get(matches);
+        Ok((command.to_owned(), action))
+    }
+
+    fn parse_command(&self, command: &str, matches: &ArgMatches) -> GenericResult<Action> {
+        Ok(match command {
+            "analyse" => Action::Analyse {
+                name: matches.value_of("PORTFOLIO").map(ToOwned::to_owned),
+                show_closed_positions: matches.is_present("all"),
+            },
+
+            "sync" => Action::Sync(portfolio::get(matches)),
+            "buy" | "sell" | "cash" => {
+                let name = portfolio::get(matches);
+                let cash_assets = Decimal::from_str(&cash_assets::get(matches))
+                    .map_err(|_| "Invalid cash assets value")?;
 
                 match command {
-                    "buy" => Action::Buy {name, shares, symbol, cash_assets},
-                    "sell" => Action::Sell {name, shares, symbol, cash_assets},
+                    "buy" => Action::Buy {
+                        name, cash_assets,
+                        positions: self.bought.parse(matches)?.into_iter().map(|(symbol, shares)| {
+                            (symbol, shares.unwrap())
+                        }).collect(),
+                    },
+                    "sell" => Action::Sell {
+                        name, cash_assets,
+                        positions: self.sold.parse(matches)?,
+                    },
+                    "cash" => Action::SetCashAssets(name, cash_assets),
                     _ => unreachable!(),
                 }
-            }
-        },
+            },
 
-        "show" => Action::Show {
-            name: portfolio::get(matches),
-            flat: matches.is_present("flat"),
-        },
+            "show" => Action::Show {
+                name: portfolio::get(matches),
+                flat: matches.is_present("flat"),
+            },
 
-        "rebalance" => Action::Rebalance {
-            name: portfolio::get(matches),
-            flat: matches.is_present("flat"),
-        },
+            "rebalance" => Action::Rebalance {
+                name: portfolio::get(matches),
+                flat: matches.is_present("flat"),
+            },
 
-        "simulate-sell" => {
-            let name = portfolio::get(matches);
-            let base_currency = matches.value_of("base_currency").map(ToOwned::to_owned);
+            "simulate-sell" => Action::SimulateSell {
+                name: portfolio::get(matches),
+                positions: self.to_sell.parse(matches)?,
+                base_currency: matches.value_of("base_currency").map(ToOwned::to_owned),
+            },
 
-            let mut positions = Vec::new();
-            if let Some(mut positions_spec_iter) = matches.values_of("POSITIONS") {
-                while let Some(quantity) = positions_spec_iter.next() {
-                    let quantity = if quantity == "all" {
-                        None
-                    } else {
-                        Some(util::parse_decimal(
-                            quantity, DecimalRestrictions::StrictlyPositive
-                        ).map_err(|_| format!(
-                            "Invalid positions specification: Invalid quantity: {:?}", quantity)
-                        )?)
-                    };
+            "tax-statement" => {
+                let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
 
-                    let symbol = positions_spec_iter.next().ok_or(
-                        "Invalid positions specification: Even number of arguments is expected")?;
-
-                    positions.push((symbol.to_owned(), quantity));
+                Action::TaxStatement {
+                    name: portfolio::get(matches),
+                    year: get_year(matches)?,
+                    tax_statement_path: tax_statement_path,
                 }
-            }
+            },
 
-            Action::SimulateSell {name, positions, base_currency}
-        }
+            "cash-flow" => {
+                Action::CashFlow {
+                    name: portfolio::get(matches),
+                    year: get_year(matches)?,
+                }
+            },
 
-        "tax-statement" => {
-            let tax_statement_path = matches.value_of("TAX_STATEMENT").map(|path| path.to_owned());
+            "deposits" => {
+                let date = match matches.value_of("date") {
+                    Some(date) => time::parse_date(date, "%d.%m.%Y")?,
+                    None => time::today(),
+                };
 
-            Action::TaxStatement {
-                name: portfolio::get(matches),
-                year: get_year(matches)?,
-                tax_statement_path: tax_statement_path,
-            }
-        },
+                return Ok(Action::Deposits {
+                    date: date,
+                    cron_mode: matches.is_present("cron"),
+                });
+            },
 
-        "cash-flow" => {
-            Action::CashFlow {
-                name: portfolio::get(matches),
-                year: get_year(matches)?,
-            }
-        },
+            "metrics" => {
+                let path = matches.value_of("PATH").unwrap().to_owned();
+                return Ok(Action::Metrics(path))
+            },
 
-        "deposits" => {
-            let date = match matches.value_of("date") {
-                Some(date) => time::parse_date(date, "%d.%m.%Y")?,
-                None => time::today(),
-            };
-
-            return Ok(Action::Deposits {
-                date: date,
-                cron_mode: matches.is_present("cron"),
-            });
-        },
-
-        "metrics" => {
-            let path = matches.value_of("PATH").unwrap().to_owned();
-            return Ok(Action::Metrics(path))
-        },
-
-        _ => unreachable!(),
-    })
+            _ => unreachable!(),
+        })
+    }
 }
 
 fn get_year(matches: &ArgMatches) -> GenericResult<Option<i32>> {
@@ -363,7 +301,6 @@ macro_rules! arg {
                     .required(true)
             }
 
-            #[allow(dead_code)]
             pub fn get(matches: &ArgMatches) -> String {
                 matches.value_of($name).unwrap().to_owned()
             }
@@ -372,6 +309,4 @@ macro_rules! arg {
 }
 
 arg!(portfolio, "PORTFOLIO", "Portfolio name");
-arg!(shares, "SHARES", "Shares");
-arg!(symbol, "SYMBOL", "Symbol");
 arg!(cash_assets, "CASH_ASSETS", "Current cash assets");
