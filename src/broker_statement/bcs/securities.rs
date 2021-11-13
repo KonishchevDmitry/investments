@@ -1,3 +1,6 @@
+use std::cmp::Ordering;
+
+use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::EmptyResult;
 use crate::formatting;
@@ -86,14 +89,48 @@ impl TableReader for SecurityRow {
 }
 
 impl SecurityRow {
-    fn parse_split(&self, _statement: &mut PartialBrokerStatement) -> EmptyResult {
-        parse_symbol(self.symbol.trim_end())?;
+    fn parse_split(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        let action = self.get_stock_split().ok_or_else(|| format!(
+            "Unsupported stock split: {} at {}", self.symbol, formatting::format_date(self.date)))?;
 
-        match (self.start_quantity, self.debit, self.credit, self.end_quantity) {
-            (Some(start), Some(debit), Some(credit), Some(end)) if debit == start && credit == end => {},
-            _ => return Err!("Unsupported stock split: {} at {}", self.symbol, formatting::format_date(self.date)),
-        }
+        let symbol = parse_symbol(self.symbol.trim_end())?;
+        statement.corporate_actions.push(CorporateAction {
+            time: self.date.into(),
+            report_date: None,
+            symbol, action,
+        });
 
         Ok(())
+    }
+
+    fn get_stock_split(&self) -> Option<CorporateActionType> {
+        let (debit, credit) = match (self.start_quantity, self.debit, self.credit, self.end_quantity) {
+            (Some(start), Some(debit), Some(credit), Some(end)) if debit == start && credit == end => (debit, credit),
+            _ => return None,
+        };
+
+        let ratio = match debit.cmp(&credit) {
+            Ordering::Equal => return None,
+
+            Ordering::Less => {
+                if credit % debit != 0 {
+                    return None;
+                }
+                StockSplitRatio::new(1, credit / debit)
+            },
+
+            Ordering::Greater => {
+                if debit % credit != 0 {
+                    return None;
+                }
+                StockSplitRatio::new(debit / credit, 1)
+            },
+        };
+
+        Some(CorporateActionType::StockSplit{
+            ratio,
+            from_change: Some(debit.into()),
+            to_change: Some(credit.into()),
+        })
     }
 }

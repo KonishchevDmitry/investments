@@ -2,18 +2,17 @@ use std::collections::{HashMap, hash_map::Entry};
 
 use crate::core::EmptyResult;
 use crate::formatting;
-use crate::time::{DateOptTime, Date};
+use crate::time::{Date, DateOptTime, Period};
 
 use super::{StockBuy, StockSell};
 
 pub struct DateValidator {
-    pub min_date: Date,
-    pub max_date: Date,
+    pub period: Period,
 }
 
 impl DateValidator {
-    pub fn new(min_date: Date, max_date: Date) -> DateValidator {
-        DateValidator {min_date, max_date}
+    pub fn new(period: Period) -> DateValidator {
+        DateValidator {period}
     }
 
     pub fn sort_and_validate<T, D>(
@@ -34,14 +33,14 @@ impl DateValidator {
         let first_date = get_date(objects.first().unwrap()).into().date;
         let last_date = get_date(objects.last().unwrap()).into().date;
 
-        if first_date < self.min_date {
-            return Err!("Got {} outside of statement period: {}",
-                        name, formatting::format_date(first_date));
+        if first_date < self.period.first_date() {
+            return Err!("Got {} outside of statement period ({}): {}",
+                        name, self.period.format(), formatting::format_date(first_date));
         }
 
-        if last_date > self.max_date {
-            return Err!("Got {} outside of statement period: {}",
-                        name, formatting::format_date(last_date));
+        if last_date > self.period.last_date() {
+            return Err!("Got {} outside of statement period ({}): {}",
+                        name, self.period.format(), formatting::format_date(last_date));
         }
 
         Ok(())

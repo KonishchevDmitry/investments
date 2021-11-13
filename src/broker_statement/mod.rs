@@ -32,7 +32,7 @@ use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::localities;
 use crate::quotes::Quotes;
 use crate::taxes::TaxRemapping;
-use crate::time::{self, Date, DateOptTime};
+use crate::time::{self, Date, DateOptTime, Period};
 use crate::types::{Decimal, TradeType};
 use crate::util;
 
@@ -502,12 +502,14 @@ impl BrokerStatement {
     }
 
     fn validate(&mut self) -> EmptyResult {
+        // FIXME(konishchev): Deprecate
         let date_validator = self.date_validator();
 
         date_validator.sort_and_validate(
             "a deposit of withdrawal", &mut self.deposits_and_withdrawals, |cash_flow| cash_flow.date)?;
 
-        self.sort_and_alter_fees(date_validator.max_date);
+        // FIXME(konishchev): Deprecate
+        self.sort_and_alter_fees(date_validator.period.last_date());
         date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
         self.cash_flows.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
@@ -536,7 +538,8 @@ impl BrokerStatement {
     }
 
     fn date_validator(&self) -> DateValidator {
-        DateValidator::new(self.period.0, self.last_date())
+        // FIXME(konishchev): Deprecate
+        DateValidator::new(Period {start: self.period.0, end: self.period.1})
     }
 
     fn sort_and_alter_fees(&mut self, max_date: Date) {

@@ -14,7 +14,7 @@ pub fn parse_short_date(date: &str) -> GenericResult<Date> {
 }
 
 pub fn parse_short_date_cell(cell: &Cell) -> GenericResult<Date> {
-    parse_date(xls::get_string_cell(cell)?)
+    parse_short_date(xls::get_string_cell(cell)?)
 }
 
 pub fn parse_time(time: &str) -> GenericResult<Time> {

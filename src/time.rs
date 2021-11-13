@@ -12,6 +12,26 @@ use crate::formatting;
 
 pub use crate::types::{Date, Time, DateTime};
 
+pub struct Period {
+    // FIXME(konishchev): Deprecate pub
+    pub start: Date,
+    pub end: Date,
+}
+
+impl Period {
+    pub fn first_date(&self) -> Date {
+        self.start
+    }
+
+    pub fn last_date(&self) -> Date {
+        self.end.pred()
+    }
+
+    pub fn format(&self) -> String {
+        formatting::format_period((self.start, self.end))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct DateOptTime {
     pub date: Date,
@@ -46,6 +66,7 @@ impl From<DateTime> for DateOptTime {
     }
 }
 
+// FIXME(konishchev): Switch to Period?
 pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
     let period = (start, end.succ());
 
