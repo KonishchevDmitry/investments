@@ -11,6 +11,7 @@ macro_rules! dec {
     ($e:expr) => (::rust_decimal_macros::dec!($e))
 }
 
+#[macro_export]
 macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
 }

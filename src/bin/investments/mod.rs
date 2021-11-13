@@ -1,10 +1,12 @@
 mod action;
-mod init;
+mod parser;
 mod positions;
 
-extern crate investments;
+#[macro_use] extern crate investments;
 #[macro_use] extern crate maplit;
 
+use std::io::{self, Write};
+use std::path::Path;
 use std::process;
 use std::time::Duration;
 
@@ -22,19 +24,37 @@ use investments::tax_statement;
 use investments::telemetry::{Telemetry, TelemetryRecordBuilder};
 
 use self::action::Action;
-use self::init::initialize;
-
-// TODO: Features to implement:
-// * Declare loss from previous years in tax statement
-// * XLS for tax inspector
+use self::parser::{Parser, GlobalOptions};
 
 fn main() {
-    let (config, command, action) = initialize();
+    let mut parser = Parser::new();
 
-    if let Err(e) = run(config, &command, action) {
+    let global = parser.parse_global().unwrap_or_else(|e| {
+        let _ = writeln!(io::stderr(), "{}.", e);
+        process::exit(1);
+    });
+
+    if let Err(e) = easy_logging::init(module_path!().split("::").next().unwrap(), global.log_level) {
+        let _ = writeln!(io::stderr(), "Failed to initialize the logging: {}.", e);
+        process::exit(1);
+    }
+
+    if let Err(e) = main_inner(global, parser) {
         error!("{}.", e);
         process::exit(1);
     }
+}
+
+fn main_inner(global: GlobalOptions, parser: Box<Parser>) -> EmptyResult {
+    let config_dir_path = Path::new(&global.config_dir);
+    let config_path = config_dir_path.join("config.yaml");
+
+    let mut config = Config::load(config_path.to_str().unwrap()).map_err(|e| format!(
+        "Error while reading {:?} configuration file: {}.", config_path, e))?;
+    config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
+
+    let (command, action) = parser.parse(&mut config)?;
+    run(config, &command, action)
 }
 
 fn run(config: Config, command: &str, action: Action) -> EmptyResult {
