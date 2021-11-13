@@ -2,6 +2,7 @@ mod assets;
 mod cash_flow;
 mod common;
 mod period;
+mod securities;
 mod trades;
 
 use std::rc::Rc;
@@ -18,6 +19,7 @@ use super::{BrokerStatementReader, PartialBrokerStatement};
 use assets::AssetsParser;
 use cash_flow::CashFlowParser;
 use period::PeriodParser;
+use securities::SecuritiesParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
@@ -59,6 +61,8 @@ impl BrokerStatementReader for StatementReader {
 
             Section::new("3. Активы:").required(),
             Section::new("Вид актива").parser(AssetsParser::new(statement.clone())).required(),
+
+            Section::new("4. Движение Ценных бумаг").parser(SecuritiesParser::new(statement.clone())),
         ])?;
 
         Rc::try_unwrap(statement).ok().unwrap().into_inner().validate()

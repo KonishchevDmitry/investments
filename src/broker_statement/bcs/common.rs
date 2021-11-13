@@ -3,6 +3,7 @@ use regex::Regex;
 
 use crate::core::GenericResult;
 use crate::time::{self, Date, Time};
+use crate::xls::{self, Cell};
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%Y")
@@ -10,6 +11,10 @@ pub fn parse_date(date: &str) -> GenericResult<Date> {
 
 pub fn parse_short_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%y")
+}
+
+pub fn parse_short_date_cell(cell: &Cell) -> GenericResult<Date> {
+    parse_date(xls::get_string_cell(cell)?)
 }
 
 pub fn parse_time(time: &str) -> GenericResult<Time> {
