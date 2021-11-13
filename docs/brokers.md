@@ -89,8 +89,8 @@ depending on your account type:
 * `tax_exemptions: [long-term-ownership]` in case of an ordinary brokerage account where
   [Long-Term Ownership tax exception](https://github.com/KonishchevDmitry/investments/files/7531659/lto.pdf) is applied.
 
-But be prepared to [surprises](https://smart-lab.ru/blog/730297.php#comment13207914) from brokers in how they are
-process LTO or stock splits.
+But be prepared to [surprises](https://smart-lab.ru/blog/730297.php#comment13207914) from brokers in how they process
+LTO or stock splits.
 
 
 <a name="open-broker"></a>
