@@ -1,15 +1,13 @@
-# Broker specific
-
-## Foreign brokers
+# Foreign brokers
 
 <a name="interactive-brokers"></a>
-### Interactive Brokers
+## Interactive Brokers
 
 The program expects Activity Statements in `*.csv` format for broker statements (`Reports -> Statements -> Activity`).
 [Custom Activity Statement](#ib-custom-activity-statement) is preferred.
 
 <a name="ib-trade-settle-date"></a>
-#### Trade settle date information
+### Trade settle date information
 
 Activity statements don't provide trade settle date information. So by default all calculations will be made in T+0 mode
 and `simulate-sell` and `tax-statement` commands will complain on this via warning message because it affects
@@ -24,7 +22,7 @@ and download the statements for all periods where you have any trades. Investmen
 information from them for calculations in T+2 mode.
 
 <a name="ib-dividend-reclassifications"></a>
-#### Dividend reclassifications
+### Dividend reclassifications
 
 Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect
 dividend reclassifications. This is typically done in February the following year. As such, the majority of these
@@ -41,7 +39,7 @@ manually map reclassified tax to date of its origin dividend.
 
 <a name="ib-cash-flow-info"></a>
 <a name="ib-custom-activity-statement"></a>
-#### Custom activity statement
+### Custom activity statement
 
 Default Activity Statement contains only essential information and omits some details. For example [dividend
 reclassifications](#ib-dividend-reclassifications) don't provide actual dates of cash flows on your account which may be
@@ -61,7 +59,7 @@ To generate Custom Activity Statement:
 
 
 <a name="firstrade"></a>
-### Firstrade
+## Firstrade
 
 The program expects broker statements in `*.ofx` format (`Accounts -> History -> Download Account History -> Microsoft
 Money`).
@@ -80,7 +78,7 @@ Please take into account the following issues with Firstrade statements:
    So, considering this, I recommend to generate new statement for the previous year on each January 1.
 
 
-## Russian Brokers
+# Russian Brokers
 
 When you configure your portfolio as backed by a Russian broker, the following configuration options should be specified
 depending on your account type:
@@ -96,7 +94,7 @@ process LTO or stock splits.
 
 
 <a name="open-broker"></a>
-### Открытие Брокер
+## Открытие Брокер
 
 The program expects broker statements in `*.xml` format.
 
@@ -106,7 +104,7 @@ to instrument symbol in the statement, so the program will ask you to specify th
 
 
 <a name="tinkoff"></a>
-### Тинькофф
+## Тинькофф
 
 The program expects broker statements in `*.xlsx` format.
 
@@ -119,7 +117,7 @@ merge its information with broker statement.
 
 
 <a name="bcs"></a>
-### БКС
+## БКС
 
 The program expects broker statements in `*.xls` format.
 
