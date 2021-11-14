@@ -1,4 +1,4 @@
-use crate::time::{Date, DateTime, DateOptTime};
+use crate::time::{DateTime, DateOptTime};
 
 pub mod table;
 
@@ -10,11 +10,6 @@ pub fn format_date<T>(date: T) -> String where T: Into<DateOptTime> {
     } else {
         date.date.format("%d.%m.%Y")
     }.to_string()
-}
-
-// FIXME(konishchev): Switch to Period?
-pub fn format_period(period: (Date, Date)) -> String {
-    format!("{} - {}", format_date(period.0), format_date(period.1.pred()))
 }
 
 pub fn untitle(string: &str) -> String {

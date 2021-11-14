@@ -5,7 +5,8 @@ use log::warn;
 use crate::broker_statement::BrokerStatement;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::formatting::format_date;
-use crate::types::{Date, Decimal};
+use crate::time::{Date, Period};
+use crate::types::Decimal;
 
 use super::mapper::{CashFlow, map_broker_statement_to_cash_flow};
 use super::comparator::CashAssetsComparator;
@@ -17,23 +18,22 @@ pub struct CashFlowSummary {
     pub ending: Decimal,
 }
 
-pub fn calculate(statement: &BrokerStatement, start_date: Date, end_date: Date) -> (
+pub fn calculate(statement: &BrokerStatement, period: Period) -> (
     BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>
 ) {
     let historical_cash_assets = statement.historical_assets.iter().map(|(&date, assets)| {
         (date, assets.cash.clone())
     }).collect();
 
-    let starting_assets_date = start_date.pred();
-    let ending_assets_date = end_date.pred();
+    let starting_assets_date = period.prev_date();
+    let ending_assets_date = period.last_date();
 
     let comparator = CashAssetsComparator::new(
         &historical_cash_assets, vec![starting_assets_date, ending_assets_date]);
 
     Calculator {
         statement, comparator,
-        start_date, starting_assets_date,
-        end_date, ending_assets_date,
+        period, starting_assets_date, ending_assets_date,
 
         starting_assets: None,
         deposits: MultiCurrencyCashAccount::new(),
@@ -48,9 +48,8 @@ struct Calculator<'a> {
     statement: &'a BrokerStatement,
     comparator: CashAssetsComparator<'a>,
 
-    start_date: Date,
+    period: Period,
     starting_assets_date: Date,
-    end_date: Date,
     ending_assets_date: Date,
 
     starting_assets: Option<MultiCurrencyCashAccount>,
@@ -68,9 +67,9 @@ impl<'a> Calculator<'a> {
         let mut end_index = None;
 
         for (index, cash_flow) in cash_flows.iter().enumerate() {
-            if cash_flow.time.date < self.start_date {
+            if cash_flow.time.date < self.period.first_date() {
                 begin_index.replace(index);
-            } else if end_index.is_none() && self.end_date <= cash_flow.time.date {
+            } else if end_index.is_none() && self.period.last_date() < cash_flow.time.date {
                 end_index.replace(index);
             }
 
@@ -90,7 +89,7 @@ impl<'a> Calculator<'a> {
             cash_flows.drain(..=index);
         }
 
-        self.process_date(self.statement.period.1);
+        self.process_date(self.statement.period.next_date());
         assert!(self.comparator.consumed());
 
         let mut summaries = BTreeMap::new();
@@ -124,10 +123,10 @@ impl<'a> Calculator<'a> {
             self.starting_assets.replace(self.assets.clone());
 
             if self.statement.historical_assets.get(&self.starting_assets_date).is_none() {
-                if self.statement.period.0 <= self.starting_assets_date {
+                if self.statement.period.first_date() <= self.starting_assets_date {
                     warn!(
                         "There is no information about starting cash assets for {} in the broker statement.",
-                        format_date(self.start_date)
+                        format_date(self.period.first_date())
                     );
                 }
             }
@@ -148,7 +147,7 @@ impl<'a> Calculator<'a> {
     fn process_cash_flow(&mut self, date: Date, amount: Cash) {
         self.assets.deposit(amount);
 
-        if self.start_date <= date && date < self.end_date {
+        if self.period.contains(date) {
             if amount.is_negative() {
                 self.withdrawals.deposit(-amount);
             } else {

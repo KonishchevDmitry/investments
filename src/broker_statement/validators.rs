@@ -7,7 +7,7 @@ use crate::time::{Date, DateOptTime, Period};
 use super::{StockBuy, StockSell};
 
 pub struct DateValidator {
-    pub period: Period,
+    period: Period,
 }
 
 impl DateValidator {

@@ -2,8 +2,7 @@ use serde::Deserialize;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
-use crate::time;
-use crate::types::Date;
+use crate::time::{Date, Period};
 
 use super::StatementReader;
 use super::balance::Balance;
@@ -89,13 +88,11 @@ impl Ofx {
         let currency = report.currency;
         let transactions = report.transactions;
 
-        let (start_date, end_date) = time::parse_period(
-            transactions.start_date, transactions.end_date)?;
-
-        if parser.is_last && end_date <= report.date {
+        let period = Period::new(transactions.start_date, transactions.end_date)?;
+        if parser.is_last && period.last_date() < report.date {
             return Err!("Last Firstrade report must include the day when the report was generated")
         }
-        parser.statement.set_period((start_date, end_date))?;
+        parser.statement.set_period(period)?;
 
         parser.statement.set_has_starting_assets(false)?;
         if parser.is_last {

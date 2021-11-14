@@ -57,7 +57,7 @@ pub use self::trades::{
 
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
-    pub period: (Date, Date),
+    pub period: Period,
 
     pub cash_assets: MultiCurrencyCashAccount,
     pub historical_assets: BTreeMap<Date, NetAssets>,
@@ -90,10 +90,10 @@ impl BrokerStatement {
         let broker_jurisdiction = broker.type_.jurisdiction();
 
         let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strictness)?;
-        statements.sort_by(|a, b| a.period.unwrap().0.cmp(&b.period.unwrap().0));
+        statements.sort_by_key(|statement| statement.period.unwrap());
 
         let last_index = statements.len() - 1;
-        let last_end_date = statements.last().unwrap().period.unwrap().1;
+        let last_date = statements.last().unwrap().period.unwrap().last_date();
 
         let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
         statement.instrument_info.set_internal_ids(instrument_internal_ids.clone());
@@ -114,7 +114,7 @@ impl BrokerStatement {
                     .or_insert(accruals);
             }
 
-            statement.merge(partial, last_end_date, index == last_index).map_err(|e| format!(
+            statement.merge(partial, last_date, index == 0, index == last_index).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
         }
 
@@ -170,20 +170,18 @@ impl BrokerStatement {
     }
 
     fn new_empty_from(broker: BrokerInfo, statement: &PartialBrokerStatement) -> GenericResult<BrokerStatement> {
-        let mut period = statement.get_period()?;
+        let period = statement.get_period()?;
+
         if statement.get_has_starting_assets()? {
             return Err!(concat!(
                 "The first broker statement ({}) has a non-zero starting assets. ",
                 "Make sure that broker statements directory contains statements for all periods ",
                 "starting from account opening",
-            ), formatting::format_period(period));
+            ), period.format());
         }
 
-        period.1 = period.0;
-
         Ok(BrokerStatement {
-            broker,
-            period: period,
+            broker, period,
 
             cash_assets: MultiCurrencyCashAccount::new(),
             historical_assets: BTreeMap::new(),
@@ -207,12 +205,8 @@ impl BrokerStatement {
         })
     }
 
-    pub fn last_date(&self) -> Date {
-        self.period.1.pred()
-    }
-
     pub fn check_date(&self) {
-        let days = (time::today() - self.last_date()).num_days();
+        let days = (time::today() - self.period.last_date()).num_days();
         let months = Decimal::from(days) / dec!(30);
 
         if months >= dec!(1) {
@@ -221,25 +215,28 @@ impl BrokerStatement {
         }
     }
 
-    pub fn check_period_against_tax_year(&self, year: i32) -> EmptyResult {
+    pub fn check_period_against_tax_year(&self, year: i32) -> GenericResult<Period> {
         let tax_period_start = date!(year, 1, 1);
-        let tax_period_end = date!(year + 1, 1, 1);
+        let tax_period_end = date!(year, 12, 31);
 
-        if tax_period_end <= self.period.0 || self.period.1 <= tax_period_start {
+        if tax_period_end < self.period.first_date() || self.period.last_date() < tax_period_start {
             return Err!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't overlap with the requested tax year ({})"),
-                formatting::format_period(self.period), year);
+                self.period.format(), year);
         }
 
-        if self.period.1 < tax_period_end {
+        if self.period.last_date() < tax_period_end {
             warn!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't fully overlap with the requested tax year ({})."
-            ), formatting::format_period(self.period), year);
+            ), self.period.format(), year);
         }
 
-        Ok(())
+        Period::new(
+            std::cmp::max(tax_period_start, self.period.first_date()),
+            std::cmp::min(tax_period_end, self.period.last_date()),
+        )
     }
 
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
@@ -401,16 +398,20 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn merge(&mut self, statement: PartialBrokerStatement, last_end_date: Date, last: bool) -> EmptyResult {
-        let period = statement.get_period()?;
-        self.broker.statements_merging_strategy.validate(self.period, period, last_end_date)?;
-        self.period.1 = period.1;
+    fn merge(
+        &mut self, statement: PartialBrokerStatement, last_date: Date, first: bool, last: bool,
+    ) -> EmptyResult {
+        if !first {
+            let period = statement.get_period()?;
+            self.broker.statements_merging_strategy.validate(self.period, period, last_date)?;
+            self.period = Period::new(self.period.first_date(), period.last_date()).unwrap();
+        }
 
         if let partial::NetAssets{cash: Some(cash), other} = statement.assets {
             self.cash_assets = cash.clone();
 
             let assets = NetAssets{cash, other};
-            assert!(self.historical_assets.insert(self.last_date(), assets).is_none());
+            assert!(self.historical_assets.insert(self.period.last_date(), assets).is_none());
         } else if last {
             return Err!("Unable to find any information about current cash assets");
         }
@@ -502,44 +503,38 @@ impl BrokerStatement {
     }
 
     fn validate(&mut self) -> EmptyResult {
-        // FIXME(konishchev): Deprecate
-        let date_validator = self.date_validator();
+        let validator = DateValidator::new(self.period);
 
-        date_validator.sort_and_validate(
-            "a deposit of withdrawal", &mut self.deposits_and_withdrawals, |cash_flow| cash_flow.date)?;
+        validator.sort_and_validate(
+            "a deposit of withdrawal", &mut self.deposits_and_withdrawals,
+            |cash_flow| cash_flow.date)?;
 
-        // FIXME(konishchev): Deprecate
-        self.sort_and_alter_fees(date_validator.period.last_date());
-        date_validator.validate("a fee", &self.fees, |fee| fee.date)?;
+        self.sort_and_alter_fees(self.period.last_date());
+        validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
         self.cash_flows.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
-        date_validator.validate("a cash flow", &self.cash_flows, |cash_flow| cash_flow.date)?;
+        validator.validate("a cash flow", &self.cash_flows, |cash_flow| cash_flow.date)?;
 
-        date_validator.sort_and_validate(
+        validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
 
-        date_validator.sort_and_validate(
+        validator.sort_and_validate(
             "a tax agent withholding", &mut self.tax_agent_withholdings,
             |withholding| withholding.date)?;
 
-        date_validator.sort_and_validate(
+        validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_time)?;
 
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;
 
         self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.original_issuer)));
-        date_validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
+        validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
 
-        date_validator.sort_and_validate(
+        validator.sort_and_validate(
             "a corporate action", &mut self.corporate_actions, |action| action.time)?;
 
         Ok(())
-    }
-
-    fn date_validator(&self) -> DateValidator {
-        // FIXME(konishchev): Deprecate
-        DateValidator::new(Period {start: self.period.0, end: self.period.1})
     }
 
     fn sort_and_alter_fees(&mut self, max_date: Date) {
@@ -555,13 +550,13 @@ impl BrokerStatement {
     }
 
     fn sort_and_validate_stock_buys(&mut self) -> EmptyResult {
-        let date_validator = self.date_validator();
+        let date_validator = DateValidator::new(self.period);
         sort_and_validate_trades("buy", &mut self.stock_buys)?;
         date_validator.validate("a stock buy", &self.stock_buys, |trade| trade.conclusion_time)
     }
 
     fn sort_and_validate_stock_sells(&mut self) -> EmptyResult {
-        let date_validator = self.date_validator();
+        let date_validator = DateValidator::new(self.period);
         sort_and_validate_trades("sell", &mut self.stock_sells)?;
         date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_time)
     }
@@ -576,7 +571,7 @@ impl BrokerStatement {
 
             let multiplier = self.stock_splits.get_multiplier(
                 &stock_buy.symbol, stock_buy.conclusion_time,
-                DateOptTime::new_max_time(self.last_date()));
+                DateOptTime::new_max_time(self.period.last_date()));
 
             let quantity = multiplier * stock_buy.get_unsold();
 

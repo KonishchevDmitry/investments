@@ -9,7 +9,7 @@ use serde::Deserialize;
 use crate::broker_statement::open::common::deserialize_date;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
-use crate::types::Date;
+use crate::time::{Date, Period};
 
 use cash_assets::CashAssets;
 use cash_flows::CashFlows;
@@ -35,7 +35,7 @@ pub struct BrokerReport {
 impl BrokerReport {
     pub fn parse(&self) -> GenericResult<PartialBrokerStatement> {
         let mut statement = PartialBrokerStatement::new(true);
-        statement.period = Some((self.date_from, self.date_to.succ()));
+        statement.period.replace(Period::new(self.date_from, self.date_to)?);
 
         let mut has_starting_assets = self.cash_assets.parse(&mut statement)?;
         has_starting_assets |= self.open_positions.parse(&mut statement)?;

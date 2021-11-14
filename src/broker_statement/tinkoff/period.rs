@@ -3,9 +3,7 @@ use regex::{self, Regex};
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::core::{EmptyResult, GenericResult};
-use crate::formatting;
-use crate::time;
-use crate::types::Date;
+use crate::time::{Date, Period};
 use crate::xls::{self, XlsStatementParser, SectionParser};
 
 use super::common::parse_date;
@@ -40,16 +38,14 @@ impl SectionParser for PeriodParser {
                 return Err!("Got a duplicated statement creation date")
             }
         } else if let Some(date) = cell.strip_prefix(PeriodParser::PERIOD_PREFIX) {
+            let period = parse_period(date.trim())?;
             let calculation_date = self.calculation_date.ok_or(
                 "Got statement period without calculation date")?;
 
-            let mut period = parse_period(date.trim())?;
-            period.1 = std::cmp::min(period.1, calculation_date.succ());
-            if period.1 <= period.0 {
-                return Err!("Got an invalid statement period: {}", formatting::format_period(period));
-            }
-
-            self.statement.borrow_mut().set_period(period)?;
+            self.statement.borrow_mut().set_period(Period::new(
+                period.first_date(),
+                std::cmp::min(period.last_date(), calculation_date))?,
+            )?;
         } else {
             return Err!("Got an unexpected cell value: {:?}", cell);
         }
@@ -58,7 +54,7 @@ impl SectionParser for PeriodParser {
     }
 }
 
-fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
+fn parse_period(value: &str) -> GenericResult<Period> {
     lazy_static! {
         static ref PERIOD_REGEX: Regex = Regex::new(
             r"^(?P<start>\d{2}\.\d{2}\.\d{4}) - (?P<end>\d{2}\.\d{2}\.\d{4})$").unwrap();
@@ -67,7 +63,7 @@ fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
     let captures = PERIOD_REGEX.captures(value).ok_or_else(|| format!(
         "Invalid period: {:?}", value))?;
 
-    time::parse_period(
+    Period::new(
         parse_date(captures.name("start").unwrap().as_str())?,
         parse_date(captures.name("end").unwrap().as_str())?,
     )

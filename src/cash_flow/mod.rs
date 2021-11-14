@@ -15,7 +15,7 @@ use crate::db;
 use crate::formatting::{self, table::{Table, Column, Cell}};
 use crate::localities::Jurisdiction;
 use crate::telemetry::TelemetryRecordBuilder;
-use crate::types::Date;
+use crate::time::{Date, Period};
 
 use self::calculator::CashFlowSummary;
 use self::mapper::{CashFlow, Operation};
@@ -32,24 +32,16 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
         ReadingStrictness::CASH_FLOW_DATES)?;
 
-    let (start_date, end_date) = match year {
-        Some(year) => {
-            statement.check_period_against_tax_year(year)?;
-
-            (
-                std::cmp::max(date!(year, 1, 1), statement.period.0),
-                std::cmp::min(date!(year + 1, 1, 1), statement.period.1),
-            )
-        },
+    let period = match year {
+        Some(year) => statement.check_period_against_tax_year(year)?,
         None => statement.period,
     };
 
-    let (summaries, cash_flows) = calculator::calculate(&statement, start_date, end_date);
-    generate_cash_summary_report(start_date, end_date, &summaries);
+    let (summaries, cash_flows) = calculator::calculate(&statement, period);
+    generate_cash_summary_report(period, &summaries);
 
     if statement.broker.type_.jurisdiction() == Jurisdiction::Usa {
-        generate_other_summary_report(
-            &statement, start_date, end_date, &cash_flows, &converter, "USD")?;
+        generate_other_summary_report(&statement, period, &cash_flows, &converter, "USD")?;
     }
 
     generate_details_report(&summaries, cash_flows);
@@ -57,14 +49,12 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-fn generate_cash_summary_report(
-    start_date: Date, end_date: Date, summaries: &BTreeMap<&'static str, CashFlowSummary>,
-) {
+fn generate_cash_summary_report(period: Period, summaries: &BTreeMap<&'static str, CashFlowSummary>) {
     let mut columns = vec![Column::new("")];
-    let mut starting_assets_row = vec![start_date.into()];
+    let mut starting_assets_row = vec![period.first_date().into()];
     let mut deposits_row = vec!["Зачисления".into()];
     let mut withdrawals_row = vec!["Списания".into()];
-    let mut ending_assets_row = vec![end_date.pred().into()];
+    let mut ending_assets_row = vec![period.last_date().into()];
 
     for (&currency, summary) in summaries {
         columns.push(Column::new(currency));
@@ -91,13 +81,13 @@ fn generate_cash_summary_report(
 }
 
 fn generate_other_summary_report(
-    statement: &BrokerStatement, start_date: Date, end_date: Date, cash_flows: &[CashFlow],
+    statement: &BrokerStatement, period: Period, cash_flows: &[CashFlow],
     converter: &CurrencyConverter, jurisdiction_currency: &str,
 ) -> EmptyResult {
     let mut missing = false;
     let mut currency = None;
 
-    let end_assets = if let Some(NetAssets{other: Some(assets), ..}) = statement.historical_assets.get(&end_date.pred()) {
+    let end_assets = if let Some(NetAssets{other: Some(assets), ..}) = statement.historical_assets.get(&period.last_date()) {
         currency.get_or_insert(assets.currency);
         Cell::from(*assets)
     } else {
@@ -105,10 +95,10 @@ fn generate_other_summary_report(
         Cell::new_empty()
     };
 
-    let start_assets = if let Some(NetAssets{other: Some(assets), ..}) = statement.historical_assets.get(&start_date.pred()) {
+    let start_assets = if let Some(NetAssets{other: Some(assets), ..}) = statement.historical_assets.get(&period.prev_date()) {
         currency.get_or_insert(assets.currency);
         Cell::from(*assets)
-    } else if start_date == statement.period.0 {
+    } else if period.first_date() == statement.period.first_date() {
         Cell::from(Cash::zero(currency.unwrap_or(jurisdiction_currency)))
     } else {
         missing = true;
@@ -141,10 +131,10 @@ fn generate_other_summary_report(
     }
 
     let mut table = Table::new(vec![Column::new(""), Column::new("")]);
-    table.add_row(vec![start_date.into(), start_assets]);
+    table.add_row(vec![period.first_date().into(), start_assets]);
     table.add_row(vec!["Зачисления".into(), Cash::new(currency, deposits).into()]);
     table.add_row(vec!["Списания".into(), Cash::new(currency, withdrawals).into()]);
-    table.add_row(vec![end_date.pred().into(), end_assets]);
+    table.add_row(vec![period.last_date().into(), end_assets]);
     table.hide_titles();
     table.print("Стоимость иных финансовых активов");
 

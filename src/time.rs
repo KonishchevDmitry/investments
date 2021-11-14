@@ -12,23 +12,49 @@ use crate::formatting;
 
 pub use crate::types::{Date, Time, DateTime};
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Period {
-    // FIXME(konishchev): Deprecate pub
-    pub start: Date,
-    pub end: Date,
+    first: Date,
+    last: Date,
 }
 
 impl Period {
+    pub fn new(first: Date, last: Date) -> GenericResult<Period> {
+        let period = Period {first, last};
+
+        if period.first > period.last {
+            return Err!("Invalid period: {}", period.format());
+        }
+
+        Ok(period)
+    }
+
+    pub fn prev_date(&self) -> Date {
+        self.first.pred()
+    }
+
     pub fn first_date(&self) -> Date {
-        self.start
+        self.first
     }
 
     pub fn last_date(&self) -> Date {
-        self.end.pred()
+        self.last
+    }
+
+    pub fn next_date(&self) -> Date {
+        self.last.succ()
+    }
+
+    pub fn contains(&self, date: Date) -> bool {
+        self.first <= date && date <= self.last
+    }
+
+    pub fn days(&self) -> i64 {
+        (self.last - self.first).num_days() + 1
     }
 
     pub fn format(&self) -> String {
-        formatting::format_period((self.start, self.end))
+        format!("{} - {}", formatting::format_date(self.first), formatting::format_date(self.last))
     }
 }
 
@@ -64,17 +90,6 @@ impl From<DateTime> for DateOptTime {
             time: Some(time.time()),
         }
     }
-}
-
-// FIXME(konishchev): Switch to Period?
-pub fn parse_period(start: Date, end: Date) -> GenericResult<(Date, Date)> {
-    let period = (start, end.succ());
-
-    if period.0 >= period.1 {
-        return Err!("Invalid period: {}", formatting::format_period(period));
-    }
-
-    Ok(period)
 }
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {

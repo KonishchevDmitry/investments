@@ -3,8 +3,7 @@ use regex::Regex;
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::core::{EmptyResult, GenericResult};
-use crate::time;
-use crate::types::Date;
+use crate::time::Period;
 use crate::xls::{self, XlsStatementParser, SectionParser};
 
 use super::common::parse_date;
@@ -30,7 +29,7 @@ impl SectionParser for PeriodParser {
     }
 }
 
-fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
+fn parse_period(value: &str) -> GenericResult<Period> {
     lazy_static! {
         static ref PERIOD_REGEX: Regex = Regex::new(
             r"^с (?P<start>\d{2}\.\d{2}\.\d{4}) по (?P<end>\d{2}\.\d{2}\.\d{4})$").unwrap();
@@ -39,7 +38,7 @@ fn parse_period(value: &str) -> GenericResult<(Date, Date)> {
     let captures = PERIOD_REGEX.captures(value).ok_or_else(|| format!(
         "Invalid period: {:?}", value))?;
 
-    time::parse_period(
+    Period::new(
         parse_date(captures.name("start").unwrap().as_str())?,
         parse_date(captures.name("end").unwrap().as_str())?,
     )

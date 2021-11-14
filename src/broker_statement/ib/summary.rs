@@ -4,8 +4,7 @@ use log::warn;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
-use crate::time;
-use crate::types::Date;
+use crate::time::{self, Date, Period};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -97,18 +96,18 @@ impl RecordParser for ChangeInNavParser {
     }
 }
 
-fn parse_period(period: &str) -> GenericResult<(Date, Date)> {
+fn parse_period(period: &str) -> GenericResult<Period> {
     let dates = period.split(" - ").collect::<Vec<_>>();
 
     Ok(match dates.len() {
         1 => {
             let date = parse_period_date(dates[0])?;
-            (date, date.succ())
+            Period::new(date, date)?
         },
         2 => {
             let start = parse_period_date(dates[0])?;
             let end = parse_period_date(dates[1])?;
-            time::parse_period(start, end)?
+            Period::new(start, end)?
         },
         _ => return Err!("Invalid date: {:?}", period),
     })
@@ -120,17 +119,17 @@ fn parse_period_date(date: &str) -> GenericResult<Date> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn period_parsing() {
-        assert_eq!(parse_period("October 1, 2018").unwrap(),
-                   (date!(2018, 10, 1), date!(2018, 10, 2)));
-
-        assert_eq!(parse_period("September 30, 2018").unwrap(),
-                   (date!(2018, 9, 30), date!(2018, 10, 1)));
-
-        assert_eq!(parse_period("May 21, 2018 - September 28, 2018").unwrap(),
-                   (date!(2018, 5, 21), date!(2018, 9, 29)));
+    #[rstest(input, first, last,
+        case("October 1, 2018", date!(2018, 10, 1), date!(2018, 10, 1)),
+        case("September 30, 2018", date!(2018, 9, 30), date!(2018, 9, 30)),
+        case("May 21, 2018 - September 28, 2018", date!(2018, 5, 21), date!(2018, 9, 28)),
+    )]
+    fn period_parsing(input: &str, first: Date, last: Date) {
+        let period = parse_period(input).unwrap();
+        assert_eq!(period.first_date(), first);
+        assert_eq!(period.last_date(), last);
     }
 }

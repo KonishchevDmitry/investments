@@ -58,8 +58,8 @@ impl CashFlows {
         }
 
         let period = statement.get_period()?;
-        if fallback < period.0 {
-            fallback = period.0;
+        if fallback < period.first_date() {
+            fallback = period.first_date();
         }
 
         if fallback != id.statement_date {

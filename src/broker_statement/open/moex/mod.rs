@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
-use crate::types::Date;
+use crate::time::{Date, Period};
 
 use super::common::deserialize_date;
 
@@ -63,7 +63,7 @@ pub struct BrokerReport {
 impl BrokerReport {
     pub fn parse(&self) -> GenericResult<PartialBrokerStatement> {
         let mut statement = PartialBrokerStatement::new(true);
-        statement.period = Some((self.date_from, self.date_to.succ()));
+        statement.period.replace(Period::new(self.date_from, self.date_to)?);
 
         let securities = if let Some(ref securities) = self.securities {
             securities.parse(&mut statement)?

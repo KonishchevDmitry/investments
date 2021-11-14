@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
-use crate::formatting;
 use crate::instruments::{InstrumentId, InstrumentInfo};
-use crate::types::{Date, Decimal};
+use crate::time::{Date, Period};
+use crate::types::Decimal;
 use crate::util::{DecimalRestrictions, validate_named_decimal};
 
 use super::corporate_actions::CorporateAction;
@@ -20,7 +20,7 @@ use super::taxes::{TaxId, TaxAccruals, TaxWithholding};
 pub type PartialBrokerStatementRc = Rc<RefCell<PartialBrokerStatement>>;
 
 pub struct PartialBrokerStatement {
-    pub period: Option<(Date, Date)>,
+    pub period: Option<Period>,
 
     pub has_starting_assets: Option<bool>,
     pub deposits_and_withdrawals: Vec<CashAssets>,
@@ -84,11 +84,11 @@ impl PartialBrokerStatement {
         Rc::new(RefCell::new(PartialBrokerStatement::new(zero_cash_assets)))
     }
 
-    pub fn set_period(&mut self, period: (Date, Date)) -> EmptyResult {
+    pub fn set_period(&mut self, period: Period) -> EmptyResult {
         set_option("statement period", &mut self.period, period)
     }
 
-    pub fn get_period(&self) -> GenericResult<(Date, Date)> {
+    pub fn get_period(&self) -> GenericResult<Period> {
         get_option("statement period", self.period)
     }
 
@@ -123,13 +123,8 @@ impl PartialBrokerStatement {
     }
 
     pub fn validate(self) -> GenericResult<PartialBrokerStatement> {
-        let period = self.get_period()?;
-        if period.0 >= period.1 {
-            return Err!("Invalid statement period: {}", formatting::format_period(period));
-        }
-
+        self.get_period()?;
         self.get_has_starting_assets()?;
-
         Ok(self)
     }
 }

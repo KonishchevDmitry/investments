@@ -273,7 +273,7 @@ mod tests {
         let tax_remapping = Config::load("testdata/configs/main/config.yaml").unwrap()
             .get_portfolio("ib").unwrap().get_tax_remapping().unwrap();
         let statement = parse_full("my", Some(tax_remapping));
-        let current_year = statement.period.1.year();
+        let current_year = statement.period.next_date().year();
 
         assert!(!statement.cash_assets.is_empty());
         assert!(!statement.deposits_and_withdrawals.is_empty());
