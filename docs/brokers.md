@@ -115,6 +115,9 @@ result amount which has been paid. This information is provided in a separate fo
 can ask support for *.xlsx version of it and place it to the broker statements directory. The program will find it and
 merge its information with broker statement.
 
+Tinkoff broker statements don't contain any information about corporate actions, so stock splits must be specified
+manually via `corporate_actions` configuration option.
+
 
 <a name="bcs"></a>
 ## БКС
