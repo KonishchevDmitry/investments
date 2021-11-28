@@ -11,6 +11,7 @@ use crate::commissions::CommissionSpec;
 use crate::config::{Config, BrokersConfig, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::CashAssets;
+use crate::exchanges::Exchange;
 use crate::localities::Jurisdiction;
 use crate::types::Decimal;
 
@@ -178,5 +179,12 @@ impl BrokerInfo {
         };
 
         Ok(commission_spec.fixed_amount)
+    }
+
+    pub fn exchanges(&self) -> Vec<Exchange> {
+        match self.type_ {
+            Broker::Bcs | Broker::Open | Broker::Tinkoff => vec![Exchange::Moex, Exchange::Spb],
+            Broker::Firstrade | Broker::InteractiveBrokers => vec![Exchange::Us],
+        }
     }
 }

@@ -26,7 +26,7 @@ pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRec
     let database = db::connect(&config.db_path)?;
 
     let statement = BrokerStatement::read(
-        broker, &portfolio.statements, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
+        broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
         ReadingStrictness::empty())?;
     statement.check_date();
@@ -129,6 +129,7 @@ pub fn rebalance(config: &Config, portfolio_name: &str, flat: bool) -> GenericRe
 
 fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
+    let broker = portfolio_config.broker.get_info(config, portfolio_config.plan.as_ref())?;
     let database = db::connect(&config.db_path)?;
 
     let quotes = Rc::new(Quotes::new(config, database.clone())?);
@@ -137,7 +138,18 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(portfolio_config)?;
 
-    let mut portfolio = Portfolio::load(config, portfolio_config, assets, &converter, &quotes)?;
+    // FIXME(konishchev): Document the changes in command behaviour
+    let statement = portfolio_config.statements.as_ref().map(|path| {
+        BrokerStatement::read(
+            broker.clone(), path, &portfolio_config.symbol_remapping,
+            &portfolio_config.instrument_internal_ids, &portfolio_config.instrument_names,
+            portfolio_config.get_tax_remapping()?, &portfolio_config.corporate_actions,
+            ReadingStrictness::empty())
+    }).transpose()?;
+
+    let mut portfolio = Portfolio::load(
+        portfolio_config, broker, assets, statement.as_ref(), &converter, &quotes)?;
+
     if rebalance {
         rebalancing::rebalance_portfolio(&mut portfolio, converter)?;
     }

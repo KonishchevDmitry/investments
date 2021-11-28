@@ -89,7 +89,9 @@ impl Config {
                     return Err!("Duplicate portfolio name: {:?}", portfolio.name);
                 }
 
-                portfolio.statements = shellexpand::tilde(&portfolio.statements).to_string();
+                portfolio.statements = portfolio.statements.as_ref().map(|path|
+                    shellexpand::tilde(path).to_string());
+
                 portfolio.validate().map_err(|e| format!(
                     "{:?} portfolio: {}", portfolio.name, e))?;
             }
@@ -175,7 +177,7 @@ pub struct PortfolioConfig {
     pub broker: Broker,
     pub plan: Option<String>,
 
-    pub statements: String,
+    pub statements: Option<String>,
     #[serde(default)]
     pub symbol_remapping: HashMap<String, String>,
     #[serde(default, deserialize_with = "InstrumentInternalIds::deserialize")]
@@ -212,6 +214,10 @@ pub struct PortfolioConfig {
 impl PortfolioConfig {
     pub fn currency(&self) -> GenericResult<&str> {
         Ok(self.currency.as_ref().ok_or("The portfolio's currency is not specified in the config")?)
+    }
+
+    pub fn statements_path(&self) -> GenericResult<&str> {
+        Ok(self.statements.as_ref().ok_or("Broker statements path is not specified in the portfolio's config")?)
     }
 
     pub fn get_stock_symbols(&self) -> HashSet<String> {

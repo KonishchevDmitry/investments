@@ -1,11 +1,12 @@
 use std::collections::{HashSet, HashMap};
 
+use crate::broker_statement::BrokerStatement;
 use crate::brokers::BrokerInfo;
-use crate::config::{Config, PortfolioConfig, AssetAllocationConfig};
+use crate::config::{PortfolioConfig, AssetAllocationConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
-use crate::quotes::Quotes;
+use crate::quotes::{Quotes, QuoteQuery};
 use crate::types::{Decimal, TradeType};
 use crate::util;
 
@@ -30,28 +31,30 @@ pub struct Portfolio {
 
 impl Portfolio {
     pub fn load(
-        config: &Config, portfolio_config: &PortfolioConfig, assets: Assets,
-        converter: &CurrencyConverter, quotes: &Quotes
+        config: &PortfolioConfig, broker: BrokerInfo, assets: Assets,
+        statement: Option<&BrokerStatement>, converter: &CurrencyConverter, quotes: &Quotes
     ) -> GenericResult<Portfolio> {
-        let currency = portfolio_config.currency()?;
-        let broker = portfolio_config.broker.get_info(config, portfolio_config.plan.as_ref())?;
+        let currency = config.currency()?;
 
-        let min_trade_volume = portfolio_config.min_trade_volume.unwrap_or_else(|| dec!(0));
+        let min_trade_volume = config.min_trade_volume.unwrap_or_else(|| dec!(0));
         if min_trade_volume.is_sign_negative() {
             return Err!("Invalid minimum trade volume value")
         }
 
-        let min_cash_assets = portfolio_config.min_cash_assets.unwrap_or_else(|| dec!(0));
+        let min_cash_assets = config.min_cash_assets.unwrap_or_else(|| dec!(0));
         if min_cash_assets.is_sign_negative() {
             return Err!("Invalid minimum free cash assets value")
         }
 
-        if portfolio_config.assets.is_empty() {
+        if config.assets.is_empty() {
             return Err!("The portfolio has no asset allocation configuration");
         }
 
-        for symbol in portfolio_config.get_stock_symbols() {
-            quotes.batch_simple(&symbol)?;
+        for symbol in config.get_stock_symbols() {
+            quotes.batch(match statement {
+                Some(statement) => statement.get_quote_query(&symbol),
+                None => QuoteQuery::Stock(symbol, broker.exchanges()),
+            })?;
         }
 
         let cash_assets = assets.cash.total_assets_real_time(currency, converter)?;
@@ -61,20 +64,20 @@ impl Portfolio {
         let mut symbols = HashSet::new();
         let mut assets_allocation = Vec::new();
 
-        for assets_config in &portfolio_config.assets {
+        for assets_config in &config.assets {
             let mut asset_allocation = AssetAllocation::load(
                 &broker, assets_config, currency, &mut symbols, &mut stocks,
-                converter, quotes)?;
+                statement, converter, quotes)?;
 
             asset_allocation.apply_restrictions(
-                portfolio_config.restrict_buying, portfolio_config.restrict_selling);
+                config.restrict_buying, config.restrict_selling);
 
             net_value += asset_allocation.current_value;
             assets_allocation.push(asset_allocation);
         }
 
         let portfolio = Portfolio {
-            name: portfolio_config.name.clone(),
+            name: config.name.clone(),
             broker: broker,
             currency: currency.to_owned(),
 
@@ -187,7 +190,7 @@ impl AssetAllocation {
     fn load(
         broker: &BrokerInfo, config: &AssetAllocationConfig, currency: &str,
         symbols: &mut HashSet<String>, stocks: &mut HashMap<String, Decimal>,
-        converter: &CurrencyConverter, quotes: &Quotes,
+        statement: Option<&BrokerStatement>, converter: &CurrencyConverter, quotes: &Quotes,
     ) -> GenericResult<AssetAllocation> {
         let (holding, current_value) = match (&config.symbol, &config.assets) {
             (Some(symbol), None) => {
@@ -196,7 +199,11 @@ impl AssetAllocation {
                         symbol);
                 }
 
-                let currency_price = quotes.get_simple(symbol)?;
+                let currency_price = quotes.get(match statement {
+                    Some(statement) => statement.get_quote_query(symbol),
+                    None => QuoteQuery::Stock(symbol.to_owned(), broker.exchanges()),
+                })?;
+
                 let price = converter.real_time_convert_to(currency_price, currency)?;
                 let shares = stocks.remove(symbol).unwrap_or_else(|| dec!(0));
                 let current_value = shares * price;
@@ -218,7 +225,7 @@ impl AssetAllocation {
 
                 for asset in assets {
                     let holding = AssetAllocation::load(
-                        broker, asset, currency, symbols, stocks, converter, quotes)?;
+                        broker, asset, currency, symbols, stocks, statement, converter, quotes)?;
 
                     current_value += holding.current_value;
                     holdings.push(holding);
