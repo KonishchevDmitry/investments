@@ -51,7 +51,7 @@ impl Portfolio {
         }
 
         for symbol in portfolio_config.get_stock_symbols() {
-            quotes.batch(&symbol)?;
+            quotes.batch_simple(&symbol)?;
         }
 
         let cash_assets = assets.cash.total_assets_real_time(currency, converter)?;
@@ -196,7 +196,7 @@ impl AssetAllocation {
                         symbol);
                 }
 
-                let currency_price = quotes.get(symbol)?;
+                let currency_price = quotes.get_simple(symbol)?;
                 let price = converter.real_time_convert_to(currency_price, currency)?;
                 let shares = stocks.remove(symbol).unwrap_or_else(|| dec!(0));
                 let current_value = shares * price;

@@ -241,7 +241,7 @@ impl BrokerStatement {
 
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
         for symbol in self.open_positions.keys() {
-            quotes.batch(symbol)?;
+            quotes.batch_simple(symbol)?;
         }
         Ok(())
     }
@@ -252,7 +252,7 @@ impl BrokerStatement {
         let mut net_value = self.cash_assets.total_assets_real_time(currency, converter)?;
 
         for (symbol, quantity) in &self.open_positions {
-            let price = converter.real_time_convert_to(quotes.get(symbol)?, currency)?;
+            let price = converter.real_time_convert_to(quotes.get_simple(symbol)?, currency)?;
             net_value += quantity * price;
         }
 

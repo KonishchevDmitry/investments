@@ -10,6 +10,7 @@ use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::db;
+use crate::exchanges::{Exchange, InstrumentType};
 #[cfg(not(test))] use crate::time;
 
 use self::cache::Cache;
@@ -53,7 +54,12 @@ impl Quotes {
         }
     }
 
-    pub fn batch(&self, symbol: &str) -> EmptyResult {
+    pub fn batch(&self, _exchange: Exchange, _type: InstrumentType, symbol: &str) -> EmptyResult {
+        self.batch_simple(symbol)
+    }
+
+    // FIXME(konishchev): Deprecate
+    pub fn batch_simple(&self, symbol: &str) -> EmptyResult {
         let mut symbol = symbol.to_owned();
 
         // Reverse pair quote sometimes slightly differs from `1 / pair`, but in some places we use
@@ -75,12 +81,17 @@ impl Quotes {
         Ok(())
     }
 
-    pub fn get(&self, symbol: &str) -> GenericResult<Cash> {
+    pub fn get(&self, _exchange: Exchange, _type: InstrumentType, symbol: &str) -> GenericResult<Cash> {
+        self.get_simple(symbol)
+    }
+
+    // FIXME(konishchev): Deprecate
+    pub fn get_simple(&self, symbol: &str) -> GenericResult<Cash> {
         if let Some(price) = self.cache.get(symbol)? {
             return Ok(price);
         }
 
-        self.batch(symbol)?;
+        self.batch_simple(symbol)?;
         let mut batched_symbols = self.batched_symbols.borrow_mut();
 
         for provider in &self.providers {
@@ -241,13 +252,13 @@ mod tests {
             Box::new(SecondProvider {request_id: RefCell::new(0)}),
         ]);
 
-        quotes.batch("VTI").unwrap();
-        quotes.batch("BNDX").unwrap();
-        assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", dec!(12.34)));
+        quotes.batch_simple("VTI").unwrap();
+        quotes.batch_simple("BNDX").unwrap();
+        assert_eq!(quotes.get_simple("BND").unwrap(), Cash::new("USD", dec!(12.34)));
 
-        quotes.batch("VXUS").unwrap();
-        assert_eq!(quotes.get("BND").unwrap(), Cash::new("USD", dec!(12.34)));
-        assert_eq!(quotes.get("VTI").unwrap(), Cash::new("USD", dec!(56.78)));
-        assert_eq!(quotes.get("BNDX").unwrap(), Cash::new("USD", dec!(90.12)));
+        quotes.batch_simple("VXUS").unwrap();
+        assert_eq!(quotes.get_simple("BND").unwrap(), Cash::new("USD", dec!(12.34)));
+        assert_eq!(quotes.get_simple("VTI").unwrap(), Cash::new("USD", dec!(56.78)));
+        assert_eq!(quotes.get_simple("BNDX").unwrap(), Cash::new("USD", dec!(90.12)));
     }
 }

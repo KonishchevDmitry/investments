@@ -87,24 +87,14 @@ impl InstrumentInfo {
 
     pub fn add(&mut self, symbol: &str) -> GenericResult<&mut Instrument> {
         match self.instruments.entry(symbol.to_owned()) {
-            Entry::Vacant(entry) => Ok(entry.insert(Instrument {
-                symbol:    symbol.to_owned(),
-                name:      None,
-                isin:      HashSet::new(),
-                exchanges: HashSet::new(),
-            })),
+            Entry::Vacant(entry) => Ok(entry.insert(Instrument::new(symbol))),
             Entry::Occupied(_) => Err!("Duplicated security symbol: {}", symbol),
         }
     }
 
     pub fn get_or_add(&mut self, symbol: &str) -> &mut Instrument {
         match self.instruments.entry(symbol.to_owned()) {
-            Entry::Vacant(entry) => entry.insert(Instrument {
-                symbol:    symbol.to_owned(),
-                name:      None,
-                isin:      HashSet::new(),
-                exchanges: HashSet::new(),
-            }),
+            Entry::Vacant(entry) => entry.insert(Instrument::new(symbol)),
             Entry::Occupied(entry) => entry.into_mut(),
         }
     }
@@ -191,10 +181,19 @@ pub struct Instrument {
     pub symbol: String,
     name: Option<String>,
     pub isin: HashSet<String>,
-    pub exchanges: HashSet<Exchange>,
+    pub exchanges: Vec<Exchange>,
 }
 
 impl Instrument {
+    fn new(symbol: &str) -> Instrument {
+        Instrument {
+            symbol:    symbol.to_owned(),
+            name:      None,
+            isin:      HashSet::new(),
+            exchanges: Vec::new(),
+        }
+    }
+
     pub fn set_name(&mut self, name: &str) {
         self.name.replace(name.to_owned());
     }
@@ -206,7 +205,8 @@ impl Instrument {
     }
 
     pub fn add_exchange(&mut self, exchange: Exchange) {
-        self.exchanges.insert(exchange);
+        self.exchanges.retain(|&other| other != exchange);
+        self.exchanges.push(exchange);
     }
 
     pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
@@ -256,7 +256,10 @@ impl Instrument {
             self.name.replace(name);
         }
         self.isin.extend(other.isin);
-        self.exchanges.extend(other.exchanges);
+
+        for exchange in other.exchanges {
+            self.add_exchange(exchange);
+        }
     }
 }
 

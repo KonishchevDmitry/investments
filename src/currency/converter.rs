@@ -208,7 +208,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
 
         if !self.strict_mode && date > today {
             if let Some(ref quotes) = self.quotes {
-                let price = quotes.get(&get_currency_pair(from, to))?;
+                let price = quotes.get_simple(&get_currency_pair(from, to))?;
                 assert_eq!(price.currency, to);
                 return Ok((Some(price.amount), None));
             }
