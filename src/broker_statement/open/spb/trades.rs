@@ -100,7 +100,7 @@ impl Trade {
             "СПБ" => Exchange::Spb,
             _ => return Err!("Unknown exchange: {:?}", self.exchange),
         };
-        statement.instrument_info.get_or_add(symbol).exchanges.add(exchange);
+        statement.instrument_info.get_or_add(symbol).exchanges.add_prioritized(exchange);
 
         match action {
             TradeType::Buy => {

@@ -162,7 +162,7 @@ impl TradeRow {
                 "СПБ" | "СПБиржа" => Exchange::Spb,
                 _ => return Err!("Unknown exchange: {:?}", self.exchange),
             };
-            statement.instrument_info.get_or_add(&self.symbol).exchanges.add(exchange);
+            statement.instrument_info.get_or_add(&self.symbol).exchanges.add_prioritized(exchange);
         }
 
         match self.operation.as_str() {

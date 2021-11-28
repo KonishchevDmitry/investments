@@ -180,7 +180,7 @@ impl TradeRow {
                 "СПБ" => Exchange::Spb, // Haven't seen it yet actually, just guessing
                 _ => return Err!("Unknown exchange: {:?}", self.exchange),
             };
-            statement.instrument_info.get_or_add(symbol).exchanges.add(exchange);
+            statement.instrument_info.get_or_add(symbol).exchanges.add_prioritized(exchange);
         }
 
         if buy {

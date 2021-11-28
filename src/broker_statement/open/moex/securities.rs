@@ -50,7 +50,7 @@ impl Securities {
             let instrument = statement.instrument_info.add(&security.symbol)?;
             instrument.set_name(name);
             instrument.add_isin(&security.isin)?;
-            instrument.exchanges.add(exchange);
+            instrument.exchanges.add_prioritized(exchange);
         }
 
         Ok(securities)

@@ -20,14 +20,14 @@ impl Exchanges {
         self.0.is_empty()
     }
 
-    pub fn add(&mut self, exchange: Exchange) {
+    pub fn add_prioritized(&mut self, exchange: Exchange) {
         self.0.retain(|&other| other != exchange);
         self.0.push(exchange);
     }
 
     pub fn merge(&mut self, other: Exchanges) {
         for exchange in other.0 {
-            self.add(exchange);
+            self.add_prioritized(exchange);
         }
     }
 

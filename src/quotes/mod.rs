@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap};
 
 #[cfg(not(test))] use chrono::{DateTime, TimeZone};
 use lazy_static::lazy_static;
@@ -7,10 +7,10 @@ use log::debug;
 use regex::Regex;
 
 use crate::config::Config;
-use crate::core::{GenericResult, EmptyResult};
+use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::db;
-use crate::exchanges::Exchange;
+use crate::exchanges::{Exchange, Exchanges};
 #[cfg(not(test))] use crate::time;
 
 use self::cache::Cache;
@@ -30,10 +30,15 @@ pub enum QuoteQuery {
     Stock(String, Vec<Exchange>),
 }
 
+enum QuoteRequest {
+    Forex,
+    Stock(Vec<Exchange>),
+}
+
 pub struct Quotes {
     cache: Cache,
     providers: Vec<Box<dyn QuotesProvider>>,
-    batched_symbols: RefCell<HashSet<String>>,
+    batched_symbols: RefCell<HashMap<String, QuoteRequest>>,
 }
 
 impl Quotes {
@@ -56,34 +61,15 @@ impl Quotes {
         Quotes {
             cache: cache,
             providers: providers,
-            batched_symbols: RefCell::new(HashSet::new()),
+            batched_symbols: RefCell::new(HashMap::new()),
         }
     }
 
-    // FIXME(konishchev): Implement
-    pub fn batch(&self, query: QuoteQuery) -> EmptyResult {
-        let mut symbol = match query {
-            QuoteQuery::Forex(symbol) => symbol,
-            QuoteQuery::Stock(symbol, _) => symbol,
-        };
-
-        // Reverse pair quote sometimes slightly differs from `1 / pair`, but in some places we use
-        // redundant currency conversions back and forth assuming that eventual result won't differ
-        // more than rounding precision (for example in stock selling simulation when user specifies
-        // base currency to calculate the performance in).
-        //
-        // To workaround the issue we make quotes consistent here.
-        if let Ok((base, quote)) = parse_currency_pair(&symbol) {
-            if base < quote {
-                symbol = get_currency_pair(quote, base)
-            }
+    pub fn batch(&self, query: QuoteQuery) -> GenericResult<Option<Cash>> {
+        match query {
+            QuoteQuery::Forex(symbol) => self.batch_forex(symbol),
+            QuoteQuery::Stock(symbol, exchanges) => self.batch_stock(symbol, exchanges),
         }
-
-        if self.cache.get(&symbol)?.is_none() {
-            self.batched_symbols.borrow_mut().insert(symbol);
-        }
-
-        Ok(())
     }
 
     // FIXME(konishchev): Implement
@@ -93,16 +79,15 @@ impl Quotes {
             QuoteQuery::Stock(ref symbol, _) => symbol,
         };
 
-        if let Some(price) = self.cache.get(symbol)? {
+        if let Some(price) = self.batch(query.clone())? {
             return Ok(price);
         }
 
-        self.batch(query.clone())?;
         let mut batched_symbols = self.batched_symbols.borrow_mut();
 
         for provider in &self.providers {
             let quotes = {
-                let symbols: Vec<&str> = batched_symbols.iter().filter_map(|symbol| {
+                let symbols: Vec<&str> = batched_symbols.keys().filter_map(|symbol| {
                     let is_currency_pair = is_currency_pair(symbol);
 
                     if
@@ -157,11 +142,85 @@ impl Quotes {
         }
 
         if !batched_symbols.is_empty() {
-            let symbols = batched_symbols.iter().cloned().collect::<Vec<String>>();
+            let symbols = batched_symbols.keys().cloned().collect::<Vec<String>>();
             return Err!("Unable to find quotes for following symbols: {}", symbols.join(", "));
         }
 
         Ok(self.cache.get(symbol)?.unwrap())
+    }
+
+    fn batch_forex(&self, mut symbol: String) -> GenericResult<Option<Cash>> {
+        let (base, quote) = parse_currency_pair(&symbol)?;
+
+        if let Some(price) = self.cache.get(&symbol)? {
+            return Ok(Some(price));
+        }
+
+        // Reverse pair quote sometimes slightly differs from `1 / pair`, but in some places we use
+        // redundant currency conversions back and forth assuming that eventual result won't differ
+        // more than rounding precision (for example in stock selling simulation when user specifies
+        // base currency to calculate the performance in).
+        //
+        // To workaround the issue we make quotes consistent here.
+        if base < quote {
+            symbol = get_currency_pair(quote, base)
+        }
+
+        match self.batched_symbols.borrow_mut().entry(symbol) {
+            Entry::Vacant(entry) => {
+                entry.insert(QuoteRequest::Forex);
+            },
+            Entry::Occupied(entry) => match entry.get() {
+                QuoteRequest::Forex => {},
+                QuoteRequest::Stock(_) => unreachable!(),
+            },
+        }
+
+        Ok(None)
+    }
+
+    fn batch_stock(&self, symbol: String, exchanges: Vec<Exchange>) -> GenericResult<Option<Cash>> {
+        if parse_currency_pair(&symbol).is_ok() {
+            return Err!("Got {:?} stock which looks like a currency pair", symbol);
+        }
+        assert!(!exchanges.is_empty());
+
+        if let Some(price) = self.cache.get(&symbol)? {
+            return Ok(Some(price));
+        }
+
+        let exchanges = {
+            let mut new_exchanges = Exchanges::new_empty();
+
+            for exchange in exchanges.into_iter().rev() {
+                if exchange == Exchange::Spb {
+                    // We don't have SPB provider yet, so emulate it using existing providers
+                    new_exchanges.add_prioritized(Exchange::Moex);
+                    new_exchanges.add_prioritized(Exchange::Us);
+                } else {
+                    new_exchanges.add_prioritized(exchange);
+                }
+            }
+
+            new_exchanges.get_prioritized()
+        };
+
+        match self.batched_symbols.borrow_mut().entry(symbol) {
+            Entry::Vacant(entry) => {
+                entry.insert(QuoteRequest::Stock(exchanges));
+            },
+            Entry::Occupied(mut entry) => match entry.get_mut() {
+                QuoteRequest::Stock(prev_exchanges) => {
+                    // Select most precise query
+                    if exchanges.len() < prev_exchanges.len() {
+                        entry.insert(QuoteRequest::Stock(exchanges));
+                    }
+                },
+                QuoteRequest::Forex => unreachable!(),
+            },
+        }
+
+        Ok(None)
     }
 }
 
@@ -260,11 +319,12 @@ mod tests {
 
         let query = |symbol: &str| QuoteQuery::Stock(symbol.to_owned(), vec![Exchange::Us]);
 
-        quotes.batch(query("VTI")).unwrap();
-        quotes.batch(query("BNDX")).unwrap();
+        assert!(quotes.batch(query("VTI")).unwrap().is_none());
+        assert!(quotes.batch(query("BNDX")).unwrap().is_none());
         assert_eq!(quotes.get(query("BND")).unwrap(), Cash::new("USD", dec!(12.34)));
 
-        quotes.batch(query("VXUS")).unwrap();
+        assert!(quotes.batch(query("VTI")).unwrap().is_some());
+        assert!(quotes.batch(query("VXUS")).unwrap().is_none());
         assert_eq!(quotes.get(query("BND")).unwrap(), Cash::new("USD", dec!(12.34)));
         assert_eq!(quotes.get(query("VTI")).unwrap(), Cash::new("USD", dec!(56.78)));
         assert_eq!(quotes.get(query("BNDX")).unwrap(), Cash::new("USD", dec!(90.12)));
