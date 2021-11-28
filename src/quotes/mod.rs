@@ -24,8 +24,9 @@ mod finnhub;
 mod moex;
 mod twelvedata;
 
+#[derive(Clone)]
 pub enum QuoteQuery {
-    Currency(String),
+    Forex(String),
     Stock(String, Vec<Exchange>),
 }
 
@@ -59,17 +60,12 @@ impl Quotes {
         }
     }
 
+    // FIXME(konishchev): Implement
     pub fn batch(&self, query: QuoteQuery) -> EmptyResult {
-        let symbol = match query {
-            QuoteQuery::Currency(ref symbol) => symbol,
-            QuoteQuery::Stock(ref symbol, _) => symbol,
+        let mut symbol = match query {
+            QuoteQuery::Forex(symbol) => symbol,
+            QuoteQuery::Stock(symbol, _) => symbol,
         };
-        self.batch_simple(symbol)
-    }
-
-    // FIXME(konishchev): Deprecate
-    pub fn batch_simple(&self, symbol: &str) -> EmptyResult {
-        let mut symbol = symbol.to_owned();
 
         // Reverse pair quote sometimes slightly differs from `1 / pair`, but in some places we use
         // redundant currency conversions back and forth assuming that eventual result won't differ
@@ -90,21 +86,18 @@ impl Quotes {
         Ok(())
     }
 
+    // FIXME(konishchev): Implement
     pub fn get(&self, query: QuoteQuery) -> GenericResult<Cash> {
         let symbol = match query {
-            QuoteQuery::Currency(ref symbol) => symbol,
+            QuoteQuery::Forex(ref symbol) => symbol,
             QuoteQuery::Stock(ref symbol, _) => symbol,
         };
-        self.get_simple(symbol)
-    }
 
-    // FIXME(konishchev): Deprecate
-    pub fn get_simple(&self, symbol: &str) -> GenericResult<Cash> {
         if let Some(price) = self.cache.get(symbol)? {
             return Ok(price);
         }
 
-        self.batch_simple(symbol)?;
+        self.batch(query.clone())?;
         let mut batched_symbols = self.batched_symbols.borrow_mut();
 
         for provider in &self.providers {
