@@ -152,7 +152,7 @@ pub fn analyse(
             converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 
         for (symbol, quantity) in statement.open_positions.clone() {
-            let price = quotes.get_simple(&symbol)?;
+            let price = quotes.get(statement.get_quote_query(&symbol))?;
             statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
         }
 

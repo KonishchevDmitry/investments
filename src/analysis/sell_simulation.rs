@@ -44,7 +44,7 @@ pub fn simulate_sell(
                 "The portfolio has no open {:?} positions", symbol))?,
         };
 
-        let mut price = quotes.get_simple(symbol)?;
+        let mut price = quotes.get(statement.get_quote_query(symbol))?;
         if let Some(base_currency) = base_currency {
             price = trades::convert_price(price, quantity, base_currency, &converter)?;
         }

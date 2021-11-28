@@ -92,6 +92,10 @@ impl InstrumentInfo {
         }
     }
 
+    pub fn get(&self, symbol: &str) -> Option<&Instrument> {
+        self.instruments.get(symbol)
+    }
+
     pub fn get_or_add(&mut self, symbol: &str) -> &mut Instrument {
         match self.instruments.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(Instrument::new(symbol)),

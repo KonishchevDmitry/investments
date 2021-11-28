@@ -5,11 +5,6 @@ pub enum Exchange {
     Us,
 }
 
-pub enum InstrumentType {
-    Currency,
-    Stock,
-}
-
 pub struct Exchanges(Vec<Exchange>);
 
 impl Exchanges {
@@ -21,6 +16,10 @@ impl Exchanges {
         Exchanges(Vec::new())
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn add(&mut self, exchange: Exchange) {
         self.0.retain(|&other| other != exchange);
         self.0.push(exchange);
@@ -30,5 +29,9 @@ impl Exchanges {
         for exchange in other.0 {
             self.add(exchange);
         }
+    }
+
+    pub fn get_prioritized(&self) -> Vec<Exchange> {
+        self.0.iter().rev().cloned().collect()
     }
 }

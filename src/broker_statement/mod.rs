@@ -31,7 +31,7 @@ use crate::exchanges::Exchanges;
 use crate::formatting;
 use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::localities;
-use crate::quotes::Quotes;
+use crate::quotes::{Quotes, QuoteQuery};
 use crate::taxes::TaxRemapping;
 use crate::time::{self, Date, DateOptTime, Period};
 use crate::types::{Decimal, TradeType};
@@ -244,9 +244,17 @@ impl BrokerStatement {
 
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
         for symbol in self.open_positions.keys() {
-            quotes.batch_simple(symbol)?;
+            quotes.batch(self.get_quote_query(symbol))?;
         }
         Ok(())
+    }
+
+    pub fn get_quote_query(&self, symbol: &str) -> QuoteQuery {
+        let exchanges = match self.instrument_info.get(symbol) {
+            Some(instrument) if !instrument.exchanges.is_empty() => &instrument.exchanges,
+            _ => &self.exchanges,
+        };
+        QuoteQuery::Stock(symbol.to_owned(), exchanges.get_prioritized())
     }
 
     pub fn net_value(&self, converter: &CurrencyConverter, quotes: &Quotes, currency: &str) -> GenericResult<Cash> {
@@ -255,7 +263,8 @@ impl BrokerStatement {
         let mut net_value = self.cash_assets.total_assets_real_time(currency, converter)?;
 
         for (symbol, quantity) in &self.open_positions {
-            let price = converter.real_time_convert_to(quotes.get_simple(symbol)?, currency)?;
+            let price = quotes.get(self.get_quote_query(symbol))?;
+            let price = converter.real_time_convert_to(price, currency)?;
             net_value += quantity * price;
         }
 

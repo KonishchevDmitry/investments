@@ -9,7 +9,7 @@ use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::formatting;
 use crate::localities;
-use crate::quotes::{Quotes, get_currency_pair};
+use crate::quotes::{Quotes, QuoteQuery, get_currency_pair};
 use crate::time;
 use crate::types::{Date, Decimal};
 #[cfg(test)] use crate::util;
@@ -208,7 +208,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
 
         if !self.strict_mode && date > today {
             if let Some(ref quotes) = self.quotes {
-                let price = quotes.get_simple(&get_currency_pair(from, to))?;
+                let price = quotes.get(QuoteQuery::Currency(get_currency_pair(from, to)))?;
                 assert_eq!(price.currency, to);
                 return Ok((Some(price.amount), None));
             }

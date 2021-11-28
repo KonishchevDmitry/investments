@@ -10,7 +10,7 @@ use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::db;
-use crate::exchanges::{Exchange, InstrumentType};
+use crate::exchanges::Exchange;
 #[cfg(not(test))] use crate::time;
 
 use self::cache::Cache;
@@ -23,6 +23,11 @@ mod cache;
 mod finnhub;
 mod moex;
 mod twelvedata;
+
+pub enum QuoteQuery {
+    Currency(String),
+    Stock(String, Vec<Exchange>),
+}
 
 pub struct Quotes {
     cache: Cache,
@@ -54,7 +59,11 @@ impl Quotes {
         }
     }
 
-    pub fn batch(&self, _exchange: Exchange, _type: InstrumentType, symbol: &str) -> EmptyResult {
+    pub fn batch(&self, query: QuoteQuery) -> EmptyResult {
+        let symbol = match query {
+            QuoteQuery::Currency(ref symbol) => symbol,
+            QuoteQuery::Stock(ref symbol, _) => symbol,
+        };
         self.batch_simple(symbol)
     }
 
@@ -81,7 +90,11 @@ impl Quotes {
         Ok(())
     }
 
-    pub fn get(&self, _exchange: Exchange, _type: InstrumentType, symbol: &str) -> GenericResult<Cash> {
+    pub fn get(&self, query: QuoteQuery) -> GenericResult<Cash> {
+        let symbol = match query {
+            QuoteQuery::Currency(ref symbol) => symbol,
+            QuoteQuery::Stock(ref symbol, _) => symbol,
+        };
         self.get_simple(symbol)
     }
 
@@ -252,13 +265,15 @@ mod tests {
             Box::new(SecondProvider {request_id: RefCell::new(0)}),
         ]);
 
-        quotes.batch_simple("VTI").unwrap();
-        quotes.batch_simple("BNDX").unwrap();
-        assert_eq!(quotes.get_simple("BND").unwrap(), Cash::new("USD", dec!(12.34)));
+        let query = |symbol: &str| QuoteQuery::Stock(symbol.to_owned(), vec![Exchange::Us]);
 
-        quotes.batch_simple("VXUS").unwrap();
-        assert_eq!(quotes.get_simple("BND").unwrap(), Cash::new("USD", dec!(12.34)));
-        assert_eq!(quotes.get_simple("VTI").unwrap(), Cash::new("USD", dec!(56.78)));
-        assert_eq!(quotes.get_simple("BNDX").unwrap(), Cash::new("USD", dec!(90.12)));
+        quotes.batch(query("VTI")).unwrap();
+        quotes.batch(query("BNDX")).unwrap();
+        assert_eq!(quotes.get(query("BND")).unwrap(), Cash::new("USD", dec!(12.34)));
+
+        quotes.batch(query("VXUS")).unwrap();
+        assert_eq!(quotes.get(query("BND")).unwrap(), Cash::new("USD", dec!(12.34)));
+        assert_eq!(quotes.get(query("VTI")).unwrap(), Cash::new("USD", dec!(56.78)));
+        assert_eq!(quotes.get(query("BNDX")).unwrap(), Cash::new("USD", dec!(90.12)));
     }
 }
