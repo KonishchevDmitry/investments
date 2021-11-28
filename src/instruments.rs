@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::de::Deserializer;
 
 use crate::core::{GenericResult, EmptyResult};
-use crate::exchanges::Exchange;
+use crate::exchanges::Exchanges;
 use crate::localities::Jurisdiction;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -181,7 +181,7 @@ pub struct Instrument {
     pub symbol: String,
     name: Option<String>,
     pub isin: HashSet<String>,
-    pub exchanges: Vec<Exchange>,
+    pub exchanges: Exchanges,
 }
 
 impl Instrument {
@@ -190,7 +190,7 @@ impl Instrument {
             symbol:    symbol.to_owned(),
             name:      None,
             isin:      HashSet::new(),
-            exchanges: Vec::new(),
+            exchanges: Exchanges::new_empty(),
         }
     }
 
@@ -202,11 +202,6 @@ impl Instrument {
         parse_isin(isin)?;
         self.isin.insert(isin.to_owned());
         Ok(())
-    }
-
-    pub fn add_exchange(&mut self, exchange: Exchange) {
-        self.exchanges.retain(|&other| other != exchange);
-        self.exchanges.push(exchange);
     }
 
     pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
@@ -256,10 +251,7 @@ impl Instrument {
             self.name.replace(name);
         }
         self.isin.extend(other.isin);
-
-        for exchange in other.exchanges {
-            self.add_exchange(exchange);
-        }
+        self.exchanges.merge(other.exchanges);
     }
 }
 

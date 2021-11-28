@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
+use crate::exchanges::{Exchange, Exchanges};
 use crate::instruments::{InstrumentId, InstrumentInfo};
 use crate::time::{Date, Period};
 use crate::types::Decimal;
@@ -28,6 +29,7 @@ pub struct PartialBrokerStatement {
     pub idle_cash_interest: Vec<IdleCashInterest>,
     pub tax_agent_withholdings: Vec<TaxWithholding>,
 
+    pub exchanges: Exchanges,
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
@@ -49,7 +51,7 @@ pub struct NetAssets {
 }
 
 impl PartialBrokerStatement {
-    pub fn new(zero_cash_assets: bool) -> PartialBrokerStatement {
+    pub fn new(exchanges: &[Exchange], zero_cash_assets: bool) -> PartialBrokerStatement {
         PartialBrokerStatement {
             period: None,
 
@@ -59,6 +61,7 @@ impl PartialBrokerStatement {
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),
 
+            exchanges: Exchanges::new(exchanges),
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
@@ -80,8 +83,8 @@ impl PartialBrokerStatement {
         }
     }
 
-    pub fn new_rc(zero_cash_assets: bool) -> PartialBrokerStatementRc {
-        Rc::new(RefCell::new(PartialBrokerStatement::new(zero_cash_assets)))
+    pub fn new_rc(exchanges: &[Exchange], zero_cash_assets: bool) -> PartialBrokerStatementRc {
+        Rc::new(RefCell::new(PartialBrokerStatement::new(exchanges, zero_cash_assets)))
     }
 
     pub fn set_period(&mut self, period: Period) -> EmptyResult {

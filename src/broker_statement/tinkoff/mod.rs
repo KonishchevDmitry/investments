@@ -18,6 +18,7 @@ use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
+use crate::exchanges::Exchange;
 use crate::formatting;
 use crate::instruments::InstrumentId;
 #[cfg(test)] use crate::taxes::TaxRemapping;
@@ -118,7 +119,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
-        let statement = PartialBrokerStatement::new_rc(true);
+        let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
         let period_parser: SectionParserRc = Rc::new(RefCell::new(
             PeriodParser::new(statement.clone())));

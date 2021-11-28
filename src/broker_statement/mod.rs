@@ -27,6 +27,7 @@ use crate::commissions::CommissionCalc;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
+use crate::exchanges::Exchanges;
 use crate::formatting;
 use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::localities;
@@ -68,6 +69,7 @@ pub struct BrokerStatement {
     pub idle_cash_interest: Vec<IdleCashInterest>,
     pub tax_agent_withholdings: Vec<TaxWithholding>,
 
+    pub exchanges: Exchanges,
     pub forex_trades: Vec<ForexTrade>,
     pub stock_buys: Vec<StockBuy>,
     pub stock_sells: Vec<StockSell>,
@@ -192,6 +194,7 @@ impl BrokerStatement {
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),
 
+            exchanges: Exchanges::new_empty(),
             forex_trades: Vec::new(),
             stock_buys: Vec::new(),
             stock_sells: Vec::new(),
@@ -421,6 +424,7 @@ impl BrokerStatement {
         self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
         self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
 
+        self.exchanges.merge(statement.exchanges);
         self.forex_trades.extend(statement.forex_trades.into_iter());
         self.stock_buys.extend(statement.stock_buys.into_iter());
         self.stock_sells.extend(statement.stock_sells.into_iter());

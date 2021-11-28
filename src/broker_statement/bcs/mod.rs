@@ -10,6 +10,7 @@ use std::rc::Rc;
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
+use crate::exchanges::Exchange;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 use crate::xls::{XlsStatementParser, Section, SheetParser};
 
@@ -38,7 +39,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
-        let statement = PartialBrokerStatement::new_rc(true);
+        let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
         XlsStatementParser::read(path, parser, vec![
             Section::new("Период:").parser(PeriodParser::new(statement.clone())).required(),

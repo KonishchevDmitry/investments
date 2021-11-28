@@ -22,6 +22,7 @@ use log::{trace, warn};
 #[cfg(test)] use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 use crate::formatting::format_date;
 use crate::taxes::TaxRemapping;
 use crate::types::Date;
@@ -69,7 +70,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
-            statement: PartialBrokerStatement::new(false),
+            statement: PartialBrokerStatement::new(&[Exchange::Us], false),
 
             base_currency: None,
             base_currency_summary: None,

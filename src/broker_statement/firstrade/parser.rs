@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::exchanges::Exchange;
 use crate::time::{Date, Period};
 
 use super::StatementReader;
@@ -21,7 +22,7 @@ impl<'a> StatementParser<'a> {
     pub fn parse(reader: &mut StatementReader, statement: Ofx, is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut parser = StatementParser {
             reader,
-            statement: PartialBrokerStatement::new(false),
+            statement: PartialBrokerStatement::new(&[Exchange::Us], false),
             is_last,
         };
         statement.parse(&mut parser)?;
