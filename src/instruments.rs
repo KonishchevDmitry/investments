@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde::de::Deserializer;
 
 use crate::core::{GenericResult, EmptyResult};
+use crate::exchanges::Exchange;
 use crate::localities::Jurisdiction;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -87,9 +88,10 @@ impl InstrumentInfo {
     pub fn add(&mut self, symbol: &str) -> GenericResult<&mut Instrument> {
         match self.instruments.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => Ok(entry.insert(Instrument {
-                symbol: symbol.to_owned(),
-                name:   None,
-                isin:   HashSet::new(),
+                symbol:    symbol.to_owned(),
+                name:      None,
+                isin:      HashSet::new(),
+                exchanges: HashSet::new(),
             })),
             Entry::Occupied(_) => Err!("Duplicated security symbol: {}", symbol),
         }
@@ -98,9 +100,10 @@ impl InstrumentInfo {
     pub fn get_or_add(&mut self, symbol: &str) -> &mut Instrument {
         match self.instruments.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(Instrument {
-                symbol: symbol.to_owned(),
-                name:   None,
-                isin:   HashSet::new(),
+                symbol:    symbol.to_owned(),
+                name:      None,
+                isin:      HashSet::new(),
+                exchanges: HashSet::new(),
             }),
             Entry::Occupied(entry) => entry.into_mut(),
         }
@@ -188,6 +191,7 @@ pub struct Instrument {
     pub symbol: String,
     name: Option<String>,
     pub isin: HashSet<String>,
+    pub exchanges: HashSet<Exchange>,
 }
 
 impl Instrument {
@@ -199,6 +203,10 @@ impl Instrument {
         parse_isin(isin)?;
         self.isin.insert(isin.to_owned());
         Ok(())
+    }
+
+    pub fn add_exchange(&mut self, exchange: Exchange) {
+        self.exchanges.insert(exchange);
     }
 
     pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
@@ -248,6 +256,7 @@ impl Instrument {
             self.name.replace(name);
         }
         self.isin.extend(other.isin);
+        self.exchanges.extend(other.exchanges);
     }
 }
 

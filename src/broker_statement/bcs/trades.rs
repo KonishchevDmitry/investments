@@ -4,6 +4,7 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 use crate::time::{DateTime, DateOptTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
@@ -106,7 +107,7 @@ struct TradeRow {
     #[column(name="Поставка (факт)")]
     execution_date: String,
     #[column(name="Место сделки")]
-    _16: SkipCell,
+    exchange: String,
     #[column(name="Примечание", optional=true)]
     _17: Option<SkipCell>,
 }
@@ -172,6 +173,15 @@ impl TradeRow {
         debug_assert_eq!(volume, (price * quantity).round());
 
         let commission = Cash::zero(currency);
+
+        if !margin {
+            let exchange = match self.exchange.as_str() {
+                "ММВБ" => Exchange::Moex,
+                "СПБ" => Exchange::Spb, // Haven't seen it yet actually, just guessing
+                _ => return Err!("Unknown exchange: {:?}", self.exchange),
+            };
+            statement.instrument_info.get_or_add(symbol).add_exchange(exchange);
+        }
 
         if buy {
             statement.stock_buys.push(StockBuy::new_trade(

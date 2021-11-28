@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::broker_statement::open::common::InstrumentType;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
+use crate::exchanges::Exchange;
 
 #[derive(Deserialize)]
 pub struct Securities {
@@ -23,6 +24,8 @@ struct Security {
     type_: String,
     #[serde(rename = "ticker")]
     symbol: String,
+    #[serde(rename = "board_name")]
+    exchange: String,
 }
 
 impl Securities {
@@ -35,6 +38,11 @@ impl Securities {
                 InstrumentType::DepositaryReceipt => parse_security_name(&security.name),
             };
 
+            let exchange = match security.exchange.as_str() {
+                "ПАО Московская биржа" => Exchange::Moex,
+                _ => return Err!("Unknown exchange: {:?}", security.exchange),
+            };
+
             if securities.insert(security.name.clone(), security.symbol.clone()).is_some() {
                 return Err!("Duplicated security name: {:?}", security.name);
             }
@@ -42,6 +50,7 @@ impl Securities {
             let instrument = statement.instrument_info.add(&security.symbol)?;
             instrument.set_name(name);
             instrument.add_isin(&security.isin)?;
+            instrument.add_exchange(exchange);
         }
 
         Ok(securities)

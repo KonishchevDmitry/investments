@@ -6,6 +6,7 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 use crate::forex::parse_forex_code;
 use crate::formatting::format_date;
 use crate::time::{Date, Time, DateTime};
@@ -55,7 +56,7 @@ struct TradeRow {
     #[column(name="Время", parse_with="parse_time_cell")]
     time: Time,
     #[column(name="Торговая площадка")]
-    _5: SkipCell,
+    exchange: String,
     #[column(name="Режим торгов")]
     _6: SkipCell,
     #[column(name="Вид сделки")]
@@ -154,6 +155,15 @@ impl TradeRow {
         };
 
         let forex = parse_forex_code(&self.symbol);
+
+        if forex.is_err() {
+            let exchange = match self.exchange.as_str() {
+                "ММВБ" | "МосБиржа" => Exchange::Moex,
+                "СПБ" | "СПБиржа" => Exchange::Spb,
+                _ => return Err!("Unknown exchange: {:?}", self.exchange),
+            };
+            statement.instrument_info.get_or_add(&self.symbol).add_exchange(exchange);
+        }
 
         match self.operation.as_str() {
             "Покупка" => {

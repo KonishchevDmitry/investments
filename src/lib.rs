@@ -22,6 +22,7 @@ mod broker_statement;
 mod brokers;
 mod commissions;
 mod currency;
+mod exchanges;
 mod forex;
 mod formatting;
 mod instruments;

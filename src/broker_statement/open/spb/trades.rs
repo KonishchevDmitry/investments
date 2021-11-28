@@ -4,6 +4,7 @@ use crate::broker_statement::open::common::{InstrumentType, deserialize_date, pa
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::EmptyResult;
+use crate::exchanges::Exchange;
 use crate::time::{Date, DateTime, Time};
 use crate::types::{Decimal, TradeType};
 use crate::util::{self, DecimalRestrictions};
@@ -40,6 +41,8 @@ struct Trade {
     security_code: String,
     #[serde(rename = "categoryname")]
     category: String,
+    #[serde(rename = "place")]
+    exchange: String,
 
     #[serde(rename = "price")]
     price: Decimal,
@@ -92,6 +95,12 @@ impl Trade {
         let commission = util::validate_named_cash(
             "commission", &self.payment_currency, self.commission,
             DecimalRestrictions::PositiveOrZero)?.normalize();
+
+        let exchange = match self.exchange.as_str() {
+            "СПБ" => Exchange::Spb,
+            _ => return Err!("Unknown exchange: {:?}", self.exchange),
+        };
+        statement.instrument_info.get_or_add(symbol).add_exchange(exchange);
 
         match action {
             TradeType::Buy => {
