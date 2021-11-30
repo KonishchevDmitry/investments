@@ -14,6 +14,7 @@ use serde::de::DeserializeOwned;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 use crate::rate_limiter::RateLimiter;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
@@ -122,12 +123,12 @@ impl QuotesProvider for Finnhub {
         "Finnhub"
     }
 
-    fn high_precision(&self) -> bool {
-        true
+    fn supports_stocks(&self) -> Option<Exchange> {
+        Some(Exchange::Us)
     }
 
-    fn supports_forex(&self) -> bool {
-        false
+    fn high_precision(&self) -> bool {
+        true
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {

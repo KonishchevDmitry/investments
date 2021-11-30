@@ -9,6 +9,7 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 #[cfg(not(test))] use crate::localities;
 use crate::time;
 use crate::types::{Decimal, Date};
@@ -30,8 +31,8 @@ impl QuotesProvider for Moex {
         "Moscow Exchange"
     }
 
-    fn supports_forex(&self) -> bool {
-        false
+    fn supports_stocks(&self) -> Option<Exchange> {
+        Some(Exchange::Moex)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {

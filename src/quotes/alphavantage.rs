@@ -11,6 +11,7 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
@@ -37,8 +38,8 @@ impl QuotesProvider for AlphaVantage {
         "Alpha Vantage"
     }
 
-    fn supports_forex(&self) -> bool {
-        false
+    fn supports_stocks(&self) -> Option<Exchange> {
+        Some(Exchange::Us)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
