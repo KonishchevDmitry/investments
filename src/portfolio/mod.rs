@@ -138,7 +138,6 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(portfolio_config)?;
 
-    // FIXME(konishchev): Document the changes in command behaviour
     let statement = portfolio_config.statements.as_ref().map(|path| {
         BrokerStatement::read(
             broker.clone(), path, &portfolio_config.symbol_remapping,

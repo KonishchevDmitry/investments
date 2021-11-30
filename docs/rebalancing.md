@@ -10,7 +10,10 @@ which will include the changes.
 First, `sync` command should be executed to read your broker statements and store your current positions to the local
 database. But you are free to not use it - for example if you want to rebalance portfolio of an unsupported broker.
 
-Here is how we can emulate `sync` command execution and populate the database manually:
+Here is how we can emulate `sync` command execution and populate the database manually (but in this case you should
+ensure that `statements` configuration option is not specified, because in other case the program will try to read
+the broker statements to get some information about the specified instruments):
+
 ```
 $ investments buy ib 100 VTI 4000
 $ investments buy ib 30 VXUS 4000
