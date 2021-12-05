@@ -20,6 +20,15 @@ impl Period {
         Ok(period)
     }
 
+    pub fn join(mut self, other: Period) -> GenericResult<Period> {
+        if other.first_date() != self.next_date() {
+            return Err!("Non-continuous periods: {}, {}", self.format(), other.format());
+        }
+
+        self.last = other.last;
+        Ok(self)
+    }
+
     pub fn prev_date(&self) -> Date {
         self.first.pred()
     }

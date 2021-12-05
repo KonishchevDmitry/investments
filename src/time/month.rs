@@ -18,11 +18,12 @@ impl From<Date> for Month {
 }
 
 impl Month {
+    pub fn day(&self, day: u32) -> Option<Date> {
+        Date::from_ymd_opt(self.year, self.month, day)
+    }
+
     pub fn day_or_last(&self, day: u32) -> Date {
-        match Date::from_ymd_opt(self.year, self.month, day) {
-            Some(date) => date,
-            None => self.period().last_date(),
-        }
+        self.day(day).unwrap_or_else(|| self.period().last_date())
     }
 
     pub fn period(&self) -> Period {
@@ -30,6 +31,16 @@ impl Month {
         let next_month = self.next();
         let last_day = date!(next_month.year, next_month.month, 1).pred();
         Period::new(first_day, last_day).unwrap()
+    }
+
+    pub fn prev(mut self) -> Month {
+        if self.month == 1 {
+            self.year -= 1;
+            self.month = 12;
+        } else {
+            self.month -= 1;
+        }
+        self
     }
 
     pub fn next(mut self) -> Month {

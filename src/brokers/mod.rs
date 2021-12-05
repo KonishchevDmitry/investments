@@ -33,8 +33,9 @@ impl Broker {
             .clone();
 
         let statements_merging_strategy = match self {
-            Broker::Bcs | Broker::Open => StatementsMergingStrategy::SparseSingleDaysLastMonth,
+            Broker::Bcs => StatementsMergingStrategy::SparseSingleDaysLastMonth(9),
             Broker::InteractiveBrokers => StatementsMergingStrategy::SparseOnHolidays(1),
+            Broker::Open => StatementsMergingStrategy::SparseSingleDaysLastMonth(0),
             _ => StatementsMergingStrategy::ContinuousOnly,
         };
 
