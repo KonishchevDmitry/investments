@@ -3,13 +3,13 @@ mod builders;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
-use chrono::Datelike;
 use num_traits::cast::ToPrimitive;
 
 use crate::core::GenericResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverterRc;
-use crate::types::{Date, Decimal, TradeType};
+use crate::time::{Date, Month};
+use crate::types::{Decimal, TradeType};
 use crate::util::{self, RoundingMethod};
 
 pub use builders::*;
@@ -173,7 +173,7 @@ impl CommissionCalc {
 
     pub fn calculate(self) -> GenericResult<HashMap<Date, MultiCurrencyCashAccount>> {
         let mut total_by_date = HashMap::new();
-        let mut monthly: HashMap<_, Decimal> = HashMap::new();
+        let mut monthly: HashMap<Month, Decimal> = HashMap::new();
 
         for (&date, volume) in &self.volume {
             let (commissions, fees) = self.calculate_daily(date, volume)?;
@@ -188,13 +188,13 @@ impl CommissionCalc {
 
             let total_commission = self.spec.round(commissions.total_assets(
                 date, self.spec.currency, &self.converter)?);
-            *monthly.entry((date.year(), date.month())).or_default() += total_commission;
+            *monthly.entry(date.into()).or_default() += total_commission;
         }
 
         if let Some(minimum_monthly) = self.spec.cumulative.minimum_monthly {
-            for (&(year, month), &commission) in &monthly {
+            for (&month, &commission) in &monthly {
                 if commission < minimum_monthly {
-                    let date = get_monthly_commission_date(year, month);
+                    let date = get_monthly_commission_date(month);
                     let additional_commission = minimum_monthly - commission;
                     total_by_date.entry(date).or_default().deposit(
                         Cash::new(self.spec.currency, additional_commission));
@@ -211,8 +211,8 @@ impl CommissionCalc {
                 .last().unwrap().1;
 
             if !monthly_depositary.is_zero() {
-                for &(year, month) in monthly.keys() {
-                    let date = get_monthly_commission_date(year, month);
+                for &month in monthly.keys() {
+                    let date = get_monthly_commission_date(month);
                     total_by_date.entry(date).or_default().deposit(
                         Cash::new(self.spec.currency, monthly_depositary));
                 }
@@ -263,10 +263,6 @@ impl CommissionCalc {
     }
 }
 
-fn get_monthly_commission_date(year: i32, month: u32) -> Date {
-    if month == 12 {
-        Date::from_ymd(year + 1, 1, 1)
-    } else {
-        Date::from_ymd(year, month + 1, 1)
-    }
+fn get_monthly_commission_date(month: Month) -> Date {
+    month.next().period().first_date()
 }

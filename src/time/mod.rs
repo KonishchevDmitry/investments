@@ -1,4 +1,5 @@
 mod date;
+mod month;
 mod parsing;
 mod period;
 
@@ -10,6 +11,7 @@ use chrono::{self, Duration, Local};
 pub use crate::types::{Date, Time, DateTime};
 
 pub use date::*;
+pub use month::*;
 pub use parsing::*;
 pub use period::*;
 

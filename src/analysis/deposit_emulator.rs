@@ -2,7 +2,8 @@ use chrono::Datelike;
 
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency;
-use crate::types::{Date, Decimal};
+use crate::time::{Date, Month};
+use crate::types::Decimal;
 
 pub struct DepositEmulator {
     date: Date,
@@ -226,17 +227,6 @@ impl ActiveInterestPeriod {
     }
 }
 
-fn get_next_year_month(mut year: i32, mut month: u32) -> (i32, u32) {
-    if month == 12 {
-        year += 1;
-        month = 1;
-    } else {
-        month += 1;
-    }
-
-    (year, month)
-}
-
 fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> GenericResult<Date> {
     if current.day() != capitalization_day && !(
         current.day() < capitalization_day && current.succ().month() != current.month()
@@ -245,18 +235,7 @@ fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> Gener
             "Got an unexpected current capitalization date for the specified capitalization day");
     }
 
-    let (year, month) = get_next_year_month(current.year(), current.month());
-
-    Ok(match Date::from_ymd_opt(year, month, capitalization_day) {
-        Some(date) => date,
-        None => {
-            let (year, month) = get_next_year_month(year, month);
-            let date = Date::from_ymd(year, month, 1).pred();
-            let days = (date - current).num_days();
-            assert!((28..=31).contains(&days));
-            date
-        }
-    })
+    Ok(Month::from(current).next().day_or_last(capitalization_day))
 }
 
 #[cfg(test)]
