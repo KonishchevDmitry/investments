@@ -31,14 +31,8 @@ impl fmt::Display for InstrumentId {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct InstrumentInternalIds(HashMap<String, String>);
-
-impl Default for InstrumentInternalIds {
-    fn default() -> InstrumentInternalIds {
-        InstrumentInternalIds(HashMap::new())
-    }
-}
 
 impl InstrumentInternalIds {
     fn get_symbol(&self, id: &str) -> GenericResult<&str> {
