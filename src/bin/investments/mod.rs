@@ -50,7 +50,7 @@ fn main_inner(global: GlobalOptions, parser: Box<Parser>) -> EmptyResult {
     let config_path = config_dir_path.join("config.yaml");
 
     let mut config = Config::load(config_path.to_str().unwrap()).map_err(|e| format!(
-        "Error while reading {:?} configuration file: {}.", config_path, e))?;
+        "Error while reading {:?} configuration file: {}", config_path, e))?;
     config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
 
     let (command, action) = parser.parse(&mut config)?;
