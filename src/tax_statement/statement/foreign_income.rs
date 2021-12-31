@@ -55,7 +55,9 @@ impl Record for ForeignIncome {
 tax_statement_array_record!(CurrencyIncome {
     type_: IncomeType,
     description: String,
-    county_code: CountryCode,
+
+    source_from: CountryCode,
+    received_in: CountryCode,
 
     date: Date,
     tax_payment_date: Date,
@@ -69,7 +71,7 @@ tax_statement_array_record!(CurrencyIncome {
     deduction: DeductionInfo,
 
     controlled_foreign_company: ControlledForeignCompanyInfo,
-}, index_length=3);
+}, index_length=4);
 
 tax_statement_inner_record!(CurrencyInfo {
     automatic_convertion: bool,
@@ -124,7 +126,8 @@ impl DeductionInfo {
 }
 
 tax_statement_inner_record!(ControlledForeignCompanyInfo {
-    unknown: Integer,
+    unknown1: Integer,
+    unknown2: Integer,
     profit_calculation_method: Integer,
     number: String,
     paid_tax: Integer,
@@ -133,7 +136,8 @@ tax_statement_inner_record!(ControlledForeignCompanyInfo {
 impl ControlledForeignCompanyInfo {
     pub fn new_none() -> ControlledForeignCompanyInfo {
         ControlledForeignCompanyInfo {
-            unknown: 0,
+            unknown1: 0,
+            unknown2: 0,
             profit_calculation_method: 0,
             number: String::new(),
             paid_tax: 0,
@@ -141,53 +145,46 @@ impl ControlledForeignCompanyInfo {
     }
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IncomeType {
     Dividend,
     Interest,
     Stock,
-    Unknown {unknown: Integer, code: Integer, name: String},
+    Other(GenericIncomeType),
 }
 
 impl IncomeType {
-    fn decouple(&self) -> (Integer, Integer, String) {
-        let (unknown, code, name) = match self {
-            IncomeType::Dividend => (14, 1010, "Дивиденды"),
-            IncomeType::Interest => (13, 1011, "Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)"),
-            IncomeType::Stock => (13, 1530, "(01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)"),
-            IncomeType::Unknown {unknown, code, name} => return (*unknown, *code, name.clone()),
+    fn to_generic(&self) -> GenericIncomeType {
+        let (category, code, name) = match self {
+            IncomeType::Dividend => (0, 1010, "Дивиденды"),
+            IncomeType::Stock => (0, 1530, "(01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)"),
+            IncomeType::Interest => (0, 6013, "Доходы в виде процентов, полученных от источников за пределами Российской Федерации, в отношении которых применяется налоговая ставка, предусмотренная пунктом 1 статьи 224 Кодекса"),
+            IncomeType::Other(other) => return other.clone(),
         };
-
-        (unknown, code, name.to_owned())
+        GenericIncomeType {category, code, name: name.to_owned()}
     }
 }
 
 impl TaxStatementType for IncomeType {
     fn read(reader: &mut TaxStatementReader) -> GenericResult<IncomeType> {
-        let unknown = reader.read_value()?;
-        let code = reader.read_value()?;
-        let name = reader.read_value()?;
+        let generic = GenericIncomeType::read(reader)?;
 
-        for income_type in &[IncomeType::Dividend, IncomeType::Interest, IncomeType::Stock] {
-            let (other_unknown, other_code, other_name) = income_type.decouple();
-            if unknown == other_unknown && code == other_code && name == other_name {
-                return Ok(income_type.clone());
+        for income_type in [IncomeType::Dividend, IncomeType::Interest, IncomeType::Stock] {
+            if income_type.to_generic() == generic {
+                return Ok(income_type);
             }
         }
 
-        Ok(IncomeType::Unknown {
-            unknown: unknown,
-            code: code,
-            name: name,
-        })
+        Ok(IncomeType::Other(generic))
     }
 
     fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
-        let (unknown, code, name) = self.decouple();
-        writer.write_value(&unknown)?;
-        writer.write_value(&code)?;
-        writer.write_value(&name)?;
-        Ok(())
+        self.to_generic().write(writer)
     }
 }
+
+tax_statement_inner_record!(GenericIncomeType {
+    category: Integer,
+    code: Integer,
+    name: String,
+});

@@ -14,6 +14,7 @@ use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
+use crate::tax_statement::statement::CountryCode;
 use crate::taxes::{IncomeType, TaxPaymentDaySpec};
 use crate::taxes::long_term_ownership::LtoDeductionCalculator;
 use crate::time::{self, Date};
@@ -186,6 +187,7 @@ impl<'a> TradesProcessor<'a> {
                         let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
                         self.add_income(statement, trade, &details, additional_fees)?;
                     },
+
                     Jurisdiction::Russia => {
                         warn!(concat!(
                             "Don't declare income from trading in the tax statement ",
@@ -381,13 +383,15 @@ impl<'a> TradesProcessor<'a> {
 
         let name = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
+        let country_code = CountryCode::new(self.broker_statement.broker.type_.jurisdiction().code())?;
 
         let cost = details.total_local_cost.amount + additional_fees;
         let precise_currency_rate = self.converter.precise_currency_rate(
             trade.execution_date, details.revenue.currency, self.country.currency)?;
 
         tax_statement.add_stock_income(
-            &description, trade.execution_date, details.revenue.currency, precise_currency_rate,
+            &description, trade.execution_date, country_code,
+            details.revenue.currency, precise_currency_rate,
             details.revenue.amount, details.local_revenue.amount, cost,
         ).map_err(|e| format!(
             "Unable to add income from selling {} on {} to the tax statement: {}",

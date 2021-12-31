@@ -4,9 +4,9 @@ use super::encoding::TaxStatementType;
 use super::parser::{TaxStatementReader, TaxStatementWriter};
 use super::types::Integer;
 
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CountryCode {
+    Russia,
     Usa,
     Other(Integer),
 }
@@ -18,6 +18,7 @@ impl CountryCode {
 
     fn from_code(code: Integer) -> CountryCode {
         match code {
+            643 => CountryCode::Russia,
             840 => CountryCode::Usa,
             code => CountryCode::Other(code),
         }
@@ -25,6 +26,7 @@ impl CountryCode {
 
     fn to_code(self) -> Integer {
         match self {
+            CountryCode::Russia => 643,
             CountryCode::Usa => 840,
             CountryCode::Other(code) => code,
         }

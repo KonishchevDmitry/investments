@@ -49,13 +49,13 @@ impl TaxStatement {
 
     pub fn add_dividend_income(
         &mut self, description: &str, date: Date,
-        country: CountryCode, currency: &str, currency_rate: Decimal,
+        source_from: CountryCode, received_in: CountryCode, currency: &str, currency_rate: Decimal,
         amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Dividend,
             description: description.to_owned(),
-            county_code: country,
+            source_from, received_in,
 
             date: date,
             tax_payment_date: date,
@@ -75,13 +75,15 @@ impl TaxStatement {
     }
 
     pub fn add_interest_income(
-        &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
-        amount: Decimal, local_amount: Decimal,
+        &mut self, description: &str, date: Date, broker_jurisdiction: CountryCode,
+        currency: &str, currency_rate: Decimal, amount: Decimal, local_amount: Decimal,
     ) -> EmptyResult {
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Interest,
             description: description.to_owned(),
-            county_code: CountryCode::Usa,
+
+            source_from: broker_jurisdiction,
+            received_in: broker_jurisdiction,
 
             date: date,
             tax_payment_date: date,
@@ -101,13 +103,16 @@ impl TaxStatement {
     }
 
     pub fn add_stock_income(
-        &mut self, description: &str, date: Date, currency: &str, currency_rate: Decimal,
-        amount: Decimal, local_amount: Decimal, purchase_local_cost: Decimal,
+        &mut self, description: &str, date: Date, broker_jurisdiction: CountryCode,
+        currency: &str, currency_rate: Decimal, amount: Decimal, local_amount: Decimal,
+        purchase_local_cost: Decimal,
     ) -> EmptyResult {
         self.get_foreign_incomes()?.push(CurrencyIncome {
             type_: IncomeType::Stock,
             description: description.to_owned(),
-            county_code: CountryCode::Usa,
+
+            source_from: broker_jurisdiction,
+            received_in: broker_jurisdiction,
 
             date: date,
             tax_payment_date: date,

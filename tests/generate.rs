@@ -76,7 +76,7 @@ fn generate_regression_tests() {
         ("Kate", None),
         ("Kate IIA", None),
     ];
-    let last_tax_year = 2021;
+    let last_tax_year = 2021; // FIXME(konishchev): Bump after statements update
 
     for &(name, start_tax_year) in accounts {
         let id = &name_to_id(name);

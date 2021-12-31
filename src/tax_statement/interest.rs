@@ -9,6 +9,7 @@ use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::{Country, Jurisdiction};
+use crate::tax_statement::statement::CountryCode;
 use crate::types::{Date, Decimal};
 
 use super::statement::TaxStatement;
@@ -85,18 +86,21 @@ pub fn process_income(
         if let Some(ref mut statement) = tax_statement {
             match broker_jurisdiction {
                 Jurisdiction::Usa => {
+                    let country_code = CountryCode::new(broker_jurisdiction.code())?;
                     let description = format!(
                         "{}: Проценты на остаток по брокерскому счету",
                         broker_statement.broker.name);
 
                     statement.add_interest_income(
-                        &description, interest.date, foreign_amount.currency, precise_currency_rate,
+                        &description, interest.date, country_code,
+                        foreign_amount.currency, precise_currency_rate,
                         foreign_amount.amount, amount.amount
                     ).map_err(|e| format!(
                         "Unable to add interest income from {} to the tax statement: {}",
                         formatting::format_date(interest.date), e
                     ))?;
                 },
+
                 Jurisdiction::Russia => {
                     warn!(concat!(
                         "Don't declare interest income in the tax statement ",

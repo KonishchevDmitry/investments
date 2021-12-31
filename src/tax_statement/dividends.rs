@@ -50,6 +50,8 @@ pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> GenericResult<Cash> {
+    let broker_jurisdiction = broker_statement.broker.type_.jurisdiction();
+
     let mut table = Table::new();
     let mut same_currency = true;
     let mut tax_agent_issuers = BTreeSet::new();
@@ -131,6 +133,8 @@ pub fn process_income(
         match dividend.taxation_type {
             IssuerTaxationType::Manual(ref income_country) => {
                 if let Some(ref mut tax_statement) = tax_statement {
+                    let source_from = CountryCode::new(income_country)?;
+                    let received_in = CountryCode::new(broker_jurisdiction.code())?;
                     let description = format!("{}: Дивиденд от {}", broker_statement.broker.name, issuer);
 
                     if foreign_paid_tax.currency != foreign_amount.currency {
@@ -139,17 +143,17 @@ pub fn process_income(
                             dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
                     }
 
-                    let country_code = CountryCode::new(income_country)?;
-
                     tax_statement.add_dividend_income(
-                        &description, dividend.date, country_code, foreign_amount.currency,
-                        precise_currency_rate, foreign_amount.amount, foreign_paid_tax.amount,
+                        &description, dividend.date, source_from, received_in,
+                        foreign_amount.currency, precise_currency_rate,
+                        foreign_amount.amount, foreign_paid_tax.amount,
                         amount.amount, paid_tax.amount
                     ).map_err(|e| format!(
                         "Unable to add {} to the tax statement: {}", dividend.description(), e
                     ))?;
                 }
             },
+
             IssuerTaxationType::TaxAgent => {
                 tax_agent_issuers.insert(&dividend.original_issuer);
             },

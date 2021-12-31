@@ -22,7 +22,7 @@ use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
 
-const SUPPORTED_YEAR: i32 = 2020;
+const SUPPORTED_YEAR: i32 = 2021;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,
@@ -226,7 +226,7 @@ fn get_extension(year: i32) -> String {
 }
 
 fn get_header(year: i32) -> String {
-    format!(r"DLSG            Decl{}0102FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year)
+    format!(r"DLSG            Decl{}0103FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year)
 }
 
 fn encode(data: &str) -> GenericResult<Cow<[u8]>> {
@@ -267,41 +267,52 @@ mod tests {
 
         {
             let currency = "USD"; // 840 - Доллар США
-            let currency_rate = dec!(61.9057);
+            let currency_rate = dec!(73.8757);
 
             let local_amount = amount * currency_rate;
             let local_paid_tax = util::round(paid_tax * currency_rate, 2);
 
+            // 840 - Код страны источника выплаты
+            // 643 - Код страны зачисления выплаты
             // 1010 - Дивиденды
             statement.add_dividend_income(
-                "Дивиденд", date, CountryCode::Usa, currency, currency_rate,
-                amount, paid_tax, local_amount, local_paid_tax).unwrap();
+                "Дивиденд", date, CountryCode::Usa, CountryCode::Russia,
+                currency, currency_rate, amount, paid_tax, local_amount, local_paid_tax).unwrap();
 
             // 1530 - (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)
             statement.add_stock_income(
-                "Акции", date, currency, currency_rate, amount, local_amount,
+                "Акции", date, CountryCode::Usa, currency, currency_rate, amount, local_amount,
                 purchase_local_cost).unwrap();
         }
 
         {
             let currency = "EUR"; // 978 - Евро
-            let currency_rate = dec!(69.3777);
+            let currency_rate = dec!(90.7932);
             let local_amount = amount * currency_rate;
 
-            // 1011 - Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)
+            // 6013 - Доходы в виде процентов, полученных от источников за пределами Российской
+            //        Федерации, в отношении которых применяется налоговая ставка, предусмотренная
+            //        пунктом 1 статьи 224 Кодекса
             statement.add_interest_income(
-                "Проценты", date, currency, currency_rate, amount, local_amount).unwrap();
+                "Проценты", date, CountryCode::Usa,
+                currency, currency_rate, amount, local_amount).unwrap();
         }
 
-        // 1011 - Проценты (за исключением процентов по облигациям с ипотечным покрытием, эмитированным до 01.01.2007)
         // 643 - Российский рубль
+        // 6013 - Доходы в виде процентов, полученных от источников за пределами Российской
+        //        Федерации, в отношении которых применяется налоговая ставка, предусмотренная
+        //        пунктом 1 статьи 224 Кодекса
         statement.add_interest_income(
-            "Проценты в рублях", date, "RUB", dec!(1), amount, amount).unwrap();
+            "Проценты в рублях", date, CountryCode::Usa,
+            "RUB", dec!(1), amount, amount).unwrap();
 
-        assert_eq!(*statement.get_foreign_incomes().unwrap(), incomes);
+        for (expected, generated) in itertools::zip_eq(&incomes, statement.get_foreign_incomes().unwrap()) {
+            assert_eq!(generated, expected);
+        }
         compare_to(&statement, &data);
     }
 
+    // FIXME(konishchev): Generate
     #[test]
     fn parse_real() {
         test_parsing(&get_path("statement"));

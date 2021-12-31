@@ -120,7 +120,11 @@ macro_rules! tax_statement_inner_record {
         impl $crate::tax_statement::statement::encoding::TaxStatementType for $name {
             fn read(reader: &mut $crate::tax_statement::statement::parser::TaxStatementReader) -> GenericResult<$name> {
                 Ok($name {
-                    $($field_name: reader.read_value()?,)*
+                    $(
+                        $field_name: reader.read_value().map_err(|e| format!(
+                            "{struct}::{field}: {error}",
+                            struct=stringify!($name), field=stringify!($field_name), error=e))?,
+                    )*
                 })
             }
 
@@ -157,7 +161,12 @@ macro_rules! tax_statement_array_record {
                 }
 
                 Ok($name {
-                    $($field_name: reader.read_value()?,)*
+                    $(
+                        $field_name: reader.read_value().map_err(|e| format!(
+                            "{struct}[{index}]::{field}: {error}",
+                            struct=stringify!($name), index=index, field=stringify!($field_name),
+                            error=e))?,
+                    )*
                 })
             }
 
@@ -213,8 +222,7 @@ macro_rules! declare_tax_statement_record_struct {
             $($field_name:ident: $field_type:ty,)*
         }
     ) => {
-        #[derive(Debug)]
-        #[cfg_attr(test, derive(PartialEq, Eq))]
+        #[derive(Clone, PartialEq, Eq, Debug)]
         pub struct $name {
             $(pub $field_name: $field_type,)*
         }
