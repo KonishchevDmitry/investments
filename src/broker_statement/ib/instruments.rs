@@ -1,8 +1,10 @@
+use chrono::Datelike;
+
 use crate::core::EmptyResult;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_symbol};
+use super::common::{Record, RecordParser, SecurityID, parse_symbol};
 
 pub struct OpenPositionsParser {}
 
@@ -38,20 +40,39 @@ pub struct FinancialInstrumentInformationParser {
 
 impl RecordParser for FinancialInstrumentInformationParser {
     fn parse(&mut self, parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        // If symbol renames saving its ISIN the column contains both symbols
+        // If symbol renames save its ISIN the column contains both symbols
         // (see https://github.com/KonishchevDmitry/investments/issues/29)
 
-        for symbol in record.get_value("Symbol")?.split(',').map(str::trim) {
-            if symbol.ends_with(".OLD") {
-                continue;
-            }
-
+        for symbol in record.get_value("Symbol")?.split(',').map(str::trim).skip_while(|s| s.ends_with(".OLD")) {
             let symbol = parse_symbol(symbol)?;
-            let name = record.get_value("Description")?;
 
             // It may be duplicated when the security changes its ID due to corporate action (stock
             // split for example).
-            parser.statement.instrument_info.get_or_add(&symbol).set_name(name);
+            let instrument = parser.statement.instrument_info.get_or_add(&symbol);
+            instrument.set_name(record.get_value("Description")?);
+
+            let security_id = record.get_value("Security ID")?;
+            if security_id.is_empty() {
+                if parser.statement.get_period()?.first_date().year() < 2020 {
+                    // Old broker statements provide only conid (in a separate field)
+                } else {
+                    return Err!("Security ID is missing for {}", symbol);
+                }
+            } else {
+                match security_id.parse::<SecurityID>()? {
+                    SecurityID::Isin(isin) => {
+                        instrument.add_isin(&isin.to_string())?;
+                    },
+                    SecurityID::Cusip(cusip) => {
+                        instrument.add_cusip(cusip);
+                    },
+                    _ => {
+                        return Err!(
+                            "Got an unsupported security ID for {}: {:?}",
+                            symbol, security_id);
+                    }
+                }
+            }
         }
 
         Ok(())

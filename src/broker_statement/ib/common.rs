@@ -18,7 +18,7 @@ pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?(?: [A-Z0-9]+)?";
 
 // IB uses the following identifier types as security ID:
 // * ISIN (it seems that IB uses only this type in broker statements since 2020)
-// * CUSIP - old US standard which in most cases may be converted to ISIN, but not always (see
+// * CUSIP - US standard which in most cases may be converted to ISIN, but not always (see
 //   https://stackoverflow.com/questions/30545239/convert-9-digit-cusip-codes-into-isin-codes)
 // * conid (contract ID) - an internal IB's instrument UID
 #[derive(Debug)]

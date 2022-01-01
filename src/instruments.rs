@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::default::Default;
 use std::fmt;
 
+use cusip::CUSIP;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -179,6 +180,7 @@ pub struct Instrument {
     pub symbol: String,
     name: Option<String>,
     pub isin: HashSet<String>,
+    cusip: HashSet<CUSIP>,
     pub exchanges: Exchanges,
 }
 
@@ -188,6 +190,7 @@ impl Instrument {
             symbol:    symbol.to_owned(),
             name:      None,
             isin:      HashSet::new(),
+            cusip:     HashSet::new(),
             exchanges: Exchanges::new_empty(),
         }
     }
@@ -200,6 +203,10 @@ impl Instrument {
         parse_isin(isin)?;
         self.isin.insert(isin.to_owned());
         Ok(())
+    }
+
+    pub fn add_cusip(&mut self, cusip: CUSIP) {
+        self.cusip.insert(cusip);
     }
 
     pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
@@ -226,6 +233,7 @@ impl Instrument {
 
         let mut result_taxation_type = None;
 
+        // FIXME(konishchev): CUSIP support
         for isin in &self.isin {
             let taxation_type = get_taxation_type(isin)?;
 
@@ -250,6 +258,7 @@ impl Instrument {
             self.name.replace(name);
         }
         self.isin.extend(other.isin);
+        self.cusip.extend(other.cusip);
         self.exchanges.merge(other.exchanges);
     }
 }

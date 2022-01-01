@@ -271,6 +271,7 @@ pub fn match_statement_dividends_to_foreign_income(
     foreign_income: &mut HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
     show_missing_foreign_income_info_warning: &mut bool,
 ) -> GenericResult<(DividendAccruals, Option<TaxAccruals>)> {
+    // FIXME(konishchev): CUSIP support
     if instrument.isin.is_empty() {
         return Err!(
             "Failed to process {}: there is no ISIN information for the instrument",

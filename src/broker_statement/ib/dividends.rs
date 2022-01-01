@@ -23,8 +23,17 @@ impl RecordParser for DividendsParser {
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
         let (symbol, security_id) = parse_dividend_description(description)?;
-        if let SecurityID::Isin(isin) = security_id {
-            parser.statement.instrument_info.get_or_add(&symbol).add_isin(&isin.to_string())?;
+
+        match security_id {
+            SecurityID::Isin(isin) => {
+                parser.statement.instrument_info.get_or_add(&symbol)
+                    .add_isin(&isin.to_string())?;
+            },
+            SecurityID::Cusip(cusip) => {
+                parser.statement.instrument_info.get_or_add(&symbol)
+                    .add_cusip(cusip);
+            },
+            SecurityID::Conid(_) => {},
         }
 
         let cash_flow_id = CashFlowId::new(statement_date, description, amount);
