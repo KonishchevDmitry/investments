@@ -9,7 +9,7 @@ use crate::formatting::format_date;
 use crate::util::{self, DecimalRestrictions};
 
 use super::StatementParser;
-use super::common::{self, Record, RecordParser, parse_symbol};
+use super::common::{self, Record, RecordParser, SecurityID, parse_symbol};
 #[cfg(test)] use super::common::RecordSpec;
 
 pub struct CorporateActionsParser {
@@ -83,7 +83,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
             r"^(?P<symbol>{symbol}) ?\({id}\) (?P<action>Split|Stock Dividend|Spinoff) ",
             r"(?:{id} )?(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
             r"\((?P<child_symbol>{symbol})(?:\.OLD)?, [^,)]+, {id}\)$",
-        ), symbol=common::STOCK_SYMBOL_REGEX, id=common::STOCK_ID_REGEX)).unwrap();
+        ), symbol=common::STOCK_SYMBOL_REGEX, id=SecurityID::REGEX)).unwrap();
     }
 
     let captures = REGEX.captures(description).ok_or_else(|| format!(

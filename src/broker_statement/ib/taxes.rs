@@ -7,7 +7,7 @@ use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::cash_flows::CashFlowId;
-use super::common::{self, Record, RecordParser, parse_symbol};
+use super::common::{self, Record, RecordParser, SecurityID, parse_symbol};
 
 // Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US
 // accounts) to reflect dividend reclassifications. This is typically done in February the following
@@ -63,7 +63,7 @@ fn parse_tax_description(description: &str) -> GenericResult<String> {
     lazy_static! {
         static ref DESCRIPTION_REGEX: Regex = Regex::new(&format!(
             r"^(?P<issuer>{symbol}) ?\({id}\) .+ - [A-Z]{{2}} Tax$",
-            symbol=common::STOCK_SYMBOL_REGEX, id=common::STOCK_ID_REGEX)).unwrap();
+            symbol=common::STOCK_SYMBOL_REGEX, id=SecurityID::REGEX)).unwrap();
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
