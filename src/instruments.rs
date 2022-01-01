@@ -216,6 +216,7 @@ impl Instrument {
                 })
             },
             Jurisdiction::Usa => {
+                // FIXME(konishchev): Support
                 // See https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#foreign-income-jurisdiction
                 // for details.
                 let income_jurisdiction = broker_jurisdiction.code();
@@ -269,6 +270,7 @@ pub enum IssuerTaxationType {
 
 pub const ISIN_REGEX: &str = r"[A-Z]{2}[A-Z0-9]{9}[0-9]";
 
+// FIXME(konishchev): Switch to isin crate?
 fn parse_isin(isin: &str) -> GenericResult<&str> {
     lazy_static! {
         static ref REGEX: Regex = Regex::new(&format!("^{}$", ISIN_REGEX)).unwrap();

@@ -2,18 +2,53 @@ use std::iter::Iterator;
 use std::str::FromStr;
 
 use csv::StringRecord;
+use cusip::CUSIP;
+use isin::ISIN;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::broker_statement::ib::StatementParser;
-use crate::core::{EmptyResult, GenericResult};
+use crate::core::{EmptyResult, GenericResult, GenericError};
 use crate::currency::Cash;
 use crate::time;
 use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
+// FIXME(konishchev): Deprecate?
 pub const STOCK_ID_REGEX: &str = "[A-Z0-9]+?";
 pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?(?: [A-Z0-9]+)?";
+
+// IB uses the following identifier types as security ID:
+// * ISIN (it seems that IB uses only this type in broker statements since 2020)
+// * CUSIP - old US standard which in most cases may be converted to ISIN, but not always (see
+//   https://stackoverflow.com/questions/30545239/convert-9-digit-cusip-codes-into-isin-codes)
+// * conid (contract ID) - an internal IB's instrument UID
+#[derive(Debug)]
+pub enum SecurityID {
+    Isin(ISIN),
+    Cusip(CUSIP),
+    Conid(u32),
+}
+
+impl SecurityID {
+    pub const REGEX: &'static str = "[A-Z0-9]+";
+}
+
+impl FromStr for SecurityID {
+    type Err = GenericError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Ok(if let Ok(isin) = value.parse() {
+            SecurityID::Isin(isin)
+        } else if let Ok(cusip) = value.parse() {
+            SecurityID::Cusip(cusip)
+        } else if let Ok(conid) = value.parse() {
+            SecurityID::Conid(conid)
+        } else {
+            return Err!("Unsupported security ID: {:?}", value);
+        })
+    }
+}
 
 pub struct RecordSpec<'a> {
     pub name: &'a str,
@@ -182,6 +217,8 @@ fn parse_quantity(quantity: &str) -> GenericResult<Decimal> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use matches::assert_matches;
     use rstest::rstest;
 
     #[test]
@@ -218,5 +255,15 @@ mod tests {
                 format!("Invalid quantity: {:?}", value),
             );
         }
+    }
+
+    #[test]
+    fn security_id_parsing() {
+        let parse = |s| SecurityID::from_str(s).unwrap();
+
+        // BND
+        assert_matches!(parse("US9219378356"), SecurityID::Isin(_));
+        assert_matches!(parse("921937835"), SecurityID::Cusip(_));
+        assert_matches!(parse("43645828"), SecurityID::Conid(conid) if conid == 43645828);
     }
 }

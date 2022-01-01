@@ -362,6 +362,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cusip"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6868dc55c9a1468a27fe8cbe4236af240df2e8950d994357e86373714307d09d"
+dependencies = [
+ "bstr",
+]
+
+[[package]]
 name = "darling"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -957,6 +966,7 @@ dependencies = [
  "chrono-tz",
  "clap",
  "csv",
+ "cusip",
  "diesel",
  "diesel-derive-enum",
  "diesel_migrations",
@@ -964,6 +974,7 @@ dependencies = [
  "encoding_rs",
  "governor",
  "indoc",
+ "isin",
  "itertools",
  "lazy_static",
  "libsqlite3-sys",
@@ -1003,6 +1014,15 @@ name = "ipnet"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f2d64f2edebec4ce84ad108148e67e1064789bee435edc5b60ad398714a3a9"
+
+[[package]]
+name = "isin"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecbf859558c4407615b9ed0c04008358e8581870e15d6e6ac1f6869422d07574"
+dependencies = [
+ "bstr",
+]
 
 [[package]]
 name = "itertools"
