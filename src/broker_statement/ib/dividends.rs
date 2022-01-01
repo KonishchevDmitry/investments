@@ -7,7 +7,7 @@ use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
 use super::cash_flows::CashFlowId;
-use super::common::{self, Record, RecordParser, parse_symbol};
+use super::common::{self, Record, RecordParser, SecurityID, parse_symbol};
 
 pub struct DividendsParser {}
 
@@ -22,12 +22,16 @@ impl RecordParser for DividendsParser {
         let description = record.get_value("Description")?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
 
-        let issuer = parse_dividend_description(description)?;
+        let (symbol, security_id) = parse_dividend_description(description)?;
+        if let SecurityID::Isin(isin) = security_id {
+            parser.statement.instrument_info.get_or_add(&symbol).add_isin(&isin.to_string())?;
+        }
+
         let cash_flow_id = CashFlowId::new(statement_date, description, amount);
         let cash_flow_date = parser.cash_flows.map(&parser.statement, cash_flow_id, statement_date)?;
 
         let accruals = parser.statement.dividend_accruals(
-            statement_date, InstrumentId::Symbol(issuer), true);
+            statement_date, InstrumentId::Symbol(symbol), true);
 
         if amount.is_negative() {
             accruals.reverse(cash_flow_date, -amount);
@@ -39,17 +43,20 @@ impl RecordParser for DividendsParser {
     }
 }
 
-fn parse_dividend_description(description: &str) -> GenericResult<String> {
+fn parse_dividend_description(description: &str) -> GenericResult<(String, SecurityID)> {
     lazy_static! {
         static ref DESCRIPTION_REGEX: Regex = Regex::new(&format!(
-            r"^(?P<issuer>{symbol}) ?\({id}\) ",
-            symbol=common::STOCK_SYMBOL_REGEX, id=common::STOCK_ID_REGEX)).unwrap();
+            r"^(?P<issuer>{symbol}) ?\((?P<id>{id})\) ",
+            symbol=common::STOCK_SYMBOL_REGEX, id=SecurityID::REGEX)).unwrap();
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
         "Unexpected dividend description: {:?}", description))?;
 
-    parse_symbol(captures.name("issuer").unwrap().as_str())
+    Ok((
+        parse_symbol(captures.name("issuer").unwrap().as_str())?,
+        captures.name("id").unwrap().as_str().parse()?,
+    ))
 }
 
 #[cfg(test)]
@@ -58,12 +65,15 @@ mod tests {
     use super::*;
 
     #[rstest(description, symbol,
-        case("VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)", "VNQ"),
-        case("IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)", "IEMG"),
+        // Different ID types
+        case("BND(43645828) Cash Dividend 0.19446400 USD per Share (Ordinary Dividend)", "BND"),
+        case("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND"),
 
         case("BND(US9219378356) Cash Dividend 0.18685800 USD per Share (Mixed Income)", "BND"),
         case("VNQ(US9229085538) Cash Dividend 0.82740000 USD per Share (Return of Capital)", "VNQ"),
+        case("IEMG(US46434G1031) Cash Dividend 0.44190500 USD per Share (Ordinary Dividend)", "IEMG"),
 
+        case("VNQ (US9229085538) Cash Dividend USD 0.7318 (Ordinary Dividend)", "VNQ"),
         case("EXH4(DE000A0H08J9) Cash Dividend EUR 0.013046 per Share (Mixed Income)", "EXH4"),
         case("BND(US9219378356) Cash Dividend USD 0.193413 per Share (Ordinary Dividend)", "BND"),
         case("BND(US9219378356) Cash Dividend USD 0.193413 per Share - Reversal (Ordinary Dividend)", "BND"),
@@ -75,6 +85,6 @@ mod tests {
         case("TEF (US8793822086) Stock Dividend US8793822086 416666667 for 10000000000 - REVERSAL (Ordinary Dividend)", "TEF"),
     )]
     fn dividend_parsing(description: &str, symbol: &str) {
-        assert_eq!(parse_dividend_description(description).unwrap(), symbol);
+        assert_eq!(parse_dividend_description(description).unwrap().0, symbol);
     }
 }
