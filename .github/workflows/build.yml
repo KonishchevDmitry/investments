@@ -20,9 +20,9 @@ jobs:
     - name: Drop caches
       run: rm Cargo.lock
     - name: Build
-      run: cargo build --verbose
+      run: cargo build
     - name: Run tests
-      run: cargo test --verbose --
+      run: cargo test --
             --skip broker_statement::bcs::tests::parse_real
             --skip broker_statement::firstrade::tests::parse_real
             --skip broker_statement::ib::confirmation::tests::parse_real
