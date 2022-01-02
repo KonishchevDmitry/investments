@@ -25,14 +25,8 @@ impl RecordParser for DividendsParser {
         let (symbol, security_id) = parse_dividend_description(description)?;
 
         match security_id {
-            SecurityID::Isin(isin) => {
-                parser.statement.instrument_info.get_or_add(&symbol)
-                    .add_isin(&isin.to_string())?;
-            },
-            SecurityID::Cusip(cusip) => {
-                parser.statement.instrument_info.get_or_add(&symbol)
-                    .add_cusip(cusip);
-            },
+            SecurityID::Isin(isin) => parser.statement.instrument_info.get_or_add(&symbol).add_isin(isin),
+            SecurityID::Cusip(cusip) => parser.statement.instrument_info.get_or_add(&symbol).add_cusip(cusip),
             SecurityID::Conid(_) => {},
         }
 

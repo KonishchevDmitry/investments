@@ -60,12 +60,8 @@ impl RecordParser for FinancialInstrumentInformationParser {
                 }
             } else {
                 match security_id.parse::<SecurityID>()? {
-                    SecurityID::Isin(isin) => {
-                        instrument.add_isin(&isin.to_string())?;
-                    },
-                    SecurityID::Cusip(cusip) => {
-                        instrument.add_cusip(cusip);
-                    },
+                    SecurityID::Isin(isin) => instrument.add_isin(isin),
+                    SecurityID::Cusip(cusip) => instrument.add_cusip(cusip),
                     _ => {
                         return Err!(
                             "Got an unsupported security ID for {}: {:?}",

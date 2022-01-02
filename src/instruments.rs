@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::default::Default;
-use std::fmt;
+use std::fmt::{self, Display};
 
 use cusip::CUSIP;
 use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
+use isin::ISIN;
 use serde::Deserialize;
 use serde::de::Deserializer;
 
@@ -16,19 +15,20 @@ use crate::localities::Jurisdiction;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum InstrumentId {
     Symbol(String),
-    Isin(String),
+    Isin(ISIN),
     Name(String),
     InternalId(String), // Some broker-specific ID
 }
 
-impl fmt::Display for InstrumentId {
+impl Display for InstrumentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
+        let id: &dyn Display = match self {
             InstrumentId::Symbol(symbol) => symbol,
             InstrumentId::Isin(isin) => isin,
             InstrumentId::Name(name) => name,
             InstrumentId::InternalId(id) => id,
-        })
+        };
+        id.fmt(f)
     }
 }
 
@@ -179,7 +179,7 @@ impl InstrumentInfo {
 pub struct Instrument {
     pub symbol: String,
     name: Option<String>,
-    pub isin: HashSet<String>,
+    pub isin: HashSet<ISIN>,
     cusip: HashSet<CUSIP>,
     pub exchanges: Exchanges,
 }
@@ -199,10 +199,8 @@ impl Instrument {
         self.name.replace(name.to_owned());
     }
 
-    pub fn add_isin(&mut self, isin: &str) -> EmptyResult {
-        parse_isin(isin)?;
-        self.isin.insert(isin.to_owned());
-        Ok(())
+    pub fn add_isin(&mut self, isin: ISIN) {
+        self.isin.insert(isin);
     }
 
     pub fn add_cusip(&mut self, cusip: CUSIP) {
@@ -210,47 +208,46 @@ impl Instrument {
     }
 
     pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
-        let country_of_residence = Jurisdiction::Russia.code();
-
-        let get_taxation_type = match broker_jurisdiction {
-            Jurisdiction::Russia => |isin| -> GenericResult<IssuerTaxationType> {
-                let issuer_jurisdiction = parse_isin(isin)?;
-
-                Ok(if issuer_jurisdiction == country_of_residence {
-                    IssuerTaxationType::TaxAgent
-                } else {
-                    IssuerTaxationType::Manual(issuer_jurisdiction.to_owned())
-                })
-            },
-            Jurisdiction::Usa => {
-                // FIXME(konishchev): Support
-                // See https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#foreign-income-jurisdiction
-                // for details.
-                let income_jurisdiction = broker_jurisdiction.code();
-                return Ok(IssuerTaxationType::Manual(income_jurisdiction.to_owned()));
+        let get_taxation_type = |issuer_jurisdiction: &str| -> IssuerTaxationType {
+            if broker_jurisdiction == Jurisdiction::Russia && issuer_jurisdiction == Jurisdiction::Russia.code() {
+                return IssuerTaxationType::TaxAgent;
             }
+            IssuerTaxationType::Manual(Some(issuer_jurisdiction.to_owned()))
         };
 
-        let mut result_taxation_type = None;
+        let mut result_taxation_type = if self.cusip.is_empty() {
+            None
+        } else {
+            Some(get_taxation_type(Jurisdiction::Usa.code()))
+        };
 
-        // FIXME(konishchev): CUSIP support
         for isin in &self.isin {
-            let taxation_type = get_taxation_type(isin)?;
+            let taxation_type = get_taxation_type(isin.prefix());
 
             if let Some(prev) = result_taxation_type.as_ref() {
                 if *prev != taxation_type {
+                    let ids = self.isin.iter().map(ToString::to_string)
+                        .chain(self.cusip.iter().map(|id| format!("CUSIP:{}", id)))
+                        .join(", ");
+
                     return Err!(
                         "Unable to determine {} taxation type: it has several ISIN with different jurisdictions: {}",
-                        self.symbol, self.isin.iter().join(", "))
+                        self.symbol, ids)
                 }
             } else {
                 result_taxation_type.replace(taxation_type);
             }
         }
 
-        Ok(result_taxation_type.ok_or_else(|| format!(
-            "Unable to determine {} taxation type: there is no ISIN information for it",
-            self.symbol))?)
+        Ok(if let Some(taxation_type) = result_taxation_type {
+            taxation_type
+        } else if broker_jurisdiction == Jurisdiction::Russia {
+            return Err!(
+                "Unable to determine {} taxation type: there is no ISIN information for it in the broker statement",
+                self.symbol);
+        } else {
+            IssuerTaxationType::Manual(None)
+        })
     }
 
     fn merge(&mut self, other: Instrument) {
@@ -265,7 +262,7 @@ impl Instrument {
 
 #[derive(Clone, PartialEq)]
 pub enum IssuerTaxationType {
-    Manual(String),
+    Manual(Option<String>),
 
     // Russian brokers withhold tax for dividends issued by companies with Russian jurisdiction and
     // don't withhold for other jurisdictions or Russian companies traded through ADR/GDR.
@@ -279,29 +276,6 @@ pub enum IssuerTaxationType {
 
 pub const ISIN_REGEX: &str = r"[A-Z]{2}[A-Z0-9]{9}[0-9]";
 
-// FIXME(konishchev): Switch to isin crate?
-fn parse_isin(isin: &str) -> GenericResult<&str> {
-    lazy_static! {
-        static ref REGEX: Regex = Regex::new(&format!("^{}$", ISIN_REGEX)).unwrap();
-    }
-
-    if !REGEX.is_match(isin) {
-        return Err!("Invalid ISIN: {:?}", isin);
-    }
-
-    Ok(&isin[..2])
-}
-
-#[cfg(test)]
-mod tests {
-    use rstest::rstest;
-    use super::*;
-
-    #[rstest(isin, country,
-        case("US7802592060", "US"),
-        case("RU0009084396", "RU"),
-    )]
-    fn isin_parsing(isin: &str, country: &str) {
-        assert_eq!(parse_isin(isin).unwrap(), country);
-    }
+pub fn parse_isin(value: &str) -> GenericResult<ISIN> {
+    Ok(value.parse().map_err(|_| format!("Invalid ISIN: {}", value))?)
 }

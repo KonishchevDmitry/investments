@@ -2,6 +2,7 @@ use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::core::EmptyResult;
+use crate::instruments::parse_isin;
 use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::read_next_table_row;
@@ -23,7 +24,7 @@ impl SectionParser for SecuritiesInfoParser {
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
             let instrument = statement.instrument_info.get_or_add(&security.symbol);
             instrument.set_name(&security.name);
-            instrument.add_isin(&security.isin)?;
+            instrument.add_isin(parse_isin(&security.isin)?);
         }
 
         Ok(())

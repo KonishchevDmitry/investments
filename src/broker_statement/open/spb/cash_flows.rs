@@ -9,7 +9,7 @@ use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
-use crate::instruments::{InstrumentId, ISIN_REGEX};
+use crate::instruments::{InstrumentId, ISIN_REGEX, parse_isin};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
@@ -110,14 +110,18 @@ fn parse_dividend_description(description: &str) -> Option<(InstrumentId, Option
     }
 
     if let Some(captures) = ORDINARY_DIVIDEND_REGEX.captures(description) {
-        let isin = captures.name("isin").unwrap().as_str();
         let currency = captures.name("currency").unwrap().as_str();
-        let paid_tax = match Decimal::from_str(captures.name("paid_tax").unwrap().as_str()) {
-            Ok(paid_tax) => paid_tax,
-            Err(_) => return None,
+
+        let (isin, paid_tax) = match (
+            parse_isin(captures.name("isin").unwrap().as_str()),
+            Decimal::from_str(captures.name("paid_tax").unwrap().as_str()),
+        ) {
+            (Ok(isin), Ok(paid_tax)) => (isin, paid_tax),
+            _ => return None,
         };
+
         Some((
-            InstrumentId::Isin(isin.to_owned()),
+            InstrumentId::Isin(isin),
             Some(Cash::new(currency, paid_tax)),
         ))
     } else if let Some(captures) = DEPOSITARY_RECEIPT_REGEX.captures(description) {
@@ -137,12 +141,12 @@ mod tests {
         case(concat!(
             "Начисление дивидендов: количество 1, ставка 0.42 USD, удержан налог эмитентом 0.04, ",
             "АО, The Coca-Cola Company, US1912161007, дата среза 15.06.2021"
-        ), InstrumentId::Isin(s!("US1912161007")), Some(Cash::new("USD", dec!(0.04)))),
+        ), InstrumentId::Isin("US1912161007".parse().unwrap()), Some(Cash::new("USD", dec!(0.04)))),
 
         case(concat!(
             "Начисление дивидендов: количество 25, ставка 0.86 USD, удержан налог эмитентом 2.15, ",
             "АО, Altria Group, Inc., US02209S1033, дата среза 15.06.2021"
-        ), InstrumentId::Isin(s!("US02209S1033")), Some(Cash::new("USD", dec!(2.15)))),
+        ), InstrumentId::Isin("US02209S1033".parse().unwrap()), Some(Cash::new("USD", dec!(2.15)))),
 
         case(concat!(
             "Выплата дохода клиент <123456> дивиденды <ABBVIE INC-ао>",

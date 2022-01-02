@@ -3,6 +3,7 @@ use serde::Deserialize;
 use crate::broker_statement::open::common::{InstrumentType, parse_quantity};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
+use crate::instruments::parse_isin;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
@@ -53,7 +54,7 @@ impl OpenPositions {
             }
 
             let instrument = statement.instrument_info.add(symbol)?;
-            instrument.add_isin(&security.isin)?;
+            instrument.add_isin(parse_isin(&security.isin)?);
 
             match instrument_type {
                 InstrumentType::Stock => {

@@ -11,7 +11,7 @@ use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::formatting;
-use crate::instruments::{InstrumentId, Instrument, IssuerTaxationType};
+use crate::instruments::{InstrumentId, Instrument, IssuerTaxationType, parse_isin};
 use crate::localities::Jurisdiction;
 use crate::time::Date;
 use crate::types::Decimal;
@@ -177,7 +177,7 @@ impl ForeignIncomeRow {
         }
 
         let dividend_id = DividendId::new(
-            self.date, InstrumentId::Isin(self.isin.clone()));
+            self.date, InstrumentId::Isin(parse_isin(&self.isin)?));
 
         let stock_quantity = util::validate_named_decimal(
             "stock quantity", self.quantity.into(),
@@ -271,7 +271,6 @@ pub fn match_statement_dividends_to_foreign_income(
     foreign_income: &mut HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
     show_missing_foreign_income_info_warning: &mut bool,
 ) -> GenericResult<(DividendAccruals, Option<TaxAccruals>)> {
-    // FIXME(konishchev): CUSIP support
     if instrument.isin.is_empty() {
         return Err!(
             "Failed to process {}: there is no ISIN information for the instrument",
@@ -282,7 +281,7 @@ pub fn match_statement_dividends_to_foreign_income(
 
     for isin in &instrument.isin {
         let foreign_dividend_id = DividendId::new(
-            dividend_id.date, InstrumentId::Isin(isin.to_owned()));
+            dividend_id.date, InstrumentId::Isin(isin.clone()));
 
         if let Some((dividends, taxes)) = foreign_income.remove(&foreign_dividend_id) {
             if foreign_income_details.replace((foreign_dividend_id, dividends, taxes)).is_some() {

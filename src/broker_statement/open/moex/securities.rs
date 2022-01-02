@@ -6,6 +6,7 @@ use crate::broker_statement::open::common::InstrumentType;
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::core::GenericResult;
 use crate::exchanges::Exchange;
+use crate::instruments::parse_isin;
 
 #[derive(Deserialize)]
 pub struct Securities {
@@ -49,7 +50,7 @@ impl Securities {
 
             let instrument = statement.instrument_info.add(&security.symbol)?;
             instrument.set_name(name);
-            instrument.add_isin(&security.isin)?;
+            instrument.add_isin(parse_isin(&security.isin)?);
             instrument.exchanges.add_prioritized(exchange);
         }
 
