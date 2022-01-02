@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
   schedule:
     - cron: '0 19 * * 5'
 
@@ -17,11 +17,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Drop caches
       run: rm Cargo.lock
+
     - name: Build
       run: cargo build
-    - name: Run tests
+
+    - name: Test
       run: cargo test --
             --skip broker_statement::bcs::tests::parse_real
             --skip broker_statement::firstrade::tests::parse_real
