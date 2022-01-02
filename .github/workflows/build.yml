@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    - cron: '0 19 * * 5'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Drop caches
+      run: rm Cargo.lock
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose --
+            --skip broker_statement::bcs::tests::parse_real
+            --skip broker_statement::firstrade::tests::parse_real
+            --skip broker_statement::ib::confirmation::tests::parse_real
+            --skip broker_statement::ib::tests::parse_real
+            --skip broker_statement::open::tests::parse_real
+            --skip broker_statement::tinkoff::tests::parse_real
+            --skip tax_statement::statement::parser::tests::parse_real
