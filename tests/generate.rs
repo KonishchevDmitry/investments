@@ -44,7 +44,13 @@ fn generate_regression_tests() {
     t.add("Open SPB dividends tax statement", "tax-statement open-dividends-spb").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
     t.add("Tinkoff complex full tax statement", "tax-statement tinkoff-complex-full").config("other");
-    t.tax_statement("Tinkoff complex full", 2020).config("other"); // Dividends from several jurisdictions
+
+    // Not all calculations are seen in tax-statement output. For example, dividend jurisdiction
+    // appear only in the tax statement, so it worth to test also third party statements here.
+    t.tax_statement("IB complex", 2020).config("other");
+    t.tax_statement("Open dividends MOEX", 2021).config("other");
+    t.tax_statement("Open dividends SPB", 2021).config("other");
+    t.tax_statement("Tinkoff complex full", 2020).config("other");
 
     // cash-flow
     t.add("IB margin RUB cash flow", "cash-flow ib-margin-rub").config("other");
