@@ -19,7 +19,7 @@ or [БКС](https://broker.ru/).
 
 # Installation
 
-1. Install Rust - https://www.rust-lang.org/tools/install
+1. Install Rust — https://www.rust-lang.org/tools/install
 2. Install or upgrade the package:
 ```
 cargo install investments
@@ -56,9 +56,9 @@ Don't forget to obtain API token for Finnhub and Twelve Data (see the comments i
 
 ## Stocks
 
-Investments is designed to work with your broker statements - there is no need to enter all trades and transactions
+Investments is designed to work with your broker statements — there is no need to enter all trades and transactions
 manually, but it requires you to have all broker statements starting from account opening day. It may be either one
-broker statement or many - it doesn't matter, but what matters is that the first statement must be with zero starting
+broker statement or many — it doesn't matter, but what matters is that the first statement must be with zero starting
 assets and statements' periods mustn't overlap or have missing days in between.
 
 For now the following brokers are supported:
