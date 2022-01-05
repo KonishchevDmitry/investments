@@ -1,6 +1,6 @@
 # Installation
 
-* The most simple way to try it out - download precompiled binary for your OS.
+* The most simple way to try it out - to download precompiled binary for your OS.
 * The most convenient way (in terms of regular updates) - to use Cargo.
 
 ## Precompiled binaries
