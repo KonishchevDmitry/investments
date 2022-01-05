@@ -45,6 +45,7 @@ impl<'a> Parser<'a> {
         let default_config_dir_path = "~/.investments";
         self.matches = App::new("Investments")
             .about("\nHelps you with managing your investments")
+            .version(env!("CARGO_PKG_VERSION"))
 
             .arg(Arg::with_name("config")
                 .short("c")
@@ -166,7 +167,7 @@ impl<'a> Parser<'a> {
                     .help("Path to write the metrics to")
                     .required(true)))
 
-            .global_setting(AppSettings::DisableVersion)
+            .global_setting(AppSettings::VersionlessSubcommands)
             .global_setting(AppSettings::DisableHelpSubcommand)
             .global_setting(AppSettings::DeriveDisplayOrder)
             .setting(AppSettings::SubcommandRequiredElseHelp)
