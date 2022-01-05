@@ -47,6 +47,12 @@ jobs:
       run: |
         set -eu
 
+        # A workaround for https://github.com/actions/virtual-environments/issues/2619
+        if [ "$(uname)" = Darwin ]; then
+          sudo purge
+          alias tar=gtar
+        fi
+
         binary_name="${{ matrix.binary_name }}"
         archive_name="${{ steps.archive_name.outputs.lowercase }}"
 
