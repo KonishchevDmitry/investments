@@ -29,6 +29,8 @@ pub struct TelemetryRecord {
     os: &'static str,
     version: &'static str,
     #[serde(skip_serializing_if = "util::is_default")]
+    precompiled: bool,
+    #[serde(skip_serializing_if = "util::is_default")]
     container: bool,
 
     command: String,
@@ -82,6 +84,7 @@ impl TelemetryRecordBuilder {
 
             os: os.as_str(),
             version: env!("CARGO_PKG_VERSION"),
+            precompiled: option_env!("INVESTMENTS_PRECOMPILED_BINARY").is_some(),
             container: os == OS::Linux && std::process::id() == 1,
 
             command: command.to_owned(),
