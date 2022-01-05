@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+jobs:
+  test:
+    name: Test
+    uses: KonishchevDmitry/investments/.github/workflows/test.yml@master
+
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ format('{0}-latest', matrix.os) }}
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu
+            binary_name: investments
+            archive_ext: tar.bz2
+          - os: macos
+            binary_name: investments
+            archive_ext: tar.bz2
+          - os: windows
+            binary_name: investments.exe
+            archive_ext: zip
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build
+      env:
+        CARGO_TERM_COLOR: always
+        INVESTMENTS_PRECOMPILED_BINARY: yes
+      run: cargo build --release --locked
+
+    - name: Construct archive name
+      id: archive_name
+      uses: ASzc/change-string-case-action@v2
+      with:
+        string: ${{ format('investments-{0}-{1}-{2}.{3}', runner.os, runner.arch, github.ref_name, matrix.archive_ext) }}
+
+    - name: Create archive
+      shell: bash
+      run: |
+        set -eu
+
+        binary_name="${{ matrix.binary_name }}"
+        archive_name="${{ steps.archive_name.outputs.lowercase }}"
+
+        mv "target/release/$binary_name" .
+
+        case "$archive_name" in
+          *.tar.bz2) tar -cjf "$archive_name" "$binary_name";;
+          *.zip) 7z a "$archive_name" "$binary_name";;
+          *) echo "Unexpected archive name: $archive_name." >&2; exit 1;;
+        esac
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        path: ${{ steps.archive_name.outputs.lowercase }}
+        if-no-files-found: error
+        retention-days: 1
+
+  publish:
+    name: Publish
+
+    needs: [test, build]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts
+
+    - name: Create release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        file: artifacts/*/*
+        file_glob: true
