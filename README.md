@@ -1,4 +1,4 @@
-[![Build status](https://github.com/KonishchevDmitry/investments/actions/workflows/build.yml/badge.svg)](https://github.com/KonishchevDmitry/investments/actions/workflows/build.yml)
+[![Test status](https://github.com/KonishchevDmitry/investments/actions/workflows/test.yml/badge.svg)](https://github.com/KonishchevDmitry/investments/actions/workflows/test.yml)
 
 # Investments
 
