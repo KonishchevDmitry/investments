@@ -21,32 +21,7 @@ or [БКС](https://broker.ru/).
 
 # Installation
 
-1. Install Rust — https://www.rust-lang.org/tools/install
-2. Install or upgrade the package:
-```
-cargo install investments
-```
-If it fails to compile and you installed Rust a long time ago, try `rustup update` to update Rust to the latest version.
-
-If you want to install the package from sources, use:
-```
-git clone https://github.com/KonishchevDmitry/investments.git
-cd investments
-cargo install --path . --force
-```
-
-## Docker
-
-If you don't want to install Rust just to try out investments, you can run it in Docker:
-
-1. Install or upgrade:
-```
-DOCKER_BUILDKIT=1 docker build --pull --build-arg CACHE_DATE="$(date)" -t investments https://raw.githubusercontent.com/KonishchevDmitry/investments/master/install.dockerfile
-```
-2. Run:
-```
-docker run --rm -t --user "$(id -u):$(id -g)" -v ~/.investments:/.investments investments
-```
+See [installation instructions](docs/install.md).
 
 # Configuration
 
