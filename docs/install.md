@@ -3,6 +3,8 @@
 * The most simple way to try it out - download precompiled binary for your OS.
 * The most convenient way (in terms of regular updates) - to use Cargo.
 
+**For Windows users**: please run the program under [Windows Terminal](https://aka.ms/terminal) instead of ancient [Command Prompt](https://en.wikipedia.org/wiki/Cmd.exe) because it doesn't support color output.
+
 ## Precompiled binaries
 
 You can find precompiled binaries on [Releases](https://github.com/KonishchevDmitry/investments/releases) page.
