@@ -45,7 +45,11 @@ impl<'a> Parser<'a> {
         let default_config_dir_path = "~/.investments";
         self.matches = App::new("Investments")
             .about("\nHelps you with managing your investments")
-            .version(env!("CARGO_PKG_VERSION"))
+            .version(if cfg!(debug_assertions) {
+                "devel"
+            } else {
+                env!("CARGO_PKG_VERSION")
+            })
 
             .arg(Arg::with_name("config")
                 .short("c")

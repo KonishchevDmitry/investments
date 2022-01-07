@@ -9,6 +9,16 @@ use investments::core::EmptyResult;
 fn generate_regression_tests() {
     let mut t = Tests::new();
 
+    // cli
+    t.add("Help", "--help");
+    for command in [
+        "sync", "show", "rebalance", "cash", "buy", "sell",
+        "analyse", "simulate-sell", "tax-statement", "cash-flow",
+        "deposits", "metrics"
+    ] {
+        t.add(&format!("Help {}", command), &format!("{} --help", command));
+    }
+
     // deposits
     t.add("Deposits", "deposits");
     t.add("Deposits cron mode", "deposits --cron --date 01.01.2100");
