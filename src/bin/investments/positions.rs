@@ -28,11 +28,8 @@ impl PositionsParser {
     pub fn arg(&self) -> Arg {
         Arg::new(PositionsParser::ARG_NAME)
             .help(self.help.as_str())
-            // FIXME(konishchev): HERE
-            .multiple_occurrences(true)
-            .multiple_values(true)
-            .takes_value(true)
             .value_names(&["SHARES", "SYMBOL"])
+            .multiple_occurrences(true)
             .required(self.required)
     }
 

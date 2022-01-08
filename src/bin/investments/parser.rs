@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use clap::{App, Arg, ArgMatches, AppSettings};
+use indoc::indoc;
 
 use investments::config::Config;
 use investments::core::GenericResult;
@@ -49,15 +50,8 @@ impl Parser {
             &*(config_help.as_str() as *const str)
         };
 
-        let matches = App::new("Investments")
-            .about("\nHelps you with managing your investments")
-            // FIXME(konishchev): Support
-            // FIXME(konishchev): help: set vs sets
-            .version(if cfg!(debug_assertions) {
-                "devel"
-            } else {
-                env!("CARGO_PKG_VERSION")
-            })
+        let matches = new_app("investments", "Helps you with managing your investments")
+            .version(env!("CARGO_PKG_VERSION"))
 
             .arg(Arg::new("config")
                 .short('c')
@@ -76,16 +70,15 @@ impl Parser {
             .arg(Arg::new("verbose")
                 .short('v')
                 .long("verbose")
-                // FIXME(konishchev): HERE
                 .multiple_occurrences(true)
-                .help("Sets the level of verbosity"))
+                .help("Set verbosity level"))
 
-            .subcommand(App::new("analyse")
-                .about("Analyze portfolio performance")
-                .long_about(concat!(
-                "\nCalculates average rate of return from cash investments by comparing portfolio ",
-                "performance to performance of a bank deposit with exactly the same investments ",
-                "and monthly capitalization."))
+            .subcommand(
+                new_app("analyse", "Analyze portfolio performance")
+                .long_about("\
+                    Calculates average rate of return from cash investments by comparing portfolio \
+                    performance to performance of a bank deposit with exactly the same investments \
+                    and monthly capitalization.")
                 .arg(Arg::new("all")
                     .short('a')
                     .long("all")
@@ -93,45 +86,45 @@ impl Parser {
                 .arg(Arg::new("PORTFOLIO")
                     .help("Portfolio name (omit to show an aggregated result for all portfolios)")))
 
-            .subcommand(App::new("show")
-                .about("Show portfolio's asset allocation")
+            .subcommand(
+                new_app("show", "Show portfolio asset allocation")
                 .arg(Arg::new("flat")
                     .short('f')
                     .long("flat")
                     .help("Flat view"))
                 .arg(portfolio::arg()))
 
-            .subcommand(App::new("sync")
-                .about("Sync portfolio with broker statement")
+            .subcommand(
+                new_app("sync", "Sync portfolio with broker statement")
                 .arg(portfolio::arg()))
 
-            .subcommand(App::new("buy")
-                .about("Add the specified stock shares to the portfolio")
+            .subcommand(
+                new_app("buy", "Add the specified stock shares to the portfolio")
                 .arg(portfolio::arg())
                 .arg(unsafe_parser.bought.arg())
                 .arg(cash_assets::arg()))
 
-            .subcommand(App::new("sell")
-                .about("Remove the specified stock shares from the portfolio")
+            .subcommand(
+                new_app("sell", "Remove the specified stock shares from the portfolio")
                 .arg(portfolio::arg())
                 .arg(unsafe_parser.sold.arg())
                 .arg(cash_assets::arg()))
 
-            .subcommand(App::new("cash")
-                .about("Set current cash assets")
+            .subcommand(
+                new_app("cash", "Set current cash assets")
                 .arg(portfolio::arg())
                 .arg(cash_assets::arg()))
 
-            .subcommand(App::new("rebalance")
-                .about("Rebalance the portfolio according to the asset allocation configuration")
+            .subcommand(
+                new_app("rebalance", "Rebalance the portfolio according to the asset allocation configuration")
                 .arg(Arg::new("flat")
                     .short('f')
                     .long("flat")
                     .help("Flat view"))
                 .arg(portfolio::arg()))
 
-            .subcommand(App::new("simulate-sell")
-                .about("Simulates stock selling (calculates revenue, profit and taxes)")
+            .subcommand(
+                new_app("simulate-sell", "Simulate stock selling (calculates revenue, profit and taxes)")
                 .arg(Arg::new("base_currency")
                     .short('b')
                     .long("base-currency")
@@ -141,29 +134,30 @@ impl Parser {
                 .arg(portfolio::arg())
                 .arg(unsafe_parser.to_sell.arg()))
 
-            .subcommand(App::new("tax-statement")
-                .about("Generate tax statement")
-                .long_about(concat!(
-                "\nReads broker statements and alters *.dcX file (created by Russian tax program ",
-                "named Декларация) by adding all required information about income from stock ",
-                "selling, paid dividends and idle cash interest.\n",
-                "\nIf tax statement file is not specified only outputs the data which is going to ",
-                "be declared."))
+            .subcommand(
+                new_app("tax-statement", "Generate tax statement")
+                .long_about("\
+                    Reads broker statements and alters *.dcX file (created by Russian tax program \
+                    named Декларация) by adding all required information about income from stock \
+                    selling, paid dividends and idle cash interest.\n\
+                    \n\
+                    If tax statement file is not specified only outputs the data which is going to \
+                    be declared.")
                 .arg(portfolio::arg())
                 .arg(Arg::new("YEAR")
                     .help("Year to generate the statement for"))
                 .arg(Arg::new("TAX_STATEMENT")
                     .help("Path to tax statement *.dcX file")))
 
-            .subcommand(App::new("cash-flow")
-                .about("Generate cash flow report")
+            .subcommand(
+                new_app("cash-flow", "Generate cash flow report")
                 .long_about("Generates cash flow report for tax inspection notification")
                 .arg(portfolio::arg())
                 .arg(Arg::new("YEAR")
                     .help("Year to generate the report for")))
 
-            .subcommand(App::new("deposits")
-                .about("List deposits")
+            .subcommand(
+                new_app("deposits", "List deposits")
                 .arg(Arg::new("date")
                     .short('d')
                     .long("date")
@@ -174,14 +168,11 @@ impl Parser {
                     .long("cron")
                     .help("cron mode (use for notifications about expiring and closed deposits)")))
 
-            .subcommand(App::new("metrics")
-                .about("Generate Prometheus metrics for Node Exporter Textfile Collector")
+            .subcommand(
+                new_app("metrics", "Generate Prometheus metrics for Node Exporter Textfile Collector")
                 .arg(Arg::new("PATH")
                     .help("Path to write the metrics to")
                     .required(true)))
-
-            .global_setting(AppSettings::DisableVersionFlag)
-            .unset_setting(AppSettings::DisableVersionFlag)
 
             .global_setting(AppSettings::DisableHelpSubcommand)
             .global_setting(AppSettings::DeriveDisplayOrder)
@@ -299,6 +290,20 @@ impl Parser {
             _ => unreachable!(),
         })
     }
+}
+
+fn new_app<'help>(name: &str, about: &'help str) -> App<'help> {
+    App::new(name)
+        // Default template contains `{bin} {version}` for some reason
+        .help_template(indoc!("
+            {before-help}{about}
+
+            {usage-heading}
+                {usage}
+
+            {all-args}{after-help}\
+        "))
+        .about(about)
 }
 
 fn get_year(matches: &ArgMatches) -> GenericResult<Option<i32>> {
