@@ -11,7 +11,7 @@ use super::action::Action;
 use super::positions::PositionsParser;
 
 pub struct Parser {
-    matches: ArgMatches,
+    matches: Option<ArgMatches>,
 
     bought: PositionsParser,
     sold: PositionsParser,
@@ -26,8 +26,7 @@ pub struct GlobalOptions {
 impl Parser {
     pub fn new() -> Parser {
         Parser {
-            // FIXME(konishchev): HERE
-            matches: ArgMatches::default(),
+            matches: None,
 
             // FIXME(konishchev): HERE
             bought: PositionsParser::new("Bought shares", false, true),
@@ -50,7 +49,7 @@ impl Parser {
             &*(config_help.as_str() as *const str)
         };
 
-        self.matches = App::new("Investments")
+        let matches = App::new("Investments")
             .about("\nHelps you with managing your investments")
             // FIXME(konishchev): Support
             // FIXME(konishchev): help: set vs sets
@@ -189,26 +188,30 @@ impl Parser {
             .setting(AppSettings::SubcommandRequiredElseHelp)
             .get_matches();
 
-        let log_level = match self.matches.occurrences_of("verbose") {
+        let log_level = match matches.occurrences_of("verbose") {
             0 => log::Level::Info,
             1 => log::Level::Debug,
             2 => log::Level::Trace,
             _ => return Err!("Invalid verbosity level"),
         };
 
-        let config_dir = self.matches.value_of("config").map(ToString::to_string).unwrap_or_else(||
+        let config_dir = matches.value_of("config").map(ToString::to_string).unwrap_or_else(||
             shellexpand::tilde(default_config_dir_path).to_string());
+
+        self.matches = Some(matches);
 
         Ok(GlobalOptions {log_level, config_dir})
     }
 
-    pub fn parse(self, config: &mut Config) -> GenericResult<(String, Action)> {
-        if let Some(expire_time) = self.matches.value_of("cache_expire_time") {
+    pub fn parse(mut self, config: &mut Config) -> GenericResult<(String, Action)> {
+        let matches = self.matches.take().unwrap();
+
+        if let Some(expire_time) = matches.value_of("cache_expire_time") {
             config.cache_expire_time = time::parse_duration(expire_time).map_err(|_| format!(
                 "Invalid cache expire time: {:?}", expire_time))?;
         };
 
-        let (command, matches) = self.matches.subcommand().unwrap();
+        let (command, matches) = matches.subcommand().unwrap();
         let action = self.parse_command(command, matches)?;
 
         Ok((command.to_owned(), action))
