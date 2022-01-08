@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use clap::{App, Arg, ArgMatches, AppSettings, SubCommand};
+use clap::{App, Arg, ArgMatches, AppSettings};
 
 use investments::config::Config;
 use investments::core::GenericResult;
@@ -10,8 +10,8 @@ use investments::types::{Date, Decimal};
 use super::action::Action;
 use super::positions::PositionsParser;
 
-pub struct Parser<'a> {
-    matches: ArgMatches<'a>,
+pub struct Parser {
+    matches: ArgMatches,
 
     bought: PositionsParser,
     sold: PositionsParser,
@@ -23,12 +23,14 @@ pub struct GlobalOptions {
     pub config_dir: String,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new() -> Box<Parser<'a>> {
+impl Parser {
+    pub fn new() -> Box<Parser> {
+        // FIXME(konishchev): HERE
         // Box is used to guarantee that Parser's memory won't be moved to preserve ArgMatches
         // lifetime requirements.
         Box::new(Parser {
-            matches: ArgMatches::new(),
+            // FIXME(konishchev): HERE
+            matches: ArgMatches::default(),
 
             bought: PositionsParser::new("Bought shares", false, true),
             sold: PositionsParser::new("Sold shares", true, true),
@@ -37,94 +39,104 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
+        // FIXME(konishchev): HERE
         // ArgMatches has very inconvenient lifetime requirements for some reason
         let unsafe_parser = unsafe {
-            &*(self as *const Parser) as &'a Parser
+            &*(self as *const Parser)
         };
 
+        // FIXME(konishchev): HERE
         let default_config_dir_path = "~/.investments";
+        let config_help = format!("Configuration directory path [default: {}]", default_config_dir_path);
+        let config_help_str = unsafe {
+            &*(config_help.as_str() as *const str)
+        };
+
         self.matches = App::new("Investments")
             .about("\nHelps you with managing your investments")
+            // FIXME(konishchev): Support
+            // FIXME(konishchev): help: set vs sets
             .version(if cfg!(debug_assertions) {
                 "devel"
             } else {
                 env!("CARGO_PKG_VERSION")
             })
 
-            .arg(Arg::with_name("config")
-                .short("c")
+            .arg(Arg::new("config")
+                .short('c')
                 .long("config")
                 .value_name("PATH")
                 .takes_value(true)
-                .help(&format!("Configuration directory path [default: {}]", default_config_dir_path)))
+                .help(config_help_str))
 
-            .arg(Arg::with_name("cache_expire_time")
-                .short("e")
+            .arg(Arg::new("cache_expire_time")
+                .short('e')
                 .long("cache-expire-time")
                 .value_name("DURATION")
                 .takes_value(true)
                 .help("Quote cache expire time (in $number{m|h|d} format)"))
 
-            .arg(Arg::with_name("verbose")
-                .short("v")
+            .arg(Arg::new("verbose")
+                .short('v')
                 .long("verbose")
-                .multiple(true)
+                // FIXME(konishchev): HERE
+                .multiple_occurrences(true)
                 .help("Sets the level of verbosity"))
 
-            .subcommand(SubCommand::with_name("analyse")
+            .subcommand(App::new("analyse")
                 .about("Analyze portfolio performance")
                 .long_about(concat!(
                 "\nCalculates average rate of return from cash investments by comparing portfolio ",
                 "performance to performance of a bank deposit with exactly the same investments ",
                 "and monthly capitalization."))
-                .arg(Arg::with_name("all")
-                    .short("a")
+                .arg(Arg::new("all")
+                    .short('a')
                     .long("all")
                     .help("Don't hide closed positions"))
-                .arg(Arg::with_name("PORTFOLIO")
+                .arg(Arg::new("PORTFOLIO")
                     .help("Portfolio name (omit to show an aggregated result for all portfolios)")))
 
-            .subcommand(SubCommand::with_name("show")
+            .subcommand(App::new("show")
                 .about("Show portfolio's asset allocation")
-                .arg(Arg::with_name("flat")
-                    .short("f")
+                .arg(Arg::new("flat")
+                    .short('f')
                     .long("flat")
                     .help("Flat view"))
                 .arg(portfolio::arg()))
 
-            .subcommand(SubCommand::with_name("sync")
+            .subcommand(App::new("sync")
                 .about("Sync portfolio with broker statement")
                 .arg(portfolio::arg()))
 
-            .subcommand(SubCommand::with_name("buy")
+            .subcommand(App::new("buy")
                 .about("Add the specified stock shares to the portfolio")
                 .arg(portfolio::arg())
                 .arg(unsafe_parser.bought.arg())
                 .arg(cash_assets::arg()))
 
-            .subcommand(SubCommand::with_name("sell")
+            .subcommand(App::new("sell")
                 .about("Remove the specified stock shares from the portfolio")
                 .arg(portfolio::arg())
                 .arg(unsafe_parser.sold.arg())
                 .arg(cash_assets::arg()))
 
-            .subcommand(SubCommand::with_name("cash")
+            .subcommand(App::new("cash")
                 .about("Set current cash assets")
                 .arg(portfolio::arg())
                 .arg(cash_assets::arg()))
 
-            .subcommand(SubCommand::with_name("rebalance")
+            .subcommand(App::new("rebalance")
                 .about("Rebalance the portfolio according to the asset allocation configuration")
-                .arg(Arg::with_name("flat")
-                    .short("f")
+                .arg(Arg::new("flat")
+                    .short('f')
                     .long("flat")
                     .help("Flat view"))
                 .arg(portfolio::arg()))
 
-            .subcommand(SubCommand::with_name("simulate-sell")
+            .subcommand(App::new("simulate-sell")
                 .about("Simulates stock selling (calculates revenue, profit and taxes)")
-                .arg(Arg::with_name("base_currency")
-                    .short("b")
+                .arg(Arg::new("base_currency")
+                    .short('b')
                     .long("base-currency")
                     .value_name("CURRENCY")
                     .takes_value(true)
@@ -132,7 +144,7 @@ impl<'a> Parser<'a> {
                 .arg(portfolio::arg())
                 .arg(unsafe_parser.to_sell.arg()))
 
-            .subcommand(SubCommand::with_name("tax-statement")
+            .subcommand(App::new("tax-statement")
                 .about("Generate tax statement")
                 .long_about(concat!(
                 "\nReads broker statements and alters *.dcX file (created by Russian tax program ",
@@ -141,37 +153,39 @@ impl<'a> Parser<'a> {
                 "\nIf tax statement file is not specified only outputs the data which is going to ",
                 "be declared."))
                 .arg(portfolio::arg())
-                .arg(Arg::with_name("YEAR")
+                .arg(Arg::new("YEAR")
                     .help("Year to generate the statement for"))
-                .arg(Arg::with_name("TAX_STATEMENT")
+                .arg(Arg::new("TAX_STATEMENT")
                     .help("Path to tax statement *.dcX file")))
 
-            .subcommand(SubCommand::with_name("cash-flow")
+            .subcommand(App::new("cash-flow")
                 .about("Generate cash flow report")
                 .long_about("Generates cash flow report for tax inspection notification")
                 .arg(portfolio::arg())
-                .arg(Arg::with_name("YEAR")
+                .arg(Arg::new("YEAR")
                     .help("Year to generate the report for")))
 
-            .subcommand(SubCommand::with_name("deposits")
+            .subcommand(App::new("deposits")
                 .about("List deposits")
-                .arg(Arg::with_name("date")
-                    .short("d")
+                .arg(Arg::new("date")
+                    .short('d')
                     .long("date")
                     .value_name("DATE")
                     .help("Date to show information for (in DD.MM.YYYY format)")
                     .takes_value(true))
-                .arg(Arg::with_name("cron")
+                .arg(Arg::new("cron")
                     .long("cron")
                     .help("cron mode (use for notifications about expiring and closed deposits)")))
 
-            .subcommand(SubCommand::with_name("metrics")
+            .subcommand(App::new("metrics")
                 .about("Generate Prometheus metrics for Node Exporter Textfile Collector")
-                .arg(Arg::with_name("PATH")
+                .arg(Arg::new("PATH")
                     .help("Path to write the metrics to")
                     .required(true)))
 
-            .global_setting(AppSettings::VersionlessSubcommands)
+            .global_setting(AppSettings::DisableVersionFlag)
+            .unset_setting(AppSettings::DisableVersionFlag)
+
             .global_setting(AppSettings::DisableHelpSubcommand)
             .global_setting(AppSettings::DeriveDisplayOrder)
             .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -196,8 +210,8 @@ impl<'a> Parser<'a> {
                 "Invalid cache expire time: {:?}", expire_time))?;
         };
 
-        let (command, matches) = self.matches.subcommand();
-        let action = self.parse_command(command, matches.unwrap())?;
+        let (command, matches) = self.matches.subcommand().unwrap();
+        let action = self.parse_command(command, matches)?;
 
         Ok((command.to_owned(), action))
     }
@@ -302,8 +316,8 @@ macro_rules! arg {
         mod $id {
             use super::*;
 
-            pub fn arg() -> Arg<'static, 'static> {
-                Arg::with_name($name)
+            pub fn arg() -> Arg<'static> {
+                Arg::new($name)
                     .help($help)
                     .required(true)
             }

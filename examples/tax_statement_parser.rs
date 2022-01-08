@@ -10,10 +10,10 @@ use investments::tax_statement::TaxStatement;
 pub fn run() -> EmptyResult {
     let matches = App::new("Tax statement parser")
         .about("\nParses *.dcX file and prints its contents to stdout")
-        .arg(Arg::with_name("TAX_STATEMENT")
+        .arg(Arg::new("TAX_STATEMENT")
             .help("Path to tax statement *.dcX file")
             .required(true))
-        .global_setting(AppSettings::DisableVersion)
+        .global_setting(AppSettings::DisableVersionFlag)
         .global_setting(AppSettings::DeriveDisplayOrder)
         .get_matches();
 

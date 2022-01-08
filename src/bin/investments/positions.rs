@@ -26,8 +26,13 @@ impl PositionsParser {
     }
 
     pub fn arg(&self) -> Arg {
-        Arg::with_name(PositionsParser::ARG_NAME).help(&self.help)
-            .multiple(true).value_names(&["SHARES", "SYMBOL"])
+        Arg::new(PositionsParser::ARG_NAME)
+            .help(self.help.as_str())
+            // FIXME(konishchev): HERE
+            .multiple_occurrences(true)
+            .multiple_values(true)
+            .takes_value(true)
+            .value_names(&["SHARES", "SYMBOL"])
             .required(self.required)
     }
 
