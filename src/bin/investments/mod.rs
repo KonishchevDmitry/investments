@@ -45,7 +45,7 @@ fn main() {
     }
 }
 
-fn main_inner(global: GlobalOptions, parser: Box<Parser>) -> EmptyResult {
+fn main_inner(global: GlobalOptions, parser: Parser) -> EmptyResult {
     let config_dir_path = Path::new(&global.config_dir);
     let config_path = config_dir_path.join("config.yaml");
 

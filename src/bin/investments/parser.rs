@@ -24,18 +24,16 @@ pub struct GlobalOptions {
 }
 
 impl Parser {
-    pub fn new() -> Box<Parser> {
-        // FIXME(konishchev): HERE
-        // Box is used to guarantee that Parser's memory won't be moved to preserve ArgMatches
-        // lifetime requirements.
-        Box::new(Parser {
+    pub fn new() -> Parser {
+        Parser {
             // FIXME(konishchev): HERE
             matches: ArgMatches::default(),
 
+            // FIXME(konishchev): HERE
             bought: PositionsParser::new("Bought shares", false, true),
             sold: PositionsParser::new("Sold shares", true, true),
             to_sell: PositionsParser::new("Positions to sell", true, false),
-        })
+        }
     }
 
     pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
