@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use clap::{App, Arg, ArgMatches, AppSettings};
+use const_format::formatcp;
 use indoc::indoc;
 
 use investments::config::Config;
@@ -29,7 +30,6 @@ impl Parser {
         Parser {
             matches: None,
 
-            // FIXME(konishchev): HERE
             bought: PositionsParser::new("Bought shares", false, true),
             sold: PositionsParser::new("Sold shares", true, true),
             to_sell: PositionsParser::new("Positions to sell", true, false),
@@ -37,17 +37,12 @@ impl Parser {
     }
 
     pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
-        // FIXME(konishchev): HERE
-        // ArgMatches has very inconvenient lifetime requirements for some reason
+        const DEFAULT_CONFIG_DIR_PATH: &str = "~/.investments";
+
+        // App has very inconvenient lifetime requirements which always become 'static due to
+        // current implementation.
         let unsafe_parser = unsafe {
             &*(self as *const Parser)
-        };
-
-        // FIXME(konishchev): HERE
-        let default_config_dir_path = "~/.investments";
-        let config_help = format!("Configuration directory path [default: {}]", default_config_dir_path);
-        let config_help_str = unsafe {
-            &*(config_help.as_str() as *const str)
         };
 
         let matches = new_app("investments", "Helps you with managing your investments")
@@ -58,7 +53,7 @@ impl Parser {
                 .long("config")
                 .value_name("PATH")
                 .takes_value(true)
-                .help(config_help_str))
+                .help(formatcp!("Configuration directory path [default: {}]", DEFAULT_CONFIG_DIR_PATH)))
 
             .arg(Arg::new("cache_expire_time")
                 .short('e')
@@ -187,7 +182,7 @@ impl Parser {
         };
 
         let config_dir = matches.value_of("config").map(ToString::to_string).unwrap_or_else(||
-            shellexpand::tilde(default_config_dir_path).to_string());
+            shellexpand::tilde(DEFAULT_CONFIG_DIR_PATH).to_string());
 
         self.matches = Some(matches);
 
