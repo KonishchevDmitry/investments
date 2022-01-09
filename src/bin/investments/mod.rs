@@ -5,6 +5,7 @@ mod positions;
 #[macro_use] extern crate investments;
 #[macro_use] extern crate maplit;
 
+use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process;
@@ -107,6 +108,12 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
         },
 
         Action::Metrics(path) => metrics::collect(&config, &path)?,
+
+        Action::ShellCompletion {path, data} => {
+            write_shell_completion(&path, &data).map_err(|e| format!(
+                "Failed to write {:?}: {}", path, e))?;
+            TelemetryRecordBuilder::new()
+        },
     };
 
     if let Some(telemetry) = telemetry.as_ref() {
@@ -114,4 +121,8 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
     }
 
     Ok(())
+}
+
+fn write_shell_completion(path: &Path, data: &[u8]) -> EmptyResult {
+    Ok(File::create(path)?.write_all(data)?)
 }

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use clap::{Arg, ArgMatches, AppSettings};
+use clap::{AppSettings, Arg, ArgMatches, ArgEnum};
+use clap_complete::{self, Shell};
 use const_format::formatcp;
 
 use investments::cli;
@@ -14,6 +15,7 @@ use super::positions::PositionsParser;
 
 pub struct Parser {
     matches: Option<ArgMatches>,
+    completion: Option<Vec<u8>>,
 
     bought: PositionsParser,
     sold: PositionsParser,
@@ -29,6 +31,7 @@ impl Parser {
     pub fn new() -> Parser {
         Parser {
             matches: None,
+            completion: None,
 
             bought: PositionsParser::new("Bought shares", false, true),
             sold: PositionsParser::new("Sold shares", true, true),
@@ -37,6 +40,7 @@ impl Parser {
     }
 
     pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
+        let binary_name = "investments";
         const DEFAULT_CONFIG_DIR_PATH: &str = "~/.investments";
 
         // App has very inconvenient lifetime requirements which always tend to become 'static due
@@ -45,7 +49,7 @@ impl Parser {
             &*(self as *const Parser)
         };
 
-        let matches = cli::new_app("investments", "Helps you with managing your investments")
+        let mut app = cli::new_app(binary_name, "Helps you with managing your investments")
             .version(env!("CARGO_PKG_VERSION"))
             .setting(AppSettings::SubcommandRequiredElseHelp)
             .args([
@@ -172,7 +176,18 @@ impl Parser {
                 "metrics", "Generate Prometheus metrics for Node Exporter Textfile Collector")
                 .arg(cli::new_arg("PATH", "Path to write the metrics to").required(true)))
 
-            .get_matches();
+            .subcommand(cli::new_subcommand(
+                "completion", "Generate shell completion rules")
+                .args([
+                    cli::new_arg("shell", "Shell to generate completion rules for")
+                        .short('s').long("shell").value_name("SHELL")
+                        .possible_values(Shell::possible_values())
+                        .default_value(Shell::Bash.to_possible_value().unwrap().get_name()),
+
+                    cli::new_arg("PATH", "Path to save the rules to").required(true)
+                ]));
+
+        let matches = app.get_matches_mut();
 
         let log_level = match matches.occurrences_of("verbose") {
             0 => log::Level::Info,
@@ -183,6 +198,18 @@ impl Parser {
 
         let config_dir = matches.value_of("config").map(ToString::to_string).unwrap_or_else(||
             shellexpand::tilde(DEFAULT_CONFIG_DIR_PATH).to_string());
+
+        {
+            let mut app = app;
+            let (command, matches) = matches.subcommand().unwrap();
+
+            if command == "completion" {
+                let mut completion = Vec::new();
+                let shell = matches.value_of_t::<Shell>("shell")?;
+                clap_complete::generate(shell, &mut app, binary_name, &mut completion);
+                self.completion = Some(completion);
+            }
+        }
 
         self.matches = Some(matches);
 
@@ -271,15 +298,20 @@ impl Parser {
                     None => time::today(),
                 };
 
-                return Ok(Action::Deposits {
+                Action::Deposits {
                     date: date,
                     cron_mode: matches.is_present("cron"),
-                });
+                }
             },
 
             "metrics" => {
                 let path = matches.value_of("PATH").unwrap().to_owned();
-                return Ok(Action::Metrics(path))
+                Action::Metrics(path)
+            },
+
+            "completion" => Action::ShellCompletion {
+                path: matches.value_of("PATH").unwrap().into(),
+                data: self.completion.as_ref().unwrap().clone(),
             },
 
             _ => unreachable!(),

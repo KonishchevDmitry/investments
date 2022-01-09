@@ -14,7 +14,7 @@ fn generate_regression_tests() {
     for command in [
         "sync", "show", "rebalance", "cash", "buy", "sell",
         "analyse", "simulate-sell", "tax-statement", "cash-flow",
-        "deposits", "metrics"
+        "deposits", "metrics", "completion",
     ] {
         t.add(&format!("Help {}", command), &format!("{} --help", command));
     }
@@ -77,8 +77,9 @@ fn generate_regression_tests() {
     t.add("Tinkoff complex cash flow", "cash-flow tinkoff-complex").config("other");
     t.add("Tinkoff complex full cash flow", "cash-flow tinkoff-complex-full").config("other");
 
-    // metrics
-    t.add("Metrics", "metrics $OUT_PATH/metrics");
+    // other
+    t.add("Metrics", "metrics $OUT_PATH/metrics.prom");
+    t.add("Completion", "completion $OUT_PATH/completion.bash");
 
     let accounts = &[
         ("IB", Some(2018)),

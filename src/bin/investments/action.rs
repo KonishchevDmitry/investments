@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use investments::time::Date;
 use investments::types::Decimal;
 
@@ -50,4 +52,8 @@ pub enum Action {
     },
 
     Metrics(String),
+    ShellCompletion {
+        path: PathBuf,
+        data: Vec<u8>,
+    }
 }
