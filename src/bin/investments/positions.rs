@@ -1,5 +1,6 @@
 use clap::{Arg, ArgMatches};
 
+use investments::cli;
 use investments::core::GenericResult;
 use investments::types::Decimal;
 use investments::util::{self, DecimalRestrictions};
@@ -26,8 +27,7 @@ impl PositionsParser {
     }
 
     pub fn arg(&self) -> Arg {
-        Arg::new(PositionsParser::ARG_NAME)
-            .help(self.help.as_str())
+        cli::new_arg(PositionsParser::ARG_NAME, self.help.as_str())
             .value_names(&["SHARES", "SYMBOL"])
             .multiple_occurrences(true)
             .required(self.required)

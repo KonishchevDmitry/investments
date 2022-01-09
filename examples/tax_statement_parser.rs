@@ -2,19 +2,14 @@ extern crate investments;
 
 use std::process;
 
-use clap::{App, Arg, AppSettings};
-
+use investments::cli;
 use investments::core::EmptyResult;
 use investments::tax_statement::TaxStatement;
 
 pub fn run() -> EmptyResult {
-    let matches = App::new("Tax statement parser")
-        .about("\nParses *.dcX file and prints its contents to stdout")
-        .arg(Arg::new("TAX_STATEMENT")
-            .help("Path to tax statement *.dcX file")
-            .required(true))
-        .global_setting(AppSettings::DisableVersionFlag)
-        .global_setting(AppSettings::DeriveDisplayOrder)
+    let matches =
+        cli::new_app("Tax statement parser", "Parses *.dcX file and prints its contents to stdout")
+        .arg(cli::new_arg("TAX_STATEMENT", "Path to tax statement *.dcX file").required(true))
         .get_matches();
 
     let path = matches.value_of("TAX_STATEMENT").unwrap();

@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
-use clap::{App, Arg, ArgMatches, AppSettings};
+use clap::{Arg, ArgMatches, AppSettings};
 use const_format::formatcp;
-use indoc::indoc;
 
+use investments::cli;
 use investments::config::Config;
 use investments::core::GenericResult;
 use investments::time;
@@ -39,98 +39,103 @@ impl Parser {
     pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
         const DEFAULT_CONFIG_DIR_PATH: &str = "~/.investments";
 
-        // App has very inconvenient lifetime requirements which always become 'static due to
-        // current implementation.
+        // App has very inconvenient lifetime requirements which always tend to become 'static due
+        // to current implementation.
         let unsafe_parser = unsafe {
             &*(self as *const Parser)
         };
 
-        let matches = new_app("investments", "Helps you with managing your investments")
+        let matches = cli::new_app("investments", "Helps you with managing your investments")
             .version(env!("CARGO_PKG_VERSION"))
+            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .args([
+                cli::new_arg("config", formatcp!("Configuration directory path [default: {}]", DEFAULT_CONFIG_DIR_PATH))
+                    .short('c').long("config")
+                    .value_name("PATH"),
 
-            .arg(Arg::new("config")
-                .short('c')
-                .long("config")
-                .value_name("PATH")
-                .takes_value(true)
-                .help(formatcp!("Configuration directory path [default: {}]", DEFAULT_CONFIG_DIR_PATH)))
+                cli::new_arg("cache_expire_time", "Quote cache expire time (in $number{m|h|d} format)")
+                    .short('e').long("cache-expire-time")
+                    .value_name("DURATION"),
 
-            .arg(Arg::new("cache_expire_time")
-                .short('e')
-                .long("cache-expire-time")
-                .value_name("DURATION")
-                .takes_value(true)
-                .help("Quote cache expire time (in $number{m|h|d} format)"))
+                cli::new_arg("verbose", "Set verbosity level")
+                    .short('v').long("verbose")
+                    .multiple_occurrences(true)
+                    .max_occurrences(2),
+            ])
 
-            .arg(Arg::new("verbose")
-                .short('v')
-                .long("verbose")
-                .multiple_occurrences(true)
-                .help("Set verbosity level"))
-
-            .subcommand(
-                new_app("analyse", "Analyze portfolio performance")
+            .subcommand(cli::new_subcommand(
+                "analyse", "Analyze portfolio performance")
                 .long_about("\
                     Calculates average rate of return from cash investments by comparing portfolio \
                     performance to performance of a bank deposit with exactly the same investments \
                     and monthly capitalization.")
-                .arg(Arg::new("all")
-                    .short('a')
-                    .long("all")
-                    .help("Don't hide closed positions"))
-                .arg(Arg::new("PORTFOLIO")
-                    .help("Portfolio name (omit to show an aggregated result for all portfolios)")))
+                .args([
+                    cli::new_arg("all", "Don't hide closed positions")
+                        .short('a').long("all"),
 
-            .subcommand(
-                new_app("show", "Show portfolio asset allocation")
-                .arg(Arg::new("flat")
-                    .short('f')
-                    .long("flat")
-                    .help("Flat view"))
+                    cli::new_arg(
+                        "PORTFOLIO",
+                        "Portfolio name (omit to show an aggregated result for all portfolios)"),
+                ]))
+
+            .subcommand(cli::new_subcommand(
+                "show", "Show portfolio asset allocation")
+                .args([
+                    cli::new_arg("flat", "Flat view")
+                        .short('f').long("flat"),
+
+                    portfolio::arg(),
+                ]))
+
+            .subcommand(cli::new_subcommand(
+                "sync", "Sync portfolio with broker statement")
                 .arg(portfolio::arg()))
 
-            .subcommand(
-                new_app("sync", "Sync portfolio with broker statement")
-                .arg(portfolio::arg()))
+            .subcommand(cli::new_subcommand(
+                "buy", "Add the specified stock shares to the portfolio")
+                .args([
+                    portfolio::arg(),
+                    unsafe_parser.bought.arg(),
+                    cash_assets::arg(),
+                ]))
 
-            .subcommand(
-                new_app("buy", "Add the specified stock shares to the portfolio")
-                .arg(portfolio::arg())
-                .arg(unsafe_parser.bought.arg())
-                .arg(cash_assets::arg()))
+            .subcommand(cli::new_subcommand(
+                "sell", "Remove the specified stock shares from the portfolio")
+                .args([
+                    portfolio::arg(),
+                    unsafe_parser.sold.arg(),
+                    cash_assets::arg(),
+                ]))
 
-            .subcommand(
-                new_app("sell", "Remove the specified stock shares from the portfolio")
-                .arg(portfolio::arg())
-                .arg(unsafe_parser.sold.arg())
-                .arg(cash_assets::arg()))
+            .subcommand(cli::new_subcommand(
+                "cash", "Set current cash assets")
+                .args([
+                    portfolio::arg(),
+                    cash_assets::arg(),
+                ]))
 
-            .subcommand(
-                new_app("cash", "Set current cash assets")
-                .arg(portfolio::arg())
-                .arg(cash_assets::arg()))
+            .subcommand(cli::new_subcommand(
+                "rebalance", "Rebalance the portfolio according to the asset allocation configuration")
+                .args([
+                    cli::new_arg("flat", "Flat view")
+                        .short('f').long("flat"),
 
-            .subcommand(
-                new_app("rebalance", "Rebalance the portfolio according to the asset allocation configuration")
-                .arg(Arg::new("flat")
-                    .short('f')
-                    .long("flat")
-                    .help("Flat view"))
-                .arg(portfolio::arg()))
+                    portfolio::arg(),
+                ]))
 
-            .subcommand(
-                new_app("simulate-sell", "Simulate stock selling (calculates revenue, profit and taxes)")
-                .arg(Arg::new("base_currency")
-                    .short('b')
-                    .long("base-currency")
-                    .value_name("CURRENCY")
-                    .takes_value(true)
-                    .help("Actual asset base currency to calculate the profit in"))
-                .arg(portfolio::arg())
-                .arg(unsafe_parser.to_sell.arg()))
+            .subcommand(cli::new_subcommand(
+                "simulate-sell", "Simulate stock selling (calculates revenue, profit and taxes)")
+                .args([
+                    cli::new_arg("base_currency", "Actual asset base currency to calculate the profit in")
+                        .short('b').long("base-currency")
+                        .value_name("CURRENCY"),
 
-            .subcommand(
-                new_app("tax-statement", "Generate tax statement")
+                    portfolio::arg(),
+                    unsafe_parser.to_sell.arg(),
+                ]))
+
+            .subcommand(cli::new_subcommand(
+                "tax-statement", "Generate tax statement")
                 .long_about("\
                     Reads broker statements and alters *.dcX file (created by Russian tax program \
                     named Декларация) by adding all required information about income from stock \
@@ -138,40 +143,35 @@ impl Parser {
                     \n\
                     If tax statement file is not specified only outputs the data which is going to \
                     be declared.")
-                .arg(portfolio::arg())
-                .arg(Arg::new("YEAR")
-                    .help("Year to generate the statement for"))
-                .arg(Arg::new("TAX_STATEMENT")
-                    .help("Path to tax statement *.dcX file")))
+                .args([
+                    portfolio::arg(),
+                    cli::new_arg("YEAR", "Year to generate the statement for"),
+                    cli::new_arg("TAX_STATEMENT", "Path to tax statement *.dcX file"),
+                ]))
 
-            .subcommand(
-                new_app("cash-flow", "Generate cash flow report")
+            .subcommand(cli::new_subcommand(
+                "cash-flow", "Generate cash flow report")
                 .long_about("Generates cash flow report for tax inspection notification")
-                .arg(portfolio::arg())
-                .arg(Arg::new("YEAR")
-                    .help("Year to generate the report for")))
+                .args([
+                    portfolio::arg(),
+                    cli::new_arg("YEAR", "Year to generate the report for"),
+                ]))
 
-            .subcommand(
-                new_app("deposits", "List deposits")
-                .arg(Arg::new("date")
-                    .short('d')
-                    .long("date")
-                    .value_name("DATE")
-                    .help("Date to show information for (in DD.MM.YYYY format)")
-                    .takes_value(true))
-                .arg(Arg::new("cron")
-                    .long("cron")
-                    .help("cron mode (use for notifications about expiring and closed deposits)")))
+            .subcommand(cli::new_subcommand(
+                "deposits", "List deposits")
+                .args([
+                    cli::new_arg("date", "Date to show information for (in DD.MM.YYYY format)")
+                        .short('d').long("date")
+                        .value_name("DATE"),
 
-            .subcommand(
-                new_app("metrics", "Generate Prometheus metrics for Node Exporter Textfile Collector")
-                .arg(Arg::new("PATH")
-                    .help("Path to write the metrics to")
-                    .required(true)))
+                    cli::new_arg("cron", "cron mode (use for notifications about expiring and closed deposits)")
+                        .long("cron"),
+                ]))
 
-            .global_setting(AppSettings::DisableHelpSubcommand)
-            .global_setting(AppSettings::DeriveDisplayOrder)
-            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .subcommand(cli::new_subcommand(
+                "metrics", "Generate Prometheus metrics for Node Exporter Textfile Collector")
+                .arg(cli::new_arg("PATH", "Path to write the metrics to").required(true)))
+
             .get_matches();
 
         let log_level = match matches.occurrences_of("verbose") {
@@ -287,29 +287,12 @@ impl Parser {
     }
 }
 
-fn new_app<'help>(name: &str, about: &'help str) -> App<'help> {
-    App::new(name)
-        // Default template contains `{bin} {version}` for some reason
-        .help_template(indoc!("
-            {before-help}{about}
-
-            {usage-heading}
-                {usage}
-
-            {all-args}{after-help}\
-        "))
-        .about(about)
-}
-
 fn get_year(matches: &ArgMatches) -> GenericResult<Option<i32>> {
-    Ok(match matches.value_of("YEAR") {
-        Some(year) => {
-            Some(year.trim().parse::<i32>().ok()
-                .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
-                .ok_or_else(|| format!("Invalid year: {}", year))?)
-        },
-        None => None,
-    })
+    matches.value_of("YEAR").map(|year| {
+        Ok(year.parse::<i32>().ok()
+            .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
+            .ok_or_else(|| format!("Invalid year: {}", year))?)
+    }).transpose()
 }
 
 macro_rules! arg {
@@ -318,9 +301,7 @@ macro_rules! arg {
             use super::*;
 
             pub fn arg() -> Arg<'static> {
-                Arg::new($name)
-                    .help($help)
-                    .required(true)
+                cli::new_arg($name, $help).required(true)
             }
 
             pub fn get(matches: &ArgMatches) -> String {

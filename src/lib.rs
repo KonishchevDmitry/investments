@@ -9,6 +9,7 @@
 pub mod analysis;
 pub mod cash_flow;
 pub mod config;
+pub mod cli;
 pub mod db;
 pub mod deposits;
 pub mod metrics;
