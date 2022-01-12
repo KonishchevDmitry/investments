@@ -8,7 +8,7 @@ use num_traits::Zero;
 
 use static_table_derive::StaticTable;
 
-use crate::currency::Cash;
+use crate::currency::{self, Cash};
 use crate::time::Date;
 use crate::types::Decimal;
 
@@ -51,7 +51,7 @@ impl LtoDeductionCalculator {
         let mut total_deduction = self.out_of_limit;
 
         if !self.profit.is_zero() {
-            let limit = self.weighted_profit / self.profit * dec!(3_000_000);
+            let limit = currency::round(self.weighted_profit / self.profit * dec!(3_000_000));
 
             total_profit += self.profit;
             total_limit += limit;
