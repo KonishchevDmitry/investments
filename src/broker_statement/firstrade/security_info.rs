@@ -35,14 +35,14 @@ impl SecurityInfo {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SecurityInfoSection {
-    #[serde(rename = "SECLIST")]
+    #[serde(rename = "SECLIST", default)]
     security_list: SecurityList,
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SecurityList {
     #[serde(rename = "STOCKINFO", default)]

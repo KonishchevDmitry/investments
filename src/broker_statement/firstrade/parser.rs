@@ -39,7 +39,7 @@ pub struct Ofx {
     #[serde(rename = "INVSTMTMSGSRSV1")]
     statement: StatementSection,
 
-    #[serde(rename = "SECLISTMSGSRSV1")]
+    #[serde(rename = "SECLISTMSGSRSV1", default)]
     security_info: SecurityInfoSection,
 }
 
