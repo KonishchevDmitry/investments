@@ -1,3 +1,14 @@
+/*
+Tinkoff statement T+2 specific:
+
+All trades are split into two categories: executed and not executed (yet). If trade is not executed
+yet, it's listed in not executed table in current statement and then will be listed in executed
+table of next statement.
+
+Trade related cash flows are also listed in cash flow table. For not executed trades they have
+"План" comment. Dates there shows that commission withholding is actually T+2 instead of T+0.
+*/
+
 mod assets;
 mod cash_assets;
 mod common;
