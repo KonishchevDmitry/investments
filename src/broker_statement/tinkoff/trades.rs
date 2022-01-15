@@ -1,3 +1,8 @@
+use std::cell::RefCell;
+use std::collections::{HashMap, hash_map::Entry};
+use std::rc::Rc;
+
+use log::debug;
 use num_traits::FromPrimitive;
 
 use xls_table_derive::XlsTableRow;
@@ -18,13 +23,39 @@ use super::common::{
     read_next_table_row, parse_cash, parse_date_cell, parse_decimal_cell, parse_quantity_cell,
     parse_time_cell};
 
+pub type TradesRegistryRc = Rc<RefCell<HashMap<u64, bool>>>;
+
 pub struct TradesParser {
+    executed: bool,
     statement: PartialBrokerStatementRc,
+    processed_trades: TradesRegistryRc,
 }
 
 impl TradesParser {
-    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
-        Box::new(TradesParser {statement})
+    pub fn new(
+        executed: bool, statement: PartialBrokerStatementRc, processed_trades: TradesRegistryRc,
+    ) -> Box<dyn SectionParser> {
+        Box::new(TradesParser {executed, processed_trades, statement})
+    }
+
+    fn check_trade_id(&self, trade_id: u64) -> GenericResult<bool> {
+        Ok(match self.processed_trades.borrow_mut().entry(trade_id) {
+            Entry::Vacant(entry) => {
+                entry.insert(self.executed);
+                true
+            },
+
+            Entry::Occupied(mut entry) => {
+                if self.executed {
+                    let processed_executed = entry.get_mut();
+                    if *processed_executed {
+                        return Err!("Got a duplicated #{} trade", trade_id);
+                    }
+                    *processed_executed = true;
+                }
+                false
+            },
+        })
     }
 }
 
@@ -36,6 +67,14 @@ impl SectionParser for TradesParser {
         trades.sort_by_key(|trade| (trade.date, trade.time, trade.id));
 
         for trade in trades {
+            if !self.check_trade_id(trade.id)? {
+                debug!(
+                    "{}: Skipping #{} trade: it's already processed for another statement.",
+                    statement.get_period()?.format(), trade.id,
+                );
+                continue;
+            }
+
             trade.parse(&mut statement)?;
         }
 

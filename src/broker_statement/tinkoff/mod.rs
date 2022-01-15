@@ -43,10 +43,11 @@ use cash_assets::CashAssetsParser;
 use foreign_income::ForeignIncomeStatementReader;
 use period::PeriodParser;
 use securities::SecuritiesInfoParser;
-use trades::TradesParser;
+use trades::{TradesParser, TradesRegistryRc};
 use itertools::Itertools;
 
 pub struct StatementReader {
+    trades: TradesRegistryRc,
     foreign_income: HashMap<DividendId, (DividendAccruals, TaxAccruals)>,
     show_missing_foreign_income_info_warning: bool,
 }
@@ -54,6 +55,7 @@ pub struct StatementReader {
 impl StatementReader {
     pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader{
+            trades: TradesRegistryRc::default(),
             foreign_income: HashMap::new(),
             show_missing_foreign_income_info_warning: true,
         }))
@@ -135,8 +137,11 @@ impl BrokerStatementReader for StatementReader {
         let period_parser: SectionParserRc = Rc::new(RefCell::new(
             PeriodParser::new(statement.clone())));
 
-        let trades_parser: SectionParserRc = Rc::new(RefCell::new(
-            TradesParser::new(statement.clone())));
+        let executed_trades_parser: SectionParserRc = Rc::new(RefCell::new(
+            TradesParser::new(true, statement.clone(), self.trades.clone())));
+
+        let pending_trades_parser: SectionParserRc = Rc::new(RefCell::new(
+            TradesParser::new(false, statement.clone(), self.trades.clone())));
 
         XlsStatementParser::read(path, parser, vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix()
@@ -144,9 +149,9 @@ impl BrokerStatementReader for StatementReader {
             Section::new(PeriodParser::PERIOD_PREFIX).by_prefix()
                 .parser_rc(period_parser).required(),
             Section::new("1.1 Информация о совершенных и исполненных сделках на конец отчетного периода")
-                .parser_rc(trades_parser.clone()).required(),
+                .parser_rc(executed_trades_parser).required(),
             Section::new("1.2 Информация о неисполненных сделках на конец отчетного периода")
-                .parser_rc(trades_parser).required(),
+                .parser_rc(pending_trades_parser).required(),
             Section::new("2. Операции с денежными средствами")
                 .parser(CashAssetsParser::new(statement.clone())).required(),
             Section::new("3.1 Движение по ценным бумагам инвестора")
