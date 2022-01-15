@@ -82,18 +82,18 @@ fn generate_regression_tests() {
     t.add("Completion", "completion $OUT_PATH/completion.bash");
 
     let accounts = &[
-        ("IB", Some(2018)),
+        ("IB",        Some(2018)),
         ("Firstrade", Some(2020)),
 
-        ("IIA", None),
-        ("BCS", None),
-        ("Open", None),
+        ("IIA",     None),
+        ("BCS",     None),
+        ("Open",    None),
         ("Tinkoff", None),
 
-        ("Kate", None),
+        ("Kate",     None),
         ("Kate IIA", None),
     ];
-    let last_tax_year = 2021; // FIXME(konishchev): Bump after statements update
+    let last_tax_year = 2022;
 
     for &(name, start_tax_year) in accounts {
         let id = &name_to_id(name);

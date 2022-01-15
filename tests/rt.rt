@@ -626,6 +626,33 @@ APP: tests/investments
      2021
 
 [74]
+NAME: IB tax statement 2022
+STDOUT: ib-tax-statement-2022
+APP: tests/investments
+     main
+     tax-statement
+     ib
+     2022
+
+[75]
+NAME: IB tax statement generation 2022
+APP: tests/test-tax-statement
+     main
+     ib
+     2022
+     $OUT_PATH/ib-tax-statement-2022.dc2
+DIFF: rt-binary
+
+[76]
+NAME: IB cash flow 2022
+STDOUT: ib-cash-flow-2022
+APP: tests/investments
+     main
+     cash-flow
+     ib
+     2022
+
+[77]
 NAME: Rebalance Firstrade
 STDOUT: rebalance-firstrade
 APP: tests/investments
@@ -633,7 +660,7 @@ APP: tests/investments
      rebalance
      firstrade
 
-[75]
+[78]
 NAME: Simulate sell Firstrade
 STDOUT: simulate-sell-firstrade
 APP: tests/investments
@@ -641,7 +668,7 @@ APP: tests/investments
      simulate-sell
      firstrade
 
-[76]
+[79]
 NAME: Firstrade tax statement 2020
 STDOUT: firstrade-tax-statement-2020
 APP: tests/investments
@@ -650,7 +677,7 @@ APP: tests/investments
      firstrade
      2020
 
-[77]
+[80]
 NAME: Firstrade tax statement generation 2020
 APP: tests/test-tax-statement
      main
@@ -659,7 +686,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/firstrade-tax-statement-2020.dc0
 DIFF: rt-binary
 
-[78]
+[81]
 NAME: Firstrade cash flow 2020
 STDOUT: firstrade-cash-flow-2020
 APP: tests/investments
@@ -668,7 +695,7 @@ APP: tests/investments
      firstrade
      2020
 
-[79]
+[82]
 NAME: Firstrade tax statement 2021
 STDOUT: firstrade-tax-statement-2021
 APP: tests/investments
@@ -677,7 +704,7 @@ APP: tests/investments
      firstrade
      2021
 
-[80]
+[83]
 NAME: Firstrade tax statement generation 2021
 APP: tests/test-tax-statement
      main
@@ -686,7 +713,7 @@ APP: tests/test-tax-statement
      $OUT_PATH/firstrade-tax-statement-2021.dc1
 DIFF: rt-binary
 
-[81]
+[84]
 NAME: Firstrade cash flow 2021
 STDOUT: firstrade-cash-flow-2021
 APP: tests/investments
@@ -695,7 +722,34 @@ APP: tests/investments
      firstrade
      2021
 
-[82]
+[85]
+NAME: Firstrade tax statement 2022
+STDOUT: firstrade-tax-statement-2022
+APP: tests/investments
+     main
+     tax-statement
+     firstrade
+     2022
+
+[86]
+NAME: Firstrade tax statement generation 2022
+APP: tests/test-tax-statement
+     main
+     firstrade
+     2022
+     $OUT_PATH/firstrade-tax-statement-2022.dc2
+DIFF: rt-binary
+
+[87]
+NAME: Firstrade cash flow 2022
+STDOUT: firstrade-cash-flow-2022
+APP: tests/investments
+     main
+     cash-flow
+     firstrade
+     2022
+
+[88]
 NAME: Rebalance IIA
 STDOUT: rebalance-iia
 APP: tests/investments
@@ -703,7 +757,7 @@ APP: tests/investments
      rebalance
      iia
 
-[83]
+[89]
 NAME: Simulate sell IIA
 STDOUT: simulate-sell-iia
 APP: tests/investments
@@ -711,7 +765,7 @@ APP: tests/investments
      simulate-sell
      iia
 
-[84]
+[90]
 NAME: IIA tax statement
 STDOUT: iia-tax-statement
 APP: tests/investments
@@ -719,7 +773,7 @@ APP: tests/investments
      tax-statement
      iia
 
-[85]
+[91]
 NAME: IIA cash flow
 STDOUT: iia-cash-flow
 APP: tests/investments
@@ -727,7 +781,7 @@ APP: tests/investments
      cash-flow
      iia
 
-[86]
+[92]
 NAME: Rebalance BCS
 STDOUT: rebalance-bcs
 APP: tests/investments
@@ -735,7 +789,7 @@ APP: tests/investments
      rebalance
      bcs
 
-[87]
+[93]
 NAME: Simulate sell BCS
 STDOUT: simulate-sell-bcs
 APP: tests/investments
@@ -743,7 +797,7 @@ APP: tests/investments
      simulate-sell
      bcs
 
-[88]
+[94]
 NAME: BCS tax statement
 STDOUT: bcs-tax-statement
 APP: tests/investments
@@ -751,7 +805,7 @@ APP: tests/investments
      tax-statement
      bcs
 
-[89]
+[95]
 NAME: BCS cash flow
 STDOUT: bcs-cash-flow
 APP: tests/investments
@@ -759,7 +813,7 @@ APP: tests/investments
      cash-flow
      bcs
 
-[90]
+[96]
 NAME: Rebalance Open
 STDOUT: rebalance-open
 APP: tests/investments
@@ -767,7 +821,7 @@ APP: tests/investments
      rebalance
      open
 
-[91]
+[97]
 NAME: Simulate sell Open
 STDOUT: simulate-sell-open
 APP: tests/investments
@@ -775,7 +829,7 @@ APP: tests/investments
      simulate-sell
      open
 
-[92]
+[98]
 NAME: Open tax statement
 STDOUT: open-tax-statement
 APP: tests/investments
@@ -783,7 +837,7 @@ APP: tests/investments
      tax-statement
      open
 
-[93]
+[99]
 NAME: Open cash flow
 STDOUT: open-cash-flow
 APP: tests/investments
@@ -791,7 +845,7 @@ APP: tests/investments
      cash-flow
      open
 
-[94]
+[100]
 NAME: Rebalance Tinkoff
 STDOUT: rebalance-tinkoff
 APP: tests/investments
@@ -799,7 +853,7 @@ APP: tests/investments
      rebalance
      tinkoff
 
-[95]
+[101]
 NAME: Simulate sell Tinkoff
 STDOUT: simulate-sell-tinkoff
 APP: tests/investments
@@ -807,7 +861,7 @@ APP: tests/investments
      simulate-sell
      tinkoff
 
-[96]
+[102]
 NAME: Tinkoff tax statement
 STDOUT: tinkoff-tax-statement
 APP: tests/investments
@@ -815,7 +869,7 @@ APP: tests/investments
      tax-statement
      tinkoff
 
-[97]
+[103]
 NAME: Tinkoff cash flow
 STDOUT: tinkoff-cash-flow
 APP: tests/investments
@@ -823,7 +877,7 @@ APP: tests/investments
      cash-flow
      tinkoff
 
-[98]
+[104]
 NAME: Rebalance Kate
 STDOUT: rebalance-kate
 APP: tests/investments
@@ -831,7 +885,7 @@ APP: tests/investments
      rebalance
      kate
 
-[99]
+[105]
 NAME: Simulate sell Kate
 STDOUT: simulate-sell-kate
 APP: tests/investments
@@ -839,7 +893,7 @@ APP: tests/investments
      simulate-sell
      kate
 
-[100]
+[106]
 NAME: Kate tax statement
 STDOUT: kate-tax-statement
 APP: tests/investments
@@ -847,7 +901,7 @@ APP: tests/investments
      tax-statement
      kate
 
-[101]
+[107]
 NAME: Kate cash flow
 STDOUT: kate-cash-flow
 APP: tests/investments
@@ -855,7 +909,7 @@ APP: tests/investments
      cash-flow
      kate
 
-[102]
+[108]
 NAME: Rebalance Kate IIA
 STDOUT: rebalance-kate-iia
 APP: tests/investments
@@ -863,7 +917,7 @@ APP: tests/investments
      rebalance
      kate-iia
 
-[103]
+[109]
 NAME: Simulate sell Kate IIA
 STDOUT: simulate-sell-kate-iia
 APP: tests/investments
@@ -871,7 +925,7 @@ APP: tests/investments
      simulate-sell
      kate-iia
 
-[104]
+[110]
 NAME: Kate IIA tax statement
 STDOUT: kate-iia-tax-statement
 APP: tests/investments
@@ -879,7 +933,7 @@ APP: tests/investments
      tax-statement
      kate-iia
 
-[105]
+[111]
 NAME: Kate IIA cash flow
 STDOUT: kate-iia-cash-flow
 APP: tests/investments
@@ -887,7 +941,7 @@ APP: tests/investments
      cash-flow
      kate-iia
 
-[106]
+[112]
 NAME: IIA type A tax statement
 STDOUT: iia-type-a-tax-statement
 APP: tests/investments
@@ -895,7 +949,7 @@ APP: tests/investments
      tax-statement
      open-first-iia-a
 
-[107]
+[113]
 NAME: IIA type A tax statement 2017
 STDOUT: iia-type-a-tax-statement-2017
 APP: tests/investments
@@ -904,7 +958,7 @@ APP: tests/investments
      open-first-iia-a
      2017
 
-[108]
+[114]
 NAME: IIA type A tax statement 2018
 STDOUT: iia-type-a-tax-statement-2018
 APP: tests/investments
@@ -913,7 +967,7 @@ APP: tests/investments
      open-first-iia-a
      2018
 
-[109]
+[115]
 NAME: IIA type A tax statement 2019
 STDOUT: iia-type-a-tax-statement-2019
 APP: tests/investments
@@ -922,7 +976,7 @@ APP: tests/investments
      open-first-iia-a
      2019
 
-[110]
+[116]
 NAME: IIA type A tax statement 2020
 STDOUT: iia-type-a-tax-statement-2020
 APP: tests/investments
@@ -931,7 +985,7 @@ APP: tests/investments
      open-first-iia-a
      2020
 
-[111]
+[117]
 NAME: IIA type A tax statement 2021
 STDOUT: iia-type-a-tax-statement-2021
 APP: tests/investments
@@ -939,4 +993,13 @@ APP: tests/investments
      tax-statement
      open-first-iia-a
      2021
+
+[118]
+NAME: IIA type A tax statement 2022
+STDOUT: iia-type-a-tax-statement-2022
+APP: tests/investments
+     other
+     tax-statement
+     open-first-iia-a
+     2022
 
