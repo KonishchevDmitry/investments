@@ -48,6 +48,9 @@ pub struct BrokerReport {
     #[serde(rename = "spot_main_deals_conclusion")]
     concluded_trades: Option<ConcludedTrades>,
 
+    #[serde(rename = "spot_repo_deals_conclusion")]
+    concluded_repo_trades: Option<ConcludedTrades>,
+
     #[serde(rename = "spot_main_deals_executed")]
     executed_trades: Option<ExecutedTrades>,
 
@@ -93,7 +96,12 @@ impl BrokerReport {
         };
 
         if let Some(ref trades) = self.concluded_trades {
-            trades.parse(&mut statement, &securities, &mut trades_with_shifted_execution_date)?;
+            trades.parse(&mut statement, &securities, &mut trades_with_shifted_execution_date, false)?;
+        }
+
+        // FIXME(konishchev): Exclude them from FIFO calculations
+        if let Some(ref trades) = self.concluded_repo_trades {
+            trades.parse(&mut statement, &securities, &mut HashMap::new(), true)?;
         }
 
         if let Some(ref cash_flow) = self.cash_flow {

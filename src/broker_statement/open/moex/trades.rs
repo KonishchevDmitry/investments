@@ -7,6 +7,7 @@ use crate::broker_statement::open::common::{deserialize_date, parse_quantity};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
 use crate::types::{Date, DateTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
@@ -43,7 +44,9 @@ struct ConcludedTrade {
     #[serde(rename = "price_currency_code")]
     price_currency: String,
 
-    #[serde(rename="volume_currency")]
+    // volume - for repo trades
+    // volume_currency - for ordinary trades
+    #[serde(alias="volume_currency")]
     volume: Decimal,
 
     #[serde(rename = "accounting_currency_code")]
@@ -53,13 +56,13 @@ struct ConcludedTrade {
     commission: Decimal,
 
     #[serde(rename = "broker_commission_currency_code")]
-    commission_currency: String,
+    commission_currency: Option<String>,
 }
 
 impl ConcludedTrades {
     pub fn parse(
         &self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>,
-        trades_with_shifted_execution_date: &mut HashMap<u64, Date>,
+        trades_with_shifted_execution_date: &mut HashMap<u64, Date>, repo: bool,
     ) -> EmptyResult {
         for trade in &self.trades {
             let symbol = get_symbol(securities, &trade.security_name)?;
@@ -79,9 +82,15 @@ impl ConcludedTrades {
                 "trade volume", &trade.price_currency, trade.volume,
                 DecimalRestrictions::StrictlyPositive)?.normalize();
 
-            let commission = util::validate_named_cash(
-                "commission", &trade.commission_currency, trade.commission,
-                DecimalRestrictions::PositiveOrZero)?;
+            let commission = util::validate_named_decimal(
+                "commission", trade.commission, DecimalRestrictions::PositiveOrZero)?;
+
+            let commission_currency = match trade.commission_currency.as_ref() {
+                Some(currency) => currency,
+                None if commission.is_zero() => &trade.price_currency,
+                None => return Err!("Missing commission currency for {:?} trade", trade.id),
+            };
+            let commission = Cash::new(commission_currency, commission);
 
             let execution_date = match trades_with_shifted_execution_date.remove(&trade.id) {
                 Some(execution_date) => {
@@ -103,7 +112,7 @@ impl ConcludedTrades {
 
                     statement.stock_buys.push(StockBuy::new_trade(
                         symbol, quantity, price, volume, commission,
-                        trade.conclusion_time.into(), execution_date, false));
+                        trade.conclusion_time.into(), execution_date, repo));
                 },
                 (None, Some(quantity)) => {
                     let quantity = util::validate_decimal(
@@ -112,7 +121,7 @@ impl ConcludedTrades {
 
                     statement.stock_sells.push(StockSell::new_trade(
                         symbol, quantity, price, volume, commission,
-                        trade.conclusion_time.into(), execution_date, false, false));
+                        trade.conclusion_time.into(), execution_date, repo, false));
                 },
                 _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
             };
