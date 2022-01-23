@@ -11,6 +11,7 @@ use crate::time::{Date, Period};
 use crate::types::Decimal;
 use crate::util::{DecimalRestrictions, validate_named_decimal};
 
+use super::cash_flows::CashFlow;
 use super::corporate_actions::CorporateAction;
 use super::dividends::{DividendId, DividendAccruals};
 use super::fees::Fee;
@@ -25,6 +26,7 @@ pub struct PartialBrokerStatement {
 
     pub has_starting_assets: Option<bool>,
     pub deposits_and_withdrawals: Vec<CashAssets>,
+    pub cash_flows: Vec<CashFlow>,
     pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
     pub tax_agent_withholdings: Vec<TaxWithholding>,
@@ -57,6 +59,7 @@ impl PartialBrokerStatement {
 
             has_starting_assets: None,
             deposits_and_withdrawals: Vec::new(),
+            cash_flows: Vec::new(),
             fees: Vec::new(),
             idle_cash_interest: Vec::new(),
             tax_agent_withholdings: Vec::new(),

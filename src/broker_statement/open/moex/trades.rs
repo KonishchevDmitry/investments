@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use log::warn;
 use serde::Deserialize;
 
+use crate::broker_statement::cash_flows::{CashFlow, CashFlowType};
 use crate::broker_statement::open::common::{deserialize_date, parse_quantity};
 use crate::broker_statement::partial::PartialBrokerStatement;
 use crate::broker_statement::trades::{StockBuy, StockSell};
@@ -15,13 +16,26 @@ use crate::util::{self, DecimalRestrictions};
 use super::common::{deserialize_date_time, get_symbol};
 
 #[derive(Deserialize)]
-pub struct ConcludedTrades {
+pub struct ConcludedTrades<const REPO: bool> {
     #[serde(rename = "item")]
-    trades: Vec<ConcludedTrade>,
+    trades: Vec<ConcludedTrade<REPO>>,
+}
+
+impl<const REPO: bool> ConcludedTrades<REPO> {
+    pub fn parse(
+        &self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>,
+        trades_with_shifted_execution_date: &mut HashMap<u64, Date>,
+    ) -> EmptyResult {
+        for trade in &self.trades {
+            let symbol = get_symbol(securities, &trade.security_name)?;
+            trade.parse(statement, symbol, trades_with_shifted_execution_date)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
-struct ConcludedTrade {
+struct ConcludedTrade<const REPO: bool> {
     #[serde(rename = "deal_no")]
     id: u64,
 
@@ -59,72 +73,83 @@ struct ConcludedTrade {
     commission_currency: Option<String>,
 }
 
-impl ConcludedTrades {
-    pub fn parse(
-        &self, statement: &mut PartialBrokerStatement, securities: &HashMap<String, String>,
-        trades_with_shifted_execution_date: &mut HashMap<u64, Date>, repo: bool,
+impl<const REPO: bool> ConcludedTrade<REPO> {
+    fn parse(
+        &self, statement: &mut PartialBrokerStatement, symbol: &str,
+        trades_with_shifted_execution_date: &mut HashMap<u64, Date>,
     ) -> EmptyResult {
-        for trade in &self.trades {
-            let symbol = get_symbol(securities, &trade.security_name)?;
+        // Just don't know which one exactly is
+        if self.price_currency != self.accounting_currency {
+            return Err!(
+                "Trade currency for {} is not equal to accounting currency which is not supported yet",
+                 symbol);
+        }
 
-            // Just don't know which one exactly is
-            if trade.price_currency != trade.accounting_currency {
-                return Err!(
-                    "Trade currency for {} is not equal to accounting currency which is not supported yet",
-                     symbol);
-            }
+        let price = util::validate_named_cash(
+            "price", &self.price_currency, self.price,
+            DecimalRestrictions::StrictlyPositive)?.normalize();
 
-            let price = util::validate_named_cash(
-                "price", &trade.price_currency, trade.price,
-                DecimalRestrictions::StrictlyPositive)?.normalize();
+        let volume = util::validate_named_cash(
+            "trade volume", &self.price_currency, self.volume,
+            DecimalRestrictions::StrictlyPositive)?.normalize();
 
-            let volume = util::validate_named_cash(
-                "trade volume", &trade.price_currency, trade.volume,
-                DecimalRestrictions::StrictlyPositive)?.normalize();
+        let commission = util::validate_named_decimal(
+            "commission", self.commission, DecimalRestrictions::PositiveOrZero)?;
 
-            let commission = util::validate_named_decimal(
-                "commission", trade.commission, DecimalRestrictions::PositiveOrZero)?;
+        let commission_currency = match self.commission_currency.as_ref() {
+            Some(currency) => currency,
+            None if commission.is_zero() => &self.price_currency,
+            None => return Err!("Missing commission currency for #{} trade", self.id),
+        };
+        let commission = Cash::new(commission_currency, commission);
 
-            let commission_currency = match trade.commission_currency.as_ref() {
-                Some(currency) => currency,
-                None if commission.is_zero() => &trade.price_currency,
-                None => return Err!("Missing commission currency for {:?} trade", trade.id),
-            };
-            let commission = Cash::new(commission_currency, commission);
+        let execution_date = match trades_with_shifted_execution_date.remove(&self.id) {
+            Some(execution_date) => {
+                warn!(concat!(
+                    "Actual execution date of #{} trade differs from the planned one. ",
+                    "Fix execution date for this trade."
+                ), self.id);
+                execution_date
+            },
+            None => self.execution_date,
+        };
 
-            let execution_date = match trades_with_shifted_execution_date.remove(&trade.id) {
-                Some(execution_date) => {
-                    warn!(concat!(
-                        "Actual execution date of {:?} trade differs from the planned one. ",
-                        "Fix execution date for this trade."
-                    ), trade.id);
+        match (self.buy_quantity, self.sell_quantity) {
+            (Some(quantity), None) => {
+                let quantity = util::validate_decimal(
+                    parse_quantity(quantity), DecimalRestrictions::StrictlyPositive)?;
+                debug_assert_eq!(volume, price * quantity);
 
-                    execution_date
-                },
-                None => trade.execution_date,
-            };
-
-            match (trade.buy_quantity, trade.sell_quantity) {
-                (Some(quantity), None) => {
-                    let quantity = util::validate_decimal(
-                        parse_quantity(quantity), DecimalRestrictions::StrictlyPositive)?;
-                    debug_assert_eq!(volume, price * quantity);
-
+                if REPO {
+                    statement.cash_flows.push(CashFlow::new(self.conclusion_time.into(), -volume, CashFlowType::Repo {
+                        symbol: symbol.to_owned(),
+                        commission,
+                    }));
+                } else {
                     statement.stock_buys.push(StockBuy::new_trade(
                         symbol, quantity, price, volume, commission,
-                        trade.conclusion_time.into(), execution_date, repo));
-                },
-                (None, Some(quantity)) => {
-                    let quantity = util::validate_decimal(
-                        parse_quantity(quantity), DecimalRestrictions::StrictlyPositive)?;
-                    debug_assert_eq!(volume, price * quantity);
+                        self.conclusion_time.into(), execution_date, REPO));
+                }
+            },
 
+            (None, Some(quantity)) => {
+                let quantity = util::validate_decimal(
+                    parse_quantity(quantity), DecimalRestrictions::StrictlyPositive)?;
+                debug_assert_eq!(volume, price * quantity);
+
+                if REPO {
+                    statement.cash_flows.push(CashFlow::new(self.conclusion_time.into(), volume, CashFlowType::Repo {
+                        symbol: symbol.to_owned(),
+                        commission,
+                    }));
+                } else {
                     statement.stock_sells.push(StockSell::new_trade(
                         symbol, quantity, price, volume, commission,
-                        trade.conclusion_time.into(), execution_date, repo, false));
-                },
-                _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade")
-            };
+                        self.conclusion_time.into(), execution_date, REPO, false));
+                }
+            },
+
+            _ => return Err!("Got an unexpected trade: Can't match it as buy or sell trade"),
         }
 
         Ok(())

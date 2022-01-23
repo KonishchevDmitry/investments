@@ -46,6 +46,7 @@ pub struct StockBuy {
 
     pub conclusion_time: DateOptTime,
     pub execution_date: Date,
+    // FIXME(konishchev): Deprecate
     pub out_of_order_execution: bool,
 
     sold: Decimal,
@@ -143,6 +144,7 @@ pub struct StockSell {
 
     pub conclusion_time: DateOptTime,
     pub execution_date: Date,
+    // FIXME(konishchev): Deprecate
     pub out_of_order_execution: bool,
 
     pub emulation: bool,

@@ -163,6 +163,7 @@ impl CashFlowMapper {
                     format!("Возврат дивиденда от {}", description)
                 });
             },
+
             CashFlowType::Tax {date: dividend_date, ref issuer, ..} => {
                 let mut description = statement.instrument_info.get_name(issuer);
                 if date.date != dividend_date {
@@ -174,6 +175,18 @@ impl CashFlowMapper {
                 } else {
                     format!("Налог, удержанный с дивиденда от {}", description)
                 });
+            },
+
+            CashFlowType::Repo {ref symbol, commission} => {
+                let description = statement.instrument_info.get_name(symbol);
+
+                self.add(date, Operation::RepoDeal, amount, format!(
+                    "Сделка РЕПО с {}", description));
+
+                if !commission.is_zero() {
+                    self.add(date, Operation::Commission, -commission, format!(
+                        "Комиссия за заключение сделки РЕПО с {}", description));
+                }
             },
         }
     }
@@ -202,11 +215,18 @@ pub enum Operation {
     ForexTrade,
     SellTrade,
     BuyTrade,
+    RepoDeal,
     Commission,
 
     Fee,
     Tax,
     Withdrawal,
+}
+
+impl Operation {
+    fn is_trade(self) -> bool {
+        matches!(self, Operation::ForexTrade | Operation::SellTrade | Operation::BuyTrade | Operation::RepoDeal)
+    }
 }
 
 fn cash_flow_comparator(a: &CashFlow, b: &CashFlow) -> Ordering {
@@ -215,8 +235,7 @@ fn cash_flow_comparator(a: &CashFlow, b: &CashFlow) -> Ordering {
     }
 
     for (a, b) in [(a, b), (b, a)] {
-        let ops = (a.operation, b.operation);
-        if let (Operation::Commission, Operation::ForexTrade | Operation::SellTrade | Operation::BuyTrade) = ops {
+        if a.operation == Operation::Commission && b.operation.is_trade() {
             return Ordering::Equal;
         }
     }

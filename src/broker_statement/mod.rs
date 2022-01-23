@@ -429,6 +429,7 @@ impl BrokerStatement {
         }
 
         self.fees.extend(statement.fees.into_iter());
+        self.cash_flows.extend(statement.cash_flows.into_iter());
         self.deposits_and_withdrawals.extend(statement.deposits_and_withdrawals.into_iter());
         self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
         self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
@@ -525,6 +526,7 @@ impl BrokerStatement {
         self.sort_and_alter_fees(self.period.last_date());
         validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
+        // FIXME(konishchev): Warn on repo deals
         self.cash_flows.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
         validator.validate("a cash flow", &self.cash_flows, |cash_flow| cash_flow.date)?;
 

@@ -174,6 +174,7 @@ impl TradeRow {
 
         let commission = Cash::zero(currency);
 
+        // FIXME(konishchev): Switch to repo
         if !margin {
             let exchange = match self.exchange.as_str() {
                 "ММВБ" => Exchange::Moex,

@@ -12,6 +12,7 @@ pub struct CashFlow {
 pub enum CashFlowType {
     Dividend {date: Date, issuer: String},
     Tax {date: Date, issuer: String},
+    Repo {symbol: String, commission: Cash},
 }
 
 impl CashFlow {
@@ -20,23 +21,26 @@ impl CashFlow {
     }
 
     pub fn symbol(&self) -> Option<&str> {
-        Some(match self.type_ {
-            CashFlowType::Dividend {ref issuer, ..} => issuer,
-            CashFlowType::Tax {ref issuer, ..} => issuer,
+        Some(match &self.type_ {
+            CashFlowType::Dividend {issuer, ..} => issuer,
+            CashFlowType::Tax {issuer, ..} => issuer,
+            CashFlowType::Repo {symbol, ..} => symbol,
         })
     }
 
     pub fn mut_symbol(&mut self) -> Option<&mut String> {
-        Some(match self.type_ {
-            CashFlowType::Dividend {ref mut issuer, ..} => issuer,
-            CashFlowType::Tax {ref mut issuer, ..} => issuer,
+        Some(match &mut self.type_ {
+            CashFlowType::Dividend {issuer, ..} => issuer,
+            CashFlowType::Tax {issuer, ..} => issuer,
+            CashFlowType::Repo {symbol, ..} => symbol,
         })
     }
 
-    pub fn sort_key(&self) -> (DateOptTime, Option<&str>, Date) {
+    pub fn sort_key(&self) -> (DateOptTime, Option<&str>, Option<Date>) {
         (self.date, self.symbol(), match self.type_ {
-            CashFlowType::Dividend {date, ..} => date,
-            CashFlowType::Tax {date, ..} => date,
+            CashFlowType::Dividend {date, ..} => Some(date),
+            CashFlowType::Tax {date, ..} => Some(date),
+            CashFlowType::Repo {..} => None,
         })
     }
 }
