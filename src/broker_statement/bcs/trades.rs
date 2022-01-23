@@ -197,11 +197,11 @@ impl TradeRow {
             if buy {
                 statement.stock_buys.push(StockBuy::new_trade(
                     symbol, quantity.into(), price, volume, commission,
-                    conclusion_time, execution_date, repo));
+                    conclusion_time, execution_date));
             } else {
                 statement.stock_sells.push(StockSell::new_trade(
                     symbol, quantity.into(), price, volume, commission,
-                    conclusion_time, execution_date, repo, false));
+                    conclusion_time, execution_date, false));
             }
         }
 

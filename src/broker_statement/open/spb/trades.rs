@@ -106,12 +106,12 @@ impl Trade {
             TradeType::Buy => {
                 statement.stock_buys.push(StockBuy::new_trade(
                     symbol, quantity, price, volume, commission,
-                    conclusion_time.into(), self.execution_date, false));
+                    conclusion_time.into(), self.execution_date));
             },
             TradeType::Sell => {
                 statement.stock_sells.push(StockSell::new_trade(
                     symbol, quantity, price, volume, commission,
-                    conclusion_time.into(), self.execution_date, false, false));
+                    conclusion_time.into(), self.execution_date, false));
             },
         }
 

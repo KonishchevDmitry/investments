@@ -214,7 +214,7 @@ impl TradeRow {
                 } else {
                     statement.stock_buys.push(StockBuy::new_trade(
                         &self.symbol, self.quantity.into(), price, volume, commission,
-                        conclusion_time.into(), self.execution_date, false));
+                        conclusion_time.into(), self.execution_date));
                 }
             },
             "Продажа" => {
@@ -226,7 +226,7 @@ impl TradeRow {
                 } else {
                     statement.stock_sells.push(StockSell::new_trade(
                         &self.symbol, self.quantity.into(), price, volume,
-                        commission, conclusion_time.into(), self.execution_date, false, false));
+                        commission, conclusion_time.into(), self.execution_date, false));
                 }
             },
             _ => return Err!("Unsupported trade operation: {:?}", self.operation),

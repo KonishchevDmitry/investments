@@ -113,11 +113,11 @@ fn parse_stock_record(
     if quantity.is_sign_positive() {
         parser.statement.stock_buys.push(StockBuy::new_trade(
             &symbol, quantity, price, -volume, commission,
-            conclusion_time.into(), execution_date, false));
+            conclusion_time.into(), execution_date));
     } else {
         parser.statement.stock_sells.push(StockSell::new_trade(
             &symbol, -quantity, price, volume, commission,
-            conclusion_time.into(), execution_date, false, false));
+            conclusion_time.into(), execution_date, false));
     }
 
     Ok(())

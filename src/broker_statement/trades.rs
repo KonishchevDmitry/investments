@@ -46,7 +46,6 @@ pub struct StockBuy {
 
     pub conclusion_time: DateOptTime,
     pub execution_date: Date,
-    // FIXME(konishchev): Deprecate
     pub out_of_order_execution: bool,
 
     sold: Decimal,
@@ -55,7 +54,7 @@ pub struct StockBuy {
 impl StockBuy {
     pub fn new_trade(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
-        conclusion_time: DateOptTime, execution_date: Date, margin: bool,
+        conclusion_time: DateOptTime, execution_date: Date,
     ) -> StockBuy {
         let cost = PurchaseTotalCost::new_from_trade(
             conclusion_time.date, execution_date, volume, commission);
@@ -63,7 +62,7 @@ impl StockBuy {
         StockBuy {
             symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
             quantity, type_: StockSource::Trade {price, volume, commission}, cost,
-            conclusion_time, execution_date, out_of_order_execution: margin,
+            conclusion_time, execution_date, out_of_order_execution: false,
             sold: dec!(0),
         }
     }
@@ -144,7 +143,6 @@ pub struct StockSell {
 
     pub conclusion_time: DateOptTime,
     pub execution_date: Date,
-    // FIXME(konishchev): Deprecate
     pub out_of_order_execution: bool,
 
     pub emulation: bool,
@@ -154,12 +152,12 @@ pub struct StockSell {
 impl StockSell {
     pub fn new_trade(
         symbol: &str, quantity: Decimal, price: Cash, volume: Cash, commission: Cash,
-        conclusion_time: DateOptTime, execution_date: Date, margin: bool, emulation: bool,
+        conclusion_time: DateOptTime, execution_date: Date, emulation: bool,
     ) -> StockSell {
         StockSell {
             symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
             quantity, type_: StockSellType::Trade {price, volume, commission},
-            conclusion_time, execution_date, out_of_order_execution: margin,
+            conclusion_time, execution_date, out_of_order_execution: false,
             emulation, sources: Vec::new(),
         }
     }

@@ -128,7 +128,7 @@ impl<const REPO: bool> ConcludedTrade<REPO> {
                 } else {
                     statement.stock_buys.push(StockBuy::new_trade(
                         symbol, quantity, price, volume, commission,
-                        self.conclusion_time.into(), execution_date, REPO));
+                        self.conclusion_time.into(), execution_date));
                 }
             },
 
@@ -145,7 +145,7 @@ impl<const REPO: bool> ConcludedTrade<REPO> {
                 } else {
                     statement.stock_sells.push(StockSell::new_trade(
                         symbol, quantity, price, volume, commission,
-                        self.conclusion_time.into(), execution_date, REPO, false));
+                        self.conclusion_time.into(), execution_date, false));
                 }
             },
 

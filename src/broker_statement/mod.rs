@@ -294,7 +294,7 @@ impl BrokerStatement {
 
         let stock_sell = StockSell::new_trade(
             symbol, quantity, price, volume, commission,
-            conclusion_time, execution_date, false, true);
+            conclusion_time, execution_date, true);
 
         if let Entry::Occupied(mut open_position) = self.open_positions.entry(symbol.to_owned()) {
             let available = open_position.get_mut();
