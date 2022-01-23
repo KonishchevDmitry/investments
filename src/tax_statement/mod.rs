@@ -24,7 +24,7 @@ pub fn generate_tax_statement(
     let broker_statement = BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
-        ReadingStrictness::TRADE_SETTLE_DATE)?;
+        ReadingStrictness::TRADE_SETTLE_DATE | ReadingStrictness::REPO_TRADES)?;
 
     if let Some(year) = year {
         broker_statement.check_period_against_tax_year(year)?;

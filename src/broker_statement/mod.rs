@@ -163,7 +163,7 @@ impl BrokerStatement {
             statement.instrument_info.get_or_add(symbol).set_name(name);
         }
 
-        statement.validate()?;
+        statement.validate(strictness)?;
 
         process_corporate_actions(&mut statement)?;
         statement.process_trades(None)?;
@@ -516,7 +516,7 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn validate(&mut self) -> EmptyResult {
+    fn validate(&mut self, strictness: ReadingStrictness) -> EmptyResult {
         let validator = DateValidator::new(self.period);
 
         validator.sort_and_validate(
@@ -526,7 +526,16 @@ impl BrokerStatement {
         self.sort_and_alter_fees(self.period.last_date());
         validator.validate("a fee", &self.fees, |fee| fee.date)?;
 
-        // FIXME(konishchev): Warn on repo deals
+        if
+            strictness.contains(ReadingStrictness::REPO_TRADES) &&
+            self.cash_flows.iter().any(|cash_flow| matches!(cash_flow.type_, CashFlowType::Repo{..}))
+        {
+            warn!(concat!(
+                "Broker statement contains repo trades which aren't supported yet. ",
+                "All repo trades will be ignored during the calculations."
+            ));
+        }
+
         self.cash_flows.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
         validator.validate("a cash flow", &self.cash_flows, |cash_flow| cash_flow.date)?;
 

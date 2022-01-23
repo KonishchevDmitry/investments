@@ -13,7 +13,8 @@ use super::PartialBrokerStatement;
 bitflags! {
     pub struct ReadingStrictness: u32 {
         const TRADE_SETTLE_DATE = 1 << 0;
-        const CASH_FLOW_DATES =   1 << 1;
+        const CASH_FLOW_DATES   = 1 << 1;
+        const REPO_TRADES       = 1 << 2;
     }
 }
 

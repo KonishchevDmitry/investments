@@ -9,6 +9,7 @@ mod sell_simulation;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use easy_logging::GlobalContext;
 use log::warn;
 
 use crate::brokers::Broker;
@@ -266,7 +267,7 @@ pub fn simulate_sell(
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
     let mut portfolios = Vec::new();
-    let reading_strictness = ReadingStrictness::empty();
+    let reading_strictness = ReadingStrictness::REPO_TRADES;
 
     if let Some(name) = name {
         let portfolio = config.get_portfolio(name)?;
@@ -278,6 +279,7 @@ fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<
         }
 
         for portfolio in &config.portfolios {
+            let _logging_context = GlobalContext::new(&portfolio.name);
             let statement = load_portfolio(config, portfolio, reading_strictness)?;
             portfolios.push((portfolio, statement));
         }
