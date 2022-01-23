@@ -1,5 +1,6 @@
 use num_traits::cast::ToPrimitive;
 
+use crate::broker_statement::cash_flows::{CashFlow, CashFlowType};
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
@@ -114,14 +115,14 @@ struct TradeRow {
 
 impl TradeRow {
     fn parse(&self, statement: &mut PartialBrokerStatement, symbol: &str) -> EmptyResult {
-        let margin = matches!(
+        let repo = matches!(
             self.trade_type.as_ref(),
             Some(trade_type) if trade_type == "Репо ч.1" || trade_type == "Репо ч.2");
 
         let execution_date = parse_short_date(&self.execution_date)?;
         let conclusion_time: DateOptTime = match (self.conclusion_date.as_ref(), self.conclusion_time.as_ref()) {
             (Some(date), Some(time)) => DateTime::new(parse_short_date(date)?, parse_time(time)?).into(),
-            (None, None) if margin => execution_date.into(),
+            (None, None) if repo => execution_date.into(),
             _ => return Err!("The trade has no conclusion date/time"),
         };
 
@@ -174,24 +175,34 @@ impl TradeRow {
 
         let commission = Cash::zero(currency);
 
-        // FIXME(konishchev): Switch to repo
-        if !margin {
+        if repo {
+            let amount = if buy {
+                -volume
+            } else {
+                volume
+            };
+
+            statement.cash_flows.push(CashFlow::new(conclusion_time, amount, CashFlowType::Repo {
+                symbol: symbol.to_owned(),
+                commission
+            }))
+        } else {
             let exchange = match self.exchange.as_str() {
                 "ММВБ" => Exchange::Moex,
                 "СПБ" => Exchange::Spb, // Haven't seen it yet actually, just guessing
                 _ => return Err!("Unknown exchange: {:?}", self.exchange),
             };
             statement.instrument_info.get_or_add(symbol).exchanges.add_prioritized(exchange);
-        }
 
-        if buy {
-            statement.stock_buys.push(StockBuy::new_trade(
-                symbol, quantity.into(), price, volume, commission,
-                conclusion_time, execution_date, margin));
-        } else {
-            statement.stock_sells.push(StockSell::new_trade(
-                symbol, quantity.into(), price, volume, commission,
-                conclusion_time, execution_date, margin, false));
+            if buy {
+                statement.stock_buys.push(StockBuy::new_trade(
+                    symbol, quantity.into(), price, volume, commission,
+                    conclusion_time, execution_date, repo));
+            } else {
+                statement.stock_sells.push(StockSell::new_trade(
+                    symbol, quantity.into(), price, volume, commission,
+                    conclusion_time, execution_date, repo, false));
+            }
         }
 
         Ok(())
