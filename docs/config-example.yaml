@@ -192,6 +192,10 @@ twelvedata:
   # API key that must be obtained here - https://twelvedata.com/apikey
   token: secret
 
+# This field is always ignored. You can place any data inside of it and use YAML anchors to refer repeatable
+# configuration values from other places of the configuration file. For example, you may refer a single asset
+# allocation configuration from multiple portfolios.
+#anchors: {}
 
 deposits:
   - name: Тинькофф

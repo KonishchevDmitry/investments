@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use chrono::Duration;
 use serde::Deserialize;
-use serde::de::{Deserializer, Error};
+use serde::de::{Deserializer, IgnoredAny, Error};
 
 use crate::analysis::config::PerformanceMergingConfig;
 use crate::broker_statement::CorporateAction;
@@ -46,6 +46,9 @@ pub struct Config {
 
     #[serde(default)]
     pub telemetry: TelemetryConfig,
+
+    #[serde(default, rename="anchors")]
+    _anchors: IgnoredAny,
 }
 
 impl Config {
@@ -67,6 +70,8 @@ impl Config {
             finnhub: None,
             twelvedata: None,
             telemetry: Default::default(),
+
+            _anchors: Default::default(),
         }
     }
 
