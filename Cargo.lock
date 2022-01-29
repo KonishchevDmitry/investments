@@ -1028,6 +1028,7 @@ dependencies = [
  "uuid",
  "xls_table_derive",
  "xml-rs",
+ "yaml-merge-keys",
 ]
 
 [[package]]
@@ -2534,6 +2535,18 @@ name = "xml-rs"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
+
+[[package]]
+name = "yaml-merge-keys"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af47d205071caaef70ebce5e04e1d88eba944833f8a6626dacdda700f86c285a"
+dependencies = [
+ "lazy_static",
+ "serde_yaml",
+ "thiserror",
+ "yaml-rust",
+]
 
 [[package]]
 name = "yaml-rust"

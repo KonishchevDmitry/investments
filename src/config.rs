@@ -6,6 +6,7 @@ use std::str::FromStr;
 use chrono::Duration;
 use serde::Deserialize;
 use serde::de::{Deserializer, IgnoredAny, Error};
+use serde_yaml::Value;
 
 use crate::analysis::config::PerformanceMergingConfig;
 use crate::broker_statement::CorporateAction;
@@ -76,11 +77,7 @@ impl Config {
     }
 
     pub fn load(path: &str) -> GenericResult<Config> {
-        let mut config: Config = {
-            let mut data = Vec::new();
-            File::open(path)?.read_to_end(&mut data)?;
-            serde_yaml::from_slice(&data)?
-        };
+        let mut config: Config = Config::read(path)?;
 
         for deposit in &config.deposits {
             deposit.validate()?;
@@ -131,6 +128,32 @@ impl Config {
         }
 
         Err!("{:?} portfolio is not defined in the configuration file", name)
+    }
+
+    fn read(path: &str) -> GenericResult<Config> {
+        let mut data = Vec::new();
+        File::open(path)?.read_to_end(&mut data)?;
+
+        // yaml-rust doesn't support merge key (https://github.com/chyh1990/yaml-rust/issues/68)
+        let value: Value = serde_yaml::from_slice(&data)?;
+        let merged = yaml_merge_keys::merge_keys_serde(value.clone())?;
+        if merged == value {
+            return Ok(serde_yaml::from_slice(&data)?);
+        }
+
+        let modified_data = serde_yaml::to_vec(&merged)?;
+        Ok(serde_yaml::from_slice(&modified_data).map_err(|err| {
+            // To not confuse user with changed positions
+            if let Some(message) = err.location().and_then(|location| {
+                let message = err.to_string();
+                let suffix = format!(" at line {} column {}", location.line(), location.column());
+                message.strip_suffix(&suffix).map(ToOwned::to_owned)
+            }) {
+                return message;
+            }
+
+            err.to_string()
+        })?)
     }
 }
 
@@ -404,12 +427,12 @@ fn default_expire_time() -> Duration {
 fn deserialize_cash_flows<'de, D>(deserializer: D) -> Result<Vec<(Date, Decimal)>, D::Error>
     where D: Deserializer<'de>
 {
-    let deserialized: HashMap<String, String> = Deserialize::deserialize(deserializer)?;
+    let deserialized: HashMap<String, Decimal> = Deserialize::deserialize(deserializer)?;
     let mut cash_flows = Vec::new();
 
     for (date, amount) in deserialized {
         let date = time::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)?;
-        let amount = util::parse_decimal(&amount, DecimalRestrictions::StrictlyPositive).map_err(|_|
+        let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyPositive).map_err(|_|
             D::Error::custom(format!("Invalid amount: {:?}", amount)))?;
 
         cash_flows.push((date, amount));
