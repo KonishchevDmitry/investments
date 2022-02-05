@@ -14,11 +14,8 @@ pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
         "Invalid date: {:?}", date))?)
 }
 
-pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
-    where D: Deserializer<'de>
-{
-    let date: String = Deserialize::deserialize(deserializer)?;
-    parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)
+pub fn parse_user_date(date: &str) -> GenericResult<Date> {
+    parse_date(date, "%Y.%m.%d").or_else(|_| parse_date(date, "%d.%m.%Y"))
 }
 
 pub fn parse_time(time: &str, format: &str) -> GenericResult<Time> {
@@ -44,12 +41,19 @@ pub fn parse_tz_date_time<T: TimeZone>(
     Ok(date_time)
 }
 
+pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+    where D: Deserializer<'de>
+{
+    let date: String = Deserialize::deserialize(deserializer)?;
+    parse_user_date(&date).map_err(D::Error::custom)
+}
+
 pub fn deserialize_date_opt_time<'de, D>(deserializer: D) -> Result<DateOptTime, D::Error>
     where D: Deserializer<'de>
 {
     let value: String = Deserialize::deserialize(deserializer)?;
     parse_date_time(&value, "%Y.%m.%d %H:%M:%S").map(Into::into)
-        .or_else(|_| parse_date(&value, "%d.%m.%Y").map(Into::into))
+        .or_else(|_| parse_user_date(&value).map(Into::into))
         .map_err(D::Error::custom)
 }
 

@@ -294,7 +294,7 @@ impl Parser {
 
             "deposits" => {
                 let date = match matches.value_of("date") {
-                    Some(date) => time::parse_date(date, "%d.%m.%Y")?,
+                    Some(date) => time::parse_user_date(date)?,
                     None => time::today(),
                 };
 

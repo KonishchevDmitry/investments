@@ -14,14 +14,14 @@ portfolios:
 
     # Tax remapping rules (https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping)
     #tax_remapping:
-    #  - date: 13.02.2020
+    #  - date: 2020.02.13
     #    description: BND(US9219378356) Cash Dividend 0.19834500 USD per Share - US Tax
-    #    to_date: 06.02.2019
+    #    to_date: 2019.02.06
 
     # Sometimes stocks are renamed without any corporate action (see https://github.com/KonishchevDmitry/investments/issues/29)
     # Manual corporate action specification solves the issue.
     #corporate_actions:
-    #  - date: 03.11.2020
+    #  - date: 2020.11.03
     #    symbol: CBL
     #    type: rename
     #    new_symbol: CBLAQ
@@ -94,7 +94,7 @@ portfolios:
 
     # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
     tax_deductions:
-      25.09.2018: 52000
+      2018.09.25: 52000
 
     currency: RUB
     min_cash_assets: 250
@@ -138,7 +138,7 @@ portfolios:
     # Tinkoff doesn't provide any information about corporate actions, so we have to specify them manually
     #corporate_actions:
     #  - type: stock-split
-    #    date: 27.10.2020
+    #    date: 2020.10.27
     #    symbol: NEE
     #    ratio: 4:1
 
@@ -199,15 +199,15 @@ twelvedata:
 
 deposits:
   - name: Тинькофф
-    open_date: 31.01.2019
-    close_date: 31.07.2019
+    open_date: 2019.01.31
+    close_date: 2019.07.31
     amount: 190000
     #currency: RUB
     interest: 7
     capitalization: true
     contributions:
-      05.02.2019: 60000
-      21.02.2019: 50000
+      2019.02.05: 60000
+      2019.02.21: 50000
 
 # Configures the number of days to notify before deposit closing (for --cron mode)
 notify_deposit_closing_days: 10
