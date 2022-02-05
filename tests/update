@@ -6,9 +6,9 @@
 set -eu
 
 wait-api-rate-limits() {
-    local time=${1:-1}
+    local time="${1:-60}"
     echo "Sleeping ${time}s to fit into API rate limits..."
-    sleep ${1:-1}
+    sleep "$time"
 }
 
 investments() {
@@ -18,7 +18,7 @@ investments() {
 }
 
 rate-limited-investments() {
-    wait-api-rate-limits
+    wait-api-rate-limits 1
     investments "$@"
 }
 
@@ -41,14 +41,15 @@ done
 
 for portfolio in \
     ib-margin-rub ib-complex ib-stock-split ib-reverse-stock-split ib-reverse-stock-split-reverse-order \
-    ib-simple-with-lse ib-symbol-with-space ib-tax-remapping tinkoff-complex; do
+    ib-simple-with-lse ib-symbol-with-space ib-tax-remapping  ib-stock-yield-enhancement-program-not-received-yet \
+    tinkoff-complex; do
     investments other tax-statement "$portfolio"
 done
 
-wait-api-rate-limits 60
+wait-api-rate-limits
     investments other analyse ib-complex --all
-    rate-limited-investments other simulate-sell ib-complex 1 VTRS
-wait-api-rate-limits 60
+    investments other simulate-sell ib-complex 1 VTRS
+wait-api-rate-limits
 
 rate-limited-investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX
 rate-limited-investments other simulate-sell ib-stock-split all AAPL

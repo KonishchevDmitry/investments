@@ -66,6 +66,14 @@ impl RecordParser for NavParser {
 
         match asset_class {
             "Cash" | "Dividend Accruals" | "Interest Accruals"| "Total" => {},
+
+            // Appear when Stock Yield Enhancement Program is enabled:
+            // * Securities Lent - total value of lent securities
+            // * Cash Collateral - cash collateral provided for these securities
+            //
+            // These numbers are informal only and don't decrease `Stock` value.
+            "Cash Collateral" | "Securities Lent" => {},
+
             "Stock" => {
                 if !record.parse_amount("Current Short", DecimalRestrictions::No)?.is_zero() {
                     return Err!("Short positions aren't supported")
@@ -76,6 +84,7 @@ impl RecordParser for NavParser {
 
                 parser.statement.assets.other.as_mut().unwrap().amount += amount;
             },
+
             _ => return Err!("Unsupported asset class: {:?}", asset_class),
         }
 

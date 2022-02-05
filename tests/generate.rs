@@ -50,6 +50,7 @@ fn generate_regression_tests() {
     t.add("IB symbol with space tax statement", "tax-statement ib-symbol-with-space").config("other");
     t.add("IB tax remapping tax statement", "tax-statement ib-tax-remapping").config("other");
     t.add("IB trading tax statement", "tax-statement ib-trading").config("other");
+    t.add("IB with enabled Stock Yield Enhancement Program (not received yet) tax statement", "tax-statement ib-stock-yield-enhancement-program-not-received-yet").config("other");
     t.add("Open MOEX dividends tax statement", "tax-statement open-dividends-moex").config("other");
     t.add("Open SPB dividends tax statement", "tax-statement open-dividends-spb").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
@@ -70,6 +71,7 @@ fn generate_regression_tests() {
     t.add("IB simple with LSE cash flow", "cash-flow ib-simple-with-lse").config("other");
     t.add("IB tax remapping cash flow", "cash-flow ib-tax-remapping").config("other");
     t.add("IB trading cash flow", "cash-flow ib-trading").config("other");
+    t.add("IB with enabled Stock Yield Enhancement Program (not received yet) cash flow", "cash-flow ib-stock-yield-enhancement-program-not-received-yet").config("other");
     t.add("Open non-unified account cash-flow", "cash-flow open-first-iia-a").config("other");
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
     t.add("Open MOEX dividends cash flow", "cash-flow open-dividends-moex").config("other");
@@ -242,5 +244,17 @@ impl Test {
 }
 
 fn name_to_id(name: &str) -> String {
-    name.to_lowercase().replace(' ', "-")
+    name.chars().fold(String::with_capacity(name.len()), |mut id, char| {
+        let char = if " ()".contains(char) {
+            '-'
+        } else {
+            char.to_ascii_lowercase()
+        };
+
+        if char != '-' || !matches!(id.chars().last(), Some('-')) {
+            id.push(char)
+        }
+
+        id
+    })
 }
