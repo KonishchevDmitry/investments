@@ -21,7 +21,6 @@ pub fn compare_to_bank_deposit(
             format!("{}: {}", formatting::format_date(transaction.date), transaction.amount)
         }).join(", ");
 
-        // FIXME(konishchev): Switch to common period type
         let interest_periods = interest_periods.iter().map(|period| {
             format!("{} - {}", formatting::format_date(period.start), formatting::format_date(period.end))
         }).join(", ");
