@@ -122,6 +122,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn analyse_instrument_performance(
         &mut self, symbol: &str, mut deposit_view: InstrumentDepositView
     ) -> GenericResult<InstrumentPerformanceAnalysis> {
+        trace!("Analysing {} performance...", symbol);
+
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
 
         let interest = deposit_performance::compare_to_bank_deposit(
@@ -154,6 +156,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn analyse_portfolio_performance(&mut self) -> GenericResult<InstrumentPerformanceAnalysis> {
+        trace!("Analysing portfolio performance...");
+
         if self.transactions.is_empty() {
             return Err!("The portfolio has no activity yet");
         }

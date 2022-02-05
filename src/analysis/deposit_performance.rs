@@ -1,11 +1,13 @@
 use std::cmp::Ordering;
 
 #[cfg(test)] use chrono::Duration;
-
-use log::{debug, warn};
+use indoc::indoc;
+use itertools::Itertools;
+use log::{self, log_enabled, debug, trace, warn};
 
 use crate::core::EmptyResult;
 use crate::currency::Cash;
+use crate::formatting;
 use crate::types::Decimal;
 use crate::util;
 
@@ -14,6 +16,24 @@ use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 pub fn compare_to_bank_deposit(
     transactions: &[Transaction], interest_periods: &[InterestPeriod], current_assets: Decimal
 ) -> Option<(Decimal, Decimal)> {
+    if log_enabled!(log::Level::Trace) {
+        let transactions = transactions.iter().map(|transaction| {
+            format!("{}: {}", formatting::format_date(transaction.date), transaction.amount)
+        }).join(", ");
+
+        // FIXME(konishchev): Switch to common period type
+        let interest_periods = interest_periods.iter().map(|period| {
+            format!("{} - {}", formatting::format_date(period.start), formatting::format_date(period.end))
+        }).join(", ");
+
+        trace!(indoc!("
+            Comparing the following cash flows to deposit performance:
+            * Transactions: {}
+            * Interest periods: {}
+            * Result: {}"),
+            transactions, interest_periods, current_assets);
+    }
+
     let start_date = std::cmp::min(
         transactions.first().unwrap().date,
         interest_periods.first().unwrap().start,
@@ -23,12 +43,6 @@ pub fn compare_to_bank_deposit(
         transactions.last().unwrap().date,
         interest_periods.last().unwrap().end,
     );
-
-    // Some assets can be acquired for free due to corporate actions or other non-trading
-    // operations. In this case we can't calculate their performance.
-    if !transactions.iter().any(|transaction| transaction.amount > dec!(0)) {
-        return None;
-    }
 
     let emulate = |interest: Decimal| -> Decimal {
         let result_assets = DepositEmulator::new(start_date, end_date, interest)
@@ -41,7 +55,7 @@ pub fn compare_to_bank_deposit(
     let mut interest = dec!(0);
     let mut difference = emulate(interest);
 
-    for mut step in [dec!(10), dec!(1), dec!(0.1), dec!(0.01)].iter().cloned() {
+    for (index, mut step) in [dec!(10), dec!(1), dec!(0.1), dec!(0.01)].iter().cloned().enumerate() {
         let decreasing_difference = emulate(interest - step);
         let increasing_difference = emulate(interest + step);
 
@@ -54,10 +68,24 @@ pub fn compare_to_bank_deposit(
                 assert!(decreasing_difference < difference);
                 step = -step;
             },
+
             Ordering::Greater => {
                 assert!(increasing_difference < difference);
             },
-            Ordering::Equal => unreachable!(),
+
+            Ordering::Equal => if index == 0 {
+                // Some assets can be acquired for free due to corporate actions or other
+                // non-trading operations. In this case we can't calculate their performance.
+                //
+                // An example is spinoff corporate action, where we have:
+                // * no buy transaction (it's zero cost)
+                // * a big negative transaction from stock selling
+                // * two small positive (commission + tax)
+                // * effectively zero interest period with positive balance
+                return None;
+            } else {
+                unreachable!();
+            },
         }
 
         interest += step;
@@ -120,6 +148,7 @@ pub fn check_emulation_precision(
 
 #[cfg(test)]
 mod tests {
+    use matches::assert_matches;
     use super::*;
 
     #[test]
@@ -226,5 +255,28 @@ mod tests {
             transactions.push(Transaction::new(close_date + Duration::days(300), dec!(-100_000)));
             compare(&transactions, &interest_periods, dec!(-100_000));
         }
+    }
+
+    #[test]
+    fn spinoff_sell_simulation() {
+        // This is an example of transactions which we can get during sell simulation of stock which
+        // we've got "for free" due to spinoff corporate action.
+
+        let transactions = vec![
+            // Sell
+            Transaction::new(date!(2022, 2,  4), dec!(-16.58)),
+
+            // Commission
+            Transaction::new(date!(2022, 2,  4), dec!(1)),
+
+            // Tax
+            Transaction::new(date!(2023, 3, 15), dec!(2.30)),
+        ];
+
+        let interest_periods = vec![
+            InterestPeriod::new(date!(2021, 11, 12), date!(2022, 2, 4)),
+        ];
+
+        assert_matches!(compare_to_bank_deposit(&transactions, &interest_periods, dec!(0)), None);
     }
 }
