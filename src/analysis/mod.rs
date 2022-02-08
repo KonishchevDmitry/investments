@@ -122,7 +122,9 @@ pub fn analyse(
     merge_performance: Option<&PerformanceMergingConfig>, interactive: bool,
 ) -> GenericResult<(PortfolioStatistics, CurrencyConverterRc, TelemetryRecordBuilder)> {
     let mut telemetry = TelemetryRecordBuilder::new();
+
     let mut portfolios = load_portfolios(config, portfolio_name)?;
+    let multiple = portfolios.len() > 1;
 
     let country = config.get_tax_country();
     let (converter, quotes) = load_tools(config)?;
@@ -134,6 +136,8 @@ pub fn analyse(
     }
 
     for (portfolio, statement) in &mut portfolios {
+        let _logging_context = multiple.then(|| GlobalContext::new(&portfolio.name));
+
         let broker = statement.broker.type_;
         telemetry.add_broker(broker);
 
@@ -278,8 +282,10 @@ fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<
             return Err!("There is no any portfolio defined in the configuration file")
         }
 
+        let multiple = config.portfolios.len() > 1;
+
         for portfolio in &config.portfolios {
-            let _logging_context = GlobalContext::new(&portfolio.name);
+            let _logging_context = multiple.then(|| GlobalContext::new(&portfolio.name));
             let statement = load_portfolio(config, portfolio, reading_strictness)?;
             portfolios.push((portfolio, statement));
         }
