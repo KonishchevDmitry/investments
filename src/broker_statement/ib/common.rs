@@ -93,9 +93,10 @@ impl<'a> Record<'a> {
     }
 
     pub fn check_values(&self, values: &[(&str, &str)]) -> EmptyResult {
-        for (field, value) in values.iter() {
-            if self.get_value(*field)? != *value {
-                return Err!("Got an unexpected {:?} field value: {:?}", *field, *value);
+        for (field, expected_value) in values {
+            let value = self.get_value(field)?;
+            if value != *expected_value {
+                return Err!("Got an unexpected {:?} field value: {:?}", field, value);
             }
         }
 
