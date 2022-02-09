@@ -82,16 +82,26 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
         static ref REGEX: Regex = Regex::new(&format!(concat!(
             r"^(?P<symbol>{symbol}) ?\({id}\) (?P<action>Split|Stock Dividend|Spinoff) ",
             r"(?:{id} )?(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
-            r"\((?P<child_symbol>{symbol})(?:\.OLD)?, [^,)]+, {id}\)$",
-        ), symbol=common::STOCK_SYMBOL_REGEX, id=SecurityID::REGEX)).unwrap();
+            r"\((?P<other_symbol>{symbol})(?:{old_suffix})?, [^,)]+, {id}\)$"),
+            symbol=common::STOCK_SYMBOL_REGEX, old_suffix=regex::escape(common::OLD_SYMBOL_SUFFIX),
+            id=SecurityID::REGEX)).unwrap();
     }
 
-    let captures = REGEX.captures(description).ok_or_else(|| format!(
-        "Unsupported corporate action: {:?}", description))?;
+    let error = || Err!("Unsupported corporate action: {:?}", description);
+    let captures = match REGEX.captures(description) {
+        Some(captures) => captures,
+        None => return error(),
+    };
 
     let symbol = parse_symbol(captures.name("symbol").unwrap().as_str())?;
+    let other_symbol = parse_symbol(captures.name("other_symbol").unwrap().as_str())?;
+
     let action = match captures.name("action").unwrap().as_str() {
         "Split" => {
+            if other_symbol != symbol {
+                return error();
+            }
+
             let from: u32 = captures.name("from").unwrap().as_str().parse()?;
             let to: u32 = captures.name("to").unwrap().as_str().parse()?;
             let ratio = StockSplitRatio::new(from, to);
@@ -105,19 +115,26 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
             CorporateActionType::StockSplit{ratio, from_change, to_change}
         },
+
         "Stock Dividend" => {
+            if other_symbol != symbol {
+                return error();
+            }
+
             let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
             CorporateActionType::StockDividend {quantity}
         },
+
         "Spinoff" => {
             let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
             let currency = record.get_value("Currency")?.to_owned();
 
             CorporateActionType::Spinoff {
-                symbol: parse_symbol(captures.name("child_symbol").unwrap().as_str())?,
+                symbol: other_symbol,
                 quantity, currency,
             }
         },
+
         _ => unreachable!(),
     };
 

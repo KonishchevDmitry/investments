@@ -4,7 +4,7 @@ use crate::core::EmptyResult;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, SecurityID, parse_symbol};
+use super::common::{self, Record, RecordParser, SecurityID, parse_symbol};
 
 pub struct OpenPositionsParser {}
 
@@ -43,7 +43,10 @@ impl RecordParser for FinancialInstrumentInformationParser {
         // If symbol renames save its ISIN the column contains both symbols
         // (see https://github.com/KonishchevDmitry/investments/issues/29)
 
-        for symbol in record.get_value("Symbol")?.split(',').map(str::trim).skip_while(|s| s.ends_with(".OLD")) {
+        let symbols = record.get_value("Symbol")?.split(',').map(str::trim)
+            .skip_while(|symbol| symbol.ends_with(common::OLD_SYMBOL_SUFFIX));
+
+        for symbol in symbols {
             let symbol = parse_symbol(symbol)?;
 
             // It may be duplicated when the security changes its ID due to corporate action (stock

@@ -14,7 +14,8 @@ use crate::time;
 use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
-pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*?(?: [A-Z0-9]+)?";
+pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*(?:[ .][A-Z]+)??";
+pub const OLD_SYMBOL_SUFFIX: &str = ".OLD";
 
 // IB uses the following identifier types as security ID:
 // * ISIN (it seems that IB uses only this type in broker statements since 2020)
@@ -185,11 +186,10 @@ pub fn parse_symbol(symbol: &str) -> GenericResult<String> {
             r"^{}$", STOCK_SYMBOL_REGEX)).unwrap();
     }
 
-    if !SYMBOL_REGEX.is_match(symbol) {
+    if !SYMBOL_REGEX.is_match(symbol) || symbol.ends_with(OLD_SYMBOL_SUFFIX) {
         return Err!("Got a stock symbol with an unsupported format: {:?}", symbol);
     }
 
-    // See https://github.com/KonishchevDmitry/investments/issues/28
     Ok(symbol.replace(' ', "-"))
 }
 
@@ -264,5 +264,16 @@ mod tests {
         assert_matches!(parse("US9219378356"), SecurityID::Isin(_));
         assert_matches!(parse("921937835"), SecurityID::Cusip(_));
         assert_matches!(parse("43645828"), SecurityID::Conid(conid) if conid == 43645828);
+    }
+
+    #[rstest(value, expected,
+        case("T",       "T"),
+        case("VTI",     "VTI"),
+        case("U.UN",    "U.UN"),    // https://github.com/KonishchevDmitry/investments/issues/62
+        case("RDS B",   "RDS-B"),   // https://github.com/KonishchevDmitry/investments/issues/28
+        case("CBL PRD", "CBL-PRD"), // https://github.com/KonishchevDmitry/investments/issues/42
+    )]
+    fn symbol_parsing(value: &str, expected: &str) {
+        assert_eq!(parse_symbol(value).unwrap(), expected);
     }
 }
