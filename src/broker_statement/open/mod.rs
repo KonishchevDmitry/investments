@@ -111,7 +111,7 @@ mod tests {
 
         assert_eq!(statement.forex_trades.is_empty(), matches!(name, "iia" | "first-iia-a"));
         assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");
-        assert_eq!(statement.stock_sells.is_empty(), matches!(name, "iia" | "inactive-with-forex"));
+        assert_eq!(statement.stock_sells.is_empty(), name == "inactive-with-forex");
         assert!(statement.dividends.is_empty());
 
         assert_eq!(statement.open_positions.is_empty(), name == "inactive-with-forex");

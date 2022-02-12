@@ -11,6 +11,7 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
+use crate::localities::Jurisdiction;
 use crate::time::{Date, DateTime, DateOptTime, deserialize_date_opt_time};
 use crate::types::Decimal;
 use crate::util;
@@ -245,8 +246,12 @@ fn process_stock_split(
     //   that don't produce complex stock fractions.
     // * The second one is much complex (to write and to explain to tax inspector), loses
     //   long term investment tax exemptions, but can be applied to any stock split.
+    //
+    // We always use the second one for all Russian brokers, because they use it instead of the
+    // first one and reset FIFO and LTO by this fact. See docs/brokers.md#stock-splits-in-russian-brokers
+    // for details.
 
-    if ratio.from == 1 {
+    if ratio.from == 1 && statement.broker.type_.jurisdiction() != Jurisdiction::Russia {
         if !statement.stock_buys.iter().any(|trade| {
             trade.symbol == symbol && !trade.is_sold() && trade.conclusion_time < split_time
         }) {

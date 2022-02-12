@@ -89,8 +89,17 @@ depending on your account type:
 * `tax_exemptions: [long-term-ownership]` in case of an ordinary brokerage account where
   [Long-Term Ownership tax exception](https://github.com/KonishchevDmitry/investments/files/7531659/lto.pdf) is applied.
 
-But be prepared to [surprises](https://smart-lab.ru/blog/730297.php#comment13207914) from brokers in how they process
-LTO or stock splits.
+<a name="stock-splits-in-russian-brokers"></a>
+### Stock splits
+
+Please note that Russian brokers process stock splits in a way which resets FIFO and LTO. You can read long discussions about it here:
+
+* [Инвесторам в фонды (БПИФ и ETF) на Мосбирже. Сплит](https://smart-lab.ru/blog/730297.php)
+* [3 февраля 2022 года состоится сплит FXGD, FXTB и FXRU](https://smart-lab.ru/blog/756705.php)
+* [Крестовый поход против Открытия и Финекса](https://smart-lab.ru/blog/757057.php)
+* [Ответ БКС](https://www.banki.ru/forum/?PAGE_NAME=message&FID=21&TID=346272&MID=9017268#message9017268)
+
+Taking this into account, investments process stock splits in a similar way for all Russian brokers.
 
 
 <a name="open-broker"></a>
