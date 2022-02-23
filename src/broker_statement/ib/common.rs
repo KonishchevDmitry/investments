@@ -172,6 +172,16 @@ pub fn format_record<'a, I>(iter: I) -> String
         .join(", ")
 }
 
+pub fn format_error_record(record: &StringRecord) -> String {
+    let mut human = format!("({})", format_record(record));
+
+    if let Some(position) = record.position() {
+        human = format!("{} ({} line)", human, position.line());
+    }
+
+    human
+}
+
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%Y-%m-%d")
 }

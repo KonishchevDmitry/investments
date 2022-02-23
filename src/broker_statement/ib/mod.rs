@@ -31,7 +31,7 @@ use crate::types::Date;
 use super::{BrokerStatementReader, ReadingStrictness, PartialBrokerStatement};
 
 use self::cash_flows::CashFlows;
-use self::common::{Record, format_record};
+use self::common::{Record, format_record, format_error_record};
 use self::confirmation::{TradeExecutionDates, OrderId};
 
 pub struct StatementReader {
@@ -130,6 +130,7 @@ impl<'a> StatementParser<'a> {
                         None => break 'state,
                     };
                 }
+
                 State::Record(record) => {
                     if record.len() < 2 {
                         let value = record.get(0).unwrap_or("");
@@ -143,7 +144,7 @@ impl<'a> StatementParser<'a> {
                             continue 'state;
                         }
 
-                        return Err!("Invalid record: {}", format_record(&record));
+                        return Err!("Invalid record: {}", format_error_record(&record));
                     }
 
                     if record.get(1).unwrap() == "Header" {
@@ -152,9 +153,10 @@ impl<'a> StatementParser<'a> {
                         trace!("Headerless record: {}.", format_record(&record));
                         state = Some(State::None);
                     } else {
-                        return Err!("Invalid record: {}", format_record(&record));
+                        return Err!("Invalid record: {}", format_error_record(&record));
                     }
                 },
+
                 State::Header(record) => {
                     let (spec, parser) = section_parsers.select(&record)?;
 
@@ -168,7 +170,7 @@ impl<'a> StatementParser<'a> {
                             state = Some(State::Record(record));
                             continue 'state;
                         } else if record.len() < 3 {
-                            return Err!("Invalid record: {}", format_record(&record));
+                            return Err!("Invalid record: {}", format_error_record(&record));
                         }
 
                         let data_type = record.get(1).unwrap();
@@ -187,7 +189,7 @@ impl<'a> StatementParser<'a> {
 
                         if let Some(data_types) = data_types {
                             if !data_types.contains(&data_type) {
-                                return Err!("Invalid data record type: {}", format_record(&record));
+                                return Err!("Invalid data record type: {}", format_error_record(&record));
                             }
                         }
 
@@ -203,7 +205,7 @@ impl<'a> StatementParser<'a> {
                         }
 
                         parser.parse(&mut self, &Record::new(&spec, &record)).map_err(|e| format!(
-                            "Failed to parse ({}) record: {}", format_record(&record), e
+                            "Failed to parse {} record: {}", format_error_record(&record), e
                         ))?;
                     }
 

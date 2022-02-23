@@ -6,7 +6,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting::format_date;
 use crate::types::Date;
 
-use super::common::{Record, RecordSpec, format_record};
+use super::common::{Record, RecordSpec, format_error_record};
 
 pub type TradeExecutionDates = HashMap<OrderId, Date>;
 
@@ -40,7 +40,7 @@ pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> Gener
     for record in records {
         let record = record?;
         parse_record(&Record::new(&record_spec, &record), execution_dates).map_err(|e| format!(
-            "Failed to parse ({}) record: {}", format_record(&record), e
+            "Failed to parse {} record: {}", format_error_record(&record), e
         ))?;
     }
 
