@@ -10,7 +10,9 @@ fn generate_regression_tests() {
     let mut t = Tests::new();
 
     // cli
+    t.with_args("No command", &[]).exit_code(2);
     t.add("Help", "--help");
+
     for command in [
         "sync", "show", "rebalance", "cash", "buy", "sell",
         "analyse", "simulate-sell", "tax-statement", "cash-flow",
@@ -144,8 +146,9 @@ impl Tests {
         Tests { tests: Vec::new() }
     }
 
-    fn add<'a>(&'a mut self, name: &str, args: &str) -> &'a mut Test {
-        self.with_args(name, &args.split(' ').collect::<Vec<_>>())
+    fn add<'a>(&'a mut self, name: &str, command: &str) -> &'a mut Test {
+        let args = command.split(' ').filter(|arg| !arg.is_empty()).collect::<Vec<_>>();
+        self.with_args(name, &args)
     }
 
     fn with_args<'a>(&'a mut self, name: &str, args: &[&str]) -> &'a mut Test {
@@ -191,6 +194,7 @@ struct Test {
     config: String,
     args: Vec<String>,
     diff: Option<DiffKind>,
+    exit_code: i32,
 }
 
 impl Test {
@@ -201,6 +205,7 @@ impl Test {
             config: "main".to_owned(),
             args: args.iter().map(|&arg| arg.to_owned()).collect(),
             diff: None,
+            exit_code: 0,
         }
     }
 
@@ -211,6 +216,11 @@ impl Test {
 
     fn diff(&mut self, kind: DiffKind) -> &mut Test {
         self.diff.replace(kind);
+        self
+    }
+
+    fn exit_code(&mut self, exit_code: i32) -> &mut Test {
+        self.exit_code = exit_code;
         self
     }
 
@@ -229,6 +239,7 @@ impl Test {
         let mut test = retest::Test::new(self.app)
             .name(&self.name)
             .args(&args)
+            .exit_code(self.exit_code)
             .build();
 
         if stdout {
