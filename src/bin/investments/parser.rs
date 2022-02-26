@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use clap::{AppSettings, Arg, ArgMatches, ArgEnum};
+use clap::{Arg, ArgMatches, ArgEnum};
 use clap_complete::{self, Shell};
 use const_format::formatcp;
 
@@ -51,7 +51,8 @@ impl Parser {
 
         let mut app = cli::new_app(binary_name, "Helps you with managing your investments")
             .version(env!("CARGO_PKG_VERSION"))
-            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .subcommand_required(true)
+            .arg_required_else_help(true)
             .args([
                 cli::new_arg("config", formatcp!("Configuration directory path [default: {}]", DEFAULT_CONFIG_DIR_PATH))
                     .short('c').long("config")

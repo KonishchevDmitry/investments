@@ -1,16 +1,16 @@
-use clap::{App, AppSettings, Arg};
+use clap::{Command, AppSettings, Arg};
 use indoc::indoc;
 
-pub fn new_app<'help>(name: &str, about: &'help str) -> App<'help> {
+pub fn new_app<'help>(name: &str, about: &'help str) -> Command<'help> {
     new_subcommand(name, about)
-        .global_setting(AppSettings::HelpExpected)
+        .help_expected(true)
         .global_setting(AppSettings::DeriveDisplayOrder)
-        .global_setting(AppSettings::DisableHelpSubcommand)
-        .global_setting(AppSettings::DontCollapseArgsInUsage)
+        .disable_help_subcommand(true)
+        .dont_collapse_args_in_usage(true)
 }
 
-pub fn new_subcommand<'help>(name: &str, about: &'help str) -> App<'help> {
-    App::new(name)
+pub fn new_subcommand<'help>(name: &str, about: &'help str) -> Command<'help> {
+    Command::new(name)
         // Default template contains `{bin} {version}` for some reason
         .help_template(indoc!("
             {before-help}{about}
