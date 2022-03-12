@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use chrono::Datelike;
 use lazy_static::lazy_static;
-use log::{debug, warn};
+use log::{trace, debug, warn};
 use num_integer::Integer;
 use regex::Regex;
 #[cfg(test)] use tempfile::NamedTempFile;
@@ -65,6 +65,7 @@ impl TaxStatementReader {
 
         let mut records = Vec::new();
         let mut next_record_name = None;
+        trace!("Parsing {:?} tax statement:", path);
 
         loop {
             let record_name = match next_record_name.take() {
@@ -92,6 +93,7 @@ impl TaxStatementReader {
                 },
             };
 
+            trace!("{:?}", record);
             records.push(record);
         }
 
@@ -126,7 +128,31 @@ impl TaxStatementReader {
     }
 
     pub fn at_eof(&mut self) -> GenericResult<bool> {
-        Ok(self.file.fill_buf()?.is_empty())
+        let mut buf = self.file.fill_buf()?;
+        if buf.is_empty() {
+            return Ok(true)
+        }
+
+        if buf[0] != 0 {
+            return Ok(false);
+        }
+
+        // Декларация program sometimes writes zero bytes to the tail of the file. This behaviour
+        // varies from version to version, seems to have no meaning and looks like a serialization
+        // bug. So just ignore it.
+
+        while !buf.is_empty() {
+            if buf.iter().any(|&byte| byte != 0) {
+                return Err!("Got an unexpected zero byte in the middle of the file");
+            }
+
+            let size = buf.len();
+            self.file.consume(size);
+
+            buf = self.file.fill_buf()?;
+        }
+
+        Ok(true)
     }
 
     fn read_data_size(&mut self) -> GenericResult<usize> {
