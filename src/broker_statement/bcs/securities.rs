@@ -27,7 +27,7 @@ impl SectionParser for SecuritiesParser {
         parser.sheet.skip_empty_rows();
 
         for asset in &xls::read_table::<SecurityRow>(&mut parser.sheet)? {
-            let comment = asset.comment.as_ref().map(String::as_str).unwrap_or("").trim();
+            let comment = asset.comment.as_deref().unwrap_or_default().trim();
             if comment.is_empty() {
                 continue;
             }
