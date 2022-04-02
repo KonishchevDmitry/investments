@@ -94,9 +94,18 @@ impl BrokerStatement {
         let mut statements = reader::read(broker.type_, statement_dir_path, tax_remapping, strictness)?;
         statements.sort_by_key(|statement| statement.period.unwrap());
 
-        let last_index = statements.len() - 1;
-        let last_date = statements.last().unwrap().period.unwrap().last_date();
+        let mut last_period = statements.first().unwrap().period.unwrap();
+        for statement in &statements[1..] {
+            let period = statement.period.unwrap();
+            if period.first_date() <= last_period.last_date() {
+                return Err!(
+                    "Overlapping broker statement periods: {} and {}",
+                    last_period.format(), period.format());
+            }
+            last_period = period;
+        }
 
+        let last_index = statements.len() - 1;
         let mut statement = BrokerStatement::new_empty_from(broker, statements.first().unwrap())?;
         statement.instrument_info.set_internal_ids(instrument_internal_ids.clone());
 
@@ -116,7 +125,7 @@ impl BrokerStatement {
                     .or_insert(accruals);
             }
 
-            statement.merge(partial, last_date, index == 0, index == last_index).map_err(|e| format!(
+            statement.merge(partial, last_period.last_date(), index == 0, index == last_index).map_err(|e| format!(
                 "Failed to merge broker statements: {}", e))?;
         }
 
