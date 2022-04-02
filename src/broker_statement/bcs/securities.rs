@@ -27,8 +27,15 @@ impl SectionParser for SecuritiesParser {
         parser.sheet.skip_empty_rows();
 
         for asset in &xls::read_table::<SecurityRow>(&mut parser.sheet)? {
-            if matches!(&asset.comment, Some(d) if d.trim_end() == "Конвертация паи") {
+            let comment = asset.comment.as_ref().map(String::as_str).unwrap_or("").trim();
+            if comment.is_empty() {
+                continue;
+            }
+
+            if comment.starts_with("Конвертация паи") {
                 asset.parse_split(&mut statement)?;
+            } else {
+                return Err!("Unsupported corporate action: {:?}", asset.comment);
             }
         }
 
