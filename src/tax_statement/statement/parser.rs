@@ -14,6 +14,7 @@ use regex::Regex;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::time;
+#[cfg(test)] use crate::types::Decimal;
 #[cfg(test)] use crate::util;
 
 use super::TaxStatement;
@@ -282,9 +283,8 @@ mod tests {
         let mut statement = test_parsing(&path);
         let year = statement.year;
 
-        let mut incomes = Vec::new();
-        incomes.append(statement.get_foreign_incomes().unwrap());
-        assert_eq!(incomes.len(), 4);
+        let incomes: Vec<_> = statement.get_foreign_incomes().unwrap().drain(..).collect();
+        assert!(!incomes.is_empty());
 
         let date = date!(year, 1, 1);
         let amount = dec!(100);
@@ -311,26 +311,33 @@ mod tests {
                 purchase_local_cost).unwrap();
         }
 
-        {
-            let currency = "EUR"; // 978 - Евро
-            let currency_rate = dec!(90.7932);
-            let local_amount = amount * currency_rate;
+        struct CurrencyTestCase {
+            name: &'static str,
+            rate: Decimal,
+        }
+
+        for currency in [CurrencyTestCase {
+            name: "EUR", // 978 - Евро
+            rate: dec!(90.7932),
+        }, CurrencyTestCase {
+            name: "RUB", // 643 - Российский рубль
+            rate: dec!(1),
+        }, CurrencyTestCase {
+            name: "GBP", // 826 - Фунт стерлингов
+            rate: dec!(100.8477),
+        }, CurrencyTestCase {
+            name: "HKD", // 344 - Гонконгский доллар
+            rate: dec!(9.53013),
+        }] {
+            let local_amount = crate::currency::round(amount * currency.rate);
 
             // 6013 - Доходы в виде процентов, полученных от источников за пределами Российской
             //        Федерации, в отношении которых применяется налоговая ставка, предусмотренная
             //        пунктом 1 статьи 224 Кодекса
             statement.add_interest_income(
-                "Проценты", date, CountryCode::Usa,
-                currency, currency_rate, amount, local_amount).unwrap();
+                &format!("Проценты {}", currency.name), date, CountryCode::Usa,
+                currency.name, currency.rate, amount, local_amount).unwrap();
         }
-
-        // 643 - Российский рубль
-        // 6013 - Доходы в виде процентов, полученных от источников за пределами Российской
-        //        Федерации, в отношении которых применяется налоговая ставка, предусмотренная
-        //        пунктом 1 статьи 224 Кодекса
-        statement.add_interest_income(
-            "Проценты в рублях", date, CountryCode::Usa,
-            "RUB", dec!(1), amount, amount).unwrap();
 
         for (expected, generated) in itertools::zip_eq(&incomes, statement.get_foreign_incomes().unwrap()) {
             assert_eq!(generated, expected);

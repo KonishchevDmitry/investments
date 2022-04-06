@@ -89,9 +89,11 @@ tax_statement_inner_record!(CurrencyInfo {
 impl CurrencyInfo {
     pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<CurrencyInfo> {
         let (currency_code, currency_name, currency_rate_units) = match currency {
+            "EUR" => (978, "Евро", 100),
+            "GBP" => (826, "Фунт стерлингов", 100),
+            "HKD" => (344, "Гонконгский доллар", 1000),
             "RUB" => (643, "Российский рубль", 1000),
             "USD" => (840, "Доллар США", 100),
-            "EUR" => (978, "Евро", 100),
             _ => return Err!("{} currency is not supported yet", currency),
         };
         let currency_rate = currency::round(precise_currency_rate * Decimal::from(currency_rate_units));
