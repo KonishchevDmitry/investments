@@ -1,4 +1,4 @@
-use std::fmt::{self, Write};
+use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 use std::str::FromStr;
 
@@ -175,24 +175,35 @@ impl fmt::Display for Cash {
 }
 
 fn format_currency(currency: &str, mut amount: &str) -> String {
-    let mut buffer = String::new();
+    let mut buffer = String::with_capacity(amount.len() + 1);
 
-    if currency == "USD" {
+    let prefix = match currency {
+        "EUR" => Some('€'),
+        "GBP" => Some('£'),
+        "USD" => Some('$'),
+        _ => None,
+    };
+
+    if let Some(prefix) = prefix {
         if amount.starts_with('-') || amount.starts_with('+') {
-            write!(&mut buffer, "{}", &amount[..1]).unwrap();
+            buffer.push_str(&amount[..1]);
             amount = &amount[1..];
         }
-
-        write!(&mut buffer, "$").unwrap();
+        buffer.push(prefix);
     }
 
-    write!(&mut buffer, "{}", amount).unwrap();
+    buffer.push_str(amount);
 
-    match currency {
-        "USD" => (),
-        "RUB" => write!(&mut buffer, "₽").unwrap(),
-        _ => write!(&mut buffer, " {}", currency).unwrap(),
-    };
+    if prefix.is_none() {
+        match currency {
+            "HKD" => buffer.push_str(" HK$"),
+            "RUB" => buffer.push('₽'),
+            _ => {
+                buffer.push(' ');
+                buffer.push_str(currency);
+            },
+        };
+    }
 
     buffer
 }
