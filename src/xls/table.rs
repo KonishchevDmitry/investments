@@ -97,7 +97,7 @@ impl TableColumn {
                 "Invalid column name regex: {:?}", self.name))?;
             name_regex.is_match(value)
         } else {
-            let value_regex = format!("^{}$", regex::escape(value).replace('\r', "").replace("\n", " ?"));
+            let value_regex = format!("^{}$", regex::escape(value).replace('\r', "").replace('\n', " ?"));
             Regex::new(&value_regex).unwrap().is_match(self.name)
         };
         if matches {

@@ -79,7 +79,7 @@ impl Cbr {
                 return Err!("Invalid lot: {}", lot);
             }
 
-            let price = rate.price.replace(",", ".");
+            let price = rate.price.replace(',', ".");
             let price = Decimal::from_str(&price).map_err(|_| format!(
                 "Invalid price: {:?}", rate.price))?;
 

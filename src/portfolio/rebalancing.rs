@@ -365,7 +365,7 @@ struct AssetGroupRebalancingState {
 
 fn calculate_result_value(
     portfolio: &PortfolioInfo, converter: CurrencyConverterRc,
-    assets: &mut Vec<AssetAllocation>,
+    assets: &mut [AssetAllocation],
 ) -> GenericResult<Decimal> {
     let mut total_value = dec!(0);
 
@@ -475,7 +475,7 @@ fn find_assets_for_cash_distribution(
 
 fn process_trade(
     portfolio: &PortfolioInfo, converter: CurrencyConverterRc,
-    assets: &mut Vec<AssetAllocation>, mut trade: PossibleTrade,
+    assets: &mut [AssetAllocation], mut trade: PossibleTrade,
 ) -> GenericResult<Decimal> {
     let index = trade.path.pop().unwrap();
     let asset = &mut assets[index];
