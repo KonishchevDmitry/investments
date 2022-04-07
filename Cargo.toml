@@ -37,7 +37,7 @@ const_format = "0.2.22"
 csv = "1.1.6"
 cusip = "0.2.0"
 easy-logging = "0.1.2"
-encoding_rs = "0.8.30"
+encoding_rs = "0.8.31"
 governor = "0.4.2"
 indoc = "1.0.4"
 isin = "0.1.10"
@@ -73,8 +73,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.23.0", features = ["bundled"] }
 
-static_table_derive = "0.1.40"
-xls_table_derive = "0.5.7"
+static_table_derive = "0.1.41"
+xls_table_derive = "0.5.8"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
@@ -82,7 +82,7 @@ xls_table_derive = { path = "src/xls/xls_table_derive" }
 
 [dev-dependencies]
 mockito = "0.31.0"
-qtrac-retest = ">=4.0.10, <4.0.13"
+qtrac-retest = "4.0.13"
 rstest = "0.12.0"
 tempfile = "3.3.0"
 url = "2.2.2"
