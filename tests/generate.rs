@@ -45,6 +45,7 @@ fn generate_regression_tests() {
 
     // tax-statement
     t.add("IB complex tax statement", "tax-statement ib-complex").config("other");
+    t.add("IB external exchanges tax statement", "tax-statement ib-external-exchanges").config("other");
     t.add("IB stock split tax statement", "tax-statement ib-stock-split").config("other");
     t.add("IB reverse stock split tax statement", "tax-statement ib-reverse-stock-split").config("other");
     t.add("IB reverse stock split with reverse order tax statement", "tax-statement ib-reverse-stock-split-reverse-order").config("other");
@@ -61,6 +62,7 @@ fn generate_regression_tests() {
     // Not all calculations are seen in tax-statement output. For example, dividend jurisdiction
     // appear only in the tax statement, so it worth to test also third party statements here.
     t.tax_statement("IB complex", 2020).config("other");
+    t.tax_statement("IB external exchanges", 2021).config("other");
     t.tax_statement("Open dividends MOEX", 2021).config("other");
     t.tax_statement("Open dividends SPB", 2021).config("other");
     t.tax_statement("Tinkoff complex full", 2020).config("other");
@@ -68,6 +70,7 @@ fn generate_regression_tests() {
     // cash-flow
     t.add("IB margin RUB cash flow", "cash-flow ib-margin-rub").config("other");
     t.add("IB stock split cash flow", "cash-flow ib-stock-split").config("other");
+    t.add("IB external exchanges cash flow", "cash-flow ib-external-exchanges").config("other");
     t.add("IB reverse stock split cash flow", "cash-flow ib-reverse-stock-split").config("other");
     t.add("IB reverse stock split with reverse order cash flow", "cash-flow ib-reverse-stock-split-reverse-order").config("other");
     t.add("IB simple with LSE cash flow", "cash-flow ib-simple-with-lse").config("other");
