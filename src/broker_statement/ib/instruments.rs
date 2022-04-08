@@ -44,7 +44,7 @@ impl RecordParser for FinancialInstrumentInformationParser {
         // (see https://github.com/KonishchevDmitry/investments/issues/29)
 
         let symbols = record.get_value("Symbol")?.split(',').map(str::trim)
-            .skip_while(|symbol| symbol.ends_with(common::OLD_SYMBOL_SUFFIX));
+            .filter(|symbol| !symbol.ends_with(common::OLD_SYMBOL_SUFFIX));
 
         for symbol in symbols {
             let symbol = parse_symbol(symbol)?;
