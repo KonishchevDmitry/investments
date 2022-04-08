@@ -14,7 +14,7 @@ use crate::time;
 use crate::types::{Date, DateTime, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
-pub const STOCK_SYMBOL_REGEX: &str = "[A-Z][A-Z0-9]*(?:[ .][A-Z]+)??";
+pub const STOCK_SYMBOL_REGEX: &str = r"(?:[A-Z][A-Z0-9]*[a-z]*|\d+)(?:[ .][A-Z]+)??";
 pub const OLD_SYMBOL_SUFFIX: &str = ".OLD";
 
 // IB uses the following identifier types as security ID:
@@ -201,7 +201,7 @@ pub fn parse_symbol(symbol: &str) -> GenericResult<String> {
         return Err!("Got a stock symbol with an unsupported format: {:?}", symbol);
     }
 
-    Ok(symbol.replace(' ', "-"))
+    Ok(symbol.replace(' ', "-").to_uppercase())
 }
 
 fn parse_quantity(quantity: &str) -> GenericResult<Decimal> {
@@ -283,6 +283,8 @@ mod tests {
     #[rstest(value, expected,
         case("T",       "T"),
         case("VTI",     "VTI"),
+        case("TKAd",    "TKAD"),    // https://github.com/KonishchevDmitry/investments/issues/64
+        case("1086",    "1086"),    // https://github.com/KonishchevDmitry/investments/issues/64
         case("U.UN",    "U.UN"),    // https://github.com/KonishchevDmitry/investments/issues/62
         case("RDS B",   "RDS-B"),   // https://github.com/KonishchevDmitry/investments/issues/28
         case("CBL PRD", "CBL-PRD"), // https://github.com/KonishchevDmitry/investments/issues/42
