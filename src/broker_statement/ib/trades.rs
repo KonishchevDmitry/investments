@@ -88,7 +88,7 @@ fn parse_stock_record(
     let currency = record.get_value("Currency")?;
     let price = record.parse_cash("T. Price", currency, DecimalRestrictions::StrictlyPositive)?;
     let commission = -record.parse_cash("Comm/Fee", currency, DecimalRestrictions::NegativeOrZero)?;
-    let execution_date = parser.get_execution_date(&symbol, conclusion_time.date());
+    let execution_date = parser.get_execution_date(&symbol, conclusion_time);
     let quantity = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
 
     let volume = record.parse_cash("Proceeds", currency, if quantity.is_sign_positive() {

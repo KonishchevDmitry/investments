@@ -25,7 +25,7 @@ use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formatting::format_date;
 use crate::taxes::TaxRemapping;
-use crate::types::Date;
+use crate::time::{Date, DateTime};
 
 #[cfg(test)] use super::BrokerStatement;
 use super::{BrokerStatementReader, ReadingStrictness, PartialBrokerStatement};
@@ -223,10 +223,10 @@ impl<'a> StatementParser<'a> {
         Ok(self.base_currency.as_deref().ok_or("Unable to determine account base currency")?)
     }
 
-    fn get_execution_date(&mut self, symbol: &str, conclusion_date: Date) -> Date {
+    fn get_execution_date(&mut self, symbol: &str, conclusion_time: DateTime) -> Date {
         if let Some(&execution_date) = self.trade_execution_dates.get(&OrderId {
+            time: conclusion_time,
             symbol: symbol.to_owned(),
-            date: conclusion_date,
         }) {
             return execution_date;
         }
@@ -238,11 +238,11 @@ impl<'a> StatementParser<'a> {
                 "The broker statement misses trade settle date information (see {}). ",
                 "First occurred trade - {} at {}. ",
                 "All calculations for such trades will be performed in T+0 mode.",
-            ), url, symbol, format_date(conclusion_date));
+            ), url, symbol, format_date(conclusion_time.date()));
             *self.warn_on_missing_execution_date = false;
         }
 
-        conclusion_date
+        conclusion_time.date()
     }
 }
 

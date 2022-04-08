@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting::format_date;
-use crate::types::Date;
+use crate::time::{Date, DateTime};
 
 use super::common::{Record, RecordSpec, format_error_record};
 
@@ -12,8 +12,8 @@ pub type TradeExecutionDates = HashMap<OrderId, Date>;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct OrderId {
+    pub time: DateTime,
     pub symbol: String,
-    pub date: Date,
 }
 
 pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> GenericResult<bool> {
@@ -54,16 +54,16 @@ fn parse_record(record: &Record, execution_dates: &mut TradeExecutionDates) -> E
     }
 
     let symbol = record.parse_symbol("Symbol")?;
-    let conclusion_date = record.parse_date("TradeDate")?;
+    let conclusion_time = record.parse_date_time("Date/Time")?;
     let execution_date = record.parse_date("SettleDate")?;
 
     match execution_dates.insert(OrderId {
+        time: conclusion_time,
         symbol: symbol.clone(),
-        date: conclusion_date,
     }, execution_date) {
         Some(other_date) if other_date != execution_date => {
             return Err!("Got several execution dates for {} trade on {}: {} and {}",
-                symbol, format_date(conclusion_date), format_date(execution_date),
+                symbol, format_date(conclusion_time), format_date(execution_date),
                 format_date(other_date));
         },
         _ => {},

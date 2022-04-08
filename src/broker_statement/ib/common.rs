@@ -187,7 +187,8 @@ pub fn parse_date(date: &str) -> GenericResult<Date> {
 }
 
 pub fn parse_date_time(date_time: &str) -> GenericResult<DateTime> {
-    time::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S")
+    time::parse_date_time(date_time, "%Y-%m-%d, %H:%M:%S").or_else(|_|
+        time::parse_date_time(date_time, "%Y-%m-%d %H:%M:%S"))
 }
 
 pub fn parse_symbol(symbol: &str) -> GenericResult<String> {
@@ -235,9 +236,12 @@ mod tests {
         assert_eq!(parse_date("2018-06-22").unwrap(), date!(2018, 6, 22));
     }
 
-    #[test]
-    fn time_parsing() {
-        assert_eq!(parse_date_time("2018-07-31, 13:09:47").unwrap(), date!(2018, 7, 31).and_hms(13, 9, 47));
+    #[rstest(value,
+        case("2018-07-31 13:09:47"),
+        case("2018-07-31, 13:09:47"),
+    )]
+    fn time_parsing(value: &str) {
+        assert_eq!(parse_date_time(value).unwrap(), date!(2018, 7, 31).and_hms(13, 9, 47));
     }
 
     #[rstest(value, expected,
