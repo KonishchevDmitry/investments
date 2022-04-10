@@ -40,6 +40,7 @@ fn generate_regression_tests() {
     t.add("Simulate sell in other currency", "simulate-sell tinkoff --base-currency USD");
     t.add("Simulate sell after stock split", "simulate-sell ib-stock-split all AAPL").config("other");
     t.add("Simulate sell after reverse stock split", "simulate-sell ib-reverse-stock-split all AAPL all VISL").config("other");
+    t.add("Simulate sell stock grant", "simulate-sell ib-external-exchanges all IBKR").config("other");
     t.add("Simulate sell zero cost position", "simulate-sell ib-complex 5 VTRS 125 VTRS").config("other");
     t.add("Simulate sell with mixed currency", "simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX").config("other");
 

@@ -51,6 +51,8 @@ wait-api-rate-limits
     investments other simulate-sell ib-complex 1 VTRS
 wait-api-rate-limits
 
-rate-limited-investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX
+rate-limited-investments other simulate-sell open-first-iia-a
+rate-limited-investments other simulate-sell ib-external-exchanges all IBKR
 rate-limited-investments other simulate-sell ib-stock-split all AAPL
 rate-limited-investments other simulate-sell ib-reverse-stock-split all AAPL all VISL
+rate-limited-investments other simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX
