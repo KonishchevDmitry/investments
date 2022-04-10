@@ -102,7 +102,8 @@ mod tests {
         let (namespace, name) = name.split_once('/').unwrap();
         let statement = parse(namespace, name);
 
-        assert_eq!(statement.cash_assets.is_empty(), name == "inactive-with-forex");
+        assert_eq!(statement.assets.cash.is_empty(), name == "inactive-with-forex");
+        assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert_eq!(statement.fees.is_empty(), name == "iia");

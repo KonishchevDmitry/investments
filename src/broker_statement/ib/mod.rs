@@ -256,8 +256,9 @@ mod tests {
     fn parse_real_empty() {
         let statement = parse_full("empty", None);
 
+        assert!(!statement.assets.cash.is_empty());
+        assert!(statement.assets.other.is_some());
         assert!(statement.deposits_and_withdrawals.is_empty());
-        assert!(!statement.cash_assets.is_empty());
 
         assert!(statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
@@ -279,7 +280,8 @@ mod tests {
         let statement = parse_full("my", Some(tax_remapping));
         let current_year = statement.period.next_date().year();
 
-        assert!(!statement.cash_assets.is_empty());
+        assert!(!statement.assets.cash.is_empty());
+        assert!(statement.assets.other.is_some());
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(!statement.fees.is_empty());

@@ -146,13 +146,13 @@ pub fn analyse(
         }
 
         statistics.process(|statistics| {
-            let cash_assets = statement.cash_assets.total_assets_real_time(
+            let cash_assets = statement.assets.cash.total_assets_real_time(
                 &statistics.currency, &converter)?;
 
             Ok(statistics.add_assets(broker, "Cash", cash_assets))
         })?;
 
-        let net_value = statement.net_value(&converter, &quotes, portfolio.currency()?)?;
+        let net_value = statement.net_value(&converter, &quotes, portfolio.currency()?, true)?;
         let mut commission_calc = CommissionCalc::new(
             converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 
@@ -255,7 +255,7 @@ pub fn analyse(
 }
 
 pub fn simulate_sell(
-    config: &Config, portfolio_name: &str, positions: Vec<(String, Option<Decimal>)>,
+    config: &Config, portfolio_name: &str, positions: Option<Vec<(String, Option<Decimal>)>>,
     base_currency: Option<&str>,
 ) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;

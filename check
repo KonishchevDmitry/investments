@@ -31,6 +31,7 @@ main() {
     new_without_default
     redundant_field_names
     too_many_arguments
+    type-complexity
     unit_arg
     '
     check '--bins --examples' "$blacklist"

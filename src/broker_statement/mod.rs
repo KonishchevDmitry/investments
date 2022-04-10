@@ -62,7 +62,7 @@ pub struct BrokerStatement {
     pub broker: BrokerInfo,
     pub period: Period,
 
-    pub cash_assets: MultiCurrencyCashAccount,
+    pub assets: NetAssets,
     pub historical_assets: BTreeMap<Date, NetAssets>,
 
     pub fees: Vec<Fee>,
@@ -198,7 +198,7 @@ impl BrokerStatement {
         Ok(BrokerStatement {
             broker, period,
 
-            cash_assets: MultiCurrencyCashAccount::new(),
+            assets: NetAssets::default(),
             historical_assets: BTreeMap::new(),
 
             fees: Vec::new(),
@@ -271,18 +271,26 @@ impl BrokerStatement {
         QuoteQuery::Stock(symbol.to_owned(), exchanges.get_prioritized())
     }
 
-    pub fn net_value(&self, converter: &CurrencyConverter, quotes: &Quotes, currency: &str) -> GenericResult<Cash> {
-        self.batch_quotes(quotes)?;
+    pub fn net_value(
+        &self, converter: &CurrencyConverter, quotes: &Quotes, currency: &str, realtime: bool,
+    ) -> GenericResult<Cash> {
+        let mut net_value = self.assets.cash.clone();
 
-        let mut net_value = self.cash_assets.total_assets_real_time(currency, converter)?;
+        match self.assets.other {
+            Some(other) if !realtime => {
+                net_value.deposit(other);
+            },
+            _ => {
+                self.batch_quotes(quotes)?;
 
-        for (symbol, quantity) in &self.open_positions {
-            let price = quotes.get(self.get_quote_query(symbol))?;
-            let price = converter.real_time_convert_to(price, currency)?;
-            net_value += quantity * price;
+                for (symbol, &quantity) in &self.open_positions {
+                    let price = quotes.get(self.get_quote_query(symbol))?;
+                    net_value.deposit(price * quantity);
+                }
+            },
         }
 
-        Ok(Cash::new(currency, net_value))
+        Ok(Cash::new(currency, net_value.total_assets_real_time(currency, converter)?))
     }
 
     pub fn emulate_sell(
@@ -328,8 +336,8 @@ impl BrokerStatement {
             return Err!("The portfolio has no open {} position", symbol);
         }
 
-        self.cash_assets.deposit(volume);
-        self.cash_assets.withdraw(commission);
+        self.assets.cash.deposit(volume);
+        self.assets.cash.withdraw(commission);
         self.stock_sells.push(stock_sell);
 
         Ok(())
@@ -340,7 +348,7 @@ impl BrokerStatement {
 
         for commissions in commission_calc.calculate()?.values() {
             for commission in commissions.iter() {
-                self.cash_assets.withdraw(commission);
+                self.assets.cash.withdraw(commission);
                 total.deposit(commission);
             }
         }
@@ -434,9 +442,8 @@ impl BrokerStatement {
         }
 
         if let partial::NetAssets{cash: Some(cash), other} = statement.assets {
-            self.cash_assets = cash.clone();
-
             let assets = NetAssets{cash, other};
+            self.assets = assets.clone();
             assert!(self.historical_assets.insert(self.period.last_date(), assets).is_none());
         } else if last {
             return Err!("Unable to find any information about current cash assets");
@@ -643,6 +650,7 @@ impl BrokerStatement {
     }
 }
 
+#[derive(Clone, Default)]
 pub struct NetAssets {
     pub cash: MultiCurrencyCashAccount,
     pub other: Option<Cash>, // Supported only for some brokers

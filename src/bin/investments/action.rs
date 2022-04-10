@@ -10,7 +10,7 @@ pub enum Action {
     },
     SimulateSell {
         name: String,
-        positions: Vec<(String, Option<Decimal>)>,
+        positions: Option<Vec<(String, Option<Decimal>)>>,
         base_currency: Option<String>,
     },
 

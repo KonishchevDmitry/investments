@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::{BrokerStatement, StockSell, StockSellType};
@@ -18,22 +19,30 @@ use crate::util;
 pub fn simulate_sell(
     country: &Country, portfolio: &PortfolioConfig, mut statement: BrokerStatement,
     converter: CurrencyConverterRc, quotes: &Quotes,
-    mut positions: Vec<(String, Option<Decimal>)>, base_currency: Option<&str>,
+    positions: Option<Vec<(String, Option<Decimal>)>>, base_currency: Option<&str>,
 ) -> EmptyResult {
-    if positions.is_empty() {
-        positions = statement.open_positions.keys()
+    let all_positions = positions.is_none();
+    let positions = positions.unwrap_or_else(|| {
+        statement.open_positions.keys()
             .map(|symbol| (symbol.to_owned(), None))
-            .collect();
-        positions.sort();
-    } else {
-        for (symbol, _) in &positions {
+            .sorted_unstable()
+            .collect()
+    });
+
+    for (symbol, _quantity) in &positions {
+        if !all_positions {
             if statement.open_positions.get(symbol).is_none() {
                 return Err!("The portfolio has no open {:?} positions", symbol);
             }
         }
+        quotes.batch(statement.get_quote_query(symbol))?;
     }
 
-    let net_value = statement.net_value(&converter, quotes, portfolio.currency()?)?;
+    let net_value = statement.net_value(
+        &converter, quotes, portfolio.currency()?,
+        all_positions // To be able to simulate sell for portfolio with symbols for which quotes aren't available
+    )?;
+
     let mut commission_calc = CommissionCalc::new(
         converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 

@@ -33,13 +33,13 @@ impl PositionsParser {
             .required(self.required)
     }
 
-    pub fn parse(&self, matches: &ArgMatches) -> GenericResult<Vec<(String, Option<Decimal>)>> {
-        let mut positions = Vec::new();
-
+    pub fn parse(&self, matches: &ArgMatches) -> GenericResult<Option<Vec<(String, Option<Decimal>)>>> {
         let mut args = match matches.values_of(PositionsParser::ARG_NAME) {
             Some(args) => args,
-            None => return Ok(positions),
+            None => return Ok(None),
         };
+
+        let mut positions = Vec::new();
 
         while let Some(quantity) = args.next() {
             let quantity = if self.allow_all && quantity == "all" {
@@ -58,6 +58,6 @@ impl PositionsParser {
             positions.push((symbol.to_owned(), quantity));
         }
 
-        Ok(positions)
+        Ok(Some(positions))
     }
 }

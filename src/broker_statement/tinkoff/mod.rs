@@ -236,7 +236,8 @@ mod tests {
     fn parse_real() {
         let statement = parse("main", "my");
 
-        assert!(!statement.cash_assets.is_empty());
+        assert!(!statement.assets.cash.is_empty());
+        assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(!statement.fees.is_empty());

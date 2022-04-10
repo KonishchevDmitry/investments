@@ -247,13 +247,13 @@ impl Parser {
                 match command {
                     "buy" => Action::Buy {
                         name, cash_assets,
-                        positions: self.bought.parse(matches)?.into_iter().map(|(symbol, shares)| {
+                        positions: self.bought.parse(matches)?.unwrap().into_iter().map(|(symbol, shares)| {
                             (symbol, shares.unwrap())
                         }).collect(),
                     },
                     "sell" => Action::Sell {
                         name, cash_assets,
-                        positions: self.sold.parse(matches)?,
+                        positions: self.sold.parse(matches)?.unwrap(),
                     },
                     "cash" => Action::SetCashAssets(name, cash_assets),
                     _ => unreachable!(),

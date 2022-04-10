@@ -31,7 +31,7 @@ pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRec
         ReadingStrictness::empty())?;
     statement.check_date();
 
-    let assets = Assets::new(statement.cash_assets, statement.open_positions);
+    let assets = Assets::new(statement.assets.cash, statement.open_positions);
     assets.validate(portfolio)?;
     assets.save(database, &portfolio.name)?;
 

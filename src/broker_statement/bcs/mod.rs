@@ -100,7 +100,8 @@ mod tests {
             &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(),
             corporate_actions, ReadingStrictness::all()).unwrap();
 
-        assert!(!statement.cash_assets.is_empty());
+        assert!(!statement.assets.cash.is_empty());
+        assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(!statement.fees.is_empty());

@@ -427,7 +427,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_cash_assets(&mut self, statement: &BrokerStatement) -> EmptyResult {
-        self.current_assets += statement.cash_assets.total_assets_real_time(
+        self.current_assets += statement.assets.cash.total_assets_real_time(
             self.currency, self.converter)?;
         Ok(())
     }
