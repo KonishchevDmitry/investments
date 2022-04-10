@@ -10,4 +10,4 @@ config="testdata/configs/$1"; shift
 INVESTMENTS_NOW=$(< testdata/time)
 export INVESTMENTS_NOW
 
-cargo run --quiet -- --config "$config" "$@" 2>&1
+"$INVESTMENTS_BINARY" --config "$config" "$@" 2>&1

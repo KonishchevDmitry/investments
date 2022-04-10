@@ -3,4 +3,7 @@
 # Generates regression tests output data
 #
 
+export INVESTMENTS_BINARY=target/debug/investments
+rm -f "$INVESTMENTS_BINARY" && cargo build
+
 retest verbose verbose generate tests/rt.rt
