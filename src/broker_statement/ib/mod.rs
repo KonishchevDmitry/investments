@@ -5,6 +5,7 @@ mod confirmation;
 mod corporate_actions;
 mod dividends;
 mod fees;
+mod grants;
 mod interest;
 mod instruments;
 mod sections;

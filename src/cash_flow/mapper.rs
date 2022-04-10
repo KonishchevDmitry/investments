@@ -106,7 +106,7 @@ impl CashFlowMapper {
                     self.add(trade.conclusion_time, Operation::Commission, -commission, description);
                 };
             },
-            StockSource::CorporateAction => {},
+            StockSource::CorporateAction | StockSource::Grant => {},
         };
     }
 

@@ -15,6 +15,7 @@ bitflags! {
         const TRADE_SETTLE_DATE = 1 << 0;
         const CASH_FLOW_DATES   = 1 << 1;
         const REPO_TRADES       = 1 << 2;
+        const GRANTS            = 1 << 3;
     }
 }
 

@@ -329,9 +329,15 @@ impl<'a> TradesProcessor<'a> {
 
                 "Покупка"
             },
+
             StockSourceDetails::CorporateAction => {
                 self.non_trade_sources = true;
                 "Корп. действие"
+            },
+
+            StockSourceDetails::Grant => {
+                self.non_trade_sources = true;
+                "Грант"
             },
         };
 

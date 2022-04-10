@@ -15,6 +15,7 @@ use super::cash_flows::CashFlow;
 use super::corporate_actions::CorporateAction;
 use super::dividends::{DividendId, DividendAccruals};
 use super::fees::Fee;
+use super::grants::StockGrant;
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxAccruals, TaxWithholding};
@@ -38,6 +39,8 @@ pub struct PartialBrokerStatement {
 
     pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub tax_accruals: HashMap<TaxId, TaxAccruals>,
+
+    pub stock_grants: Vec<StockGrant>,
     pub corporate_actions: Vec<CorporateAction>,
 
     // Please note that some brokers (Firstrade) provide this information only for the last
@@ -71,6 +74,8 @@ impl PartialBrokerStatement {
 
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
+
+            stock_grants: Vec::new(),
             corporate_actions: Vec::new(),
 
             assets: NetAssets {

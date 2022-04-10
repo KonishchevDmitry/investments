@@ -34,6 +34,9 @@ pub enum StockSource {
     // * Emulated buy to convert position during stock split
     // * Spinoff or stock dividend
     CorporateAction,
+
+    // Stock grants are emulated now via zero cost buys
+    Grant,
 }
 
 pub struct StockBuy {
@@ -63,6 +66,15 @@ impl StockBuy {
             symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
             quantity, type_: StockSource::Trade {price, volume, commission}, cost,
             conclusion_time, execution_date, out_of_order_execution: false,
+            sold: dec!(0),
+        }
+    }
+
+    pub fn new_grant(date: Date, symbol: &str, quantity: Decimal) -> StockBuy {
+        StockBuy {
+            symbol: symbol.to_owned(), original_symbol: symbol.to_owned(),
+            quantity, type_: StockSource::Grant, cost: PurchaseTotalCost::new(),
+            out_of_order_execution: true, conclusion_time: date.into(), execution_date: date,
             sold: dec!(0),
         }
     }
@@ -105,7 +117,7 @@ impl StockBuy {
                     volume: price * quantity,
                     commission: commission / self.quantity * quantity,
                 },
-                StockSource::CorporateAction => StockSource::CorporateAction,
+                StockSource::CorporateAction | StockSource::Grant => self.type_,
             }
         };
 
@@ -398,6 +410,7 @@ pub enum StockSourceDetails {
         local_cost: Cash,
     },
     CorporateAction,
+    Grant,
 }
 
 impl FifoDetails {
@@ -423,6 +436,7 @@ impl FifoDetails {
                 }
             },
             StockSource::CorporateAction => StockSourceDetails::CorporateAction,
+            StockSource::Grant => StockSourceDetails::Grant,
         };
 
         Ok(FifoDetails {

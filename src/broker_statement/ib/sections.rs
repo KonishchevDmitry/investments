@@ -11,6 +11,7 @@ use super::common::{RecordSpec, RecordParser, UnknownRecordParser, format_record
 use super::corporate_actions::CorporateActionsParser;
 use super::dividends::DividendsParser;
 use super::fees::FeesParser;
+use super::grants::GrantsParser;
 use super::instruments::{OpenPositionsParser, FinancialInstrumentInformationParser};
 use super::interest::InterestParser;
 use super::summary::{AccountInformationParser, NavParser, ChangeInNavParser, StatementInfoParser};
@@ -27,6 +28,7 @@ pub struct SectionParsers {
     open_positions_parser: OpenPositionsParser,
     corporate_actions_parser: CorporateActionsParser,
     trades_parser: TradesParser,
+    grants_parser: GrantsParser,
     deposits_and_withdrawals_parser: DepositsAndWithdrawalsParser,
     fees_parser: FeesParser,
     dividends_parser: DividendsParser,
@@ -52,6 +54,7 @@ impl SectionParsers {
             open_positions_parser: OpenPositionsParser {},
             corporate_actions_parser: CorporateActionsParser::new(),
             trades_parser: TradesParser {},
+            grants_parser: GrantsParser {},
             deposits_and_withdrawals_parser: DepositsAndWithdrawalsParser {},
             fees_parser: FeesParser {},
             dividends_parser: DividendsParser {},
@@ -78,6 +81,7 @@ impl SectionParsers {
             "Open Positions" => &mut self.open_positions_parser,
             "Corporate Actions" => &mut self.corporate_actions_parser,
             "Trades" => &mut self.trades_parser,
+            "Grant Activity" => &mut self.grants_parser,
             "Deposits & Withdrawals" => &mut self.deposits_and_withdrawals_parser,
             "Fees" => &mut self.fees_parser,
             "Dividends" => &mut self.dividends_parser,

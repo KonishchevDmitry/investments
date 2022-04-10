@@ -2,6 +2,7 @@ mod cash_flows;
 mod corporate_actions;
 mod dividends;
 mod fees;
+mod grants;
 mod interest;
 mod merging;
 mod partial;
@@ -48,6 +49,7 @@ pub use self::corporate_actions::{
     CorporateAction, CorporateActionType, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
+pub use self::grants::{StockGrant, process_grants};
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::reader::ReadingStrictness;
@@ -75,6 +77,7 @@ pub struct BrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
+    stock_grants: Vec<StockGrant>,
     corporate_actions: Vec<CorporateAction>,
     pub stock_splits: StockSplitController,
 
@@ -161,11 +164,12 @@ impl BrokerStatement {
             return Err!("Unable to find origin operations for the following taxes:\n{}{}", taxes, hint);
         }
 
+        process_grants(&mut statement, strictness.contains(ReadingStrictness::GRANTS))?;
+
         for (symbol, new_symbol) in symbol_remapping.iter() {
             statement.rename_symbol(symbol, new_symbol, None).map_err(|e| format!(
                 "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
         }
-
         statement.corporate_actions.extend(corporate_actions.iter().cloned());
 
         for (symbol, name) in instrument_names {
@@ -209,6 +213,7 @@ impl BrokerStatement {
             stock_sells: Vec::new(),
             dividends: Vec::new(),
 
+            stock_grants: Vec::new(),
             corporate_actions: Vec::new(),
             stock_splits: StockSplitController::default(),
 
@@ -447,6 +452,7 @@ impl BrokerStatement {
         self.forex_trades.extend(statement.forex_trades.into_iter());
         self.stock_buys.extend(statement.stock_buys.into_iter());
         self.stock_sells.extend(statement.stock_sells.into_iter());
+        self.stock_grants.extend(statement.stock_grants.into_iter());
 
         self.corporate_actions.extend(statement.corporate_actions.into_iter());
         self.open_positions = statement.open_positions;
@@ -560,6 +566,7 @@ impl BrokerStatement {
 
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;
+        validator.sort_and_validate("a stock grant", &mut self.stock_grants, |grant| grant.date)?;
 
         self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.original_issuer)));
         validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;

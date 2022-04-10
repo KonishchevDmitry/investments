@@ -252,7 +252,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     deposit_view.transaction(trade.conclusion_time, volume);
                     deposit_view.transaction(trade.conclusion_time, commission);
                 },
-                StockSource::CorporateAction => {
+
+                StockSource::CorporateAction | StockSource::Grant => {
                     self.get_deposit_view(&trade.symbol).trade(
                         &portfolio.name, &trade.symbol, trade.conclusion_time, quantity);
                 },
