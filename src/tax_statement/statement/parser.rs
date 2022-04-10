@@ -360,9 +360,15 @@ mod tests {
         statement
     }
 
-    fn compare_to(statement: &TaxStatement, data: &str) {
+    fn compare_to(statement: &TaxStatement, mut data: &str) {
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_str().unwrap();
+
+        // Декларация program sometimes writes zero bytes to the tail of the file. This behaviour
+        // varies from version to version, seems to have no meaning and looks like a serialization
+        // bug. So just ignore it.
+        data = data.trim_end_matches('\0');
+        assert!(!data.is_empty());
 
         TaxStatementWriter::write(statement, path).unwrap();
         assert_eq!(&get_contents(path), data);
