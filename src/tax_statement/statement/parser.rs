@@ -328,6 +328,9 @@ mod tests {
         }, CurrencyTestCase {
             name: "HKD", // 344 - Гонконгский доллар
             rate: dec!(9.53013),
+        }, CurrencyTestCase {
+            name: "AUD", // 036 - Австралийский доллар
+            rate: dec!(56.9065),
         }] {
             let local_amount = crate::currency::round(amount * currency.rate);
 

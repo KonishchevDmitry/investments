@@ -175,21 +175,22 @@ impl fmt::Display for Cash {
 }
 
 fn format_currency(currency: &str, mut amount: &str) -> String {
-    let mut buffer = String::with_capacity(amount.len() + 1);
-
     let prefix = match currency {
-        "EUR" => Some('€'),
-        "GBP" => Some('£'),
-        "USD" => Some('$'),
+        "AUD" => Some("AU$"),
+        "EUR" => Some("€"),
+        "GBP" => Some("£"),
+        "USD" => Some("$"),
         _ => None,
     };
+
+    let mut buffer = String::with_capacity(amount.len() + prefix.map(str::len).unwrap_or(1));
 
     if let Some(prefix) = prefix {
         if amount.starts_with('-') || amount.starts_with('+') {
             buffer.push_str(&amount[..1]);
             amount = &amount[1..];
         }
-        buffer.push(prefix);
+        buffer.push_str(prefix);
     }
 
     buffer.push_str(amount);
