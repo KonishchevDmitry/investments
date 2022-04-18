@@ -15,7 +15,6 @@ macro_rules! date {
     ($year:expr, $month:expr, $day:expr) => (::chrono::NaiveDate::from_ymd($year, $month, $day))
 }
 
-#[cfg(test)]
 macro_rules! date_time {
     ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
         ::chrono::NaiveDateTime::new(

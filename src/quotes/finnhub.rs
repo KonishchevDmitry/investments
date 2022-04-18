@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use chrono::{DateTime, NaiveDateTime, Utc};
 #[cfg(test)] use indoc::indoc;
-use log::{debug, trace};
+use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use rayon::prelude::*;
 use reqwest::Url;
@@ -20,6 +19,7 @@ use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
 use super::{QuotesMap, QuotesProvider};
+use super::common::{send_request, is_outdated_unix_time};
 
 pub struct Finnhub {
     token: String,
@@ -56,8 +56,7 @@ impl Finnhub {
             _ => return Ok(None),
         };
 
-        if is_outdated(time)? {
-            let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(time, 0), Utc);
+        if let Some(time) = is_outdated_unix_time(time, 1582295300)? {
             debug!("{}: Got outdated quotes: {}.", symbol, time);
             return Ok(None);
         }
@@ -97,15 +96,7 @@ impl Finnhub {
         let get = |url| -> GenericResult<Option<T>> {
             self.rate_limiter.wait(&format!("request to {}", url));
 
-            trace!("Sending request to {}...", url);
-            let response = self.client.get(url).send()?;
-            trace!("Got response from {}.", url);
-
-            if !response.status().is_success() {
-                return Err!("Server returned an error: {}", response.status());
-            }
-            let reply = response.text()?;
-
+            let reply = send_request(&self.client, url)?.text()?;
             if reply.trim() == "Symbol not supported" {
                 return Ok(None);
             }
@@ -113,8 +104,7 @@ impl Finnhub {
             Ok(serde_json::from_str(&reply)?)
         };
 
-        Ok(get(url.as_str()).map_err(|e| format!(
-            "Failed to get quotes from {}: {}", url, e))?)
+        Ok(get(&url).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
     }
 }
 
@@ -149,20 +139,6 @@ impl QuotesProvider for Finnhub {
 
         Ok(quotes.into_inner().unwrap())
     }
-}
-
-#[cfg(not(test))]
-fn is_outdated(time: i64) -> GenericResult<bool> {
-    let date_time = NaiveDateTime::from_timestamp_opt(time, 0).ok_or_else(|| format!(
-        "Got an invalid UNIX time: {}", time))?;
-    Ok(super::is_outdated_quote::<Utc>(DateTime::from_utc(date_time, Utc)))
-}
-
-#[cfg(test)]
-#[allow(clippy::unnecessary_wraps)]
-fn is_outdated(time: i64) -> GenericResult<bool> {
-    #![allow(clippy::unreadable_literal)]
-    Ok(time < 1582295400)
 }
 
 #[cfg(test)]
@@ -221,7 +197,7 @@ mod tests {
                 "l": 2088,
                 "o": 2142.14990234375,
                 "pc": 2153.10009765625,
-                "t": 1
+                "t": 1582295300
             }
         "#));
 

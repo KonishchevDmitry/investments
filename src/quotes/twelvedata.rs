@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use chrono::{DateTime, TimeZone, Utc};
-#[cfg(test)] use chrono::NaiveDate;
+use chrono::Utc;
 #[cfg(test)] use indoc::indoc;
-use log::{debug, trace};
+use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use rayon::prelude::*;
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::Deserialize;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
@@ -18,7 +17,8 @@ use crate::time;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
-use super::{QuotesMap, QuotesProvider, parse_currency_pair};
+use super::{QuotesMap, QuotesProvider};
+use super::common::{send_request, parse_response, is_outdated_time, parse_currency_pair};
 
 pub struct TwelveData {
     token: String,
@@ -45,20 +45,9 @@ impl TwelveData {
             ("apikey", self.token.as_ref()),
         ])?;
 
-        let get = |url| {
-            trace!("Sending request to {}...", url);
-            let response = self.client.get(url).send()?;
-            trace!("Got response from {}.", url);
-
-            if !response.status().is_success() {
-                return Err!("Server returned an error: {}", response.status());
-            }
-
+        Ok(send_request(&self.client, &url).and_then(|response| {
             get_quote(symbol, response)
-        };
-
-        Ok(get(url.as_str()).map_err(|e| format!(
-            "Failed to get quotes from {}: {}", url, e))?)
+        }).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
     }
 }
 
@@ -154,7 +143,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
     };
 
     let time = time::parse_tz_date_time(&value.datetime, "%Y-%m-%d %H:%M:%S", Utc, true)?;
-    if is_outdated(time) {
+    if let Some(time) = is_outdated_time(time, date_time!(2020, 1, 31, 20, 58, 00)) {
         debug!("{}: Got outdated quotes: {}.", symbol, time);
         return Ok(None);
     }
@@ -163,20 +152,6 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
         "price", value.close, DecimalRestrictions::StrictlyPositive)?;
 
     Ok(Some(Cash::new(currency, price)))
-}
-
-fn parse_response<T: DeserializeOwned>(response: &str) -> GenericResult<T> {
-    Ok(serde_json::from_str(response).map_err(|e| format!("Got an unexpected response: {}", e))?)
-}
-
-#[cfg(not(test))]
-fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
-    super::is_outdated_quote(time)
-}
-
-#[cfg(test)]
-fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
-    time.naive_utc() <= NaiveDate::from_ymd(2020, 1, 31).and_hms(20, 58, 0)
 }
 
 #[cfg(test)]

@@ -1,32 +1,31 @@
+mod alphavantage;
+mod cache;
+mod common;
+mod fcsapi;
+mod finnhub;
+mod moex;
+mod twelvedata;
+
 use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::Arc;
 #[cfg(test)] use std::sync::Mutex;
 
-#[cfg(not(test))] use chrono::{DateTime, TimeZone};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::debug;
 use rayon::prelude::*;
-use regex::Regex;
 
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::{Exchange, Exchanges};
-#[cfg(not(test))] use crate::time;
 
 use self::cache::Cache;
+use self::common::parse_currency_pair;
 use self::finnhub::Finnhub;
 use self::moex::Moex;
 use self::twelvedata::TwelveData;
-
-mod alphavantage;
-mod cache;
-mod finnhub;
-mod moex;
-mod twelvedata;
 
 #[derive(Clone)]
 pub enum QuoteQuery {
@@ -290,25 +289,6 @@ trait QuotesProvider: Send + Sync {
 
 pub fn get_currency_pair(base: &str, quote: &str) -> String {
     format!("{}/{}", base, quote)
-}
-
-fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
-    lazy_static! {
-        static ref REGEX: Regex = Regex::new(r"^(?P<base>[A-Z]{3})/(?P<quote>[A-Z]{3})$").unwrap();
-    }
-
-    let captures = REGEX.captures(pair).ok_or_else(|| format!(
-        "Invalid currency pair: {:?}", pair))?;
-
-    Ok((
-        captures.name("base").unwrap().as_str(),
-        captures.name("quote").unwrap().as_str(),
-    ))
-}
-
-#[cfg(not(test))]
-fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>) -> bool {
-    (time::utc_now() - date_time.naive_utc()).num_days() >= 5
 }
 
 #[cfg(test)]

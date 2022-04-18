@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-#[cfg(test)] use chrono::NaiveDate;
 #[cfg(test)] use indoc::indoc;
-use chrono::{DateTime, TimeZone};
 use log::error;
 #[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
@@ -16,9 +14,11 @@ use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesMap, QuotesProvider};
+use super::common::{send_request, is_outdated_time};
 
 pub struct AlphaVantage {
     api_key: String,
+    client: Client,
 }
 
 impl AlphaVantage {
@@ -29,6 +29,7 @@ impl AlphaVantage {
     pub fn new(token: &str) -> AlphaVantage {
         AlphaVantage {
             api_key: token.to_owned(),
+            client: Client::new(),
         }
     }
 }
@@ -52,18 +53,10 @@ impl QuotesProvider for AlphaVantage {
             ("apikey", self.api_key.as_ref()),
         ])?;
 
-        let get = |url| -> GenericResult<HashMap<String, Cash>> {
-            let response = Client::new().get(url).send()?;
-            if !response.status().is_success() {
-                return Err!("The server returned an error: {}", response.status());
-            }
-
+        Ok(send_request(&self.client, &url).and_then(|response| {
             Ok(parse_quotes(response).map_err(|e| format!(
                 "Quotes info parsing error: {}", e))?)
-        };
-
-        Ok(get(url.as_str()).map_err(|e| format!(
-            "Failed to get quotes from {}: {}", url, e))?)
+        }).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
     }
 }
 
@@ -109,7 +102,7 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
             continue;
         }
 
-        if is_outdated(time) {
+        if is_outdated_time(time, date_time!(2018, 10, 31, 20, 0, 0)).is_some() {
             outdated.push(quote.symbol);
             continue;
         }
@@ -125,16 +118,6 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     }
 
     Ok(quotes)
-}
-
-#[cfg(not(test))]
-fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
-    super::is_outdated_quote(time)
-}
-
-#[cfg(test)]
-fn is_outdated<T: TimeZone>(time: DateTime<T>) -> bool {
-    time.naive_utc() <= NaiveDate::from_ymd(2018, 10, 31).and_hms(16 + 4, 0, 0)
 }
 
 #[cfg(test)]
