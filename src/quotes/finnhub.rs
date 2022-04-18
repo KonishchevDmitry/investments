@@ -21,6 +21,12 @@ use crate::types::Decimal;
 use super::{QuotesMap, QuotesProvider};
 use super::common::{send_request, is_outdated_unix_time};
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinnhubConfig {
+    token: String,
+}
+
 pub struct Finnhub {
     token: String,
     client: Client,
@@ -28,9 +34,9 @@ pub struct Finnhub {
 }
 
 impl Finnhub {
-    pub fn new(token: &str) -> Finnhub {
+    pub fn new(config: &FinnhubConfig) -> Finnhub {
         Finnhub {
-            token: token.to_owned(),
+            token: config.token.clone(),
             client: Client::new(),
             rate_limiter: RateLimiter::new()
                 .with_limit(60 / 2, Duration::from_secs(60))
@@ -143,10 +149,19 @@ impl QuotesProvider for Finnhub {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{rstest, fixture};
     use super::*;
 
-    #[test]
-    fn quotes() {
+    #[fixture]
+    fn client() -> Finnhub {
+        Finnhub::new(&FinnhubConfig {
+            token: s!("mock")
+        })
+    }
+
+
+    #[rstest]
+    fn quotes(client: Finnhub) {
         let _bnd_profile_mock = mock_response("/api/v1/stock/profile2?symbol=BND&token=mock", indoc!(r#"
             {
                 "country": "US",
@@ -244,8 +259,6 @@ mod tests {
                 "t": 1582295400
             }
         "#));
-
-        let client = Finnhub::new("mock");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("BND"), Cash::new("USD", dec!(85.80000305175781)));

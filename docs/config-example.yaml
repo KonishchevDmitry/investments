@@ -184,12 +184,12 @@ brokers:
       USD:
         fixed_amount: 0
 
+fcsapi:
+  # Access key that must be obtained here - https://fcsapi.com/
+  access_key: secret
+
 finnhub:
   # API token that must be obtained here - https://finnhub.io/register
-  token: secret
-
-twelvedata:
-  # API key that must be obtained here - https://twelvedata.com/apikey
   token: secret
 
 # This field is always ignored. You can place any data inside of it and use YAML anchors to refer repeatable

@@ -14,16 +14,21 @@ use crate::types::Decimal;
 use super::{QuotesMap, QuotesProvider};
 use super::common::{send_request, parse_response, is_outdated_unix_time, parse_currency_pair};
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FcsApiConfig {
+    access_key: String,
+}
+
 pub struct FcsApi {
     access_key: String,
     client: Client,
 }
 
 impl FcsApi {
-    #[allow(dead_code)]
-    pub fn new(access_key: &str) -> FcsApi {
+    pub fn new(config: &FcsApiConfig) -> FcsApi {
         FcsApi {
-            access_key: access_key.to_owned(),
+            access_key: config.access_key.clone(),
             client: Client::new(),
         }
     }
@@ -106,10 +111,18 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{rstest, fixture};
     use super::*;
 
-    #[test]
-    fn quotes() {
+    #[fixture]
+    fn client() -> FcsApi {
+        FcsApi::new(&FcsApiConfig {
+            access_key: s!("mock")
+        })
+    }
+
+    #[rstest]
+    fn quotes(client: FcsApi) {
         let _quotes_mock = mock_response("/api-v3/forex/latest?symbol=USD%2FRUB%2CUSD%2FEUR%2COUTDATED%2CUNKNOWN&access_key=mock", indoc!(r#"
             {
                 "status": true,
@@ -161,16 +174,15 @@ mod tests {
             }
         "#));
 
-        let client = FcsApi::new("mock");
         let mut quotes = QuotesMap::new();
         quotes.insert(s!("USD/RUB"), Cash::new("RUB", dec!(82.4055)));
         quotes.insert(s!("USD/EUR"), Cash::new("EUR", dec!(0.92650)));
         assert_eq!(client.get_quotes(&["USD/RUB", "USD/EUR", "OUTDATED", "UNKNOWN"]).unwrap(), quotes);
     }
 
-    #[test]
-    fn invalid_access_key() {
-        let _invalid_access_key_mock = mock_response("/api-v3/forex/latest?symbol=USD%2FRUB&access_key=invalid", indoc!(r#"
+    #[rstest]
+    fn invalid_access_key(client: FcsApi) {
+        let _invalid_access_key_mock = mock_response("/api-v3/forex/latest?symbol=USD%2FRUB&access_key=mock", indoc!(r#"
             {
                 "status": false,
                 "code": 101,
@@ -181,7 +193,6 @@ mod tests {
             }
         "#));
 
-        let client = FcsApi::new("invalid");
         let err = client.get_quotes(&["USD/RUB"]).expect_err("Invalid token error is expected");
         assert!(err.to_string().ends_with(": You have not supplied a valid API Access Key"));
     }

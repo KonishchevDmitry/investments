@@ -15,6 +15,10 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::instruments::InstrumentInternalIds;
 use crate::localities::{self, Country, Jurisdiction};
+use crate::quotes::alphavantage::AlphaVantageConfig;
+use crate::quotes::fcsapi::FcsApiConfig;
+use crate::quotes::finnhub::FinnhubConfig;
+use crate::quotes::twelvedata::TwelveDataConfig;
 use crate::taxes::{self, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::telemetry::TelemetryConfig;
 use crate::time::{self, deserialize_date};
@@ -42,6 +46,7 @@ pub struct Config {
     pub metrics: MetricsConfig,
 
     pub alphavantage: Option<AlphaVantageConfig>,
+    pub fcsapi: Option<FcsApiConfig>,
     pub finnhub: Option<FinnhubConfig>,
     pub twelvedata: Option<TwelveDataConfig>,
 
@@ -68,6 +73,7 @@ impl Config {
             metrics: Default::default(),
 
             alphavantage: None,
+            fcsapi: None,
             finnhub: None,
             twelvedata: None,
             telemetry: Default::default(),
@@ -400,24 +406,6 @@ pub struct MetricsConfig {
 #[serde(deny_unknown_fields)]
 pub struct TransactionCommissionSpec {
     pub fixed_amount: Decimal,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AlphaVantageConfig {
-    pub api_key: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct FinnhubConfig {
-    pub token: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct TwelveDataConfig {
-    pub token: String,
 }
 
 fn default_expire_time() -> Duration {

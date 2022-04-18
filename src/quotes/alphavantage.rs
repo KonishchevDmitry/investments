@@ -16,6 +16,12 @@ use crate::util::{self, DecimalRestrictions};
 use super::{QuotesMap, QuotesProvider};
 use super::common::{send_request, is_outdated_time};
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AlphaVantageConfig {
+    api_key: String,
+}
+
 pub struct AlphaVantage {
     api_key: String,
     client: Client,
@@ -26,9 +32,9 @@ impl AlphaVantage {
     // quotes API which makes it unusable for stocks now, but maybe will be useful for forex quotes
     // in the future.
     #[allow(dead_code)]
-    pub fn new(token: &str) -> AlphaVantage {
+    pub fn new(config: &AlphaVantageConfig) -> AlphaVantage {
         AlphaVantage {
-            api_key: token.to_owned(),
+            api_key: config.api_key.clone(),
             client: Client::new(),
         }
     }
@@ -122,10 +128,18 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{rstest, fixture};
     use super::*;
 
-    #[test]
-    fn no_quotes() {
+    #[fixture]
+    fn client() -> AlphaVantage {
+        AlphaVantage::new(&AlphaVantageConfig {
+            api_key: s!("mock")
+        })
+    }
+
+    #[rstest]
+    fn no_quotes(client: AlphaVantage) {
         let _mock = mock_response(
             "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX&apikey=mock",
             indoc!(r#"
@@ -139,13 +153,11 @@ mod tests {
                 }
             "#)
         );
-
-        let client = AlphaVantage::new("mock");
         assert_eq!(client.get_quotes(&["BND", "BNDX"]).unwrap(), HashMap::new());
     }
 
-    #[test]
-    fn quotes() {
+    #[rstest]
+    fn quotes(client: AlphaVantage) {
         let _mock = mock_response(
             "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX%2COUTDATED%2CINVALID&apikey=mock",
             indoc!(r#"
@@ -178,8 +190,6 @@ mod tests {
                 }
             "#)
         );
-
-        let client = AlphaVantage::new("mock");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("BND"), Cash::new("USD", dec!(77.8650)));

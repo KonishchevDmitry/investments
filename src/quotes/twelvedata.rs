@@ -20,15 +20,24 @@ use crate::types::Decimal;
 use super::{QuotesMap, QuotesProvider};
 use super::common::{send_request, parse_response, is_outdated_time, parse_currency_pair};
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TwelveDataConfig {
+    token: String,
+}
+
 pub struct TwelveData {
     token: String,
     client: Client,
 }
 
 impl TwelveData {
-    pub fn new(token: &str) -> TwelveData {
+    // We've used it for Forex quotes, but at some time they limited available currency pairs on
+    // free plan. USD/RUB became unavailable, so we deprecated it.
+    #[allow(dead_code)]
+    pub fn new(config: &TwelveDataConfig) -> TwelveData {
         TwelveData {
-            token: token.to_owned(),
+            token: config.token.clone(),
             client: Client::new(),
         }
     }
@@ -156,10 +165,19 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{rstest, fixture};
     use super::*;
 
-    #[test]
-    fn quotes() {
+    #[fixture]
+    fn client() -> TwelveData {
+        TwelveData::new(&TwelveDataConfig {
+            token: s!("mock")
+        })
+    }
+
+
+    #[rstest]
+    fn quotes(client: TwelveData) {
         let _forex_quote_mock = mock_response("/time_series?symbol=USD%2FRUB&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
             {
                 "meta": {
@@ -237,8 +255,6 @@ mod tests {
                 "status": "error"
             }
         "#));
-
-        let client = TwelveData::new("mock");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("USD/RUB"), Cash::new("RUB", dec!(63.97370)));

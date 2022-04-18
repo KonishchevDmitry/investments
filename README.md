@@ -27,7 +27,7 @@ See [installation instructions](docs/install.md).
 
 Create `~/.investments/config.yaml` configuration file. See [example](docs/config-example.yaml) configuration which
 contains examples of typical configuration for each broker, tax exemptions that are applicable to the account and more.
-Don't forget to obtain API token for Finnhub and Twelve Data (see the comments in example config).
+Don't forget to obtain API token for FCS API and Finnhub (see the comments in example config).
 
 # Usage
 

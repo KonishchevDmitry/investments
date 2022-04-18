@@ -1,10 +1,10 @@
-mod alphavantage;
+pub mod alphavantage;
 mod cache;
 mod common;
-mod fcsapi;
-mod finnhub;
+pub mod fcsapi;
+pub mod finnhub;
 mod moex;
-mod twelvedata;
+pub mod twelvedata;
 
 use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap};
@@ -23,9 +23,9 @@ use crate::exchanges::{Exchange, Exchanges};
 
 use self::cache::Cache;
 use self::common::parse_currency_pair;
+use self::fcsapi::FcsApi;
 use self::finnhub::Finnhub;
 use self::moex::Moex;
-use self::twelvedata::TwelveData;
 
 #[derive(Clone)]
 pub enum QuoteQuery {
@@ -55,15 +55,15 @@ pub struct Quotes {
 
 impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
-        let finnhub = config.finnhub.as_ref().ok_or(
-            "Finnhub configuration is not set in the configuration file")?;
+        let fcsapi = config.fcsapi.as_ref().ok_or(
+            "FCS API access key is not set in the configuration file")?;
 
-        let twelvedata = config.twelvedata.as_ref().ok_or(
-            "Twelve Data configuration is not set in the configuration file")?;
+        let finnhub = config.finnhub.as_ref().ok_or(
+            "Finnhub token is not set in the configuration file")?;
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), vec![
-            Arc::new(Finnhub::new(&finnhub.token)),
-            Arc::new(TwelveData::new(&twelvedata.token)),
+            Arc::new(Finnhub::new(finnhub)),
+            Arc::new(FcsApi::new(fcsapi)),
             Arc::new(Moex::new("TQTF")),
             Arc::new(Moex::new("TQBR")),
         ]))
