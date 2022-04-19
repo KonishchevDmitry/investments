@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 #[cfg(test)] use indoc::indoc;
 use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
@@ -8,8 +10,9 @@ use serde::Deserialize;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::util::{self, DecimalRestrictions};
+use crate::rate_limiter::RateLimiter;
 use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesMap, QuotesProvider};
 use super::common::{send_request, parse_response, is_outdated_unix_time, parse_currency_pair};
@@ -21,15 +24,17 @@ pub struct FcsApiConfig {
 }
 
 pub struct FcsApi {
-    access_key: String,
     client: Client,
+    access_key: String,
+    rate_limiter: RateLimiter,
 }
 
 impl FcsApi {
     pub fn new(config: &FcsApiConfig) -> FcsApi {
         FcsApi {
-            access_key: config.access_key.clone(),
             client: Client::new(),
+            access_key: config.access_key.clone(),
+            rate_limiter: RateLimiter::new().with_quota(Duration::from_secs(30), 2),
         }
     }
 }
@@ -57,6 +62,7 @@ impl QuotesProvider for FcsApi {
             ("access_key", &self.access_key),
         ])?;
 
+        self.rate_limiter.wait(&format!("request to {}", url));
         Ok(send_request(&self.client, &url).and_then(get_quotes).map_err(|e| format!(
             "Failed to get quotes from {}: {}", url, e))?)
     }

@@ -19,8 +19,12 @@ impl RateLimiter {
         }
     }
 
-    pub fn with_limit(mut self, max_burst: u32, duration: Duration) -> RateLimiter {
-        let quota = Quota::with_period(duration / max_burst).unwrap()
+    pub fn with_limit(self, max_burst: u32, duration: Duration) -> RateLimiter {
+        self.with_quota(duration / max_burst, max_burst)
+    }
+
+    pub fn with_quota(mut self, replenish_1_per: Duration, max_burst: u32) -> RateLimiter {
+        let quota = Quota::with_period(replenish_1_per).unwrap()
             .allow_burst(NonZeroU32::new(max_burst).unwrap());
         self.limiters.push(Limiter::direct_with_clock(quota, &self.clock));
         self
