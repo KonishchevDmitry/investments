@@ -63,6 +63,10 @@ impl MultiCurrencyCashAccount {
         let mut total_assets = dec!(0);
 
         for assets in self.iter() {
+            converter.batch(date, assets.currency, currency)?;
+        }
+
+        for assets in self.iter() {
             total_assets += converter.convert_to(date, assets, currency)?;
         }
 

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
-use crate::core::GenericResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{self, Cash, CurrencyRate, cbr};
 use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
@@ -51,6 +51,13 @@ impl CurrencyConverter {
 
     pub fn new_with_backend(source: Box<dyn CurrencyConverterBackend>) -> CurrencyConverter {
         CurrencyConverter { backend: source }
+    }
+
+    pub fn batch(&self, date: Date, from: &str, to: &str) -> EmptyResult {
+        if from != to {
+            self.backend.batch(from, to, date)?;
+        }
+        Ok(())
     }
 
     pub fn currency_rate(&self, date: Date, from: &str, to: &str) -> GenericResult<Decimal> {
@@ -111,6 +118,7 @@ impl CurrencyConverter {
 }
 
 pub trait CurrencyConverterBackend {
+    fn batch(&self, from: &str, to: &str, date: Date) -> EmptyResult;
     fn currency_rate(&self, from: &str, to: &str, date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)>;
 }
 
@@ -131,6 +139,28 @@ impl CurrencyRateCacheBackend {
             rate_cache,
             strict_mode,
         })
+    }
+
+    fn check_date(&self, date: Date) -> GenericResult<Option<Rc<Quotes>>> {
+        let today = self.rate_cache.today();
+
+        if
+            // Strict mode is for tax calculations when we must provide only official currency rates
+            self.strict_mode && date > today ||
+
+            // Default mode for portfolio performance and other calculations where we have to
+            // operate with future dates because of T+2 trade mode with vacations
+            !self.strict_mode && date > today + Duration::days(7)
+        {
+            return Err!("An attempt to make currency conversion for future date: {}",
+                formatting::format_date(date));
+        }
+
+        if !self.strict_mode && date > today {
+            return Ok(self.quotes.clone());
+        }
+
+        Ok(None)
     }
 
     fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
@@ -191,27 +221,18 @@ impl CurrencyRateCacheBackend {
 }
 
 impl CurrencyConverterBackend for CurrencyRateCacheBackend {
-    fn currency_rate(&self, from: &str, to: &str, date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)> {
-        let today = self.rate_cache.today();
-
-        if
-            // Strict mode is for tax calculations when we must provide only official currency rates
-            self.strict_mode && date > today ||
-
-            // Default mode for portfolio performance and other calculations where we have to
-            // operate with future dates because of T+2 trade mode with vacations
-            !self.strict_mode && date > today + Duration::days(7)
-        {
-            return Err!("An attempt to make currency conversion for future date: {}",
-                formatting::format_date(date));
+    fn batch(&self, from: &str, to: &str, date: Date) -> EmptyResult {
+        if let Some(quotes) = self.check_date(date)? {
+            quotes.batch(QuoteQuery::Forex(get_currency_pair(from, to)))?;
         }
+        Ok(())
+    }
 
-        if !self.strict_mode && date > today {
-            if let Some(ref quotes) = self.quotes {
-                let price = quotes.get(QuoteQuery::Forex(get_currency_pair(from, to)))?;
-                assert_eq!(price.currency, to);
-                return Ok((Some(price.amount), None));
-            }
+    fn currency_rate(&self, from: &str, to: &str, date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)> {
+        if let Some(quotes) = self.check_date(date)? {
+            let price = quotes.get(QuoteQuery::Forex(get_currency_pair(from, to)))?;
+            assert_eq!(price.currency, to);
+            return Ok((Some(price.amount), None));
         }
 
         let mut cur_date = date;
@@ -263,6 +284,10 @@ impl CurrencyRateCacheBackendMock {
 
 #[cfg(test)]
 impl CurrencyConverterBackend for CurrencyRateCacheBackendMock {
+    fn batch(&self, _from: &str, _to: &str, _date: Date) -> EmptyResult {
+        Ok(())
+    }
+
     fn currency_rate(&self, from: &str, to: &str, _date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)> {
         Err!("Unsupported currency rate conversion: {} -> {}", from, to)
     }
