@@ -15,11 +15,15 @@ macro_rules! date {
     ($year:expr, $month:expr, $day:expr) => (::chrono::NaiveDate::from_ymd($year, $month, $day))
 }
 
+macro_rules! time {
+    ($hour:expr, $minute:expr, $second:expr) => (::chrono::NaiveTime::from_hms($hour, $minute, $second))
+}
+
 macro_rules! date_time {
     ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
         ::chrono::NaiveDateTime::new(
             date!($year, $month, $day),
-            ::chrono::NaiveTime::from_hms($hour, $minute, $second),
+            time!($hour, $minute, $second),
         )
     }
 }

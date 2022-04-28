@@ -4,7 +4,7 @@ use crate::core::GenericResult;
 use crate::time::{self, Time};
 
 fn parse_time(time: &str) -> GenericResult<Time> {
-    time::parse_time(time, "%H:%M")
+    time::parse_time(time, "%H:%M:%S").or_else(|_| time::parse_time(time, "%H:%M"))
 }
 
 pub fn deserialize_time<'de, D>(deserializer: D) -> Result<Time, D::Error>
@@ -24,11 +24,15 @@ pub fn parse_security_code(code: &str) -> GenericResult<&str> {
 #[cfg(test)]
 mod tests {
     use matches::assert_matches;
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn time_parsing() {
-        assert_eq!(parse_time("16:45").unwrap(), Time::from_hms(16, 45, 0));
+    #[rstest(input, expected,
+        case("17:27",    time!(17, 27,  0)),
+        case("17:27:22", time!(17, 27, 22)),
+    )]
+    fn time_parsing(input: &str, expected: Time) {
+        assert_eq!(parse_time(input).unwrap(), expected);
     }
 
     #[test]
