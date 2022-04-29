@@ -48,23 +48,6 @@ impl CorporateAction {
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type", rename_all="kebab-case")]
 pub enum CorporateActionType {
-    StockSplit {
-        ratio: StockSplitRatio,
-
-        #[serde(skip)]
-        from_change: Option<Decimal>,
-
-        #[serde(skip)]
-        to_change: Option<Decimal>,
-    },
-
-    // There are two types of stock dividend (see https://github.com/KonishchevDmitry/investments/issues/27#issuecomment-802212517)
-    // At this time we support only one of them.
-    #[serde(skip)]
-    StockDividend {
-        quantity: Decimal,
-    },
-
     // See https://github.com/KonishchevDmitry/investments/issues/29 for details
     Rename {
         new_symbol: String,
@@ -76,7 +59,29 @@ pub enum CorporateActionType {
         symbol: String,
         quantity: Decimal,
         currency: String,
-    }
+    },
+
+    // There are two types of stock dividend (see https://github.com/KonishchevDmitry/investments/issues/27#issuecomment-802212517)
+    // At this time we support only one of them.
+    #[serde(skip)]
+    StockDividend {
+        quantity: Decimal,
+    },
+
+    StockSplit {
+        ratio: StockSplitRatio,
+
+        #[serde(skip)]
+        from_change: Option<Decimal>,
+
+        #[serde(skip)]
+        to_change: Option<Decimal>,
+    },
+
+    // Allows existing shareholders to purchase shares of a secondary offering, usually at a
+    // discounted price. Doesn't affects anything, so can be ignored.
+    #[serde(skip)]
+    SubscribableRightsIssue,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -199,22 +204,10 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
-        CorporateActionType::StockSplit {ratio, from_change, to_change} => {
-            process_stock_split(
-                statement, action.time, &action.symbol,
-                ratio, from_change, to_change,
-            ).map_err(|e| format!(
-                "Failed to process {} stock split from {}: {}",
-                action.symbol, format_date(action.time), e,
-            ))?;
-        },
-
-        CorporateActionType::StockDividend {quantity} => {
-            statement.stock_buys.push(StockBuy::new_corporate_action(
-                &action.symbol, quantity, PurchaseTotalCost::new(),
-                action.time, action.execution_date(),
-            ));
-            statement.sort_and_validate_stock_buys()?;
+        CorporateActionType::Rename {ref new_symbol} => {
+            statement.rename_symbol(&action.symbol, new_symbol, Some(action.time)).map_err(|e| format!(
+                "Failed to process {} -> {} rename corporate action: {}",
+                action.symbol, new_symbol, e))?;
         },
 
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
@@ -225,11 +218,25 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
             statement.sort_and_validate_stock_buys()?;
         },
 
-        CorporateActionType::Rename {ref new_symbol} => {
-            statement.rename_symbol(&action.symbol, new_symbol, Some(action.time)).map_err(|e| format!(
-                "Failed to process {} -> {} rename corporate action: {}",
-                action.symbol, new_symbol, e))?;
+        CorporateActionType::StockDividend {quantity} => {
+            statement.stock_buys.push(StockBuy::new_corporate_action(
+                &action.symbol, quantity, PurchaseTotalCost::new(),
+                action.time, action.execution_date(),
+            ));
+            statement.sort_and_validate_stock_buys()?;
         },
+
+        CorporateActionType::StockSplit {ratio, from_change, to_change} => {
+            process_stock_split(
+                statement, action.time, &action.symbol,
+                ratio, from_change, to_change,
+            ).map_err(|e| format!(
+                "Failed to process {} stock split from {}: {}",
+                action.symbol, format_date(action.time), e,
+            ))?;
+        },
+
+        CorporateActionType::SubscribableRightsIssue {} => {},
     };
 
     statement.corporate_actions.push(action);

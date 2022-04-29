@@ -80,9 +80,17 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
     lazy_static! {
         static ref REGEX: Regex = Regex::new(&format!(concat!(
-            r"^(?P<symbol>{symbol}) ?\({id}\) (?P<action>Split|Stock Dividend|Spinoff) ",
+            r"^(?P<symbol>{symbol}) ?\({id}\) ",
+            r"(?P<action>Spinoff|Split|Stock Dividend|Subscribable Rights Issue) ",
             r"(?:{id} )?(?P<to>[1-9]\d*) for (?P<from>[1-9]\d*) ",
-            r"\((?P<other_symbol>{symbol})(?:{old_suffix})?, [^,)]+, {id}\)$"),
+
+            // The secondary symbol and its name may be suffixed with the following abbreviations:
+            // * RT, RTS - rights (subscribable rights)
+            // * WI, W/I - when issued
+            //
+            // See the examples in tests below.
+            r"\((?P<other_symbol>{symbol})(?:{old_suffix})?(?: (?:RT|WI))*, [^,)]+, {id}\)$"),
+
             symbol=common::STOCK_SYMBOL_REGEX, old_suffix=regex::escape(common::OLD_SYMBOL_SUFFIX),
             id=SecurityID::REGEX)).unwrap();
     }
@@ -97,6 +105,16 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
     let other_symbol = parse_symbol(captures.name("other_symbol").unwrap().as_str())?;
 
     let action = match captures.name("action").unwrap().as_str() {
+        "Spinoff" => {
+            let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
+            let currency = record.get_value("Currency")?.to_owned();
+
+            CorporateActionType::Spinoff {
+                symbol: other_symbol,
+                quantity, currency,
+            }
+        },
+
         "Split" => {
             if other_symbol != symbol {
                 return error();
@@ -125,15 +143,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
             CorporateActionType::StockDividend {quantity}
         },
 
-        "Spinoff" => {
-            let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
-            let currency = record.get_value("Currency")?.to_owned();
-
-            CorporateActionType::Spinoff {
-                symbol: other_symbol,
-                quantity, currency,
-            }
-        },
+        "Subscribable Rights Issue" => CorporateActionType::SubscribableRightsIssue,
 
         _ => unreachable!(),
     };
@@ -220,7 +230,7 @@ mod tests {
             "13.3333", "0", "0", "0", "",
         ], "VISL", date_time!(2020, 7, 31, 20, 25, 00), date!(2020, 8, 3), 1, 6, None, Some(dec!(13.3333))),
     )]
-    fn stock_split_parsing(
+    fn stock_split(
         record: &[&str], symbol: &str, time: DateTime, report_date: Date, to: u32, from: u32,
         from_change: Option<Decimal>, to_change: Option<Decimal>,
     ) {
@@ -237,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn stock_dividend_parsing() {
+    fn stock_dividend() {
         test_parsing(&[
             "Stocks", "USD", "2020-07-17", "2020-07-17, 20:20:00",
             "TEF (US8793822086) Stock Dividend US8793822086 416666667 for 10000000000 (TEF, TELEFONICA SA-SPON ADR, US8793822086)",
@@ -252,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn spinoff_parsing() {
+    fn spinoff() {
         test_parsing(&[
             "Stocks", "USD", "2020-11-17", "2020-11-16, 20:25:00",
             "PFE(US7170811035) Spinoff  124079 for 1000000 (VTRS, VIATRIS INC-W/I, US92556V1061)",
@@ -267,6 +277,29 @@ mod tests {
                 quantity: dec!(9.3059),
                 currency: s!("USD"),
             },
+        });
+    }
+
+    #[rstest(record, symbol, time, report_date,
+        case(&[
+            "Stocks", "USD", "2021-06-18", "2021-06-16, 20:25:00",
+            "BST(US09258G1040) Subscribable Rights Issue  1 for 1 (BST RT WI, BLACKROCK SCIENCE -RTS W/I, US09258G1123)",
+            "6", "0", "0", "0", "",
+        ], "BST", date_time!(2021, 6, 16, 20, 25, 00), date!(2021, 6, 18)),
+
+        case(&[
+            "Stocks", "HKD", "2021-08-12", "2021-08-11, 20:25:00",
+            "698(KYG8917X1218) Subscribable Rights Issue  1 for 2 (2965, TONGDA GROUP HOLDINGS LTD - RIGHTS, KYG8917X1RTS)",
+            "25000", "0", "0", "0",
+        ], "698", date_time!(2021, 8, 11, 20, 25, 00), date!(2021, 8, 12)),
+    )]
+    fn subscribable_rights_issue(record: &[&str], symbol: &str, time: DateTime, report_date: Date) {
+        test_parsing(record, CorporateAction {
+            time: time.into(),
+            report_date: Some(report_date),
+
+            symbol: symbol.to_owned(),
+            action: CorporateActionType::SubscribableRightsIssue,
         });
     }
 
