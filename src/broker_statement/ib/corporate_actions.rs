@@ -2,11 +2,13 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use crate::broker_statement::StockSell;
 use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
 use crate::formatting::format_date;
 #[cfg(test)] use crate::types::{Date, DateTime, Decimal};
-use crate::util::{self, DecimalRestrictions};
+use crate::util::{self, DecimalRestrictions, parse_decimal};
 
 use super::StatementParser;
 use super::common::{self, Record, RecordParser, SecurityID, parse_symbol};
@@ -14,6 +16,7 @@ use super::common::{self, Record, RecordParser, SecurityID, parse_symbol};
 
 pub struct CorporateActionsParser {
     corporate_actions: Vec<CorporateAction>,
+    stock_sells: Vec<StockSell>,
 }
 
 impl RecordParser for CorporateActionsParser {
@@ -22,7 +25,20 @@ impl RecordParser for CorporateActionsParser {
     }
 
     fn parse(&mut self, _parser: &mut StatementParser, record: &Record) -> EmptyResult {
-        self.corporate_actions.push(parse(record)?);
+        let action = parse(record)?;
+        match action.action {
+            CorporateActionType::Liquidation {
+                quantity,
+                price,
+                volume,
+                commission,
+            } => {
+                self.stock_sells.push(StockSell::new_trade(
+                    &action.symbol, quantity, price, volume, commission,
+                    action.time, action.time.date, false));
+            },
+            _ => self.corporate_actions.push(action),
+        }
         Ok(())
     }
 }
@@ -31,6 +47,7 @@ impl CorporateActionsParser {
     pub fn new() -> CorporateActionsParser {
         CorporateActionsParser {
             corporate_actions: Vec::new(),
+            stock_sells: Vec::new(),
         }
     }
 
@@ -62,6 +79,10 @@ impl CorporateActionsParser {
             parser.statement.corporate_actions.push(join_stock_splits(stock_splits)?);
         }
 
+        for action in self.stock_sells {
+            parser.statement.stock_sells.push(action);
+        }
+
         Ok(())
     }
 }
@@ -77,6 +98,45 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
     let description = util::fold_spaces(record.get_value("Description")?);
     let description = description.as_ref();
+
+    lazy_static! {
+        static ref LIQ_REGEX: Regex = Regex::new(&format!(concat!(
+            r"^(?P<symbol>{symbol})\s*\({id}\) Merged\(Liquidation\) FOR ",
+            r"(?P<currency>\w+)\s+(?P<price>[\d\.]+) PER SHARE ",
+            r"\((?P<other_symbol>{symbol}), [^,)]+, {id}\)$"),
+            symbol=common::STOCK_SYMBOL_REGEX, id=SecurityID::REGEX)).unwrap();
+    }
+    match LIQ_REGEX.captures(description) {
+        None => (),
+        Some(captures) => {
+            let symbol = parse_symbol(captures.name("symbol").unwrap().as_str())?;
+            let other_symbol = parse_symbol(captures.name("other_symbol").unwrap().as_str())?;
+            let descr_currency = captures.name("currency").unwrap().as_str().to_owned();
+            let price = parse_decimal(captures.name("price").unwrap().as_str(), DecimalRestrictions::PositiveOrZero)?;
+
+            let quantity = record.parse_quantity("Quantity", DecimalRestrictions::NegativeOrZero)?;
+            let volume = record.parse_quantity("Proceeds", DecimalRestrictions::PositiveOrZero)?;
+            let currency = record.get_value("Currency")?.to_owned();
+
+            if symbol != other_symbol {
+                return Err!("Symbol mismatch: {} vs {}", symbol, other_symbol);
+            }
+            if currency != descr_currency {
+                return Err!("Currency mismatch: {} vs {}", currency, descr_currency);
+            }
+            if (price * quantity + volume).abs() >= dec!(0.0001) {
+                return Err!("Quantity/Price/Volume mismatch: {} * {} + ({}) != 0", quantity, price, volume);
+            }
+
+            let action = CorporateActionType::Liquidation {
+                quantity: -quantity,
+                price: Cash::new(&currency, price),
+                volume: Cash::new(&currency, volume),
+                commission: Cash::new(&currency, dec!(0))
+            };
+            return Ok(CorporateAction {time: time.into(), report_date, symbol, action})
+        },
+    };
 
     lazy_static! {
         static ref REGEX: Regex = Regex::new(&format!(concat!(
@@ -203,6 +263,8 @@ fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<Corpora
 
 #[cfg(test)]
 mod tests {
+    use crate::currency::Cash;
+
     use super::*;
     use rstest::rstest;
 
@@ -300,6 +362,26 @@ mod tests {
 
             symbol: symbol.to_owned(),
             action: CorporateActionType::SubscribableRightsIssue,
+        });
+    }
+
+    #[test]
+    fn liquidation_parsing() {
+        test_parsing(&[
+            "Stocks", "USD", "2021-11-03", "2021-11-02, 20:25:00",
+            "CHL(US16941M1099) Merged(Liquidation) FOR USD 30.20446 PER SHARE (CHL, CHINA MOBILE LTD-SPON ADR, US16941M1099)",
+            "-10", "302.0446", "-275.1", "3.012343", "",
+        ], CorporateAction {
+            time: date_time!(2021, 11, 2, 20, 25, 00).into(),
+            report_date: Some(date!(2021, 11, 3)),
+
+            symbol: s!("CHL"),
+            action: CorporateActionType::Liquidation {
+                quantity: dec!(10),
+                price: Cash::new("USD", dec!(30.20446)),
+                volume: Cash::new("USD", dec!(302.0446)),
+                commission: Cash::new("USD", dec!(0)),
+            },
         });
     }
 

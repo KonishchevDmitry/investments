@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
 use crate::formatting::format_date;
 use crate::localities::Jurisdiction;
 use crate::time::{Date, DateTime, DateOptTime, deserialize_date_opt_time};
@@ -82,6 +83,14 @@ pub enum CorporateActionType {
     // discounted price. Doesn't affects anything, so can be ignored.
     #[serde(skip)]
     SubscribableRightsIssue,
+
+    #[serde(skip)]
+    Liquidation {
+        quantity: Decimal,
+        price: Cash,
+        volume: Cash,
+        commission: Cash,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -237,6 +246,10 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         },
 
         CorporateActionType::SubscribableRightsIssue {} => {},
+
+        CorporateActionType::Liquidation { .. } => {
+            return Err!("Unexpected action type: Liquidation");
+        }
     };
 
     statement.corporate_actions.push(action);
