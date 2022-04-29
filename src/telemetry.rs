@@ -74,7 +74,7 @@ impl TelemetryRecordBuilder {
         brokers.sort();
 
         let id = Uuid::new_v4().to_string();
-        let os = platforms::TARGET_OS;
+        let os = std::env::consts::OS;
         let time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default()
             .as_secs();
@@ -82,10 +82,10 @@ impl TelemetryRecordBuilder {
         TelemetryRecord {
             id, time,
 
-            os: os.as_str(),
+            os,
             version: env!("CARGO_PKG_VERSION"),
             precompiled: option_env!("INVESTMENTS_PRECOMPILED_BINARY").is_some(),
-            container: os == OS::Linux && std::process::id() == 1,
+            container: os == OS::Linux.as_str() && std::process::id() == 1,
 
             command: command.to_owned(),
             brokers,

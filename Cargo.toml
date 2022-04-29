@@ -31,8 +31,8 @@ calamine = "0.18.0"
 chrono = "0.4.19"
 chrono-tz = "0.6.1"
 cast = "0.3.0"
-clap = "3.1.9"
-clap_complete = "3.1.1"
+clap = "3.1.12"
+clap_complete = "3.1.2"
 const_format = "0.2.22"
 csv = "1.1.6"
 cusip = "0.2.0"
@@ -48,7 +48,7 @@ maplit = "1.0.2"
 matches = "0.1.9"
 num-integer = "0.1.44"
 num-traits = "0.2.14"
-platforms = "2.0.0"
+platforms = "3.0.0"
 prettytable-rs = "0.8.0"
 prometheus = "0.13.0"
 quick-xml = { version = "0.22.0", features = [ "serialize" ] }
@@ -63,7 +63,7 @@ serde_json = "1.0.79"
 serde_yaml = "0.8.23"
 serde-xml-rs = "0.5.1"
 shellexpand = "2.1.0"
-uuid = { version = "0.8.2", features = ["v4"] }
+uuid = { version = "1.0.0", features = ["v4"] }
 xml-rs = "0.8.4"
 yaml-merge-keys = { version = "0.5.1", features = ["serde_yaml"] }
 
@@ -73,8 +73,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.23.0", features = ["bundled"] }
 
-static_table_derive = "0.1.42"
-xls_table_derive = "0.5.9"
+static_table_derive = "0.1.43"
+xls_table_derive = "0.5.10"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }

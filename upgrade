@@ -6,7 +6,7 @@
 set -eu
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
-cargo upgrade
+cargo update && cargo upgrade
 
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 sed -ri '/^libsqlite3-sys =/ s/version\s*=\s*"[^"]+"/version = ">=0.8.0, <0.23.0"/' Cargo.toml
