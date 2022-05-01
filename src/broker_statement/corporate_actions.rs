@@ -49,6 +49,14 @@ impl CorporateAction {
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type", rename_all="kebab-case")]
 pub enum CorporateActionType {
+    #[serde(skip)]
+    Liquidation {
+        quantity: Decimal,
+        price: Decimal,
+        volume: Decimal,
+        currency: String,
+    },
+
     // See https://github.com/KonishchevDmitry/investments/issues/29 for details
     Rename {
         new_symbol: String,
@@ -83,14 +91,6 @@ pub enum CorporateActionType {
     // discounted price. Doesn't affects anything, so can be ignored.
     #[serde(skip)]
     SubscribableRightsIssue,
-
-    #[serde(skip)]
-    Liquidation {
-        quantity: Decimal,
-        price: Cash,
-        volume: Cash,
-        commission: Cash,
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -213,6 +213,17 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
+        CorporateActionType::Liquidation {quantity, price, volume, ref currency} => {
+            let price = Cash::new(currency, price);
+            let volume = Cash::new(currency, volume);
+            let commission = Cash::zero(currency);
+
+            statement.stock_sells.push(StockSell::new_trade(
+                &action.symbol, quantity, price, volume, commission,
+                action.time, action.execution_date(), false));
+            statement.sort_and_validate_stock_sells()?;
+        },
+
         CorporateActionType::Rename {ref new_symbol} => {
             statement.rename_symbol(&action.symbol, new_symbol, Some(action.time)).map_err(|e| format!(
                 "Failed to process {} -> {} rename corporate action: {}",
@@ -246,10 +257,6 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         },
 
         CorporateActionType::SubscribableRightsIssue {} => {},
-
-        CorporateActionType::Liquidation { .. } => {
-            return Err!("Unexpected action type: Liquidation");
-        }
     };
 
     statement.corporate_actions.push(action);

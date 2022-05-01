@@ -132,8 +132,11 @@ impl StockBuy {
 
 #[derive(Clone, Copy)]
 pub enum StockSellType {
-    // Ordinary trade
+    // Any trade operation:
+    // * Ordinary trade
+    // * Corporate action which leads to position closing
     Trade {
+        // Please note that all these values may be zero
         price: Cash,
         volume: Cash, // May be slightly different from price * quantity due to rounding on broker side
         commission: Cash,

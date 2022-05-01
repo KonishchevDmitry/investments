@@ -113,8 +113,10 @@ impl CashFlowMapper {
     fn stock_sell(&mut self, name: &str, trade: &StockSell) {
         match trade.type_ {
             StockSellType::Trade {volume, commission, ..} => {
-                let description = format!("Продажа {} {}", trade.quantity, name);
-                self.add(trade.conclusion_time, Operation::SellTrade, volume, description);
+                if !volume.is_zero() {
+                    let description = format!("Продажа {} {}", trade.quantity, name);
+                    self.add(trade.conclusion_time, Operation::SellTrade, volume, description);
+                }
 
                 if !commission.is_zero() {
                     let description = format!("Комиссия за продажу {} {}", trade.quantity, name);

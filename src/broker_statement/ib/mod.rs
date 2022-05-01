@@ -321,6 +321,7 @@ mod tests {
         "return-of-capital-with-tax",
         "return-of-capital-without-tax",
 
+        "liquidation",
         "margin-rub",
         "complex",
 

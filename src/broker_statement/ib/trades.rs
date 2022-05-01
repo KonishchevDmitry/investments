@@ -6,7 +6,7 @@ use crate::time::DateTime;
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
-use super::common::{Record, RecordParser, parse_symbol};
+use super::common::{Record, RecordParser, check_volume, parse_symbol};
 
 pub struct TradesParser {}
 
@@ -96,19 +96,7 @@ fn parse_stock_record(
     } else {
         DecimalRestrictions::StrictlyPositive
     })?;
-    if cfg!(debug_assertions) {
-        let mut ok = false;
-        let expected_volume = price * -quantity;
-
-        for precision in 2..=8 {
-            if expected_volume.round_to(precision) == volume {
-                ok = true;
-                break;
-            }
-        }
-
-        debug_assert!(ok, "Got an unexpected volume {} vs {}", volume, expected_volume);
-    }
+    check_volume(-quantity, price, volume)?;
 
     if quantity.is_sign_positive() {
         parser.statement.stock_buys.push(StockBuy::new_trade(

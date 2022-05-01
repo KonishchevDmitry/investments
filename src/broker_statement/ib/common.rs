@@ -163,6 +163,22 @@ impl RecordParser for UnknownRecordParser {
     }
 }
 
+pub fn check_volume(quantity: Decimal, price: Cash, volume: Cash) -> EmptyResult {
+    if !cfg!(debug_assertions) {
+        return Ok(());
+    }
+
+    let expected_volume = price * quantity;
+
+    for precision in 2..=8 {
+        if expected_volume.round_to(precision) == volume {
+            return Ok(());
+        }
+    }
+
+    Err!("Got an unexpected volume {} vs {}", volume, expected_volume)
+}
+
 pub fn format_record<'a, I>(iter: I) -> String
     where I: IntoIterator<Item = &'a str> {
 
