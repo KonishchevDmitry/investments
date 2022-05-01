@@ -176,7 +176,7 @@ pub fn check_volume(quantity: Decimal, price: Cash, volume: Cash) -> EmptyResult
         }
     }
 
-    Err!("Got an unexpected volume {} vs {}", volume, expected_volume)
+    Err!("Got an unexpected volume: {} vs {}", volume, expected_volume)
 }
 
 pub fn format_record<'a, I>(iter: I) -> String
