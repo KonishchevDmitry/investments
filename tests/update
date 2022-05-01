@@ -40,7 +40,7 @@ for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
 done
 
 for portfolio in \
-    ib-margin-rub ib-complex ib-external-exchanges ib-stock-split ib-reverse-stock-split \
+    ib-complex ib-external-exchanges ib-liquidation ib-stock-split ib-reverse-stock-split \
     ib-reverse-stock-split-reverse-order ib-simple-with-lse ib-symbol-with-space ib-tax-remapping \
     ib-stock-yield-enhancement-program-not-received-yet tinkoff-complex; do
     investments other tax-statement "$portfolio"
