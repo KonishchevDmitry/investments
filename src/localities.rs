@@ -157,11 +157,10 @@ pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
 }
 
 pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
-    if today.month() == 1 && today.day() < 4 {
-        today - Duration::days(4)
-    } else {
-        today - Duration::days(3)
-    }
+    // Experimentally deduced timeout. Originally was smaller, but for example in 2022 when FinEx
+    // ETF have been suspended, MOEX returned their price, but with day delay, so for example during
+    // May holidays we had quotes only for 29 april during 30 april - 4 may period.
+    today - Duration::days(5)
 }
 
 pub fn nearest_possible_account_close_date() -> Date {
