@@ -2,6 +2,7 @@ pub mod alphavantage;
 mod cache;
 mod common;
 pub mod fcsapi;
+#[cfg(test)] mod finex;
 pub mod finnhub;
 mod moex;
 pub mod twelvedata;

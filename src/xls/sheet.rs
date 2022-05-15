@@ -16,17 +16,21 @@ pub struct SheetReader {
 }
 
 impl SheetReader {
-    pub fn new(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
-        let sheet_name = parser.sheet_name();
-        let sheet = open_sheet(path, sheet_name)?.ok_or_else(|| format!(
-            "There is no {:?} sheet in the workbook", sheet_name))?;
-
-        Ok(SheetReader {
+    pub fn new(sheet: Range<Cell>, parser: Box<dyn SheetParser>) -> SheetReader {
+        SheetReader {
             sheet, parser,
             prev_row_id: None,
             next_row_id: 0,
             eof_reached: false,
-        })
+        }
+    }
+
+    pub fn open(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
+        let sheet_name = parser.sheet_name();
+        let sheet = open_sheet(path, sheet_name)?.ok_or_else(|| format!(
+            "There is no {:?} sheet in the workbook", sheet_name))?;
+
+        Ok(SheetReader::new(sheet, parser))
     }
 
     pub fn repeatable_table_column_titles(&self) -> bool {

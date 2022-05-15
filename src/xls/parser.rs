@@ -12,7 +12,7 @@ pub struct XlsStatementParser {
 impl XlsStatementParser {
     pub fn read(path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>) -> EmptyResult {
         let mut parser = XlsStatementParser {
-            sheet: SheetReader::new(path, parser)?,
+            sheet: SheetReader::open(path, parser)?,
         };
 
         if let Err(e) = parser.parse(sections) {

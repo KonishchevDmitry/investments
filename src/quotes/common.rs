@@ -2,7 +2,6 @@ use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
 use lazy_static::lazy_static;
 use log::trace;
 use regex::Regex;
-use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
 
@@ -47,9 +46,11 @@ pub fn is_outdated_time<T: TimeZone>(date_time: DateTime<T>, test_outdated_time:
     }
 }
 
-pub fn send_request(client: &Client, url: &Url) -> GenericResult<Response> {
+pub fn send_request<U: AsRef<str>>(client: &Client, url: U) -> GenericResult<Response> {
+    let url = url.as_ref();
+
     trace!("Sending request to {}...", url);
-    let response = client.get(url.as_str()).send()?;
+    let response = client.get(url).send()?;
     trace!("Got response from {}.", url);
 
     if !response.status().is_success() {
