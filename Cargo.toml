@@ -31,36 +31,36 @@ calamine = "0.18.0"
 chrono = "0.4.19"
 chrono-tz = "0.6.1"
 cast = "0.3.0"
-clap = "3.1.12"
-clap_complete = "3.1.2"
-const_format = "0.2.22"
+clap = "3.1.18"
+clap_complete = "3.1.4"
+const_format = "0.2.23"
 csv = "1.1.6"
 cusip = "0.2.0"
 easy-logging = "0.1.2"
 encoding_rs = "0.8.31"
 governor = "0.4.2"
-indoc = "1.0.4"
+indoc = "1.0.6"
 isin = "0.1.10"
 itertools = "0.10.3"
 lazy_static = "1.4.0"
-log = "0.4.16"
+log = "0.4.17"
 maplit = "1.0.2"
 matches = "0.1.9"
-num-integer = "0.1.44"
-num-traits = "0.2.14"
+num-integer = "0.1.45"
+num-traits = "0.2.15"
 platforms = "3.0.0"
 prettytable-rs = "0.8.0"
 prometheus = "0.13.0"
 quick-xml = { version = "0.22.0", features = [ "serialize" ] }
-rayon = "1.5.2"
+rayon = "1.5.3"
 regex = "1.5.5"
 reqwest = { version = "0.11.10", features = ["blocking", "json"] }
 rust_decimal = "~1.23.1"
 rust_decimal_macros = "~1.23.1"
 separator = "0.4.1"
-serde = { version = "1.0.136", features = ["derive"] }
-serde_json = "1.0.79"
-serde_yaml = "0.8.23"
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
+serde_yaml = "0.8.24"
 serde-xml-rs = "0.5.1"
 shellexpand = "2.1.0"
 uuid = { version = "1.0.0", features = ["v4"] }
@@ -73,8 +73,8 @@ diesel_migrations = "1.4.0"
 # The version spec must be in sync with https://github.com/diesel-rs/diesel/blob/master/diesel/Cargo.toml
 libsqlite3-sys = { version = ">=0.8.0, <0.23.0", features = ["bundled"] }
 
-static_table_derive = "0.1.43"
-xls_table_derive = "0.5.10"
+static_table_derive = "0.1.44"
+xls_table_derive = "0.5.11"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
