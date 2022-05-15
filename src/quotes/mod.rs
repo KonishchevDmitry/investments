@@ -2,7 +2,7 @@ pub mod alphavantage;
 mod cache;
 mod common;
 pub mod fcsapi;
-#[cfg(test)] mod finex;
+mod finex;
 pub mod finnhub;
 mod moex;
 pub mod twelvedata;
@@ -25,6 +25,7 @@ use crate::exchanges::{Exchange, Exchanges};
 use self::cache::Cache;
 use self::common::parse_currency_pair;
 use self::fcsapi::FcsApi;
+use self::finex::Finex;
 use self::finnhub::Finnhub;
 use self::moex::Moex;
 
@@ -65,6 +66,7 @@ impl Quotes {
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), vec![
             Arc::new(Finnhub::new(finnhub)),
             Arc::new(FcsApi::new(fcsapi)),
+            Arc::new(Finex::new()),
             Arc::new(Moex::new("TQTF")),
             Arc::new(Moex::new("TQBR")),
         ]))
