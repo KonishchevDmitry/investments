@@ -157,7 +157,8 @@ impl BrokerStatementReader for StatementReader {
                 .parser_rc(executed_trades_parser).required(),
             Section::new("1.2 Информация о неисполненных сделках на конец отчетного периода")
                 .parser_rc(pending_trades_parser).required(),
-            Section::new("2. Операции с денежными средствами")
+            Section::new("2. Операции с денежными средствами и драг. металлами")
+                .alias("2. Операции с денежными средствами")
                 .parser(CashAssetsParser::new(statement.clone())).required(),
             Section::new("3.1 Движение по ценным бумагам инвестора")
                 .alias("3. Движение финансовых активов инвестора")
