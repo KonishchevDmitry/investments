@@ -12,3 +12,5 @@ fi
 
 command -v cargo-release > /dev/null || cargo install cargo-release
 cargo release --no-dev-version --no-publish --execute "$@"
+
+./publish
