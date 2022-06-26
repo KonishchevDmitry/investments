@@ -81,35 +81,47 @@ impl CashFlowRow {
         let date = parse_short_date(&self.date)?;
         let operation = self.operation.as_str();
 
-        let mut deposit_restrictions = DecimalRestrictions::Zero;
-        let mut withdrawal_restrictions = DecimalRestrictions::Zero;
+        let mut validator = CashFlowValidator {
+            row: self,
+            deposit: DecimalRestrictions::Zero,
+            withdrawal: DecimalRestrictions::Zero
+        };
 
         match operation {
             "Приход ДС" => {
-                deposit_restrictions = DecimalRestrictions::StrictlyPositive;
+                validator.deposit = DecimalRestrictions::StrictlyPositive;
+                validator.validate()?;
+
                 statement.deposits_and_withdrawals.push(CashAssets::new(
                     date, currency, self.deposit));
             },
+
             "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
-                deposit_restrictions = DecimalRestrictions::PositiveOrZero;
-                withdrawal_restrictions = DecimalRestrictions::PositiveOrZero;
+                validator.deposit = DecimalRestrictions::PositiveOrZero;
+                validator.withdrawal = DecimalRestrictions::PositiveOrZero;
+                validator.validate()?;
             },
+
             "Урегулирование сделок" |
             "Вознаграждение компании" |
             "Комиссия за перенос позиции" |
             "Фиксированное вознаграждение по тарифу" |
             "Вознаграждение за обслуживание счета депо" => {
-                let amount = Cash::new(currency, self.withdrawal);
-                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
+                validator.withdrawal = DecimalRestrictions::StrictlyPositive;
+                validator.validate()?;
 
+                let amount = Cash::new(currency, self.withdrawal);
                 let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
                 let description = format!("Комиссия брокера: {}", formatting::untitle(description));
 
                 statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
+
             "НДФЛ" => {
+                validator.withdrawal = DecimalRestrictions::StrictlyPositive;
+                validator.validate()?;
+
                 let withheld_tax = Cash::new(currency, self.withdrawal);
-                withdrawal_restrictions = DecimalRestrictions::StrictlyPositive;
 
                 let comment = self.comment.as_deref().unwrap_or_default();
                 let year = comment.parse::<u16>().map_err(|_| format!(
@@ -119,19 +131,31 @@ impl CashFlowRow {
 
                 statement.tax_agent_withholdings.add(date, year, Withholding::new(withheld_tax))?;
             },
+
             _ => return Err!("Unsupported cash flow operation: {:?}", self.operation),
         };
 
-        // FIXME(konishchev): Rewrite
-        for &(name, value, restrictions) in &[
-            ("deposit", self.deposit, deposit_restrictions),
-            ("withdrawal", self.withdrawal, withdrawal_restrictions),
-            ("tax", self.tax, DecimalRestrictions::Zero),
-            ("warranty", self.warranty, DecimalRestrictions::Zero),
-            ("margin", self.margin, DecimalRestrictions::Zero),
+        Ok(())
+    }
+}
+
+struct CashFlowValidator<'a> {
+    row: &'a CashFlowRow,
+    deposit: DecimalRestrictions,
+    withdrawal: DecimalRestrictions,
+}
+
+impl<'a> CashFlowValidator<'a> {
+    fn validate(&self) -> EmptyResult {
+        for (name, value, restrictions) in [
+            ("deposit", self.row.deposit, self.deposit),
+            ("withdrawal", self.row.withdrawal, self.withdrawal),
+            ("tax", self.row.tax, DecimalRestrictions::Zero),
+            ("warranty", self.row.warranty, DecimalRestrictions::Zero),
+            ("margin", self.row.margin, DecimalRestrictions::Zero),
         ] {
             util::validate_decimal(value, restrictions).map_err(|_| format!(
-                "Unexpected {} amount for {:?} operation: {}", name, operation, value))?;
+                "Unexpected {} amount for {:?} operation: {}", name, self.row.operation, value))?;
         }
 
         Ok(())
