@@ -182,7 +182,7 @@ impl Parser {
                 .args([
                     cli::new_arg("shell", "Shell to generate completion rules for")
                         .short('s').long("shell").value_name("SHELL")
-                        .possible_values(Shell::possible_values())
+                        .possible_values(Shell::value_variants().iter().filter_map(ArgEnum::to_possible_value))
                         .default_value(Shell::Bash.to_possible_value().unwrap().get_name()),
 
                     cli::new_arg("PATH", "Path to save the rules to").required(true)
