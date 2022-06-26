@@ -3,6 +3,7 @@ use crate::time::Date;
 
 pub struct Fee {
     pub date: Date,
+    // FIXME(konishchev): Rewrite
     pub amount: Cash, // The amount is positive for commission and negative for refund
     pub description: Option<String>,
 }

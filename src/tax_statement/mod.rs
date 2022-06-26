@@ -62,7 +62,7 @@ pub fn generate_tax_statement(
 
     if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
         let total_tax = trades_tax + dividends_tax + interest_tax;
-        tax_agent::process_tax_agent_withholdings(&broker_statement, year, total_tax);
+        tax_agent::process_tax_agent_withholdings(&broker_statement, year, total_tax)?;
     }
 
     if let Some(ref tax_statement) = tax_statement {

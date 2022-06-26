@@ -18,7 +18,7 @@ use super::fees::Fee;
 use super::grants::StockGrant;
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
-use super::taxes::{TaxId, TaxAccruals, TaxWithholding};
+use super::taxes::{TaxId, TaxAccruals, TaxAgentWithholdings};
 
 pub type PartialBrokerStatementRc = Rc<RefCell<PartialBrokerStatement>>;
 
@@ -30,7 +30,7 @@ pub struct PartialBrokerStatement {
     pub cash_flows: Vec<CashFlow>,
     pub fees: Vec<Fee>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
-    pub tax_agent_withholdings: Vec<TaxWithholding>,
+    pub tax_agent_withholdings: TaxAgentWithholdings,
 
     pub exchanges: Exchanges,
     pub forex_trades: Vec<ForexTrade>,
@@ -65,7 +65,7 @@ impl PartialBrokerStatement {
             cash_flows: Vec::new(),
             fees: Vec::new(),
             idle_cash_interest: Vec::new(),
-            tax_agent_withholdings: Vec::new(),
+            tax_agent_withholdings: TaxAgentWithholdings::new(),
 
             exchanges: Exchanges::new(exchanges),
             forex_trades: Vec::new(),

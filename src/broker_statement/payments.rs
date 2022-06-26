@@ -2,6 +2,21 @@ use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::time::Date;
 
+#[derive(Clone, Copy)]
+pub enum Withholding {
+    Withholding(Cash),
+    Refund(Cash),
+}
+
+impl Withholding {
+    pub fn withholding_amount(self) -> Cash {
+        match self {
+            Withholding::Withholding(amount) => amount,
+            Withholding::Refund(amount) => -amount,
+        }
+    }
+}
+
 /// Calculates result amount from a series of payments and reversals.
 #[derive(Clone)]
 pub struct Payments {

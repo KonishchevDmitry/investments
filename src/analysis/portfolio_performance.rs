@@ -406,10 +406,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 
     fn process_tax_agent_withholdings(&mut self, statement: &BrokerStatement) -> EmptyResult {
-        for withholding in &statement.tax_agent_withholdings {
-            let amount = self.converter.convert_to(withholding.date, withholding.amount, self.currency)?;
-            trace!("* Tax withholding {}: {}", formatting::format_date(withholding.date), amount);
-            self.transaction(withholding.date, -amount);
+        for tax in &statement.tax_agent_withholdings {
+            let amount = self.converter.convert_to(tax.date, tax.amount.withholding_amount(), self.currency)?;
+            trace!("* Tax withholding {}: {}", formatting::format_date(tax.date), amount);
+            self.transaction(tax.date, -amount);
         }
 
         Ok(())

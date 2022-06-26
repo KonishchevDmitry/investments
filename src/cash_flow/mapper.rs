@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
-    IdleCashInterest, TaxWithholding, CashFlow as CashFlowDetails, CashFlowType};
+    IdleCashInterest, TaxAgentWithholding, Withholding, CashFlow as CashFlowDetails, CashFlowType};
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
 use crate::time::DateOptTime;
@@ -193,9 +193,16 @@ impl CashFlowMapper {
         }
     }
 
-    fn tax_agent_withholding(&mut self, withholding: &TaxWithholding) {
-        let description = format!("Удержание налога за {} год", withholding.year);
-        self.add(withholding.date.into(), Operation::Tax, -withholding.amount, description);
+    fn tax_agent_withholding(&mut self, tax: &TaxAgentWithholding) {
+        let operation = match tax.amount {
+            Withholding::Withholding(_) => "Удержание",
+            Withholding::Refund(_) => "Возврат",
+        };
+
+        let amount = tax.amount.withholding_amount();
+        let description = format!("{} налога за {} год", operation, tax.year);
+
+        self.add(tax.date.into(), Operation::Tax, -amount, description);
     }
 
     fn add_static(&mut self, time: DateOptTime, operation: Operation, amount: Cash, description: &str) -> &mut CashFlow {

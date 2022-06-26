@@ -7,7 +7,7 @@ use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
-use crate::broker_statement::taxes::TaxWithholding;
+use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::instruments::InstrumentId;
@@ -226,9 +226,14 @@ impl CashFlowRow {
 
             "Налог" => {
                 let year = date.year();
-                let amount = check_amount(withdrawal)?;
-                let tax_withholding = TaxWithholding::new(date, year, amount)?;
-                statement.tax_agent_withholdings.push(tax_withholding);
+
+                let withholding = if deposit.is_zero() {
+                    Withholding::Withholding(check_amount(withdrawal)?)
+                } else {
+                    Withholding::Refund(check_amount(deposit)?)
+                };
+
+                statement.tax_agent_withholdings.add(date, year, withholding)?;
             },
 
             _ => return Err!("Unsupported cash flow operation: {:?}", operation),

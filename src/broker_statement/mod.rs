@@ -41,7 +41,7 @@ use crate::util;
 use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::partial::PartialBrokerStatement;
 use self::reader::BrokerStatementReader;
-use self::taxes::{TaxId, TaxAccruals};
+use self::taxes::{TaxId, TaxAccruals, TaxAgentWithholdings};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
 pub use self::cash_flows::{CashFlow, CashFlowType};
@@ -52,8 +52,9 @@ pub use self::fees::Fee;
 pub use self::grants::{StockGrant, process_grants};
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
+pub use self::payments::Withholding;
 pub use self::reader::ReadingStrictness;
-pub use self::taxes::TaxWithholding;
+pub use self::taxes::TaxAgentWithholding;
 pub use self::trades::{
     ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, StockSourceDetails,
     SellDetails, FifoDetails};
@@ -69,7 +70,7 @@ pub struct BrokerStatement {
     pub cash_flows: Vec<CashFlow>,
     pub deposits_and_withdrawals: Vec<CashAssets>,
     pub idle_cash_interest: Vec<IdleCashInterest>,
-    pub tax_agent_withholdings: Vec<TaxWithholding>,
+    pub tax_agent_withholdings: TaxAgentWithholdings,
 
     pub exchanges: Exchanges,
     pub forex_trades: Vec<ForexTrade>,
@@ -205,7 +206,7 @@ impl BrokerStatement {
             cash_flows: Vec::new(),
             deposits_and_withdrawals: Vec::new(),
             idle_cash_interest: Vec::new(),
-            tax_agent_withholdings: Vec::new(),
+            tax_agent_withholdings: TaxAgentWithholdings::new(),
 
             exchanges: Exchanges::new_empty(),
             forex_trades: Vec::new(),
@@ -453,7 +454,7 @@ impl BrokerStatement {
         self.cash_flows.extend(statement.cash_flows.into_iter());
         self.deposits_and_withdrawals.extend(statement.deposits_and_withdrawals.into_iter());
         self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
-        self.tax_agent_withholdings.extend(statement.tax_agent_withholdings.into_iter());
+        self.tax_agent_withholdings.merge(statement.tax_agent_withholdings);
 
         self.exchanges.merge(statement.exchanges);
         self.forex_trades.extend(statement.forex_trades.into_iter());
@@ -564,9 +565,7 @@ impl BrokerStatement {
         validator.sort_and_validate(
             "an idle cash interest", &mut self.idle_cash_interest, |interest| interest.date)?;
 
-        validator.sort_and_validate(
-            "a tax agent withholding", &mut self.tax_agent_withholdings,
-            |withholding| withholding.date)?;
+        self.tax_agent_withholdings.sort_and_validate(&validator)?;
 
         validator.sort_and_validate(
             "a forex trade", &mut self.forex_trades, |trade| trade.conclusion_time)?;

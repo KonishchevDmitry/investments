@@ -1,6 +1,6 @@
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
-use crate::broker_statement::taxes::TaxWithholding;
+use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
@@ -117,12 +117,13 @@ impl CashFlowRow {
                     operation, comment,
                 ))? as i32;
 
-                let tax_withholding = TaxWithholding::new(date, year, withheld_tax)?;
-                statement.tax_agent_withholdings.push(tax_withholding);
+                statement.tax_agent_withholdings.add(
+                    date, year, Withholding::Withholding(withheld_tax))?;
             },
             _ => return Err!("Unsupported cash flow operation: {:?}", self.operation),
         };
 
+        // FIXME(konishchev): Rewrite
         for &(name, value, restrictions) in &[
             ("deposit", self.deposit, deposit_restrictions),
             ("withdrawal", self.withdrawal, withdrawal_restrictions),
