@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Fee};
+use crate::broker_statement::{StockBuy, StockSell, IdleCashInterest, Fee, Withholding};
 use crate::core::EmptyResult;
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
@@ -163,7 +163,7 @@ impl CashFlowTransaction {
                 parser.statement.deposits_and_withdrawals.push(assets);
             },
             "INTL WIRE FEE" => {
-                let fee = Fee::new(self.date, amount, None);
+                let fee = Fee::new(self.date, Withholding::new(amount), None);
                 parser.statement.fees.push(fee);
             },
             _ => {

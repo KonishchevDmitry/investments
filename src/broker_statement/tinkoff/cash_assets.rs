@@ -206,7 +206,7 @@ impl CashFlowRow {
             "Комиссия по тарифу" => {
                 let amount = check_amount(withdrawal)?;
                 let description = operation.clone();
-                statement.fees.push(Fee::new(date, amount, Some(description)));
+                statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
 
             "Выплата дивидендов" => {

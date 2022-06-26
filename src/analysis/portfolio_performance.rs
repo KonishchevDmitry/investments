@@ -399,7 +399,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_fees(&mut self, statement: &BrokerStatement) -> EmptyResult {
         for fee in &statement.fees {
             self.income_structure.commissions += self.converter.convert_to(
-                fee.date, fee.amount, self.currency)?;
+                fee.date, fee.amount.withholding(), self.currency)?;
         }
 
         Ok(())
@@ -407,7 +407,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
     fn process_tax_agent_withholdings(&mut self, statement: &BrokerStatement) -> EmptyResult {
         for tax in &statement.tax_agent_withholdings {
-            let amount = self.converter.convert_to(tax.date, tax.amount.withholding_amount(), self.currency)?;
+            let amount = self.converter.convert_to(tax.date, tax.amount.withholding(), self.currency)?;
             trace!("* Tax withholding {}: {}", formatting::format_date(tax.date), amount);
             self.transaction(tax.date, -amount);
         }

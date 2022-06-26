@@ -7,7 +7,8 @@ use static_table_derive::StaticTable;
 
 use crate::brokers::Broker;
 use crate::broker_statement::{
-    BrokerStatement, StockSell, StockSellType, SellDetails, FifoDetails, StockSourceDetails, Fee};
+    BrokerStatement, StockSell, StockSellType, SellDetails, FifoDetails, StockSourceDetails, Fee,
+    Withholding};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, MultiCurrencyCashAccount};
@@ -93,13 +94,17 @@ impl<'a> TradesProcessor<'a> {
             let fee = &self.broker_statement.fees[index];
             index += 1;
 
-            if broker == Broker::InteractiveBrokers {
+            if broker == Broker::InteractiveBrokers && index < count {
                 // IB generates a lot of fee + reversal pairs for Snapshot Quotes, so detect them
                 // here and skip to make the statement less noisy.
 
-                if index < count && fee.amount.is_positive() {
+                if let Withholding::Withholding(withholding) = fee.amount {
                     let next_fee = &self.broker_statement.fees[index];
-                    if next_fee.date == fee.date && next_fee.amount == -fee.amount {
+
+                    if matches!(
+                        next_fee.amount, Withholding::Refund(refund)
+                        if next_fee.date == fee.date && refund == withholding
+                    ) {
                         index += 1;
                         continue;
                     }
@@ -116,11 +121,11 @@ impl<'a> TradesProcessor<'a> {
     }
 
     fn pre_process_fee(&mut self, fee: &Fee) -> GenericResult<PreprocessedFee> {
-        self.same_currency &= fee.amount.currency == self.country.currency;
+        let amount = fee.amount.withholding().round();
+        self.same_currency &= amount.currency == self.country.currency;
 
-        let amount = fee.amount.round();
         let local_amount = self.converter.convert_to_cash_rounding(
-            fee.date, fee.amount, self.country.currency)?;
+            fee.date, fee.amount.withholding(), self.country.currency)?;
 
         let tax_year = self.tax_year_stat(fee.date);
         tax_year.profit.withdraw(amount);

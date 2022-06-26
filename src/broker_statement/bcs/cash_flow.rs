@@ -105,7 +105,7 @@ impl CashFlowRow {
                 let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
                 let description = format!("Комиссия брокера: {}", formatting::untitle(description));
 
-                statement.fees.push(Fee::new(date, amount, Some(description)));
+                statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
             "НДФЛ" => {
                 let withheld_tax = Cash::new(currency, self.withdrawal);
@@ -117,8 +117,7 @@ impl CashFlowRow {
                     operation, comment,
                 ))? as i32;
 
-                statement.tax_agent_withholdings.add(
-                    date, year, Withholding::Withholding(withheld_tax))?;
+                statement.tax_agent_withholdings.add(date, year, Withholding::new(withheld_tax))?;
             },
             _ => return Err!("Unsupported cash flow operation: {:?}", self.operation),
         };

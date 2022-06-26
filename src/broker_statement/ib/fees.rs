@@ -1,5 +1,5 @@
 use crate::core::EmptyResult;
-use crate::broker_statement::fees::Fee;
+use crate::broker_statement::{Fee, Withholding};
 use crate::util::DecimalRestrictions;
 
 use super::StatementParser;
@@ -19,6 +19,6 @@ impl RecordParser for FeesParser {
         let currency = record.get_value("Currency")?;
         let date = record.parse_date("Date")?;
         let amount = record.parse_cash("Amount", currency, DecimalRestrictions::NonZero)?;
-        Ok(parser.statement.fees.push(Fee::new(date, -amount, None)))
+        Ok(parser.statement.fees.push(Fee::new(date, Withholding::new(-amount), None)))
     }
 }

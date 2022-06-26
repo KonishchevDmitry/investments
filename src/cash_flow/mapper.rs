@@ -66,7 +66,9 @@ impl CashFlowMapper {
     }
 
     fn fee(&mut self, fee: &Fee) {
-        self.add_static(fee.date.into(), Operation::Fee, -fee.amount, fee.local_description());
+        self.add_static(
+            fee.date.into(), Operation::Fee, -fee.amount.withholding(),
+            fee.local_description());
     }
 
     fn deposit_or_withdrawal(&mut self, assets: &CashAssets) {
@@ -199,7 +201,7 @@ impl CashFlowMapper {
             Withholding::Refund(_) => "Возврат",
         };
 
-        let amount = tax.amount.withholding_amount();
+        let amount = tax.amount.withholding();
         let description = format!("{} налога за {} год", operation, tax.year);
 
         self.add(tax.date.into(), Operation::Tax, -amount, description);

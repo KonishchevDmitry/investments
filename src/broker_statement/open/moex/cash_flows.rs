@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::open::common::deserialize_date;
 use crate::broker_statement::partial::PartialBrokerStatement;
+use crate::broker_statement::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::CashAssets;
 use crate::instruments::InstrumentId;
@@ -61,7 +62,7 @@ impl CashFlow {
             CashFlowType::Fee(description) => {
                 let amount = -util::validate_named_cash(
                     "fee amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
-                statement.fees.push(Fee::new(date, amount, Some(description)));
+                statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
 
             CashFlowType::Dividend(issuer) => {

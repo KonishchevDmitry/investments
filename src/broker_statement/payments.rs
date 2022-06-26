@@ -9,10 +9,25 @@ pub enum Withholding {
 }
 
 impl Withholding {
-    pub fn withholding_amount(self) -> Cash {
+    pub fn new(amount: Cash) -> Withholding {
+        if amount.is_negative() {
+            Withholding::Refund(-amount)
+        } else {
+            Withholding::Withholding(amount)
+        }
+    }
+
+    pub fn withholding(self) -> Cash {
         match self {
             Withholding::Withholding(amount) => amount,
             Withholding::Refund(amount) => -amount,
+        }
+    }
+
+    pub fn refund(self) -> Cash {
+        match self {
+            Withholding::Withholding(amount) => -amount,
+            Withholding::Refund(amount) => amount,
         }
     }
 }
