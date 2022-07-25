@@ -1,3 +1,5 @@
+#![allow(clippy::extra_unused_lifetimes)]
+
 use crate::db::schema::{AssetType, assets, currency_rates, quotes, settings, telemetry};
 use crate::types::{Date, DateTime};
 
