@@ -45,9 +45,9 @@ struct AssetRow {
     name: String,
     #[column(name="Номер гос. регистрации ЦБ/ ISIN")]
     _1: SkipCell,
-    #[column(name="Тип ЦБ (№ вып.)")]
+    #[column(name="Тип актива (для ЦБ - № вып.)", alias="Тип ЦБ (№ вып.)")]
     security_type: Option<String>,
-    #[column(name="Кол-во ценных бумаг")]
+    #[column(name="Кол-во ЦБ / Масса ДМ (шт/г)", alias="Кол-во ценных бумаг")]
     _3: SkipCell,
     #[column(name="Цена закрытия/котировка вторич.(5*)")]
     _4: SkipCell,
@@ -55,7 +55,7 @@ struct AssetRow {
     _5: SkipCell,
     #[column(name="Сумма, в т.ч. НКД")]
     start_value: Option<Decimal>,
-    #[column(name="Кол-во ценных бумаг")]
+    #[column(name="Кол-во ЦБ / Масса ДМ (шт/г)", alias="Кол-во ценных бумаг")]
     end_quantity: Option<i32>,
     #[column(name="Цена закрытия/ котировка вторич.(5*)")]
     _8: SkipCell,
