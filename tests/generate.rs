@@ -31,7 +31,6 @@ fn generate_regression_tests() {
 
     // analyse
     t.add("Analyse", "analyse --all");
-    t.add("Analyse complex", "analyse ib-complex --all").config("other");
     t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
 
     // simulate-sell
@@ -42,7 +41,7 @@ fn generate_regression_tests() {
     t.add("Simulate sell after reverse stock split", "simulate-sell ib-reverse-stock-split all AAPL all VISL").config("other");
     t.add("Simulate sell stock grant", "simulate-sell ib-external-exchanges all IBKR").config("other");
     t.add("Simulate sell zero cost position", "simulate-sell ib-complex 5 VTRS 125 VTRS").config("other");
-    t.add("Simulate sell with mixed currency", "simulate-sell tinkoff-mixed-currency-trade all VTBA all VTBX").config("other");
+    t.add("Simulate sell with mixed currency", "simulate-sell tinkoff-mixed-currency-trade all EQMX all VTBA").config("other");
 
     // tax-statement
     t.add("IB complex tax statement", "tax-statement ib-complex").config("other");
