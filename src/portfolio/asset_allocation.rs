@@ -7,6 +7,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::quotes::{Quotes, QuoteQuery};
+use crate::trades;
 use crate::types::{Decimal, TradeType};
 use crate::util;
 
@@ -204,7 +205,11 @@ impl AssetAllocation {
                     None => QuoteQuery::Stock(symbol.to_owned(), broker.exchanges()),
                 })?;
 
-                let price = converter.real_time_convert_to(currency_price, currency)?;
+                // Convert price with a reasonable precision. In other case we might get Decimal
+                // precision overflow which will lead to `price * quantity / price != quantity`.
+                let price = trades::convert_price(
+                    currency_price, dec!(1), currency, converter)?.amount;
+
                 let shares = stocks.remove(symbol).unwrap_or_else(|| dec!(0));
                 let current_value = shares * price;
 
