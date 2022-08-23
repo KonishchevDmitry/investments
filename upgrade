@@ -3,7 +3,7 @@
 # Upgrades all dependencies to the latest versions
 #
 
-set -eu
+set -eux
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
 cargo update && cargo upgrade
@@ -15,3 +15,4 @@ sed -ri '/^libsqlite3-sys =/ s/version\s*=\s*"[^"]+"/version = ">=0.8.0, <0.23.0
 sed -ri 's/^(rust_decimal(_macros)? = ")/\1~/' Cargo.toml
 
 cargo update
+cargo clean
