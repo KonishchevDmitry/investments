@@ -1,4 +1,5 @@
 use std::collections::{HashSet, HashMap};
+use std::ops::DerefMut;
 use std::str::FromStr;
 
 use diesel::{self, prelude::*};
@@ -26,7 +27,7 @@ impl Assets {
 
     pub fn load(database: db::Connection, portfolio: &str) -> GenericResult<Assets> {
         let assets = assets::table.filter(assets::portfolio.eq(portfolio))
-            .load::<models::Asset>(&*database)?;
+            .load::<models::Asset>(database.borrow().deref_mut())?;
 
         let mut cash = MultiCurrencyCashAccount::new();
         let mut stocks = HashMap::new();
@@ -77,9 +78,9 @@ impl Assets {
     }
 
     pub fn save(&self, database: db::Connection, portfolio: &str) -> EmptyResult {
-        database.transaction::<_, GenericError, _>(|| {
+        database.borrow().transaction::<_, GenericError, _>(|db| {
             diesel::delete(assets::table.filter(assets::portfolio.eq(portfolio)))
-                .execute(&*database)?;
+                .execute(db)?;
 
             let mut assets = Vec::new();
 
@@ -103,7 +104,7 @@ impl Assets {
 
             diesel::insert_into(assets::table)
                 .values(&assets)
-                .execute(&*database)?;
+                .execute(db)?;
 
             Ok(())
         })

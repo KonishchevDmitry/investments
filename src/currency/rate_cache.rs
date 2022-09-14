@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::sync::Mutex;
 
 use chrono::Duration;
@@ -68,12 +69,12 @@ impl CurrencyRateCache {
             }
         }
 
-        self.db.transaction::<_, GenericError, _>(|| {
+        self.db.borrow().transaction::<_, GenericError, _>(|db| {
             let result = currency_rates::table
                 .select(currency_rates::price)
                 .filter(currency_rates::currency.eq(currency))
                 .filter(currency_rates::date.eq(date))
-                .get_result::<Option<String>>(&*self.db).optional()?;
+                .get_result::<Option<String>>(db).optional()?;
 
             if let Some(price) = result {
                 let price = match price {
@@ -98,7 +99,7 @@ impl CurrencyRateCache {
                     .filter(currency_rates::date.lt(date))
                     .order(currency_rates::date.desc())
                     .limit(1)
-                    .get_result::<Date>(&*self.db).optional()?;
+                    .get_result::<Date>(db).optional()?;
 
                 match result {
                     Some(last_date) => last_date.succ(),
@@ -114,7 +115,7 @@ impl CurrencyRateCache {
                     .filter(currency_rates::price.is_not_null())
                     .order(currency_rates::date.asc())
                     .limit(1)
-                    .get_result::<Date>(&*self.db).optional()?;
+                    .get_result::<Date>(db).optional()?;
 
                 match result {
                     Some(first_date) => first_date,
@@ -193,7 +194,7 @@ impl CurrencyRateCache {
 
         diesel::replace_into(currency_rates::table)
             .values(rows)
-            .execute(&*self.db)?;
+            .execute(self.db.borrow().deref_mut())?;
 
         Ok(())
     }

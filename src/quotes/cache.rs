@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::sync::Mutex;
 
 use chrono::Duration;
@@ -48,7 +49,7 @@ impl Cache {
             .select((quotes::currency, quotes::price))
             .filter(quotes::symbol.eq(symbol))
             .filter(quotes::time.gt(&expire_time))
-            .get_result::<(String, String)>(&*self.db).optional()?;
+            .get_result::<(String, String)>(self.db.borrow().deref_mut()).optional()?;
 
         let (currency, price) = match result {
             Some(result) => result,
@@ -78,7 +79,7 @@ impl Cache {
                 currency: price.currency,
                 price: price.amount.to_string(),
             })
-            .execute(&*self.db)?;
+            .execute(self.db.borrow().deref_mut())?;
 
         Ok(())
     }
@@ -105,7 +106,7 @@ mod tests {
                 currency: "EUR",
                 price: s!("12.34"),
             })
-            .execute(&*cache.db).unwrap();
+            .execute(cache.db.borrow().deref_mut()).unwrap();
 
         assert_eq!(cache.get(symbol).unwrap(), None);
         assert_eq!(cache.get(other_symbol).unwrap(), None);

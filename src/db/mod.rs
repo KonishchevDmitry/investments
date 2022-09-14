@@ -1,25 +1,33 @@
-use std::rc::Rc;
+pub mod models;
+pub mod schema;
+
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use diesel::{Connection as ConnectionTrait, SqliteConnection};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness};
 #[cfg(test)] use tempfile::NamedTempFile;
 
 use crate::core::GenericResult;
 
-pub mod models;
-pub mod schema;
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
-pub type Connection = Rc<SqliteConnection>;
+#[derive(Clone)]
+pub struct Connection(Arc<Mutex<SqliteConnection>>);
 
-embed_migrations!();
+impl Connection {
+    pub fn borrow(&self) -> MutexGuard<SqliteConnection> {
+        self.0.as_ref().lock().unwrap()
+    }
+}
 
 pub fn connect(url: &str) -> GenericResult<Connection> {
-    let connection = SqliteConnection::establish(url).map_err(|e| format!(
+    let mut connection = SqliteConnection::establish(url).map_err(|e| format!(
         "Unable to open {:?} database: {}", url, e))?;
 
-    embedded_migrations::run(&connection).map_err(|e| format!(
+    connection.run_pending_migrations(MIGRATIONS).map_err(|e| format!(
         "Failed to prepare the database: {}", e))?;
 
-    Ok(Rc::new(connection))
+    Ok(Connection(Arc::new(Mutex::new(connection))))
 }
 
 #[cfg(test)]

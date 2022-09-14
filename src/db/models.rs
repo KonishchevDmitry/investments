@@ -1,10 +1,8 @@
-#![allow(clippy::extra_unused_lifetimes)]
-
 use crate::db::schema::{AssetType, assets, currency_rates, quotes, settings, telemetry};
 use crate::types::{Date, DateTime};
 
 #[derive(Insertable, Queryable)]
-#[table_name="assets"]
+#[diesel(table_name = assets)]
 pub struct Asset {
     pub portfolio: String,
     pub asset_type: AssetType,
@@ -13,7 +11,7 @@ pub struct Asset {
 }
 
 #[derive(Insertable)]
-#[table_name="currency_rates"]
+#[diesel(table_name = currency_rates)]
 pub struct NewCurrencyRate<'a> {
     pub currency: &'a str,
     pub date: Date,
@@ -21,7 +19,7 @@ pub struct NewCurrencyRate<'a> {
 }
 
 #[derive(Insertable)]
-#[table_name="quotes"]
+#[diesel(table_name = quotes)]
 pub struct NewQuote<'a> {
     pub symbol: &'a str,
     pub time: DateTime,
@@ -32,14 +30,14 @@ pub struct NewQuote<'a> {
 pub const SETTING_USER_ID: &str = "user_id";
 
 #[derive(Insertable)]
-#[table_name="settings"]
+#[diesel(table_name = settings)]
 pub struct NewSetting<'a> {
     pub name: &'a str,
     pub value: &'a str,
 }
 
 #[derive(Insertable)]
-#[table_name="telemetry"]
+#[diesel(table_name = telemetry)]
 pub struct NewTelemetryRecord {
     pub payload: String,
 }

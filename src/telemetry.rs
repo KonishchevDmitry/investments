@@ -4,6 +4,7 @@
 /// No personal information will ever be sent.
 
 use std::collections::{BTreeMap, HashSet};
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex, Condvar};
 use std::thread::{self, JoinHandle};
 use std::time::{Instant, SystemTime, Duration};
@@ -145,7 +146,7 @@ impl Telemetry {
 
         diesel::insert_into(telemetry::table)
             .values(models::NewTelemetryRecord {payload})
-            .execute(&*self.db)?;
+            .execute(self.db.borrow().deref_mut())?;
 
         Ok(())
     }
@@ -154,7 +155,7 @@ impl Telemetry {
         let records = telemetry::table
             .select((telemetry::id, telemetry::payload))
             .order_by(telemetry::id.asc())
-            .load::<(i64, String)>(&*self.db)?;
+            .load::<(i64, String)>(self.db.borrow().deref_mut())?;
 
         let mut records: &[_] = &records;
         if records.len() > max_records {
@@ -176,17 +177,17 @@ impl Telemetry {
 
     fn delete(&self, last_record_id: i64) -> EmptyResult {
         diesel::delete(telemetry::table.filter(telemetry::id.le(last_record_id)))
-            .execute(&*self.db)?;
+            .execute(self.db.borrow().deref_mut())?;
         Ok(())
     }
 
     fn user_id(&self) -> GenericResult<String> {
-        self.db.transaction::<_, GenericError, _>(|| {
+        self.db.borrow().transaction::<_, GenericError, _>(|db| {
             let name = models::SETTING_USER_ID;
             let user_id = settings::table
                 .select(settings::value)
                 .filter(settings::name.eq(name))
-                .get_result::<String>(&*self.db).optional()?;
+                .get_result::<String>(db).optional()?;
 
             Ok(match user_id {
                 Some(user_id) => user_id,
@@ -195,7 +196,7 @@ impl Telemetry {
 
                     diesel::insert_into(settings::table)
                         .values(&models::NewSetting {name, value: &user_id})
-                        .execute(&*self.db)?;
+                        .execute(db)?;
 
                     user_id
                 },
@@ -463,7 +464,7 @@ mod tests {
         let actual = telemetry::table
             .select(telemetry::payload)
             .order_by(telemetry::id.asc())
-            .load::<String>(&*connection).unwrap();
+            .load::<String>(connection.borrow().deref_mut()).unwrap();
 
         let expected: Vec<String> = expected.iter()
             .map(|record| serde_json::to_string(record).unwrap())
