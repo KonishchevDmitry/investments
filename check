@@ -26,13 +26,14 @@ main() {
     local blacklist
 
     blacklist='
-    collapsible_if
-    new_ret_no_self
-    new_without_default
-    redundant_field_names
-    too_many_arguments
+    collapsible-if
+    derive-partial-eq-without-eq
+    new-ret-no-self
+    new-without-default
+    redundant-field-names
+    too-many-arguments
     type-complexity
-    unit_arg
+    unit-arg
     '
     check '--bins --examples' "$blacklist"
     check '--bins --release' "$blacklist"

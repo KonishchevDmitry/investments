@@ -148,7 +148,7 @@ impl OperationType {
             })
         }
 
-        return Err!("Unsupported corporate action: {:?}", description);
+        Err!("Unsupported corporate action: {:?}", description)
     }
 }
 

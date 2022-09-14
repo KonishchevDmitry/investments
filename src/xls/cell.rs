@@ -104,7 +104,7 @@ impl<T> FromParsedOptional<T> for T {
     fn from_parsed_optional(value: Option<T>) -> GenericResult<T> {
         match value {
             Some(value) => Ok(value),
-            None => return Err!("Got an empty cell"),
+            None => Err!("Got an empty cell"),
         }
     }
 }
@@ -136,7 +136,7 @@ mod tests {
     fn parse_int(cell: &Cell) -> GenericResult<i64> {
         match cell {
             Cell::Int(value) => Ok(*value),
-            _ => return Err!("Invalid cell value: {:?}", cell),
+            _ => Err!("Invalid cell value: {:?}", cell),
         }
     }
 }

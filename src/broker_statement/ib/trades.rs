@@ -40,7 +40,7 @@ impl RecordParser for TradesParser {
         match asset_category {
             "Forex" => parse_forex_record(parser, record, symbol, conclusion_time),
             "Stocks" => parse_stock_record(parser, record, symbol, conclusion_time),
-            _ => return Err!("Unsupported asset category: {}", asset_category)
+            _ => Err!("Unsupported asset category: {}", asset_category),
         }
     }
 }

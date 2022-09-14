@@ -162,7 +162,7 @@ impl CashFlowType {
             return Ok(CashFlowType::DividendTax(issuer));
         }
 
-        return Err!("Unable to determine cash flow type by its description: {:?}", description);
+        Err!("Unable to determine cash flow type by its description: {:?}", description)
     }
 }
 
