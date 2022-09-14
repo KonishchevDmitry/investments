@@ -108,7 +108,7 @@ mod tests {
 
         assert_eq!(statement.fees.is_empty(), name == "iia");
         assert!(statement.idle_cash_interest.is_empty());
-        assert!(statement.tax_agent_withholdings.is_empty());
+        assert_eq!(statement.tax_agent_withholdings.is_empty(), name != "my");
 
         assert_eq!(statement.forex_trades.is_empty(), matches!(name, "iia" | "first-iia-a"));
         assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");
