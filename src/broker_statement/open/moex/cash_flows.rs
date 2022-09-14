@@ -1,3 +1,4 @@
+use chrono::Datelike;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
@@ -65,6 +66,12 @@ impl CashFlow {
                 statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
 
+            CashFlowType::TaxAgent => {
+                let amount = -util::validate_named_cash(
+                    "tax amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
+                statement.tax_agent_withholdings.add(date, date.year(), Withholding::Withholding(amount))?;
+            },
+
             CashFlowType::Dividend(issuer) => {
                 let issuer_id = InstrumentId::InternalId(issuer);
                 let amount = util::validate_named_cash(
@@ -90,6 +97,7 @@ enum CashFlowType {
 
     Commission,
     Fee(String),
+    TaxAgent,
 
     Dividend(String),
     DividendTax(String),
@@ -133,8 +141,12 @@ impl CashFlowType {
             "Возврат излишне удержанной комиссии брокера",
         ] {
             if description.starts_with(fee_description) {
-                return Ok(CashFlowType::Fee(fee_description.to_owned()))
+                return Ok(CashFlowType::Fee(fee_description.to_owned()));
             }
+        }
+
+        if description.starts_with("Удержан налог на доход с клиента") {
+            return Ok(CashFlowType::TaxAgent);
         }
 
         lazy_static! {
@@ -223,6 +235,14 @@ mod tests {
         assert_matches!(
             CashFlowType::parse(description).unwrap(),
             CashFlowType::Fee(description) if description == expected
+        );
+    }
+
+    #[test]
+    fn tax_agent_description_parsing() {
+        assert_matches!(
+            CashFlowType::parse("Удержан налог на доход с клиента 123456").unwrap(),
+            CashFlowType::TaxAgent
         );
     }
 
