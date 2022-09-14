@@ -61,7 +61,7 @@ impl CashFlow {
 
             CashFlowType::Fee(description) => {
                 let amount = -util::validate_named_cash(
-                    "fee amount", currency, amount, DecimalRestrictions::StrictlyNegative)?;
+                    "fee amount", currency, amount, DecimalRestrictions::NonZero)?;
                 statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
 
@@ -99,16 +99,6 @@ impl CashFlowType {
     fn parse(description: &str) -> GenericResult<CashFlowType> {
         let description = util::fold_spaces(description);
 
-        for &commission_description in &[
-            r#"Комиссия Брокера / Доп. комиссия Брокера "Сборы ТС" за заключение сделок"#,
-            "Вознаграждение брокера за заключение сделок Конвертации ДС",
-            "Комиссия Брокера за заключение Специальных сделок РЕПО",
-        ] {
-            if description.starts_with(commission_description) {
-                return Ok(CashFlowType::Commission);
-            }
-        }
-
         for &deposit_or_withdrawal_description in &[
             "Перевод денежных средств",
             "Списаны средства клиента",
@@ -116,6 +106,16 @@ impl CashFlowType {
         ] {
             if description.starts_with(deposit_or_withdrawal_description) {
                 return Ok(CashFlowType::DepositOrWithdrawal);
+            }
+        }
+
+        for &commission_description in &[
+            r#"Комиссия Брокера / Доп. комиссия Брокера "Сборы ТС" за заключение сделок"#,
+            "Вознаграждение брокера за заключение сделок Конвертации ДС",
+            "Комиссия Брокера за заключение Специальных сделок РЕПО",
+        ] {
+            if description.starts_with(commission_description) {
+                return Ok(CashFlowType::Commission);
             }
         }
 
@@ -128,6 +128,9 @@ impl CashFlowType {
             "Минимальная комиссия Брокера за обработку поручений и предоставление информации",
             "Вознаграждение Брокера за обработку заявления на вывод безналичных денежных средств",
             "Вознаграждение Брокера за предоставление информации по движению и учету ценных бумаг",
+            "Комиссия Брокера за предоставление информации по услуге риск-поддержке открытой позиции",
+
+            "Возврат излишне удержанной комиссии брокера",
         ] {
             if description.starts_with(fee_description) {
                 return Ok(CashFlowType::Fee(fee_description.to_owned()))
@@ -210,6 +213,11 @@ mod tests {
              "Вознаграждение Брокера за предоставление информации по движению и учету ценных бумаг"),
         case("Возмещение за депозитарные услуги счет услуги вышестоящего Депозитария за хранение ЦБ наим. ЦБ:GLOBALTRANS-GDR, ISIN US37949E2046 от 05.11.2021 НКО АО НРД ",
              "Возмещение за депозитарные услуги"),
+        case("Комиссия Брокера за предоставление информации по услуге риск-поддержке открытой позиции, рублевая оценка обеспечения 151891.47, Требуемое ГО 2534560.63 за 28.02.2022",
+             "Комиссия Брокера за предоставление информации по услуге риск-поддержке открытой позиции"),
+
+        case("Возврат излишне удержанной комиссии брокера за предоставление информации по услуге риск-поддержке открытой позиции за 28.02.2022",
+             "Возврат излишне удержанной комиссии брокера"),
     )]
     fn fee_description_parsing(description: &str, expected: &str) {
         assert_matches!(
