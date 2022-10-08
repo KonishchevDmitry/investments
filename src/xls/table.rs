@@ -91,21 +91,23 @@ impl TableColumn {
 
     fn matches(&self, value: &str) -> GenericResult<bool> {
         let value = value.trim();
+        let mut names = Vec::from(self.aliases);
 
-        let matches = if self.regex {
-            let name_regex = Regex::new(self.name).map_err(|_| format!(
-                "Invalid column name regex: {:?}", self.name))?;
-            name_regex.is_match(value)
+        if self.regex {
+            if Regex::new(self.name).map_err(|_| format!(
+                "Invalid column name regex: {:?}", self.name,
+            ))?.is_match(value) {
+                return Ok(true);
+            }
         } else {
-            let value_regex = format!("^{}$", regex::escape(value).replace('\r', "").replace('\n', " ?"));
-            Regex::new(&value_regex).unwrap().is_match(self.name)
-        };
-        if matches {
-            return Ok(true);
+            names.push(self.name);
         }
 
-        for &alias in self.aliases {
-            if value == alias {
+        let value_regex = Regex::new(&format!(
+            "^{}$", regex::escape(value).replace('\r', "").replace('\n', " ?"))).unwrap();
+
+        for name in names {
+            if value_regex.is_match(name) {
                 return Ok(true);
             }
         }

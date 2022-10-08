@@ -100,7 +100,7 @@ struct TradeRow {
     _6: SkipCell,
     #[column(name="Вид сделки")]
     operation: String,
-    #[column(name="Сокращенное наименование актива")]
+    #[column(name="Сокращенное наименование", alias="Сокращенное наименование актива")]
     _8: SkipCell,
     #[column(name="Код актива")]
     symbol: String,
@@ -133,25 +133,29 @@ struct TradeRow {
     _21: Option<String>,
     #[column(name="Валюта комиссии клир. центра", optional=true)]
     _22: Option<String>,
+    #[column(name="Гербовый сбор", optional=true)]
+    _23: Option<String>,
+    #[column(name="Валюта гербового сбора", optional=true)]
+    _24: Option<String>,
 
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
     #[column(name="Контрагент / Брокер", alias="Контрагент")]
-    _23: SkipCell,
+    _25: SkipCell,
     #[column(name="Дата расчетов", parse_with="parse_date_cell")]
     execution_date: Date,
     #[column(name="Дата поставки")]
-    _25: SkipCell,
-    #[column(name="Статус брокера")]
-    _26: SkipCell,
-    #[column(name="Тип дог.")]
     _27: SkipCell,
-    #[column(name="Номер дог.")]
+    #[column(name="Статус брокера")]
     _28: SkipCell,
-    #[column(name="Дата дог.")]
+    #[column(name="Тип дог.")]
     _29: SkipCell,
+    #[column(name="Номер дог.")]
+    _30: SkipCell,
+    #[column(name="Дата дог.")]
+    _31: SkipCell,
     #[column(name="Тип расчета по сделке", optional=true)]
-    _30: Option<SkipCell>,
+    _32: Option<SkipCell>,
 }
 
 impl TableReader for TradeRow {
