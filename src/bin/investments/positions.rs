@@ -1,6 +1,6 @@
-use clap::{Arg, ArgMatches};
+use clap::{Arg, ArgAction, ArgMatches};
+use clap::builder::NonEmptyStringValueParser;
 
-use investments::cli;
 use investments::core::GenericResult;
 use investments::types::Decimal;
 use investments::util::{self, DecimalRestrictions};
@@ -17,7 +17,7 @@ impl PositionsParser {
     const ARG_NAME: &'static str = "POSITIONS";
 
     pub fn new(name: &'static str, allow_all: bool, required: bool) -> PositionsParser {
-        let help = format!("{} in {} $symbol format (may be specified multiple times)", name, if allow_all {
+        let help = format!("{} in `{} $symbol` format (may be specified multiple times)", name, if allow_all {
             "$quantity|all"
         } else {
             "$quantity"
@@ -27,14 +27,15 @@ impl PositionsParser {
     }
 
     pub fn arg(&self) -> Arg {
-        cli::new_arg(PositionsParser::ARG_NAME, self.help.as_str())
-            .value_names(&["SHARES", "SYMBOL"])
-            .multiple_occurrences(true)
+        Arg::new(PositionsParser::ARG_NAME).help(&self.help)
+            .value_name("SHARES SYMBOL")
+            .value_parser(NonEmptyStringValueParser::new())
+            .action(ArgAction::Append)
             .required(self.required)
     }
 
     pub fn parse(&self, matches: &ArgMatches) -> GenericResult<Option<Vec<(String, Option<Decimal>)>>> {
-        let mut args = match matches.values_of(PositionsParser::ARG_NAME) {
+        let mut args = match matches.get_many::<String>(PositionsParser::ARG_NAME) {
             Some(args) => args,
             None => return Ok(None),
         };

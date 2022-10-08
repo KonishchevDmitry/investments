@@ -1,5 +1,6 @@
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
+use std::path::Path;
 
 use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
@@ -12,6 +13,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::time;
 use crate::types::Decimal;
+use crate::util;
 
 lazy_static! {
     static ref UPDATE_TIME: Gauge = register_simple_metric(
@@ -57,7 +59,7 @@ lazy_static! {
         "forex_pairs", "Forex quotes", &["base", "quote"]);
 }
 
-pub fn collect(config: &Config, path: &str) -> GenericResult<TelemetryRecordBuilder> {
+pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBuilder> {
     let (statistics, converter, telemetry) = analysis::analyse(
         config, None, false, Some(&config.metrics.merge_performance), false)?;
 
@@ -132,11 +134,11 @@ fn collect_forex_quotes(converter: &CurrencyConverter, base: &str, quote: &str) 
     Ok(set_metric(&FOREX_PAIRS, &[base, quote], converter.real_time_currency_rate(base, quote)?))
 }
 
-fn save(path: &str) -> EmptyResult {
+fn save(path: &Path) -> EmptyResult {
     let encoder = TextEncoder::new();
     let metrics = prometheus::gather();
 
-    let temp_path = format!("{}.tmp", path);
+    let temp_path = util::temp_path(path);
     let mut file = BufWriter::new(File::create(&temp_path)?);
 
     encoder.encode(&metrics, &mut file)

@@ -39,7 +39,7 @@ pub enum Action {
     TaxStatement {
         name: String,
         year: Option<i32>,
-        tax_statement_path: Option<String>,
+        tax_statement_path: Option<PathBuf>,
     },
     CashFlow {
         name: String,
@@ -51,7 +51,7 @@ pub enum Action {
         cron_mode: bool,
     },
 
-    Metrics(String),
+    Metrics(PathBuf),
     ShellCompletion {
         path: PathBuf,
         data: Vec<u8>,

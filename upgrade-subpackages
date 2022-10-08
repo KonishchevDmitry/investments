@@ -11,7 +11,5 @@ for package in formatting/static_table_derive xls/xls_table_derive; do
     (
         cd "src/$package"
         cargo upgrade --pinned allow --incompatible allow
-        cargo update
-        cargo upgrade --to-lockfile
     )
 done

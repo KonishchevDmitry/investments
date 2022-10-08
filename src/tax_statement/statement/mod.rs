@@ -7,9 +7,11 @@ mod parser;
 mod types;
 
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::types::{Date, Decimal};
+use crate::util;
 
 use self::foreign_income::{ForeignIncome, CurrencyIncome, CurrencyInfo, DeductionInfo, IncomeType,
                            ControlledForeignCompanyInfo};
@@ -20,19 +22,19 @@ pub use self::countries::CountryCode;
 
 #[derive(Debug)]
 pub struct TaxStatement {
-    path: String,
+    path: PathBuf,
     pub year: i32,
     records: Vec<Box<dyn Record>>,
 }
 
 impl TaxStatement {
-    pub fn read(path: &str) -> GenericResult<TaxStatement> {
+    pub fn read(path: &Path) -> GenericResult<TaxStatement> {
         Ok(TaxStatementReader::read(path).map_err(|e| format!(
             "Error while reading {:?} tax statement: {}", path, e))?)
     }
 
     pub fn save(&self) -> EmptyResult {
-        let temp_path = format!("{}.new", self.path);
+        let temp_path = util::temp_path(&self.path);
 
         TaxStatementWriter::write(self, &temp_path).map_err(|e| {
             let _ = fs::remove_file(&temp_path);

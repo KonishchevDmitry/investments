@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::ops::Neg;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
@@ -92,6 +93,12 @@ pub fn fold_spaces(string: &str) -> Cow<str> {
 
 pub fn is_default<T: Default + PartialEq>(value: &T) -> bool {
     *value == T::default()
+}
+
+pub fn temp_path(path: &Path) -> PathBuf {
+    let mut temp_path = path.as_os_str().to_os_string();
+    temp_path.push(".tmp");
+    PathBuf::from(temp_path)
 }
 
 #[cfg(test)]

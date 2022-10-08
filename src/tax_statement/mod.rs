@@ -1,3 +1,11 @@
+mod dividends;
+mod interest;
+mod statement;
+mod tax_agent;
+mod trades;
+
+use std::path::Path;
+
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::Config;
 use crate::core::GenericResult;
@@ -8,14 +16,8 @@ use crate::telemetry::TelemetryRecordBuilder;
 
 pub use self::statement::TaxStatement;
 
-mod dividends;
-mod interest;
-mod statement;
-mod tax_agent;
-mod trades;
-
 pub fn generate_tax_statement(
-    config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&str>
+    config: &Config, portfolio_name: &str, year: Option<i32>, tax_statement_path: Option<&Path>
 ) -> GenericResult<TelemetryRecordBuilder> {
     let country = config.get_tax_country();
     let portfolio = config.get_portfolio(portfolio_name)?;

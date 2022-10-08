@@ -1,8 +1,9 @@
 use std::borrow::Cow;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader, Write, BufWriter};
 use std::ops::Deref;
-#[cfg(test)] use std::path::Path;
+use std::path::Path;
 use std::rc::Rc;
 
 use chrono::Datelike;
@@ -31,12 +32,13 @@ pub struct TaxStatementReader {
 }
 
 impl TaxStatementReader {
-    pub fn read(path: &str) -> GenericResult<TaxStatement> {
+    pub fn read(path: &Path) -> GenericResult<TaxStatement> {
         lazy_static! {
-            static ref EXTENSION_REGEX: Regex = Regex::new(r"\.dc(\d)$").unwrap();
+            static ref EXTENSION_REGEX: Regex = Regex::new(r"^dc(\d)$").unwrap();
         }
 
-        let short_year = EXTENSION_REGEX.captures(path)
+        let short_year = path.extension().and_then(OsStr::to_str)
+            .and_then(|extension| EXTENSION_REGEX.captures(extension))
             .and_then(|captures| captures.get(1).unwrap().as_str().parse::<i32>().ok())
             .ok_or("Invalid tax statement file extension: *.dcX is expected")?;
 
@@ -192,7 +194,7 @@ pub struct TaxStatementWriter {
 }
 
 impl TaxStatementWriter {
-    pub fn write(statement: &TaxStatement, path: &str) -> EmptyResult {
+    pub fn write(statement: &TaxStatement, path: &Path) -> EmptyResult {
         debug!("Statement to write:\n{:#?}", statement);
 
         let mut writer = TaxStatementWriter {
@@ -266,18 +268,17 @@ fn encode(data: &str) -> GenericResult<Cow<[u8]>> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use super::*;
 
     #[test]
     fn parse_empty() {
-        let path = Path::new(file!()).parent().unwrap().join(get_path("empty"));
-        test_parsing(path.to_str().unwrap());
+        test_parsing(&Path::new(file!()).parent().unwrap().join(get_path("empty")));
     }
 
     #[test]
     fn parse_filled() {
-        let path = Path::new(file!()).parent().unwrap().join(get_path("filled"))
-            .to_str().unwrap().to_owned();
+        let path = Path::new(file!()).parent().unwrap().join(get_path("filled"));
 
         let data = get_contents(&path);
         let mut statement = test_parsing(&path);
@@ -353,7 +354,7 @@ mod tests {
         test_parsing(&get_path("statement"));
     }
 
-    fn test_parsing(path: &str) -> TaxStatement {
+    fn test_parsing(path: &Path) -> TaxStatement {
         let data = get_contents(path);
 
         let statement = TaxStatementReader::read(path).unwrap();
@@ -365,7 +366,6 @@ mod tests {
 
     fn compare_to(statement: &TaxStatement, mut data: &str) {
         let temp_file = NamedTempFile::new().unwrap();
-        let path = temp_file.path().to_str().unwrap();
 
         // Декларация program sometimes writes zero bytes to the tail of the file. This behaviour
         // varies from version to version, seems to have no meaning and looks like a serialization
@@ -373,15 +373,15 @@ mod tests {
         data = data.trim_end_matches('\0');
         assert!(!data.is_empty());
 
-        TaxStatementWriter::write(statement, path).unwrap();
-        assert_eq!(&get_contents(path), data);
+        TaxStatementWriter::write(statement, temp_file.path()).unwrap();
+        assert_eq!(&get_contents(temp_file.path()), data);
     }
 
-    fn get_path(name: &str) -> String {
-        format!("testdata/{}{}", name, get_extension(SUPPORTED_YEAR))
+    fn get_path(name: &str) -> PathBuf {
+        PathBuf::from(format!("testdata/{}{}", name, get_extension(SUPPORTED_YEAR)))
     }
 
-    fn get_contents(path: &str) -> String {
+    fn get_contents(path: &Path) -> String {
         let mut data = vec![];
 
         File::open(path).unwrap().read_to_end(&mut data).unwrap();
