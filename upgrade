@@ -7,7 +7,7 @@ set -eux
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
 
-cargo upgrade --pinned
+cargo upgrade --pinned allow --incompatible allow
 cargo update
 cargo upgrade --to-lockfile
 
