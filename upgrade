@@ -6,7 +6,9 @@
 set -eux
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
-cargo upgrade --pinned
 
+cargo upgrade --pinned
 cargo update
+cargo upgrade --to-lockfile
+
 cargo clean
