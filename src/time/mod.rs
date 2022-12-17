@@ -5,9 +5,10 @@ mod period;
 
 use std::ops::Add;
 
-use chrono::{self, Duration, Local};
+use chrono::{Duration, Local};
 #[cfg(debug_assertions)] use lazy_static::lazy_static;
 
+pub use chrono::DateTime as TzDateTime;
 pub use crate::types::{Date, Time, DateTime};
 
 pub use date::*;
@@ -35,13 +36,13 @@ pub fn utc_now() -> DateTime {
     tz_now().naive_utc()
 }
 
-fn tz_now() -> chrono::DateTime<Local> {
+fn tz_now() -> TzDateTime<Local> {
     #[cfg(debug_assertions)]
     {
         use std::process;
 
         lazy_static! {
-            static ref FAKE_NOW: Option<chrono::DateTime<Local>> = parsing::parse_fake_now().unwrap_or_else(|e| {
+            static ref FAKE_NOW: Option<TzDateTime<Local>> = parsing::parse_fake_now().unwrap_or_else(|e| {
                 eprintln!("{}.", e);
                 process::exit(1);
             });
@@ -52,5 +53,17 @@ fn tz_now() -> chrono::DateTime<Local> {
         }
     }
 
-    chrono::Local::now()
+    Local::now()
+}
+
+pub trait TimeProvider: Sync + Send {
+    fn now(&self) -> TzDateTime<Local>;
+}
+
+pub struct SystemTime();
+
+impl TimeProvider for SystemTime {
+    fn now(&self) -> TzDateTime<Local> {
+        tz_now()
+    }
 }
