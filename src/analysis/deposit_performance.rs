@@ -169,7 +169,7 @@ mod tests {
             let open_date = date!(2018, 7, 28);
             let close_date = date!(2019, 1, 28);
 
-            transactions.extend(&[
+            transactions.extend([
                 // Fake transaction outside of interest period
                 Transaction::new(open_date - Duration::days(100), dec!(400_000)),
 
@@ -217,7 +217,7 @@ mod tests {
             compare(&transactions, &interest_periods, dec!(190_000));
 
             // Deposit contributions
-            transactions.extend(&[
+            transactions.extend([
                 Transaction::new(date!(2019, 2,  5), dec!(60_000)),
                 Transaction::new(date!(2019, 2, 21), dec!(50_000)),
             ]);
