@@ -6,7 +6,7 @@ use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
 
 use crate::core::GenericResult;
-use crate::time;
+use crate::time::{SystemTime, TimeProvider};
 
 pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
     lazy_static! {
@@ -22,6 +22,14 @@ pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
     ))
 }
 
+pub fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>, now_provider: &dyn TimeProvider) -> Option<DateTime<Local>> {
+    let lifetime = now_provider.now().naive_utc() - date_time.naive_utc();
+    if lifetime.num_days() >= 5 {
+        return Some(date_time.with_timezone(&Local))
+    }
+    None
+}
+
 pub fn is_outdated_unix_time(time: i64, test_outdated_time: i64) -> GenericResult<Option<DateTime<Local>>> {
     let test_outdated_time = NaiveDateTime::from_timestamp(test_outdated_time, 0);
     let naive_date_time = NaiveDateTime::from_timestamp_opt(time, 0).ok_or_else(|| format!(
@@ -31,26 +39,27 @@ pub fn is_outdated_unix_time(time: i64, test_outdated_time: i64) -> GenericResul
 }
 
 pub fn is_outdated_time<T: TimeZone>(date_time: DateTime<T>, test_outdated_time: NaiveDateTime) -> Option<DateTime<Local>> {
-    let naive_utc = date_time.naive_utc();
-
-    let outdated = if cfg!(test) {
-        naive_utc <= test_outdated_time
+    if cfg!(test) {
+        if date_time.naive_utc() <= test_outdated_time {
+            Some(date_time.with_timezone(&Local))
+        } else {
+            None
+        }
     } else {
-        (time::utc_now() - naive_utc).num_days() >= 5
-    };
-
-    if outdated {
-        Some(date_time.with_timezone(&Local))
-    } else {
-        None
+        is_outdated_quote(date_time, &SystemTime())
     }
 }
 
-pub fn send_request<U: AsRef<str>>(client: &Client, url: U) -> GenericResult<Response> {
+pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Option<&str>) -> GenericResult<Response> {
     let url = url.as_ref();
 
+    let mut request = client.get(url);
+    if let Some(authorization) = authorization {
+        request = request.bearer_auth(authorization);
+    }
+
     trace!("Sending request to {}...", url);
-    let response = client.get(url).send()?;
+    let response = request.send()?;
     trace!("Got response from {}.", url);
 
     if !response.status().is_success() {

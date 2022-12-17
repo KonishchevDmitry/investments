@@ -102,7 +102,7 @@ impl Finnhub {
         let get = |url| -> GenericResult<Option<T>> {
             self.rate_limiter.wait(&format!("request to {}", url));
 
-            let reply = send_request(&self.client, url)?.text()?;
+            let reply = send_request(&self.client, url, None)?.text()?;
             if reply.trim() == "Symbol not supported" {
                 return Ok(None);
             }

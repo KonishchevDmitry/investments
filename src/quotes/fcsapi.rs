@@ -63,7 +63,7 @@ impl QuotesProvider for FcsApi {
         ])?;
 
         self.rate_limiter.wait(&format!("request to {}", url));
-        Ok(send_request(&self.client, &url).and_then(get_quotes).map_err(|e| format!(
+        Ok(send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
             "Failed to get quotes from {}: {}", url, e))?)
     }
 }

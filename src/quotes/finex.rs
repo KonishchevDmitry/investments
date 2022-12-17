@@ -46,7 +46,7 @@ impl QuotesProvider for Finex {
         #[cfg(test)] let base_url = mockito::server_url();
 
         let url = format!("{}/v1/fonds/nav.xlsx", base_url);
-        Ok(send_request(&self.client, &url)
+        Ok(send_request(&self.client, &url, None)
             .and_then(|response| get_quotes(response, symbols))
             .map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
     }
