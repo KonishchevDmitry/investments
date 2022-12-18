@@ -18,6 +18,7 @@ use crate::localities::{self, Country, Jurisdiction};
 use crate::quotes::alphavantage::AlphaVantageConfig;
 use crate::quotes::fcsapi::FcsApiConfig;
 use crate::quotes::finnhub::FinnhubConfig;
+use crate::quotes::tinkoff::TinkoffApiConfig;
 use crate::quotes::twelvedata::TwelveDataConfig;
 use crate::taxes::{self, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::telemetry::TelemetryConfig;
@@ -353,7 +354,7 @@ pub struct BrokersConfig {
     pub firstrade: Option<BrokerConfig>,
     pub interactive_brokers: Option<BrokerConfig>,
     pub open_broker: Option<BrokerConfig>,
-    pub tinkoff: Option<BrokerConfig>,
+    pub tinkoff: Option<TinkoffConfig>,
 }
 
 impl BrokersConfig {
@@ -364,9 +365,21 @@ impl BrokersConfig {
             firstrade: Some(BrokerConfig::mock()),
             interactive_brokers: Some(BrokerConfig::mock()),
             open_broker: Some(BrokerConfig::mock()),
-            tinkoff: Some(BrokerConfig::mock()),
+            tinkoff: Some(TinkoffConfig {
+                broker: Some(BrokerConfig::mock()),
+                api: None,
+            }),
         }
     }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TinkoffConfig {
+    #[serde(flatten)]
+    pub broker: Option<BrokerConfig>,
+    #[serde(flatten)]
+    pub api: Option<TinkoffApiConfig>,
 }
 
 #[derive(Deserialize, Clone)]

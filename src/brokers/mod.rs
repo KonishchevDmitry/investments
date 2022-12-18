@@ -91,12 +91,12 @@ impl Broker {
 
     fn get_config(self, config: &BrokersConfig) -> Option<&BrokerConfig> {
         match self {
-            Broker::Bcs => &config.bcs,
-            Broker::Firstrade => &config.firstrade,
-            Broker::InteractiveBrokers => &config.interactive_brokers,
-            Broker::Open => &config.open_broker,
-            Broker::Tinkoff => &config.tinkoff,
-        }.as_ref()
+            Broker::Bcs => config.bcs.as_ref(),
+            Broker::Firstrade => config.firstrade.as_ref(),
+            Broker::InteractiveBrokers => config.interactive_brokers.as_ref(),
+            Broker::Open => config.open_broker.as_ref(),
+            Broker::Tinkoff => config.tinkoff.as_ref().and_then(|tinkoff| tinkoff.broker.as_ref()),
+        }
     }
 
     fn get_commission_spec(self, plan: Option<&String>) -> GenericResult<CommissionSpec> {

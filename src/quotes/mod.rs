@@ -5,6 +5,7 @@ pub mod fcsapi;
 mod finex;
 pub mod finnhub;
 mod moex;
+pub mod tinkoff;
 pub mod twelvedata;
 
 use std::cell::RefCell;
@@ -21,6 +22,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::{Exchange, Exchanges};
+use crate::time::SystemTime;
 
 use self::cache::Cache;
 use self::common::parse_currency_pair;
@@ -28,6 +30,7 @@ use self::fcsapi::FcsApi;
 use self::finex::Finex;
 use self::finnhub::Finnhub;
 use self::moex::Moex;
+use self::tinkoff::Tinkoff;
 
 #[derive(Clone)]
 pub enum QuoteQuery {
@@ -63,13 +66,23 @@ impl Quotes {
         let finnhub = config.finnhub.as_ref().ok_or(
             "Finnhub token is not set in the configuration file")?;
 
-        Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), vec![
+        let tinkoff = config.brokers.as_ref()
+            .and_then(|brokers| brokers.tinkoff.as_ref())
+            .and_then(|tinkoff| tinkoff.api.as_ref());
+
+        let mut providers: Vec<Arc<dyn QuotesProvider>> = vec![
             Arc::new(Finnhub::new(finnhub)),
             Arc::new(FcsApi::new(fcsapi)),
             Arc::new(Finex::new()),
             Arc::new(Moex::new("TQTF")),
             Arc::new(Moex::new("TQBR")),
-        ]))
+        ];
+
+        if let Some(tinkoff) = tinkoff {
+            providers.push(Arc::new(Tinkoff::new(tinkoff, Box::new(SystemTime()))))
+        }
+
+        Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), providers))
     }
 
     fn new_with(cache: Cache, providers: Vec<Arc<dyn QuotesProvider>>) -> Quotes {
@@ -138,22 +151,6 @@ impl Quotes {
             return Ok(Some(price));
         }
 
-        let exchanges = {
-            let mut new_exchanges = Exchanges::new_empty();
-
-            for exchange in exchanges.into_iter().rev() {
-                if exchange == Exchange::Spb {
-                    // We don't have SPB provider yet, so emulate it using existing providers
-                    new_exchanges.add_prioritized(Exchange::Moex);
-                    new_exchanges.add_prioritized(Exchange::Us);
-                } else {
-                    new_exchanges.add_prioritized(exchange);
-                }
-            }
-
-            new_exchanges.get_prioritized()
-        };
-
         match self.batched_requests.borrow_mut().entry(symbol) {
             Entry::Vacant(entry) => {
                 entry.insert(QuoteRequest::Stock(exchanges));
@@ -187,7 +184,7 @@ impl Quotes {
                     }
                 },
                 QuoteRequest::Stock(exchanges) => {
-                    for exchange in exchanges {
+                    for exchange in self.pre_process_stock_exchanges(exchanges) {
                         for (index, provider) in self.providers.iter().enumerate() {
                             if let Some(provider_exchange) = provider.supports_stocks() {
                                 if provider_exchange == exchange {
@@ -203,6 +200,26 @@ impl Quotes {
         }
 
         plan
+    }
+
+    fn has_stock_provider(&self, exchange: Exchange) -> bool {
+        self.providers.iter().any(|provider| provider.supports_stocks() == Some(exchange))
+    }
+
+    fn pre_process_stock_exchanges(&self, exchanges: Vec<Exchange>) -> Vec<Exchange> {
+        let mut new_exchanges = Exchanges::new_empty();
+
+        for exchange in exchanges.into_iter().rev() {
+            if exchange == Exchange::Spb && !self.has_stock_provider(exchange) {
+                // Emulate SPB provider if we don't have it
+                new_exchanges.add_prioritized(Exchange::Moex);
+                new_exchanges.add_prioritized(Exchange::Us);
+            } else {
+                new_exchanges.add_prioritized(exchange);
+            }
+        }
+
+        new_exchanges.get_prioritized()
     }
 
     fn execute_query_plan(&self, mut plan: HashMap<String, Vec<usize>>) -> EmptyResult {
