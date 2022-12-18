@@ -7,5 +7,6 @@ set -eux
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
 cargo upgrade --pinned allow --incompatible allow --exclude serde_yaml
+cargo update
 
 cargo clean
