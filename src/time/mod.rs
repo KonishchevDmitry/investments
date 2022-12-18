@@ -5,7 +5,7 @@ mod period;
 
 use std::ops::Add;
 
-use chrono::{Duration, Local};
+use chrono::{Duration, Local, TimeZone};
 #[cfg(debug_assertions)] use lazy_static::lazy_static;
 
 pub use chrono::DateTime as TzDateTime;
@@ -65,5 +65,19 @@ pub struct SystemTime();
 impl TimeProvider for SystemTime {
     fn now(&self) -> TzDateTime<Local> {
         tz_now()
+    }
+}
+
+pub struct FakeTime(i64);
+
+impl FakeTime {
+    pub fn new<T: TimeZone>(time: TzDateTime<T>) -> FakeTime {
+        FakeTime(time.timestamp())
+    }
+}
+
+impl TimeProvider for FakeTime {
+    fn now(&self) -> TzDateTime<Local> {
+        Local.from_utc_datetime(&chrono::NaiveDateTime::from_timestamp(self.0, 0))
     }
 }
