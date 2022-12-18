@@ -257,7 +257,7 @@ APP: tests/investments
      all
      EQMX
      all
-     VTBA
+     RSHA
 
 [30]
 NAME: IB complex tax statement
