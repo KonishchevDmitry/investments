@@ -12,11 +12,15 @@ pub enum TradeType {
 }
 
 macro_rules! date {
-    ($year:expr, $month:expr, $day:expr) => (::chrono::NaiveDate::from_ymd($year, $month, $day))
+    ($year:expr, $month:expr, $day:expr) => (
+        ::chrono::NaiveDate::from_ymd_opt($year, $month, $day).unwrap()
+    )
 }
 
 macro_rules! time {
-    ($hour:expr, $minute:expr, $second:expr) => (::chrono::NaiveTime::from_hms($hour, $minute, $second))
+    ($hour:expr, $minute:expr, $second:expr) => (
+        ::chrono::NaiveTime::from_hms_opt($hour, $minute, $second).unwrap()
+    )
 }
 
 macro_rules! date_time {

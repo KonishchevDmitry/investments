@@ -29,7 +29,7 @@ impl Month {
     pub fn period(&self) -> Period {
         let first_day = date!(self.year, self.month, 1);
         let next_month = self.next();
-        let last_day = date!(next_month.year, next_month.month, 1).pred();
+        let last_day = date!(next_month.year, next_month.month, 1).pred_opt().unwrap();
         Period::new(first_day, last_day).unwrap()
     }
 

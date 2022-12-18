@@ -43,7 +43,7 @@ impl TaxPaymentDay {
                     month = 1;
                     day = 1;
                 }
-                Date::from_ymd(tax_year + 1, month, day)
+                date!(tax_year + 1, month, day)
             },
 
             TaxPaymentDaySpec::OnClose(close_date) => {

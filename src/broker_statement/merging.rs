@@ -68,7 +68,7 @@ impl StatementsMergingStrategy {
                         }
                         missing_days += 1;
                     }
-                    date = date.succ();
+                    date = date.succ_opt().unwrap();
                 }
 
                 Ok(())

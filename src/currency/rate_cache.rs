@@ -41,7 +41,7 @@ impl CurrencyRateCache {
         let today = time::today();
         CurrencyRateCache {
             today: today,
-            tomorrow: today.succ(),
+            tomorrow: today.succ_opt().unwrap(),
 
             db: connection,
             cache: Mutex::new(HashMap::new()),
@@ -102,7 +102,7 @@ impl CurrencyRateCache {
                     .get_result::<Date>(db).optional()?;
 
                 match result {
-                    Some(last_date) => last_date.succ(),
+                    Some(last_date) => last_date.succ_opt().unwrap(),
                     None => date - Duration::days(365),
                 }
             };
@@ -149,7 +149,7 @@ impl CurrencyRateCache {
         for rate in &rates {
             {
                 let mut date = match last_date {
-                    Some(date) => date.succ(),
+                    Some(date) => date.succ_opt().unwrap(),
                     None => start_date,
                 };
 
@@ -159,7 +159,7 @@ impl CurrencyRateCache {
                         date: date,
                         price: None,
                     });
-                    date = date.succ();
+                    date = date.succ_opt().unwrap();
                 }
             }
             last_date.replace(rate.date);
@@ -178,7 +178,7 @@ impl CurrencyRateCache {
 
         {
             let mut date = match last_date {
-                Some(date) => date.succ(),
+                Some(date) => date.succ_opt().unwrap(),
                 None => start_date,
             };
             debug_assert!(date > end_date || end_date == self.tomorrow);
@@ -188,7 +188,7 @@ impl CurrencyRateCache {
                     .entry(currency.to_owned())
                     .or_default()
                     .insert(date, None);
-                date = date.succ();
+                date = date.succ_opt().unwrap();
             }
         }
 
@@ -216,7 +216,7 @@ mod tests {
         let (_database, mut cache) = CurrencyRateCache::new_temporary();
 
         let today = date!(2018, 2, 8);
-        let tomorrow = today.succ();
+        let tomorrow = today.succ_opt().unwrap();
         cache.today = today;
         cache.tomorrow = tomorrow;
 
@@ -245,7 +245,7 @@ mod tests {
         cache.save(currency, cache_start_date, tomorrow, currency_rates.clone()).unwrap();
 
         for &clear_in_memory_cache in &[false, true] {
-            let mut date = cache_start_date.pred();
+            let mut date = cache_start_date.pred_opt().unwrap();
             if clear_in_memory_cache {
                 cache.cache.lock().unwrap().clear();
             }
@@ -257,7 +257,7 @@ mod tests {
             );
 
             'date_loop: loop {
-                date = date.succ();
+                date = date.succ_opt().unwrap();
                 if date > cache_end_date {
                     break;
                 }
@@ -276,7 +276,7 @@ mod tests {
 
                 if clear_in_memory_cache && last_date < date {
                     assert_matches!(result, CurrencyRateCacheResult::Missing(from, to)
-                        if from == last_date.succ() && to == tomorrow);
+                        if from == last_date.succ_opt().unwrap() && to == tomorrow);
                 } else {
                     assert_matches!(result, CurrencyRateCacheResult::Exists(None));
                 }
@@ -294,7 +294,7 @@ mod tests {
         assert_matches!(
             cache.get(currency, tomorrow).unwrap(),
             CurrencyRateCacheResult::Missing(from, to)
-                if from == last_date.succ() && to == cache.tomorrow
+                if from == last_date.succ_opt().unwrap() && to == cache.tomorrow
         );
     }
 }

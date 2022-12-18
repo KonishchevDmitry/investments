@@ -41,7 +41,7 @@ pub struct CorporateAction {
 
 impl CorporateAction {
     fn execution_date(&self) -> Date {
-        self.report_date.unwrap_or_else(|| self.time.date.succ())
+        self.report_date.unwrap_or_else(|| self.time.date.succ_opt().unwrap())
     }
 }
 

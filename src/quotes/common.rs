@@ -58,7 +58,9 @@ pub fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>, now_provider: &dyn
 }
 
 pub fn is_outdated_unix_time(time: i64, test_outdated_time: i64) -> GenericResult<Option<DateTime<Local>>> {
-    let test_outdated_time = NaiveDateTime::from_timestamp(test_outdated_time, 0);
+    let test_outdated_time = NaiveDateTime::from_timestamp_opt(test_outdated_time, 0).ok_or_else(|| format!(
+        "Got an invalid UNIX time: {}", test_outdated_time))?;
+
     let naive_date_time = NaiveDateTime::from_timestamp_opt(time, 0).ok_or_else(|| format!(
         "Got an invalid UNIX time: {}", time))?;
 

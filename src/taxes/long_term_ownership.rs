@@ -191,7 +191,7 @@ fn calculate_ownership_years(buy_date: Date, sell_date: Date) -> u32 {
             years -= 1;
         },
         Ordering::Equal => {
-            if sell_date.day() < buy_date.day() && sell_date.succ().month() == sell_month {
+            if sell_date.day() < buy_date.day() && sell_date.succ_opt().unwrap().month() == sell_month {
                 years -= 1;
             }
         }

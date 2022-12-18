@@ -30,7 +30,7 @@ impl Period {
     }
 
     pub fn prev_date(&self) -> Date {
-        self.first.pred()
+        self.first.pred_opt().unwrap()
     }
 
     pub fn first_date(&self) -> Date {
@@ -42,7 +42,7 @@ impl Period {
     }
 
     pub fn next_date(&self) -> Date {
-        self.last.succ()
+        self.last.succ_opt().unwrap()
     }
 
     pub fn contains(&self, date: Date) -> bool {

@@ -40,7 +40,7 @@ mod tests {
     fn time_parsing() {
         assert_eq!(
             parse_time("1900-01-01T12:20:25").unwrap(),
-            Time::from_hms(12, 20, 25),
+            time!(12, 20, 25),
         );
     }
 

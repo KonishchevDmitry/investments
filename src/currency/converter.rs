@@ -245,7 +245,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
                 Some(match self.get_price(from, cur_date, false)? {
                     Some(price) => price,
                     None => {
-                        cur_date = cur_date.pred();
+                        cur_date = cur_date.pred_opt().unwrap();
                         continue
                     },
                 })
@@ -257,7 +257,7 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
                 Some(match self.get_price(to, cur_date, false)? {
                     Some(price) => price,
                     None => {
-                        cur_date = cur_date.pred();
+                        cur_date = cur_date.pred_opt().unwrap();
                         continue
                     },
                 })
@@ -347,7 +347,7 @@ mod tests {
 
             for _ in 0..6 {
                 check(from, to, date, value, result);
-                date = date.succ();
+                date = date.succ_opt().unwrap();
             }
 
             assert_matches!(

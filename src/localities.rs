@@ -145,11 +145,11 @@ pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
     if today.month() == 1 && today.day() < 12 {
         std::cmp::max(
             today - Duration::days(10),
-            Date::from_ymd(today.year() - 1, 12, 30),
+            date!(today.year() - 1, 12, 30),
         )
     // COVID-19 pandemic
     } else if today.year() == 2020 && today.month() == 4 && today.day() <= 6 {
-        Date::from_ymd(2020, 3, 28)
+        date!(2020, 3, 28)
     // Weekends, 8 March, May and occasional COVID-19 pandemic holidays
     } else {
         today - Duration::days(5)

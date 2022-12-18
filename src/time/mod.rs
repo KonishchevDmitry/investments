@@ -17,7 +17,7 @@ pub use parsing::*;
 pub use period::*;
 
 pub fn today() -> Date {
-    tz_now().date().naive_local()
+    tz_now().naive_local().date()
 }
 
 pub fn today_trade_conclusion_time() -> DateOptTime {
@@ -78,6 +78,6 @@ impl FakeTime {
 
 impl TimeProvider for FakeTime {
     fn now(&self) -> TzDateTime<Local> {
-        Local.from_utc_datetime(&chrono::NaiveDateTime::from_timestamp(self.0, 0))
+        Local.from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(self.0, 0).unwrap())
     }
 }

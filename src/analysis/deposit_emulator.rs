@@ -229,7 +229,7 @@ impl ActiveInterestPeriod {
 
 fn get_next_capitalization_date(current: Date, capitalization_day: u32) -> GenericResult<Date> {
     if current.day() != capitalization_day && !(
-        current.day() < capitalization_day && current.succ().month() != current.month()
+        current.day() < capitalization_day && current.succ_opt().unwrap().month() != current.month()
     ) {
         return Err!(
             "Got an unexpected current capitalization date for the specified capitalization day");

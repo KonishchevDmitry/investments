@@ -257,7 +257,7 @@ mod tests {
         case("2018-07-31, 13:09:47"),
     )]
     fn time_parsing(value: &str) {
-        assert_eq!(parse_date_time(value).unwrap(), date!(2018, 7, 31).and_hms(13, 9, 47));
+        assert_eq!(parse_date_time(value).unwrap(), date_time!(2018, 7, 31, 13, 9, 47));
     }
 
     #[rstest(value, expected,

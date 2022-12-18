@@ -70,7 +70,7 @@ impl InstrumentDepositView {
 
             let open_date = current.open_date;
             let close_date = if date == open_date {
-                date.succ()
+                date.succ_opt().unwrap()
             } else {
                 date
             };
