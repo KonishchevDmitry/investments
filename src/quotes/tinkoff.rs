@@ -25,6 +25,7 @@ use super::common::{parallelize_quotes, send_request, is_outdated_quote};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TinkoffApiConfig {
+    #[serde(rename = "api_token")]
     token: String,
 }
 
