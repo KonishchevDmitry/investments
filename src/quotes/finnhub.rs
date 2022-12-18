@@ -1,17 +1,14 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
 use std::time::Duration;
 
 #[cfg(test)] use indoc::indoc;
 use log::debug;
 #[cfg(test)] use mockito::{self, Mock, mock};
-use rayon::prelude::*;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
-use crate::core::{GenericResult, EmptyResult};
+use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::rate_limiter::RateLimiter;
@@ -19,7 +16,7 @@ use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
 use super::{QuotesMap, QuotesProvider};
-use super::common::{send_request, is_outdated_unix_time};
+use super::common::{parallelize_quotes, send_request, is_outdated_unix_time};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -128,22 +125,7 @@ impl QuotesProvider for Finnhub {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        let quotes = Mutex::new(HashMap::new());
-
-        if let Some(error) = symbols.par_iter().map(|&symbol| -> EmptyResult {
-            if let Some(price) = self.get_quote(symbol)? {
-                let mut quotes = quotes.lock().unwrap();
-                quotes.insert(symbol.to_owned(), price);
-            }
-            Ok(())
-        }).find_map_any(|result| match result {
-            Err(error) => Some(error),
-            Ok(()) => None,
-        }) {
-            return Err(error);
-        }
-
-        Ok(quotes.into_inner().unwrap())
+        parallelize_quotes(symbols, |symbol| self.get_quote(symbol))
     }
 }
 
@@ -260,12 +242,12 @@ mod tests {
             }
         "#));
 
-        let mut quotes = HashMap::new();
-        quotes.insert(s!("BND"), Cash::new("USD", dec!(85.80000305175781)));
-        quotes.insert(s!("FXRL.ME"), Cash::new("RUB", dec!(2758.5)));
         assert_eq!(client.get_quotes(&[
             "BND", "AMZN", "UNKNOWN", "UNKNOWN_OLD_1", "UNKNOWN_OLD_2", "FXRL.ME",
-        ]).unwrap(), quotes);
+        ]).unwrap(), hashmap! {
+            s!("BND")     => Cash::new("USD", dec!(85.80000305175781)),
+            s!("FXRL.ME") => Cash::new("RUB", dec!(2758.5)),
+        });
     }
 
     fn mock_response(path: &str, data: &str) -> Mock {

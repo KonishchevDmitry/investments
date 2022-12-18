@@ -1,11 +1,17 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
 use lazy_static::lazy_static;
 use log::trace;
+use rayon::prelude::*;
 use regex::Regex;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
 
-use crate::core::GenericResult;
+use crate::core::{EmptyResult, GenericResult};
+use crate::currency::Cash;
+use crate::quotes::QuotesMap;
 use crate::time::{SystemTime, TimeProvider};
 
 pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
@@ -20,6 +26,27 @@ pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
         captures.name("base").unwrap().as_str(),
         captures.name("quote").unwrap().as_str(),
     ))
+}
+
+pub fn parallelize_quotes<F>(symbols: &[&str], get_quote: F) -> GenericResult<QuotesMap>
+    where F: Fn(&str) -> GenericResult<Option<Cash>> + Sync + Send
+{
+    let quotes = Mutex::new(HashMap::new());
+
+    if let Some(error) = symbols.par_iter().map(|&symbol| -> EmptyResult {
+        if let Some(price) = get_quote(symbol)? {
+            let mut quotes = quotes.lock().unwrap();
+            quotes.insert(symbol.to_owned(), price);
+        }
+        Ok(())
+    }).find_map_any(|result| match result {
+        Err(error) => Some(error),
+        Ok(()) => None,
+    }) {
+        return Err(error);
+    }
+
+    Ok(quotes.into_inner().unwrap())
 }
 
 pub fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>, now_provider: &dyn TimeProvider) -> Option<DateTime<Local>> {
