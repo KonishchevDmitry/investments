@@ -28,7 +28,7 @@ jobs:
             archive_ext: zip
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Build
       env:
@@ -38,7 +38,7 @@ jobs:
 
     - name: Construct archive name
       id: archive_name
-      uses: ASzc/change-string-case-action@v2
+      uses: ASzc/change-string-case-action@v5
       with:
         string: ${{ format('investments-{0}-{1}-{2}.{3}', runner.os, runner.arch, github.ref_name, matrix.archive_ext) }}
 
@@ -65,7 +65,7 @@ jobs:
         esac
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: ${{ steps.archive_name.outputs.lowercase }}
         if-no-files-found: error
@@ -79,7 +79,7 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         path: artifacts
 
