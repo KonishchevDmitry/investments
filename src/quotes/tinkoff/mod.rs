@@ -1,3 +1,5 @@
+mod client;
+
 use std::borrow::Borrow;
 use std::ops::{Add, Sub};
 use std::time::Duration;
@@ -39,6 +41,8 @@ pub struct Tinkoff {
 
 impl Tinkoff {
     pub fn new(config: &TinkoffApiConfig, time_provider: Box<dyn TimeProvider>) -> Tinkoff {
+        client::Client::new(config).unwrap().test().unwrap();
+
         Tinkoff {
             token: config.token.clone(),
             client: Client::new(),
