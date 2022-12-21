@@ -1286,7 +1286,6 @@ dependencies = [
  "prettytable-rs",
  "prometheus",
  "prost",
- "prost-build",
  "prost-types",
  "qtrac-retest",
  "quick-xml 0.26.0",
