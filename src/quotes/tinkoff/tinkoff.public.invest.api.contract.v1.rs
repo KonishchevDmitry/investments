@@ -126,6 +126,41 @@ impl SecurityTradingStatus {
             }
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SECURITY_TRADING_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "SECURITY_TRADING_STATUS_NOT_AVAILABLE_FOR_TRADING" => {
+                Some(Self::NotAvailableForTrading)
+            }
+            "SECURITY_TRADING_STATUS_OPENING_PERIOD" => Some(Self::OpeningPeriod),
+            "SECURITY_TRADING_STATUS_CLOSING_PERIOD" => Some(Self::ClosingPeriod),
+            "SECURITY_TRADING_STATUS_BREAK_IN_TRADING" => Some(Self::BreakInTrading),
+            "SECURITY_TRADING_STATUS_NORMAL_TRADING" => Some(Self::NormalTrading),
+            "SECURITY_TRADING_STATUS_CLOSING_AUCTION" => Some(Self::ClosingAuction),
+            "SECURITY_TRADING_STATUS_DARK_POOL_AUCTION" => Some(Self::DarkPoolAuction),
+            "SECURITY_TRADING_STATUS_DISCRETE_AUCTION" => Some(Self::DiscreteAuction),
+            "SECURITY_TRADING_STATUS_OPENING_AUCTION_PERIOD" => {
+                Some(Self::OpeningAuctionPeriod)
+            }
+            "SECURITY_TRADING_STATUS_TRADING_AT_CLOSING_AUCTION_PRICE" => {
+                Some(Self::TradingAtClosingAuctionPrice)
+            }
+            "SECURITY_TRADING_STATUS_SESSION_ASSIGNED" => Some(Self::SessionAssigned),
+            "SECURITY_TRADING_STATUS_SESSION_CLOSE" => Some(Self::SessionClose),
+            "SECURITY_TRADING_STATUS_SESSION_OPEN" => Some(Self::SessionOpen),
+            "SECURITY_TRADING_STATUS_DEALER_NORMAL_TRADING" => {
+                Some(Self::DealerNormalTrading)
+            }
+            "SECURITY_TRADING_STATUS_DEALER_BREAK_IN_TRADING" => {
+                Some(Self::DealerBreakInTrading)
+            }
+            "SECURITY_TRADING_STATUS_DEALER_NOT_AVAILABLE_FOR_TRADING" => {
+                Some(Self::DealerNotAvailableForTrading)
+            }
+            _ => None,
+        }
+    }
 }
 /// Запрос расписания торгов.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -2069,6 +2104,20 @@ impl CouponType {
             CouponType::Other => "COUPON_TYPE_OTHER",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "COUPON_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "COUPON_TYPE_CONSTANT" => Some(Self::Constant),
+            "COUPON_TYPE_FLOATING" => Some(Self::Floating),
+            "COUPON_TYPE_DISCOUNT" => Some(Self::Discount),
+            "COUPON_TYPE_MORTGAGE" => Some(Self::Mortgage),
+            "COUPON_TYPE_FIX" => Some(Self::Fix),
+            "COUPON_TYPE_VARIABLE" => Some(Self::Variable),
+            "COUPON_TYPE_OTHER" => Some(Self::Other),
+            _ => None,
+        }
+    }
 }
 /// Тип опциона по направлению сделки.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2091,6 +2140,15 @@ impl OptionDirection {
             OptionDirection::Unspecified => "OPTION_DIRECTION_UNSPECIFIED",
             OptionDirection::Put => "OPTION_DIRECTION_PUT",
             OptionDirection::Call => "OPTION_DIRECTION_CALL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OPTION_DIRECTION_UNSPECIFIED" => Some(Self::Unspecified),
+            "OPTION_DIRECTION_PUT" => Some(Self::Put),
+            "OPTION_DIRECTION_CALL" => Some(Self::Call),
+            _ => None,
         }
     }
 }
@@ -2117,6 +2175,15 @@ impl OptionPaymentType {
             OptionPaymentType::Marginal => "OPTION_PAYMENT_TYPE_MARGINAL",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OPTION_PAYMENT_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "OPTION_PAYMENT_TYPE_PREMIUM" => Some(Self::Premium),
+            "OPTION_PAYMENT_TYPE_MARGINAL" => Some(Self::Marginal),
+            _ => None,
+        }
+    }
 }
 /// Тип опциона по стилю.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2139,6 +2206,15 @@ impl OptionStyle {
             OptionStyle::Unspecified => "OPTION_STYLE_UNSPECIFIED",
             OptionStyle::American => "OPTION_STYLE_AMERICAN",
             OptionStyle::European => "OPTION_STYLE_EUROPEAN",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OPTION_STYLE_UNSPECIFIED" => Some(Self::Unspecified),
+            "OPTION_STYLE_AMERICAN" => Some(Self::American),
+            "OPTION_STYLE_EUROPEAN" => Some(Self::European),
+            _ => None,
         }
     }
 }
@@ -2171,6 +2247,21 @@ impl OptionSettlementType {
             }
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OPTION_EXECUTION_TYPE_UNSPECIFIED" => {
+                Some(Self::OptionExecutionTypeUnspecified)
+            }
+            "OPTION_EXECUTION_TYPE_PHYSICAL_DELIVERY" => {
+                Some(Self::OptionExecutionTypePhysicalDelivery)
+            }
+            "OPTION_EXECUTION_TYPE_CASH_SETTLEMENT" => {
+                Some(Self::OptionExecutionTypeCashSettlement)
+            }
+            _ => None,
+        }
+    }
 }
 /// Тип идентификатора инструмента. Подробнее об идентификации инструментов: [Идентификация инструментов](<https://tinkoff.github.io/investAPI/faq_identification/>)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2201,6 +2292,17 @@ impl InstrumentIdType {
             InstrumentIdType::PositionUid => "INSTRUMENT_ID_TYPE_POSITION_UID",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INSTRUMENT_ID_UNSPECIFIED" => Some(Self::InstrumentIdUnspecified),
+            "INSTRUMENT_ID_TYPE_FIGI" => Some(Self::Figi),
+            "INSTRUMENT_ID_TYPE_TICKER" => Some(Self::Ticker),
+            "INSTRUMENT_ID_TYPE_UID" => Some(Self::Uid),
+            "INSTRUMENT_ID_TYPE_POSITION_UID" => Some(Self::PositionUid),
+            _ => None,
+        }
+    }
 }
 /// Статус запрашиваемых инструментов.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2223,6 +2325,15 @@ impl InstrumentStatus {
             InstrumentStatus::Unspecified => "INSTRUMENT_STATUS_UNSPECIFIED",
             InstrumentStatus::Base => "INSTRUMENT_STATUS_BASE",
             InstrumentStatus::All => "INSTRUMENT_STATUS_ALL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INSTRUMENT_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "INSTRUMENT_STATUS_BASE" => Some(Self::Base),
+            "INSTRUMENT_STATUS_ALL" => Some(Self::All),
+            _ => None,
         }
     }
 }
@@ -2267,6 +2378,21 @@ impl ShareType {
             ShareType::Reit => "SHARE_TYPE_REIT",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SHARE_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "SHARE_TYPE_COMMON" => Some(Self::Common),
+            "SHARE_TYPE_PREFERRED" => Some(Self::Preferred),
+            "SHARE_TYPE_ADR" => Some(Self::Adr),
+            "SHARE_TYPE_GDR" => Some(Self::Gdr),
+            "SHARE_TYPE_MLP" => Some(Self::Mlp),
+            "SHARE_TYPE_NY_REG_SHRS" => Some(Self::NyRegShrs),
+            "SHARE_TYPE_CLOSED_END_FUND" => Some(Self::ClosedEndFund),
+            "SHARE_TYPE_REIT" => Some(Self::Reit),
+            _ => None,
+        }
+    }
 }
 /// Тип актива.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2297,6 +2423,17 @@ impl AssetType {
             AssetType::Security => "ASSET_TYPE_SECURITY",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "ASSET_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "ASSET_TYPE_CURRENCY" => Some(Self::Currency),
+            "ASSET_TYPE_COMMODITY" => Some(Self::Commodity),
+            "ASSET_TYPE_INDEX" => Some(Self::Index),
+            "ASSET_TYPE_SECURITY" => Some(Self::Security),
+            _ => None,
+        }
+    }
 }
 /// Тип структурной ноты.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2319,6 +2456,15 @@ impl StructuredProductType {
             StructuredProductType::SpTypeUnspecified => "SP_TYPE_UNSPECIFIED",
             StructuredProductType::SpTypeDeliverable => "SP_TYPE_DELIVERABLE",
             StructuredProductType::SpTypeNonDeliverable => "SP_TYPE_NON_DELIVERABLE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SP_TYPE_UNSPECIFIED" => Some(Self::SpTypeUnspecified),
+            "SP_TYPE_DELIVERABLE" => Some(Self::SpTypeDeliverable),
+            "SP_TYPE_NON_DELIVERABLE" => Some(Self::SpTypeNonDeliverable),
+            _ => None,
         }
     }
 }
@@ -2347,6 +2493,15 @@ impl EditFavoritesActionType {
             EditFavoritesActionType::Del => "EDIT_FAVORITES_ACTION_TYPE_DEL",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "EDIT_FAVORITES_ACTION_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "EDIT_FAVORITES_ACTION_TYPE_ADD" => Some(Self::Add),
+            "EDIT_FAVORITES_ACTION_TYPE_DEL" => Some(Self::Del),
+            _ => None,
+        }
+    }
 }
 /// Реальная площадка исполнения расчётов.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2372,6 +2527,16 @@ impl RealExchange {
             RealExchange::Moex => "REAL_EXCHANGE_MOEX",
             RealExchange::Rts => "REAL_EXCHANGE_RTS",
             RealExchange::Otc => "REAL_EXCHANGE_OTC",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "REAL_EXCHANGE_UNSPECIFIED" => Some(Self::Unspecified),
+            "REAL_EXCHANGE_MOEX" => Some(Self::Moex),
+            "REAL_EXCHANGE_RTS" => Some(Self::Rts),
+            "REAL_EXCHANGE_OTC" => Some(Self::Otc),
+            _ => None,
         }
     }
 }
@@ -3713,6 +3878,15 @@ impl SubscriptionAction {
             SubscriptionAction::Unsubscribe => "SUBSCRIPTION_ACTION_UNSUBSCRIBE",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SUBSCRIPTION_ACTION_UNSPECIFIED" => Some(Self::Unspecified),
+            "SUBSCRIPTION_ACTION_SUBSCRIBE" => Some(Self::Subscribe),
+            "SUBSCRIPTION_ACTION_UNSUBSCRIBE" => Some(Self::Unsubscribe),
+            _ => None,
+        }
+    }
 }
 /// Интервал свечи.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3735,6 +3909,15 @@ impl SubscriptionInterval {
             SubscriptionInterval::Unspecified => "SUBSCRIPTION_INTERVAL_UNSPECIFIED",
             SubscriptionInterval::OneMinute => "SUBSCRIPTION_INTERVAL_ONE_MINUTE",
             SubscriptionInterval::FiveMinutes => "SUBSCRIPTION_INTERVAL_FIVE_MINUTES",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SUBSCRIPTION_INTERVAL_UNSPECIFIED" => Some(Self::Unspecified),
+            "SUBSCRIPTION_INTERVAL_ONE_MINUTE" => Some(Self::OneMinute),
+            "SUBSCRIPTION_INTERVAL_FIVE_MINUTES" => Some(Self::FiveMinutes),
+            _ => None,
         }
     }
 }
@@ -3789,6 +3972,23 @@ impl SubscriptionStatus {
             }
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SUBSCRIPTION_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "SUBSCRIPTION_STATUS_SUCCESS" => Some(Self::Success),
+            "SUBSCRIPTION_STATUS_INSTRUMENT_NOT_FOUND" => Some(Self::InstrumentNotFound),
+            "SUBSCRIPTION_STATUS_SUBSCRIPTION_ACTION_IS_INVALID" => {
+                Some(Self::SubscriptionActionIsInvalid)
+            }
+            "SUBSCRIPTION_STATUS_DEPTH_IS_INVALID" => Some(Self::DepthIsInvalid),
+            "SUBSCRIPTION_STATUS_INTERVAL_IS_INVALID" => Some(Self::IntervalIsInvalid),
+            "SUBSCRIPTION_STATUS_LIMIT_IS_EXCEEDED" => Some(Self::LimitIsExceeded),
+            "SUBSCRIPTION_STATUS_INTERNAL_ERROR" => Some(Self::InternalError),
+            "SUBSCRIPTION_STATUS_TOO_MANY_REQUESTS" => Some(Self::TooManyRequests),
+            _ => None,
+        }
+    }
 }
 /// Направление сделки.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3811,6 +4011,15 @@ impl TradeDirection {
             TradeDirection::Unspecified => "TRADE_DIRECTION_UNSPECIFIED",
             TradeDirection::Buy => "TRADE_DIRECTION_BUY",
             TradeDirection::Sell => "TRADE_DIRECTION_SELL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "TRADE_DIRECTION_UNSPECIFIED" => Some(Self::Unspecified),
+            "TRADE_DIRECTION_BUY" => Some(Self::Buy),
+            "TRADE_DIRECTION_SELL" => Some(Self::Sell),
+            _ => None,
         }
     }
 }
@@ -3844,6 +4053,18 @@ impl CandleInterval {
             CandleInterval::CandleInterval15Min => "CANDLE_INTERVAL_15_MIN",
             CandleInterval::Hour => "CANDLE_INTERVAL_HOUR",
             CandleInterval::Day => "CANDLE_INTERVAL_DAY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CANDLE_INTERVAL_UNSPECIFIED" => Some(Self::Unspecified),
+            "CANDLE_INTERVAL_1_MIN" => Some(Self::CandleInterval1Min),
+            "CANDLE_INTERVAL_5_MIN" => Some(Self::CandleInterval5Min),
+            "CANDLE_INTERVAL_15_MIN" => Some(Self::CandleInterval15Min),
+            "CANDLE_INTERVAL_HOUR" => Some(Self::Hour),
+            "CANDLE_INTERVAL_DAY" => Some(Self::Day),
+            _ => None,
         }
     }
 }
