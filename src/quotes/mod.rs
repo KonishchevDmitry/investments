@@ -22,7 +22,6 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::{Exchange, Exchanges};
-use crate::time::SystemTime;
 
 use self::cache::Cache;
 use self::common::parse_currency_pair;
@@ -79,7 +78,7 @@ impl Quotes {
         ];
 
         if let Some(tinkoff) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(tinkoff, Box::new(SystemTime()))))
+            providers.push(Arc::new(Tinkoff::new(tinkoff)))
         }
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), providers))

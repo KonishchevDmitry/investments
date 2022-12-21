@@ -1,28 +1,36 @@
-mod client;
-
-use std::borrow::Borrow;
-use std::ops::{Add, Sub};
+use std::collections::HashMap;
 use std::time::Duration;
 
-use chrono::{DateTime, TimeZone, Utc};
-#[cfg(test)] use indoc::indoc;
+use chrono::{LocalResult, TimeZone, Utc};
 use itertools::Itertools;
-use log::debug;
-use reqwest::Url;
-use reqwest::blocking::Client;
+use log::{debug, trace};
 use serde::Deserialize;
-use serde::de::DeserializeOwned;
+use tokio::runtime::Runtime;
+use tokio::sync::Mutex;
+use tonic::{Request, Status};
+use tonic::service::{Interceptor, interceptor::InterceptedService};
+use tonic::transport::Channel;
+
+mod api {
+    include!("tinkoff.public.invest.api.contract.v1.rs");
+}
+
+use api::{
+    instruments_service_client::InstrumentsServiceClient, InstrumentsRequest, RealExchange,
+    market_data_service_client::MarketDataServiceClient, GetLastPricesRequest,
+};
 
 use crate::core::GenericResult;
-use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::rate_limiter::RateLimiter;
 use crate::util::{self, DecimalRestrictions};
-use crate::time::TimeProvider;
+use crate::time::SystemTime;
 use crate::types::Decimal;
 
 use super::{QuotesMap, QuotesProvider};
-use super::common::{parallelize_quotes, send_request, is_outdated_quote};
+use super::common::is_outdated_quote;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,159 +39,97 @@ pub struct TinkoffApiConfig {
     token: String,
 }
 
-// Tinkoff Investments API (https://tinkoff.github.io/invest-openapi/)
+// Tinkoff Investments API (https://tinkoff.github.io/investAPI/)
 pub struct Tinkoff {
     token: String,
-    client: Client,
-    rate_limiter: RateLimiter,
-    time_provider: Box<dyn TimeProvider>,
+
+    channel: Channel,
+    runtime: Runtime,
+
+    instruments: Mutex<HashMap<String, Vec<Instrument>>>
 }
 
 impl Tinkoff {
-    pub fn new(config: &TinkoffApiConfig, time_provider: Box<dyn TimeProvider>) -> Tinkoff {
-        client::Client::new(config).unwrap().test().unwrap();
+    pub fn new(config: &TinkoffApiConfig) -> Tinkoff {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all().build().unwrap();
 
-        Tinkoff {
+        let channel = runtime.block_on(async {
+            Channel::from_static("https://sandbox-invest-public-api.tinkoff.ru")
+                .connect_timeout(CONNECT_TIMEOUT)
+                .timeout(REQUEST_TIMEOUT)
+                .connect_lazy()
+        });
+
+        let client = Tinkoff {
             token: config.token.clone(),
-            client: Client::new(),
-            rate_limiter: RateLimiter::new().with_limit(100, Duration::from_secs(60)),
-            time_provider: time_provider,
-        }
+
+            channel: channel,
+            runtime: runtime,
+
+            instruments: Mutex::new(HashMap::new()),
+        };
+        // FIXME(konishchev): Remove it when will be implemented
+        // client.get_quotes(&["700", "1810"]).unwrap();
+        // unreachable!();
+
+        client
     }
 
-    fn get_quote(&self, symbol: &str) -> GenericResult<Option<Cash>> {
-        use chrono::Duration;
+    fn instruments_client(&self) -> InstrumentsServiceClient<InterceptedService<Channel, ClientInterceptor>> {
+        InstrumentsServiceClient::with_interceptor(self.channel.clone(), ClientInterceptor::new(&self.token))
+    }
 
-        let instrument = match self.get_instrument(symbol)? {
-            Some(instrument) => instrument,
+    fn market_data_client(&self) -> MarketDataServiceClient<InterceptedService<Channel, ClientInterceptor>> {
+        MarketDataServiceClient::with_interceptor(self.channel.clone(), ClientInterceptor::new(&self.token))
+    }
+
+    async fn get_instrument(&self, symbol: &str) -> GenericResult<Option<Instrument>> {
+        let mut instruments = self.instruments.lock().await;
+
+        if instruments.is_empty() {
+            trace!("Getting a list of available stocks from Tinkoff...");
+
+            let stocks = self.instruments_client().shares(InstrumentsRequest {
+                ..Default::default()
+            }).await.map_err(|e| format!(
+                "Failed to get available stocks list: {}", e,
+            ))?.into_inner().instruments;
+
+            trace!("Got the following stocks from Tinkoff:");
+            for stock in stocks {
+                if stock.real_exchange() != RealExchange::Rts {
+                    continue
+                }
+
+                trace!("* {name} ({symbol})", name=stock.name, symbol=stock.ticker);
+                instruments.entry(stock.ticker.clone()).or_default().push(Instrument {
+                    uid: stock.uid,
+                    isin: stock.isin,
+                    symbol: stock.ticker,
+                    name: stock.name,
+                    currency: stock.currency.to_uppercase(),
+                })
+            }
+
+            if instruments.is_empty() {
+                return Err!("Got an empty list of available stocks");
+            }
+        }
+
+        let matched_instruments = match instruments.get(symbol) {
+            Some(instruments) => instruments,
             None => return Ok(None),
         };
 
-        for (period, candle_interval, candle_interval_name) in [
-            (Duration::days(1), Duration::minutes(1), "1min"),
-            (Duration::days(7), Duration::hours(1),   "hour"),
-        ] {
-            let quote = self.get_quote_from_candles(
-                &instrument.figi, period, candle_interval, candle_interval_name)?;
-
-            let (price, time) = match quote {
-                Some((price, time)) => (price, time),
-                None => continue,
-            };
-
-            if let Some(time) = is_outdated_quote(time, self.time_provider.as_ref()) {
-                debug!("{}: Got outdated quotes: {}.", symbol, time);
-                return Ok(None);
-            }
-
-            return Ok(Some(Cash::new(&instrument.currency, price)))
-        }
-
-        Ok(None)
-    }
-
-    fn get_instrument(&self, symbol: &str) -> GenericResult<Option<Instrument>> {
-        #[derive(Deserialize)]
-        struct Result {
-            payload: Payload,
-        }
-
-        #[derive(Deserialize)]
-        struct Payload {
-            instruments: Vec<Instrument>,
-        }
-
-        let result: Result = self.query("/market/search/by-ticker", &[("ticker", symbol)])?;
-        let instruments = result.payload.instruments;
-
-        if instruments.len() > 1 {
-            let names = instruments.iter().map(|instrument| {
+        if matched_instruments.len() > 1 {
+            let names = matched_instruments.iter().map(|instrument| {
                 format!("{} ({})", instrument.name, instrument.isin)
             }).join(", ");
-
             return Err!("Got more than one instrument for {:?} symbol: {}", symbol, names);
         }
 
-        Ok(instruments.into_iter().next())
-    }
-
-    fn get_quote_from_candles(
-        &self, figi: &str, period: chrono::Duration,
-        candle_interval: chrono::Duration, candle_interval_name: &str
-    ) -> GenericResult<Option<(Decimal, DateTime<Utc>)>> {
-        #[derive(Deserialize)]
-        struct Result {
-            payload: Payload,
-        }
-
-        #[derive(Deserialize)]
-        struct Payload {
-            candles: Vec<Candle>,
-        }
-
-        #[derive(Deserialize)]
-        struct Candle {
-            time: String,
-            interval: String,
-            #[serde(rename = "c")]
-            close_price: Decimal,
-        }
-
-        const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%SZ";
-        let now = self.time_provider.now().naive_utc();
-
-        let from = now.sub(period).format(TIME_FORMAT).to_string();
-        let to = now.format(TIME_FORMAT).to_string();
-
-        let result: Result = self.query("/market/candles", &[
-            ("figi", figi),
-            ("from", from.as_str()),
-            ("to", to.as_str()),
-            ("interval", candle_interval_name),
-        ])?;
-
-        let candle = match result.payload.candles.last() {
-            Some(candle) => candle,
-            None => return Ok(None),
-        };
-
-        let time = {
-            let start = Utc.datetime_from_str(&candle.time, TIME_FORMAT).map_err(|_| format!(
-                "Got an invalid time: {:?}", candle.time))?;
-
-            if candle.interval != candle_interval_name {
-                return Err!("Got an unexpected candle interval: {}", candle.interval);
-            }
-
-            start.add(candle_interval)
-        };
-
-        let price = util::validate_decimal(candle.close_price, DecimalRestrictions::StrictlyPositive)
-            .map_err(|_| format!("Got an invalid price: {:?}", candle.close_price))?;
-
-        Ok(Some((price, time)))
-    }
-
-    fn query<R, P, K, V>(&self, method: &str, params: P) -> GenericResult<R>
-        where
-            R: DeserializeOwned,
-            P: IntoIterator,
-            P::Item: Borrow<(K, V)>,
-            K: AsRef<str>,
-            V: AsRef<str>,
-    {
-        #[cfg(not(test))] let base_url = "https://api-invest.tinkoff.ru/openapi/sandbox";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = Url::parse_with_params(&format!("{}{}", base_url, method), params)?;
-
-        let get = |url| -> GenericResult<R> {
-            self.rate_limiter.wait(&format!("request to {}", url));
-            let reply = send_request(&self.client, url, Some(&self.token))?.text()?;
-            Ok(serde_json::from_str(&reply)?)
-        };
-
-        Ok(get(&url).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
+        Ok(matched_instruments.first().cloned())
     }
 }
 
@@ -197,227 +143,95 @@ impl QuotesProvider for Tinkoff {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        parallelize_quotes(symbols, |symbol| self.get_quote(symbol))
+        self.runtime.block_on(async {
+            let mut instruments = HashMap::new();
+            let mut request = GetLastPricesRequest {
+                ..Default::default()
+            };
+
+            for symbol in symbols {
+                if let Some(instrument) = self.get_instrument(symbol).await? {
+                    request.instrument_id.push(instrument.uid.clone());
+                    if let Some(other) = instruments.insert(instrument.uid.clone(), instrument) {
+                        return Err!("Got a duplicated instrument with {:?} UID: {} ({})",
+                            other.uid, other.name, other.symbol);
+                    }
+                }
+            }
+
+            trace!("Getting quotes for the following symbols from Tinkoff: {}...",
+                instruments.values().map(|instrument| &instrument.symbol).sorted().join(", "));
+
+            let prices = self.market_data_client().get_last_prices(request).await?
+                .into_inner().last_prices;
+
+            let mut quotes = QuotesMap::new();
+
+            for price in prices {
+                let instrument = instruments.remove(&price.instrument_uid).ok_or_else(|| format!(
+                    "Got quotes for an unexpected instrument: {:?}", price.instrument_uid))?;
+
+                let (price, timestamp) = match (price.price, price.time) {
+                    (Some(price), Some(timestamp)) => (price, timestamp),
+                    _ => continue,
+                };
+
+                let time = match Utc.timestamp_opt(timestamp.seconds, timestamp.nanos as u32) {
+                    LocalResult::Single(time) => time,
+                    _ => return Err!("Got an invalid quote time: {:?}", timestamp)
+                };
+
+                if let Some(time) = is_outdated_quote(time, &SystemTime()) {
+                    debug!("{}: Got outdated quotes: {}.", instrument.symbol, time);
+                    continue;
+                }
+
+                let price = Decimal::from(price.units) + Decimal::new(price.nano as i64, 9);
+
+                let price = util::validate_named_cash(
+                    "price", &instrument.currency, price.normalize(),
+                    DecimalRestrictions::StrictlyPositive)?;
+
+                quotes.insert(instrument.symbol, price);
+            }
+
+            Ok(quotes)
+        })
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone)]
 struct Instrument {
-    figi: String,
+    uid: String,
     isin: String,
+    symbol: String,
     name: String,
     currency: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use mockito::{Mock, mock};
-    use rstest::{rstest, fixture};
+struct ClientInterceptor {
+    token: String,
+}
 
-    use crate::time::FakeTime;
-    use super::*;
-
-    #[fixture]
-    fn client() -> Tinkoff {
-        let now = Utc.from_utc_datetime(&date_time!(2022, 12, 16, 11, 21, 58));
-        let config = TinkoffApiConfig {
-            token: s!("token-mock")
-        };
-        Tinkoff::new(&config, Box::new(FakeTime::new(now)))
+impl ClientInterceptor {
+    fn new(token: &str) -> ClientInterceptor {
+        ClientInterceptor {
+            token: token.to_owned(),
+        }
     }
+}
 
-    #[rstest]
-    fn quotes(client: Tinkoff) {
-        let _tencent_info = mock_response("/market/search/by-ticker?ticker=700", indoc!(r#"
-            {
-                "trackingId": "27b020602524ac6b",
-                "payload": {
-                    "instruments": [
-                        {
-                            "figi": "BBG000BJ35N5",
-                            "ticker": "700",
-                            "isin": "KYG875721634",
-                            "minPriceIncrement": 0.2,
-                            "lot": 1,
-                            "currency": "HKD",
-                            "name": "Tencent Holdings",
-                            "type": "Stock"
-                        }
-                    ],
-                    "total": 1
-                },
-                "status": "Ok"
-            }
-        "#));
+impl Interceptor for ClientInterceptor {
+    fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
+        let metadata = request.metadata_mut();
 
-        let _xiaomi_info = mock_response("/market/search/by-ticker?ticker=1810", indoc!(r#"
-            {
-                "trackingId": "2f695cddfb4dd518",
-                "payload": {
-                    "instruments": [
-                        {
-                            "figi": "BBG00KVTBY91",
-                            "ticker": "1810",
-                            "isin": "KYG9830T1067",
-                            "minPriceIncrement": 0.01,
-                            "lot": 100,
-                            "currency": "HKD",
-                            "name": "Xiaomi",
-                            "type": "Stock"
-                        }
-                    ],
-                    "total": 1
-                },
-                "status": "Ok"
-            }
-        "#));
+        metadata.insert("x-app-name", "KonishchevDmitry.investments".parse().map_err(|_|
+            Status::invalid_argument("Invalid application name"))?);
 
-        let _apple_info = mock_response("/market/search/by-ticker?ticker=AAPL", indoc!(r#"
-            {
-                "trackingId": "728ec0c5279c30f0",
-                "payload": {
-                    "instruments": [
-                        {
-                            "figi": "BBG000B9XRY4",
-                            "ticker": "AAPL",
-                            "isin": "US0378331005",
-                            "minPriceIncrement": 0.01,
-                            "lot": 1,
-                            "currency": "USD",
-                            "name": "Apple",
-                            "type": "Stock"
-                        }
-                    ],
-                    "total": 1
-                },
-                "status": "Ok"
-            }
-        "#));
+        metadata.insert("authorization", format!("Bearer {}", self.token).parse().map_err(|_|
+            Status::invalid_argument("Invalid token value"))?);
 
-        let _unknown_info = mock_response("/market/search/by-ticker?ticker=UNKNOWN", indoc!(r#"
-            {
-                "trackingId": "cfe61104843bce63",
-                "payload": {
-                    "instruments": [],
-                    "total": 0
-                },
-                "status": "Ok"
-            }
-        "#));
-
-        let _tencent_empty_minute_candles = mock_response("/market/candles?figi=BBG000BJ35N5&from=2022-12-15T11%3A21%3A58Z&to=2022-12-16T11%3A21%3A58Z&interval=1min", indoc!(r#"
-            {
-                "trackingId": "8b36e5c9fbc49852",
-                "payload": {
-                    "candles": [],
-                    "interval": "1min",
-                    "figi": "BBG000BJ35N5"
-                },
-                "status": "Ok"
-            }
-        "#));
-
-        let _tencent_hour_candles = mock_response("/market/candles?figi=BBG000BJ35N5&from=2022-12-09T11%3A21%3A58Z&to=2022-12-16T11%3A21%3A58Z&interval=hour", indoc!(r#"
-            {
-                "trackingId": "26c529a83fca0028",
-                "payload": {
-                    "candles": [
-                        {
-                            "o": 317,
-                            "c": 316.6,
-                            "h": 317,
-                            "l": 316.6,
-                            "v": 159,
-                            "time": "2022-12-16T10:00:00Z",
-                            "interval": "hour",
-                            "figi": "BBG000BJ35N5"
-                        },
-                        {
-                            "o": 316.5,
-                            "c": 318.6,
-                            "h": 318.6,
-                            "l": 316,
-                            "v": 135,
-                            "time": "2022-12-16T11:00:00Z",
-                            "interval": "hour",
-                            "figi": "BBG000BJ35N5"
-                        }
-                    ],
-                    "interval": "hour",
-                    "figi": "BBG000BJ35N5"
-                },
-                "status": "Ok"
-            }
-        "#));
-
-        let _xiaomi_empty_minute_candles = mock_response("/market/candles?figi=BBG00KVTBY91&from=2022-12-15T11%3A21%3A58Z&to=2022-12-16T11%3A21%3A58Z&interval=1min", indoc!(r#"
-            {
-                "trackingId": "8b36e5c9fbc49852",
-                "payload": {
-                    "candles": [],
-                    "interval": "1min",
-                    "figi": "BBG00KVTBY91"
-                },
-                "status": "Ok"
-            }
-        "#));
-
-        let _xiaomi_empty_hour_candles = mock_response("/market/candles?figi=BBG00KVTBY91&from=2022-12-09T11%3A21%3A58Z&to=2022-12-16T11%3A21%3A58Z&interval=hour", indoc!(r#"
-            {
-                "trackingId": "26c529a83fca0028",
-                "payload": {
-                    "candles": [],
-                    "interval": "hour",
-                    "figi": "BBG00KVTBY91"
-                },
-                "status": "Ok"
-            }
-        "#));
-
-        let _apple_minute_candles = mock_response("/market/candles?figi=BBG000B9XRY4&from=2022-12-15T11%3A21%3A58Z&to=2022-12-16T11%3A21%3A58Z&interval=1min", indoc!(r#"
-            {
-                "trackingId": "fe3c5d35bbd10bda",
-                "payload": {
-                    "candles": [
-                        {
-                            "o": 135.8,
-                            "c": 135.8,
-                            "h": 135.8,
-                            "l": 135.8,
-                            "v": 11,
-                            "time": "2022-12-16T11:20:00Z",
-                            "interval": "1min",
-                            "figi": "BBG000B9XRY4"
-                        },
-                        {
-                            "o": 135.75,
-                            "c": 135.76,
-                            "h": 135.76,
-                            "l": 135.75,
-                            "v": 3,
-                            "time": "2022-12-16T11:21:00Z",
-                            "interval": "1min",
-                            "figi": "BBG000B9XRY4"
-                        }
-                    ],
-                    "interval": "1min",
-                    "figi": "BBG000B9XRY4"
-                },
-                "status": "Ok"
-            }
-        "#));
-
-        assert_eq!(client.get_quotes(&["700", "1810", "UNKNOWN", "AAPL"]).unwrap(), hashmap! {
-            s!("700")  => Cash::new("HKD", dec!(318.6)),
-            s!("AAPL") => Cash::new("USD", dec!(135.76)),
-        });
-    }
-
-    fn mock_response(path: &str, data: &str) -> Mock {
-        mock("GET", path).match_header("Authorization", "Bearer token-mock")
-            .with_status(200)
-            .with_header("Content-Type", "application/json")
-            .with_body(data)
-            .create()
+        request.set_timeout(REQUEST_TIMEOUT);
+        Ok(request)
     }
 }
