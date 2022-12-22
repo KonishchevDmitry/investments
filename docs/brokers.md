@@ -49,6 +49,7 @@ The program expects broker statements in `*.ofx` format (`Accounts -> History ->
 Please take into account the following issues with Firstrade statements:
 1. Firstrade doesn't provide information about real dividend amount, so it will be deduced from received amount and expected tax rate.
 2. When you generate broker statements, current cash assets and open positions information will always be got for yesterday date. So you effectively aren't able to generate a valid statement with ending date different from yesterday. But you should split the statements for the following reasons:
+
    2.1. Firstrade allows to generate the statement for past three years only.
 
    2.2. You should have your statements split by years for [cash-flow](taxes.md#cash-flow) command.
