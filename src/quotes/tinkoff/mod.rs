@@ -11,6 +11,7 @@ use tonic::{Request, Status};
 use tonic::service::{Interceptor, interceptor::InterceptedService};
 use tonic::transport::Channel;
 
+#[allow(clippy::all)]
 mod api {
     include!("tinkoff.public.invest.api.contract.v1.rs");
 }

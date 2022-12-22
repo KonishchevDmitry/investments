@@ -5,6 +5,13 @@
 
 set -eux
 
+(
+    cd src/quotes/tinkoff/api
+    git checkout main
+    git pull
+    rm -f ../tinkoff.public.invest.api.contract.v1.rs
+)
+
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
 cargo upgrade --pinned allow --incompatible allow --exclude serde_yaml
 cargo update

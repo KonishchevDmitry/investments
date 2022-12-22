@@ -523,12 +523,15 @@ pub struct Option {
     /// Флаг отображающий доступность торговли инструментом только для квалифицированных инвесторов.
     #[prost(bool, tag = "406")]
     pub for_qual_investor_flag: bool,
-    /// Флаг отображающий доступность торговли инструментом по выходным
+    /// Флаг отображающий доступность торговли инструментом по выходным.
     #[prost(bool, tag = "407")]
     pub weekend_flag: bool,
-    /// Флаг заблокированного ТКС
+    /// Флаг заблокированного ТКС.
     #[prost(bool, tag = "408")]
     pub blocked_tca_flag: bool,
+    /// Параметр указывает на возможность торговать инструментом через API.
+    #[prost(bool, tag = "409")]
+    pub api_trade_available_flag: bool,
 }
 /// Данные по акции.
 #[allow(clippy::derive_partial_eq_without_eq)]
