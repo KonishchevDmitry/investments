@@ -69,17 +69,22 @@ impl Quotes {
             .and_then(|brokers| brokers.tinkoff.as_ref())
             .and_then(|tinkoff| tinkoff.api.as_ref());
 
-        let mut providers: Vec<Arc<dyn QuotesProvider>> = vec![
-            Arc::new(Finnhub::new(finnhub)),
-            Arc::new(FcsApi::new(fcsapi)),
-            Arc::new(Finex::new()),
-            Arc::new(Moex::new("TQTF")),
-            Arc::new(Moex::new("TQBR")),
-        ];
+        let mut providers = Vec::<Arc<dyn QuotesProvider>>::new();
 
         if let Some(tinkoff) = tinkoff {
             providers.push(Arc::new(Tinkoff::new(tinkoff)))
         }
+
+        providers.extend({
+            let providers: [Arc<dyn QuotesProvider>; 5] = [
+                Arc::new(Finnhub::new(finnhub)),
+                Arc::new(FcsApi::new(fcsapi)),
+                Arc::new(Finex::new()),
+                Arc::new(Moex::new("TQTF")),
+                Arc::new(Moex::new("TQBR")),
+            ];
+            providers
+        });
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), providers))
     }
@@ -257,9 +262,15 @@ impl Quotes {
                     match parse_currency_pair(&symbol) {
                         // Forex
                         Ok((base, quote)) => {
+                            // Forex providers are allowed to return quotes for currency pairs only
+                            // in one direction, so expect here that provider might return reverse
+                            // pair instead of requested one.
+                            //
+                            // Plus see notes above about reverse pairs consistency with direct ones.
                             let reverse_pair = get_currency_pair(quote, base);
                             let reverse_price = Cash::new(base, dec!(1) / price.amount);
                             self.cache.save(&reverse_pair, reverse_price)?;
+                            plan.remove(&reverse_pair);
                         },
 
                         // Stocks
