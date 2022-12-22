@@ -40,7 +40,7 @@ pub struct TinkoffApiConfig {
     token: String,
 }
 
-// Tinkoff Investments API (https://tinkoff.github.io/investAPI/)
+// Tinkoff Invest API (https://tinkoff.github.io/investAPI/)
 pub struct Tinkoff {
     token: String,
 

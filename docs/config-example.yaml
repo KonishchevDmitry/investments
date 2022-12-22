@@ -157,32 +157,28 @@ portfolios:
 brokers:
   bcs:
     deposit_commissions:
-      RUB:
-        fixed_amount: 0
+      RUB: {fixed_amount: 0}
 
   firstrade:
     deposit_commissions:
-      USD:
-        fixed_amount: 15
+      USD: {fixed_amount: 0}
 
   interactive_brokers:
     deposit_commissions:
-      RUB:
-        fixed_amount: 0
-      USD:
-        fixed_amount: 15
+      RUB: {fixed_amount: 0}
+      USD: {fixed_amount: 0}
 
   open_broker:
     deposit_commissions:
-      RUB:
-        fixed_amount: 0
+      RUB: {fixed_amount: 0}
 
   tinkoff:
     deposit_commissions:
-      RUB:
-        fixed_amount: 0
-      USD:
-        fixed_amount: 0
+      RUB: {fixed_amount: 0}
+      USD: {fixed_amount: 0}
+
+    # Sandbox token from https://tinkoff.github.io/investAPI/token/
+    #api_token: secret
 
 fcsapi:
   # Access key that must be obtained here - https://fcsapi.com/
