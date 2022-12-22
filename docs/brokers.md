@@ -12,7 +12,7 @@ Activity statements don't provide trade settle date information. So by default a
 
 Trade settle date information may be obtained from Trade Confirmation Report. To do this, create a Trade Confirmation Flex Query in the IB `Reports -> Flex Queries` tab with the following parameters:
 
-![Trade Confirmation Flex Query Parameters](images/ib-trade-confirmation-parameters.png?raw=true "Trade Confirmation Flex Query Parameters")
+<img src="/docs/images/ib-trade-confirmation-parameters.png?raw=true" width="617" height="658" alt="Trade Confirmation Flex Query Parameters" title="Trade Confirmation Flex Query Parameters">
 
 and download the statements for all periods where you have any trades. Investments will catch these statements and use information from them for calculations in T+2 mode.
 
@@ -38,7 +38,7 @@ To generate Custom Activity Statement:
 * Select `Statement Type - Activity`
 * Select all sections
 * Use the following section configurations:
-![Custom Activity Statement Parameters](images/ib-custom-activity-statement-parameters.png?raw=true "Custom Activity Statement Parameters")
+<img src="/docs/images/ib-custom-activity-statement-parameters.png?raw=true" width="685" height="407" alt="Custom Activity Statement Parameters" title="Custom Activity Statement Parameters">
 
 
 <a name="firstrade"></a>
