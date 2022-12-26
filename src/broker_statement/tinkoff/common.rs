@@ -1,5 +1,4 @@
 use crate::core::GenericResult;
-use crate::currency::Cash;
 use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
@@ -34,10 +33,6 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
         },
         _ => Decimal::parse(cell),
     }
-}
-
-pub fn parse_cash(currency: &str, amount: Decimal, restrictions: DecimalRestrictions) -> GenericResult<Cash> {
-    Ok(Cash::new(currency, util::validate_decimal(amount, restrictions)?))
 }
 
 pub fn read_next_table_row(sheet: &mut SheetReader) -> Option<&[Cell]> {

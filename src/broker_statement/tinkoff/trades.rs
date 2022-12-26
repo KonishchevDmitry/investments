@@ -16,12 +16,12 @@ use crate::forex::parse_forex_code;
 use crate::formatting::format_date;
 use crate::time::{Date, Time, DateTime};
 use crate::types::Decimal;
+use crate::util;
 use crate::util::DecimalRestrictions;
 use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{
-    read_next_table_row, parse_cash, parse_date_cell, parse_decimal_cell, parse_quantity_cell,
-    parse_time_cell};
+    read_next_table_row, parse_date_cell, parse_decimal_cell, parse_quantity_cell, parse_time_cell};
 
 pub type TradesRegistryRc = Rc<RefCell<HashMap<u64, bool>>>;
 
@@ -133,10 +133,11 @@ struct TradeRow {
     _21: Option<String>,
     #[column(name="Валюта комиссии клир. центра", optional=true)]
     _22: Option<String>,
-    #[column(name="Гербовый сбор", optional=true)]
-    _23: Option<String>,
+
+    #[column(name="Гербовый сбор", parse_with="parse_decimal_cell", optional=true)]
+    stamp_duty: Option<Decimal>,
     #[column(name="Валюта гербового сбора", optional=true)]
-    _24: Option<String>,
+    stamp_duty_currency: Option<String>,
 
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
@@ -177,16 +178,18 @@ impl TradeRow {
             return Err!("Invalid {} trade quantity: {:?}", self.symbol, self.quantity);
         }
 
-        let price = parse_cash(
-            &self.price_currency, self.price, DecimalRestrictions::StrictlyPositive)?;
+        let price = util::validate_named_cash(
+            "price", &self.price_currency, self.price, DecimalRestrictions::StrictlyPositive)?;
 
-        let volume = parse_cash(
-            &self.settlement_currency, self.volume, DecimalRestrictions::StrictlyPositive)?;
+        let volume = util::validate_named_cash(
+            "trade volume", &self.settlement_currency, self.volume, DecimalRestrictions::StrictlyPositive)?;
         debug_assert_eq!(volume, (price * self.quantity).round());
 
-        let commission = match self.commission_currency {
+        let mut commission = match self.commission_currency {
             Some(currency) => {
-                parse_cash(&currency, self.commission, DecimalRestrictions::PositiveOrZero)?
+                util::validate_named_cash(
+                    "commission amount", &currency, self.commission,
+                    DecimalRestrictions::PositiveOrZero)?
             }
             None if self.commission.is_zero() => {
                 Cash::new(&self.settlement_currency, self.commission)
@@ -196,6 +199,22 @@ impl TradeRow {
                 self.symbol, format_date(conclusion_time),
             ),
         };
+
+        if let Some(amount) = self.stamp_duty {
+            let currency = self.stamp_duty_currency.ok_or_else(|| format!(
+                "Got {} trade with stamp duty but without stamp duty currency", self.symbol))?;
+
+            if currency != commission.currency {
+                return Err!(concat!(
+                    "Got {} trade with {} stamp duty currency which differs from broker commission ",
+                    "currency ({}), which is not supported yet"
+                ), self.symbol, currency, commission.currency);
+            }
+
+            commission.add_assign(util::validate_named_cash(
+                "stamp duty amount", &currency, amount, DecimalRestrictions::PositiveOrZero,
+            )?).unwrap();
+        }
 
         let forex = parse_forex_code(&self.symbol);
 

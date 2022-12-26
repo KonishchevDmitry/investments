@@ -62,6 +62,9 @@ impl ForexTrades {
                     trade.code, trade.currency);
             }
 
+            let lot_size = lot_size.ok_or_else(|| format!(
+                "{} currency pair is not supported yet", trade.code))?;
+
             let quantity = util::validate_named_cash(
                 "forex trade volume", base, trade.quantity * lot_size,
                 DecimalRestrictions::StrictlyPositive)?.normalize();

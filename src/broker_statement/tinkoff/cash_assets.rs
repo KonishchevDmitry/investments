@@ -13,11 +13,10 @@ use crate::currency::{Cash, CashAssets};
 use crate::instruments::InstrumentId;
 use crate::time::{Date, Time};
 use crate::types::Decimal;
-use crate::util::DecimalRestrictions;
+use crate::util::{self, DecimalRestrictions};
 use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
-use super::common::{
-    read_next_table_row, parse_cash, parse_date_cell, parse_decimal_cell, parse_time_cell};
+use super::common::{read_next_table_row, parse_date_cell, parse_decimal_cell, parse_time_cell};
 
 pub struct CashAssetsParser {
     statement: PartialBrokerStatementRc,
@@ -51,7 +50,7 @@ fn parse_current_assets(
             statement.has_starting_assets.replace(true);
         }
 
-        let planned = parse_cash(&assets.currency, assets.planned, DecimalRestrictions::No)?;
+        let planned = Cash::new(&assets.currency, assets.planned);
         if !planned.is_zero() {
             statement.assets.cash.as_mut().unwrap().deposit(planned);
         }
@@ -179,8 +178,12 @@ impl TableReader for CashFlowRow {
 impl CashFlowRow {
     fn parse(&self, date: Date, currency: &str, statement: &mut PartialBrokerStatement) -> EmptyResult {
         let operation = &self.operation;
-        let deposit = parse_cash(currency, self.deposit, DecimalRestrictions::PositiveOrZero)?;
-        let withdrawal = parse_cash(currency, self.withdrawal, DecimalRestrictions::PositiveOrZero)?;
+
+        let deposit = util::validate_named_cash(
+            "deposit amount", currency, self.deposit, DecimalRestrictions::PositiveOrZero)?;
+
+        let withdrawal = util::validate_named_cash(
+            "withdrawal amount", currency, self.withdrawal, DecimalRestrictions::PositiveOrZero)?;
 
         let check_amount = |amount: Cash| -> GenericResult<Cash> {
             if amount.is_zero() || !matches!((deposit.is_zero(), withdrawal.is_zero()), (true, false) | (false, true)) {
@@ -202,7 +205,7 @@ impl CashFlowRow {
                     date, -check_amount(withdrawal)?));
             },
 
-            "Покупка/продажа" | "Комиссия за сделки" => {},
+            "Покупка/продажа" | "Комиссия за сделки" | "Гербовый сбор" => {},
             "Комиссия по тарифу" => {
                 let amount = check_amount(withdrawal)?;
                 let description = operation.clone();
