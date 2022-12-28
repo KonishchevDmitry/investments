@@ -24,7 +24,7 @@ pub struct AssetGroupConfig {
 }
 
 impl AssetGroupConfig {
-    pub fn validate(&self, portfolios: &HashSet<String>) -> EmptyResult {
+    pub fn validate_inner(&self, portfolios: &HashSet<String>) -> EmptyResult {
         if let Some(names) = self.portfolios.as_ref() {
             if let Some(name) = names.difference(portfolios).next() {
                 return Err!("Invalid portfolio name: {:?}", name)

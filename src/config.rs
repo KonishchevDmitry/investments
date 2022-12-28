@@ -108,7 +108,7 @@ impl Config {
             deposit.validate()?;
         }
 
-        config.metrics.validate(&portfolio_names)?;
+        config.metrics.validate_inner(&portfolio_names)?;
 
         for &tax_rates in &[
             &config.tax_rates.trading,

@@ -18,9 +18,10 @@ pub struct MetricsConfig {
 }
 
 impl MetricsConfig {
-    pub fn validate(&self, portfolios: &HashSet<String>) -> EmptyResult {
+    pub fn validate_inner(&self, portfolios: &HashSet<String>) -> EmptyResult {
         for (name, group) in &self.asset_groups {
-            group.validate(portfolios).map_err(|e| format!("{:?} asset group: {}", name, e))?;
+            group.validate_inner(portfolios).map_err(|e| format!(
+                "{:?} asset group: {}", name, e))?;
         }
         Ok(())
     }
