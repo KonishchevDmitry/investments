@@ -66,6 +66,7 @@ textwrap = "0.16.0"
 tokio = "1.23.0"
 tonic = { version = "0.8", features = ["tls", "tls-roots"] }
 uuid = { version = "1.2.2", features = ["v4"] }
+validator = { version = "0.16.0", features = ["derive"] }
 xml-rs = "0.8.4"
 yaml-merge-keys = { version = "0.5.1", features = ["serde_yaml"] }
 

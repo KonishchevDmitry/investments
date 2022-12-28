@@ -1,3 +1,5 @@
+pub mod config;
+
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
 use std::path::Path;
@@ -61,7 +63,8 @@ lazy_static! {
 
 pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBuilder> {
     let (statistics, converter, telemetry) = analysis::analyse(
-        config, None, false, Some(&config.metrics.merge_performance), false)?;
+        config, None, false, &config.metrics.asset_groups,
+        Some(&config.metrics.merge_performance), false)?;
 
     UPDATE_TIME.set(cast::f64(time::utc_now().timestamp()));
 

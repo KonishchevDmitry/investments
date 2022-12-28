@@ -6,7 +6,7 @@ mod portfolio_analysis;
 mod portfolio_performance;
 mod sell_simulation;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use easy_logging::GlobalContext;
@@ -25,7 +25,7 @@ use crate::taxes::{IncomeType, LtoDeductionCalculator, LtoDeduction, NetLtoDeduc
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
-use self::config::PerformanceMergingConfig;
+use self::config::{AssetGroupConfig, PerformanceMergingConfig};
 use self::portfolio_analysis::PortfolioPerformanceAnalysis;
 use self::portfolio_performance::PortfolioPerformanceAnalyser;
 
@@ -119,6 +119,7 @@ impl PortfolioCurrencyStatistics {
 
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,
+    _asset_groups: &HashMap<String, AssetGroupConfig>,
     merge_performance: Option<&PerformanceMergingConfig>, interactive: bool,
 ) -> GenericResult<(PortfolioStatistics, CurrencyConverterRc, TelemetryRecordBuilder)> {
     let mut telemetry = TelemetryRecordBuilder::new();

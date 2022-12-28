@@ -1,9 +1,38 @@
 use std::collections::{HashMap, HashSet};
 
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
+use validator::{Validate, ValidationError};
 
 use crate::core::EmptyResult;
+
+#[derive(Deserialize, Validate)]
+#[serde(deny_unknown_fields)]
+pub struct AssetGroupConfig {
+    #[validate(length(min = 1))]
+    pub instruments: Vec<String>,
+
+    #[validate(length(min = 1))]
+    #[validate(custom = "validate_currencies")]
+    pub currencies: Vec<String>,
+
+    #[serde(default)]
+    #[validate(length(min = 1))]
+    pub portfolios: Option<HashSet<String>>,
+}
+
+impl AssetGroupConfig {
+    pub fn validate(&self, portfolios: &HashSet<String>) -> EmptyResult {
+        if let Some(names) = self.portfolios.as_ref() {
+            if let Some(name) = names.difference(portfolios).next() {
+                return Err!("Invalid portfolio name: {:?}", name)
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone, Default)]
 pub struct PerformanceMergingConfig {
@@ -72,6 +101,28 @@ impl<'de> Deserialize<'de> for PerformanceMergingConfig {
 
         Ok(config)
     }
+}
+
+fn validate_currencies<C, I>(currencies: C) -> Result<(), ValidationError>
+    where
+        C: IntoIterator<Item = I>,
+        I: AsRef<str>,
+{
+    for currency in currencies.into_iter() {
+        validate_currency(currency.as_ref())?;
+    }
+    Ok(())
+}
+
+lazy_static! {
+    static ref CURRENCY_REGEX: Regex = Regex::new(r"^[A-Z]{3}$").unwrap();
+}
+
+fn validate_currency(currency: &str) -> Result<(), ValidationError> {
+    if !CURRENCY_REGEX.is_match(currency) {
+        return Err(ValidationError::new("Invalid currency"));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

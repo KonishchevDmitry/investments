@@ -76,7 +76,7 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
     let record: TelemetryRecordBuilder = match action {
         Action::Analyse {name, show_closed_positions} => {
             let (statistics, _, telemetry) = analysis::analyse(
-                &config, name.as_deref(), show_closed_positions, None, true)?;
+                &config, name.as_deref(), show_closed_positions, &Default::default(), None, true)?;
             statistics.print();
             telemetry
         },

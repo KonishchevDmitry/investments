@@ -7,6 +7,7 @@ use chrono::Duration;
 use serde::Deserialize;
 use serde::de::{Deserializer, IgnoredAny, Error};
 use serde_yaml::Value;
+use validator::Validate;
 
 use crate::analysis::config::PerformanceMergingConfig;
 use crate::broker_statement::CorporateAction;
@@ -15,6 +16,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::instruments::InstrumentInternalIds;
 use crate::localities::{self, Country, Jurisdiction};
+use crate::metrics::config::MetricsConfig;
 use crate::quotes::alphavantage::AlphaVantageConfig;
 use crate::quotes::fcsapi::FcsApiConfig;
 use crate::quotes::finnhub::FinnhubConfig;
@@ -26,7 +28,7 @@ use crate::time::{self, deserialize_date};
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(skip)]
@@ -43,6 +45,7 @@ pub struct Config {
     pub brokers: Option<BrokersConfig>,
     #[serde(default)]
     pub tax_rates: TaxRates,
+    #[validate]
     #[serde(default)]
     pub metrics: MetricsConfig,
 
@@ -85,26 +88,27 @@ impl Config {
 
     pub fn load(path: &str) -> GenericResult<Config> {
         let mut config: Config = Config::read(path)?;
+        config.validate()?;
+
+        let mut portfolio_names = HashSet::new();
+
+        for portfolio in &mut config.portfolios {
+            if !portfolio_names.insert(portfolio.name.clone()) {
+                return Err!("Duplicate portfolio name: {:?}", portfolio.name);
+            }
+
+            portfolio.statements = portfolio.statements.as_ref().map(|path|
+                shellexpand::tilde(path).to_string());
+
+            portfolio.validate().map_err(|e| format!(
+                "{:?} portfolio: {}", portfolio.name, e))?;
+        }
 
         for deposit in &config.deposits {
             deposit.validate()?;
         }
 
-        {
-            let mut portfolio_names = HashSet::new();
-
-            for portfolio in &mut config.portfolios {
-                if !portfolio_names.insert(&portfolio.name) {
-                    return Err!("Duplicate portfolio name: {:?}", portfolio.name);
-                }
-
-                portfolio.statements = portfolio.statements.as_ref().map(|path|
-                    shellexpand::tilde(path).to_string());
-
-                portfolio.validate().map_err(|e| format!(
-                    "{:?} portfolio: {}", portfolio.name, e))?;
-            }
-        }
+        config.metrics.validate(&portfolio_names)?;
 
         for &tax_rates in &[
             &config.tax_rates.trading,
@@ -406,13 +410,6 @@ pub struct TaxRates {
     pub dividends: BTreeMap<i32, Decimal>,
     #[serde(default)]
     pub interest: BTreeMap<i32, Decimal>,
-}
-
-#[derive(Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-pub struct MetricsConfig {
-    #[serde(default)]
-    pub merge_performance: PerformanceMergingConfig,
 }
 
 #[derive(Deserialize, Clone)]
