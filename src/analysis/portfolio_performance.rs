@@ -18,7 +18,7 @@ use super::config::PerformanceMergingConfig;
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
 use super::instrument_view::InstrumentDepositView;
-use super::portfolio_analysis::{
+use super::portfolio_performance_types::{
     PortfolioPerformanceAnalysis, InstrumentPerformanceAnalysis, IncomeStructure};
 
 /// Calculates average rate of return from cash investments by comparing portfolio performance to

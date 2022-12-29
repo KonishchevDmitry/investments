@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -12,11 +12,11 @@ use crate::core::EmptyResult;
 #[serde(deny_unknown_fields)]
 pub struct AssetGroupConfig {
     #[validate(length(min = 1))]
-    pub instruments: Vec<String>,
+    pub instruments: HashSet<String>,
 
     #[validate(length(min = 1))]
     #[validate(custom = "validate_currencies")]
-    pub currencies: Vec<String>,
+    pub currencies: BTreeSet<String>,
 
     #[serde(default)]
     #[validate(length(min = 1))]

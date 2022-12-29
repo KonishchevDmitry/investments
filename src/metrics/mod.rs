@@ -1,5 +1,6 @@
 pub mod config;
 
+use std::collections::BTreeMap;
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
 use std::path::Path;
@@ -8,9 +9,11 @@ use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, register_gauge_vec};
 
-use crate::analysis::{self, PortfolioCurrencyStatistics, LtoStatistics};
+use crate::analysis;
+use crate::analysis::portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
+use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::time;
@@ -26,6 +29,9 @@ lazy_static! {
 
     static ref ASSETS: GaugeVec = register_instrument_metric(
         "assets", "Open positions value");
+
+    static ref ASSET_GROUPS: GaugeVec = register_metric(
+        "asset_groups", "Net asset value of custom groups", &["name", "currency"]);
 
     static ref PERFORMANCE: GaugeVec = register_instrument_metric(
         "performance", "Instrument performance");
@@ -72,6 +78,7 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         collect_portfolio_metrics(statistics);
     }
 
+    collect_asset_groups(&statistics.asset_groups);
     collect_lto_metrics(statistics.lto.as_ref().unwrap());
     collect_forex_quotes(&converter, "USD", "RUB")?;
 
@@ -117,6 +124,14 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     set_portfolio_metric(&PROJECTED_TAXES, currency, statistics.projected_taxes);
     set_portfolio_metric(&PROJECTED_TAX_DEDUCTIONS, currency, statistics.projected_tax_deductions);
     set_portfolio_metric(&PROJECTED_COMMISSIONS, currency, statistics.projected_commissions);
+}
+
+fn collect_asset_groups(groups: &BTreeMap<String, Vec<Cash>>) {
+    for (name, values) in groups {
+        for value in values {
+            set_metric(&ASSET_GROUPS, &[name, value.currency], value.amount)
+        }
+    }
 }
 
 fn collect_lto_metrics(lto: &LtoStatistics) {

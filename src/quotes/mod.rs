@@ -10,6 +10,7 @@ pub mod twelvedata;
 
 use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap};
+use std::rc::Rc;
 use std::sync::Arc;
 #[cfg(test)] use std::sync::Mutex;
 
@@ -56,6 +57,8 @@ pub struct Quotes {
     providers: Vec<Arc<dyn QuotesProvider>>,
     batched_requests: RefCell<HashMap<String, QuoteRequest>>,
 }
+
+pub type QuotesRc = Rc<Quotes>;
 
 impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
