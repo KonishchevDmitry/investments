@@ -1,5 +1,9 @@
 #[cfg(test)] use std::str::FromStr;
 
+use lazy_static::lazy_static;
+use regex::Regex;
+use validator::ValidationError;
+
 use crate::time::Date;
 use crate::types::Decimal;
 use crate::util;
@@ -12,7 +16,7 @@ mod rate_cache;
 
 pub mod converter;
 
-pub use self::cash::Cash;
+pub use self::cash::{Cash, CashAssets};
 pub use self::multi::MultiCurrencyCashAccount;
 
 #[derive(Debug, Clone, Copy)]
@@ -22,28 +26,68 @@ pub struct CurrencyRate {
     price: Decimal,
 }
 
-#[derive(Clone, Copy)]
-pub struct CashAssets {
-    pub date: Date,
-    pub cash: Cash,
-}
-
-impl CashAssets {
-    pub fn new(date: Date, currency: &str, amount: Decimal) -> CashAssets {
-        CashAssets::new_from_cash(date, Cash::new(currency, amount))
-    }
-
-    pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
-        CashAssets {date, cash}
-    }
-}
-
 pub fn round(amount: Decimal) -> Decimal {
     util::round(amount, 2)
 }
 
 pub fn round_to(amount: Decimal, points: u32) -> Decimal {
     util::round(amount, points)
+}
+
+pub fn validate_currency(currency: &str) -> Result<(), ValidationError> {
+    lazy_static! {
+        static ref CURRENCY_REGEX: Regex = Regex::new(r"^[A-Z]{3}$").unwrap();
+    }
+    if !CURRENCY_REGEX.is_match(currency) {
+        return Err(ValidationError::new("Invalid currency"));
+    }
+    Ok(())
+}
+
+pub fn validate_currency_list<C, I>(currencies: C) -> Result<(), ValidationError>
+    where
+        C: IntoIterator<Item = I>,
+        I: AsRef<str>,
+{
+    for currency in currencies.into_iter() {
+        validate_currency(currency.as_ref())?;
+    }
+    Ok(())
+}
+
+fn format_currency(currency: &str, mut amount: &str) -> String {
+    let prefix = match currency {
+        "AUD" => Some("AU$"),
+        "EUR" => Some("€"),
+        "GBP" => Some("£"),
+        "USD" => Some("$"),
+        _ => None,
+    };
+
+    let mut buffer = String::with_capacity(amount.len() + prefix.map(str::len).unwrap_or(1));
+
+    if let Some(prefix) = prefix {
+        if amount.starts_with('-') || amount.starts_with('+') {
+            buffer.push_str(&amount[..1]);
+            amount = &amount[1..];
+        }
+        buffer.push_str(prefix);
+    }
+
+    buffer.push_str(amount);
+
+    if prefix.is_none() {
+        match currency {
+            "HKD" => buffer.push_str(" HK$"),
+            "RUB" => buffer.push('₽'),
+            _ => {
+                buffer.push(' ');
+                buffer.push_str(currency);
+            },
+        };
+    }
+
+    buffer
 }
 
 #[cfg(test)]
@@ -75,5 +119,19 @@ mod tests {
 
         assert_eq!(&from.to_string(), input);
         assert_eq!(&rounded.to_string(), expected);
+    }
+
+    #[rstest(currency, amount, expected,
+        case("USD", dec!(12.345), "$12.345"),
+        case("USD", dec!(-12.345), "-$12.345"),
+
+        case("RUB", dec!(12.345), "12.345₽"),
+        case("RUB", dec!(-12.345), "-12.345₽"),
+
+        case("UNKNOWN", dec!(12.345), "12.345 UNKNOWN"),
+        case("UNKNOWN", dec!(-12.345), "-12.345 UNKNOWN"),
+    )]
+    fn formatting(currency: &str, amount: Decimal, expected: &str) {
+        assert_eq!(Cash::new(currency, amount).to_string(), expected);
     }
 }

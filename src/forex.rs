@@ -4,6 +4,24 @@ use regex::Regex;
 use crate::core::GenericResult;
 use crate::types::Decimal;
 
+pub fn get_currency_pair(base: &str, quote: &str) -> String {
+    format!("{}/{}", base, quote)
+}
+
+pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
+    lazy_static! {
+        static ref REGEX: Regex = Regex::new(r"^(?P<base>[A-Z]{3})/(?P<quote>[A-Z]{3})$").unwrap();
+    }
+
+    let captures = REGEX.captures(pair).ok_or_else(|| format!(
+        "Invalid currency pair: {:?}", pair))?;
+
+    Ok((
+        captures.name("base").unwrap().as_str(),
+        captures.name("quote").unwrap().as_str(),
+    ))
+}
+
 pub fn parse_forex_code(code: &str) -> GenericResult<(&str, &str, Option<Decimal>)> {
     lazy_static! {
         static ref CODE_REGEX: Regex = Regex::new(

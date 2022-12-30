@@ -2,10 +2,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
-use lazy_static::lazy_static;
 use log::trace;
 use rayon::prelude::*;
-use regex::Regex;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
 
@@ -13,20 +11,6 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::quotes::QuotesMap;
 use crate::time::{SystemTime, TimeProvider};
-
-pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
-    lazy_static! {
-        static ref REGEX: Regex = Regex::new(r"^(?P<base>[A-Z]{3})/(?P<quote>[A-Z]{3})$").unwrap();
-    }
-
-    let captures = REGEX.captures(pair).ok_or_else(|| format!(
-        "Invalid currency pair: {:?}", pair))?;
-
-    Ok((
-        captures.name("base").unwrap().as_str(),
-        captures.name("quote").unwrap().as_str(),
-    ))
-}
 
 pub fn parallelize_quotes<F>(symbols: &[&str], get_quote: F) -> GenericResult<QuotesMap>
     where F: Fn(&str) -> GenericResult<Option<Cash>> + Sync + Send

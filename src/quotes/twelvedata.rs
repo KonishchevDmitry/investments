@@ -9,13 +9,13 @@ use serde::Deserialize;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::forex;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
 use super::{QuotesMap, QuotesProvider};
-use super::common::{send_request, parallelize_quotes, parse_response, is_outdated_time,
-                    parse_currency_pair};
+use super::common::{send_request, parallelize_quotes, parse_response, is_outdated_time};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -114,7 +114,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
     let quote: QuoteResponse = parse_response(&response)?;
 
-    let currency = if let Ok((_base_currency, quote_currency)) = parse_currency_pair(symbol) {
+    let currency = if let Ok((_base_currency, quote_currency)) = forex::parse_currency_pair(symbol) {
         if let Some(currency) = quote.meta.currency {
             if currency != quote_currency {
                 return Err!(

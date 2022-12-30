@@ -23,9 +23,9 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::{Exchange, Exchanges};
+use crate::forex;
 
 use self::cache::Cache;
-use self::common::parse_currency_pair;
 use self::fcsapi::FcsApi;
 use self::finex::Finex;
 use self::finnhub::Finnhub;
@@ -119,7 +119,7 @@ impl Quotes {
     }
 
     fn batch_forex(&self, mut symbol: String) -> GenericResult<Option<Cash>> {
-        let (base, quote) = parse_currency_pair(&symbol)?;
+        let (base, quote) = forex::parse_currency_pair(&symbol)?;
 
         if let Some(price) = self.cache.get(&symbol)? {
             return Ok(Some(price));
@@ -132,7 +132,7 @@ impl Quotes {
         //
         // To workaround the issue we make quotes consistent here.
         if base < quote {
-            symbol = get_currency_pair(quote, base)
+            symbol = forex::get_currency_pair(quote, base)
         }
 
         match self.batched_requests.borrow_mut().entry(symbol) {
@@ -149,7 +149,7 @@ impl Quotes {
     }
 
     fn batch_stock(&self, symbol: String, exchanges: Vec<Exchange>) -> GenericResult<Option<Cash>> {
-        if parse_currency_pair(&symbol).is_ok() {
+        if forex::parse_currency_pair(&symbol).is_ok() {
             return Err!("Got {:?} stock which looks like a currency pair", symbol);
         }
         assert!(!exchanges.is_empty());
@@ -262,7 +262,7 @@ impl Quotes {
                 let (provider, quotes) = result?;
 
                 for (symbol, mut price) in quotes {
-                    match parse_currency_pair(&symbol) {
+                    match forex::parse_currency_pair(&symbol) {
                         // Forex
                         Ok((base, quote)) => {
                             // Forex providers are allowed to return quotes for currency pairs only
@@ -270,7 +270,7 @@ impl Quotes {
                             // pair instead of requested one.
                             //
                             // Plus see notes above about reverse pairs consistency with direct ones.
-                            let reverse_pair = get_currency_pair(quote, base);
+                            let reverse_pair = forex::get_currency_pair(quote, base);
                             let reverse_price = Cash::new(base, dec!(1) / price.amount);
                             self.cache.save(&reverse_pair, reverse_price)?;
                             plan.remove(&reverse_pair);
@@ -318,10 +318,6 @@ trait QuotesProvider: Send + Sync {
     fn supports_forex(&self) -> bool {false}
     fn high_precision(&self) -> bool {false}
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
-}
-
-pub fn get_currency_pair(base: &str, quote: &str) -> String {
-    format!("{}/{}", base, quote)
 }
 
 #[cfg(test)]

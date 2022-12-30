@@ -6,6 +6,7 @@ use num_traits::{ToPrimitive, Zero};
 use separator::Separatable;
 
 use crate::core::{GenericResult, EmptyResult};
+use crate::time::Date;
 use crate::types::Decimal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -86,7 +87,7 @@ impl Cash {
 
     pub fn format_rounded(&self) -> String {
         let amount = super::round_to(self.amount, 0).to_i64().unwrap().separated_string();
-        format_currency(self.currency, &amount)
+        super::format_currency(self.currency, &amount)
     }
 
     fn ensure_same_currency(self, other: Cash) -> EmptyResult {
@@ -170,63 +171,30 @@ impl fmt::Display for Cash {
             amount = Decimal::new(amount.to_i64().unwrap() * 10, 2)
         }
 
-        write!(f, "{}", format_currency(self.currency, &separated_float!(amount.to_string())))
+        write!(f, "{}", super::format_currency(self.currency, &separated_float!(amount.to_string())))
     }
 }
 
-fn format_currency(currency: &str, mut amount: &str) -> String {
-    let prefix = match currency {
-        "AUD" => Some("AU$"),
-        "EUR" => Some("€"),
-        "GBP" => Some("£"),
-        "USD" => Some("$"),
-        _ => None,
-    };
+#[derive(Clone, Copy)]
+pub struct CashAssets {
+    pub date: Date,
+    pub cash: Cash,
+}
 
-    let mut buffer = String::with_capacity(amount.len() + prefix.map(str::len).unwrap_or(1));
-
-    if let Some(prefix) = prefix {
-        if amount.starts_with('-') || amount.starts_with('+') {
-            buffer.push_str(&amount[..1]);
-            amount = &amount[1..];
-        }
-        buffer.push_str(prefix);
+impl CashAssets {
+    pub fn new(date: Date, currency: &str, amount: Decimal) -> CashAssets {
+        CashAssets::new_from_cash(date, Cash::new(currency, amount))
     }
 
-    buffer.push_str(amount);
-
-    if prefix.is_none() {
-        match currency {
-            "HKD" => buffer.push_str(" HK$"),
-            "RUB" => buffer.push('₽'),
-            _ => {
-                buffer.push(' ');
-                buffer.push_str(currency);
-            },
-        };
+    pub fn new_from_cash(date: Date, cash: Cash) -> CashAssets {
+        CashAssets {date, cash}
     }
-
-    buffer
 }
 
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
     use super::*;
-
-    #[rstest(currency, amount, expected,
-        case("USD", dec!(12.345), "$12.345"),
-        case("USD", dec!(-12.345), "-$12.345"),
-
-        case("RUB", dec!(12.345), "12.345₽"),
-        case("RUB", dec!(-12.345), "-12.345₽"),
-
-        case("UNKNOWN", dec!(12.345), "12.345 UNKNOWN"),
-        case("UNKNOWN", dec!(-12.345), "-12.345 UNKNOWN"),
-    )]
-    fn currency_formatting(currency: &str, amount: Decimal, expected: &str) {
-        assert_eq!(Cash::new(currency, amount).to_string(), expected);
-    }
 
     #[rstest(input, expected,
         case("12",     "12"),
@@ -236,7 +204,7 @@ mod tests {
         case("12.345", "12.345"),
         case("12.001", "12.001"),
     )]
-    fn cash_formatting(input: &str, expected: &str) {
+    fn formatting(input: &str, expected: &str) {
         let currency = "CURRENCY";
 
         for sign in &["", "-"] {

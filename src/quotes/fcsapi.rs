@@ -10,12 +10,13 @@ use serde::Deserialize;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::forex;
 use crate::rate_limiter::RateLimiter;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesMap, QuotesProvider};
-use super::common::{send_request, parse_response, is_outdated_unix_time, parse_currency_pair};
+use super::common::{send_request, parse_response, is_outdated_unix_time};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -104,7 +105,7 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
             continue
         }
 
-        let (_base_currency, quote_currency) = parse_currency_pair(&symbol)?;
+        let (_base_currency, quote_currency) = forex::parse_currency_pair(&symbol)?;
         let price = util::validate_named_cash(
             "price", quote_currency, quote.price,
             DecimalRestrictions::StrictlyPositive)?;

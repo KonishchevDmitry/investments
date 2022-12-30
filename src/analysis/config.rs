@@ -1,10 +1,8 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
-use validator::{Validate, ValidationError};
+use validator::Validate;
 
 use crate::core::EmptyResult;
 
@@ -15,7 +13,7 @@ pub struct AssetGroupConfig {
     pub instruments: HashSet<String>,
 
     #[validate(length(min = 1))]
-    #[validate(custom = "validate_currencies")]
+    #[validate(custom = "crate::currency::validate_currency_list")]
     pub currencies: BTreeSet<String>,
 
     #[serde(default)]
@@ -101,28 +99,6 @@ impl<'de> Deserialize<'de> for PerformanceMergingConfig {
 
         Ok(config)
     }
-}
-
-fn validate_currencies<C, I>(currencies: C) -> Result<(), ValidationError>
-    where
-        C: IntoIterator<Item = I>,
-        I: AsRef<str>,
-{
-    for currency in currencies.into_iter() {
-        validate_currency(currency.as_ref())?;
-    }
-    Ok(())
-}
-
-lazy_static! {
-    static ref CURRENCY_REGEX: Regex = Regex::new(r"^[A-Z]{3}$").unwrap();
-}
-
-fn validate_currency(currency: &str) -> Result<(), ValidationError> {
-    if !CURRENCY_REGEX.is_match(currency) {
-        return Err(ValidationError::new("Invalid currency"));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

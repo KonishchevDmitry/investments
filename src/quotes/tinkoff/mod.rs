@@ -23,11 +23,12 @@ use api::{
 
 use crate::core::GenericResult;
 use crate::exchanges::Exchange;
+use crate::forex;
 use crate::util::{self, DecimalRestrictions};
 use crate::time::SystemTime;
 use crate::types::Decimal;
 
-use super::{QuotesMap, QuotesProvider, get_currency_pair, parse_currency_pair};
+use super::{QuotesMap, QuotesProvider};
 use super::common::is_outdated_quote;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -86,7 +87,7 @@ impl Tinkoff {
         let mut instruments = HashMap::new();
 
         for &symbol in symbols {
-            if let Ok((base, quote)) = parse_currency_pair(symbol) {
+            if let Ok((base, quote)) = forex::parse_currency_pair(symbol) {
                 if let Some(currency) = self.get_currency(base, quote).await? {
                     match instruments.insert(currency.uid.clone(), Instrument::Currency(currency)) {
                         Some(Instrument::Stock(stock)) => {
@@ -122,7 +123,7 @@ impl Tinkoff {
             "Getting quotes for the following symbols from Tinkoff: {}...",
             instruments.values().map(|instrument| match instrument {
                 Instrument::Stock(stock) => stock.symbol.clone(),
-                Instrument::Currency(currency) => get_currency_pair(&currency.base, &currency.quote)
+                Instrument::Currency(currency) => forex::get_currency_pair(&currency.base, &currency.quote),
             }).sorted().join(", ")
         );
 
@@ -138,7 +139,7 @@ impl Tinkoff {
             let (symbol, currency, denomination) = match instrument {
                 Instrument::Stock(stock) => (stock.symbol, stock.currency, dec!(1)),
                 Instrument::Currency(currency) => {
-                    let symbol = get_currency_pair(&currency.base, &currency.quote);
+                    let symbol = forex::get_currency_pair(&currency.base, &currency.quote);
                     (symbol, currency.quote, currency.denomination)
                 },
             };
