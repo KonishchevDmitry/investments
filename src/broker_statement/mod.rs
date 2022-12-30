@@ -258,10 +258,9 @@ impl BrokerStatement {
     }
 
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
-        for symbol in self.open_positions.keys() {
-            quotes.batch(self.get_quote_query(symbol))?;
-        }
-        Ok(())
+        quotes.batch_all(self.open_positions.keys().map(|symbol| {
+            self.get_quote_query(symbol)
+        }))
     }
 
     pub fn get_quote_query(&self, symbol: &str) -> QuoteQuery {

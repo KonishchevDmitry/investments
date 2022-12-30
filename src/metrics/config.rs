@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde::Deserialize;
 use validator::Validate;
@@ -9,6 +9,10 @@ use crate::core::EmptyResult;
 #[derive(Deserialize, Default, Validate)]
 #[serde(deny_unknown_fields)]
 pub struct MetricsConfig {
+    #[serde(default)]
+    #[validate(custom = "crate::forex::validate_currency_pair_list")]
+    pub currency_rates: BTreeSet<String>,
+
     #[validate]
     #[serde(default)]
     pub asset_groups: HashMap<String, AssetGroupConfig>,

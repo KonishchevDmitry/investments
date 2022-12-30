@@ -106,6 +106,15 @@ impl Quotes {
             QuoteQuery::Stock(symbol, exchanges) => self.batch_stock(symbol, exchanges),
         }
     }
+    
+    pub fn batch_all<T>(&self, queries: T) -> EmptyResult
+        where T: IntoIterator<Item=QuoteQuery>
+    {
+        for query in queries.into_iter() {
+            self.batch(query)?;
+        }
+        Ok(())
+    }
 
     pub fn get(&self, query: QuoteQuery) -> GenericResult<Cash> {
         if let Some(price) = self.batch(query.clone())? {

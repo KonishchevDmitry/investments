@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
+use validator::ValidationError;
 
 use crate::core::GenericResult;
 use crate::types::Decimal;
@@ -43,6 +44,22 @@ pub fn parse_forex_code(code: &str) -> GenericResult<(&str, &str, Option<Decimal
     };
 
     Ok((base, quote, lot_size))
+}
+
+pub fn validate_currency_pair(pair: &str) -> Result<(), ValidationError> {
+    parse_currency_pair(pair).map(|_| ()).map_err(|_|
+        ValidationError::new("Invalid currency pair"))
+}
+
+pub fn validate_currency_pair_list<P, I>(pairs: P) -> Result<(), ValidationError>
+    where
+        P: IntoIterator<Item = I>,
+        I: AsRef<str>,
+{
+    for pair in pairs.into_iter() {
+        validate_currency_pair(pair.as_ref())?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

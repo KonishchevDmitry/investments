@@ -32,7 +32,7 @@ pub fn analyse(
     asset_groups: &HashMap<String, AssetGroupConfig>,
     merge_performance: Option<&PerformanceMergingConfig>,
     interactive: bool,
-) -> GenericResult<(PortfolioStatistics, CurrencyConverterRc, TelemetryRecordBuilder)> {
+) -> GenericResult<(PortfolioStatistics, QuotesRc, TelemetryRecordBuilder)> {
     let mut telemetry = TelemetryRecordBuilder::new();
 
     let country = config.get_tax_country();
@@ -49,13 +49,13 @@ pub fn analyse(
         country, interactive, include_closed_positions,
 
         asset_groups, merge_performance,
-        quotes, converter: converter.clone(),
+        quotes: quotes.clone(), converter,
 
         lto_calc: LtoDeductionCalculator::new(),
     };
     analyser.process(portfolios, &mut statistics)?;
 
-    Ok((statistics, converter, telemetry))
+    Ok((statistics, quotes, telemetry))
 }
 
 pub fn simulate_sell(

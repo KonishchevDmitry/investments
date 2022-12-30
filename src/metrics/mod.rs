@@ -1,6 +1,6 @@
 pub mod config;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
 use std::path::Path;
@@ -9,12 +9,12 @@ use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, register_gauge_vec};
 
-use crate::analysis;
-use crate::analysis::portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics};
+use crate::analysis::{self, portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics}};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::currency::Cash;
-use crate::currency::converter::CurrencyConverter;
+use crate::forex;
+use crate::quotes::{QuoteQuery, QuotesRc};
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::time;
 use crate::types::Decimal;
@@ -68,7 +68,7 @@ lazy_static! {
 }
 
 pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBuilder> {
-    let (statistics, converter, telemetry) = analysis::analyse(
+    let (statistics, quotes, telemetry) = analysis::analyse(
         config, None, false, &config.metrics.asset_groups,
         Some(&config.metrics.merge_performance), false)?;
 
@@ -78,9 +78,9 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         collect_portfolio_metrics(statistics);
     }
 
+    collect_forex_quotes(quotes, &config.metrics.currency_rates)?;
     collect_asset_groups(&statistics.asset_groups);
     collect_lto_metrics(statistics.lto.as_ref().unwrap());
-    collect_forex_quotes(&converter, "USD", "RUB")?;
 
     save(path)?;
 
@@ -148,8 +148,18 @@ fn collect_lto_metrics(lto: &LtoStatistics) {
     set_metric(&PROJECTED_LTO, &["loss"], lto.projected.loss);
 }
 
-fn collect_forex_quotes(converter: &CurrencyConverter, base: &str, quote: &str) -> EmptyResult {
-    Ok(set_metric(&FOREX_PAIRS, &[base, quote], converter.real_time_currency_rate(base, quote)?))
+fn collect_forex_quotes(quotes: QuotesRc, pairs: &BTreeSet<String>) -> EmptyResult {
+    quotes.batch_all(pairs.iter().map(|pair| {
+        QuoteQuery::Forex(pair.to_owned())
+    }))?;
+
+    for pair in pairs {
+        let (base, quote) = forex::parse_currency_pair(pair)?;
+        let rate = quotes.get(QuoteQuery::Forex(pair.to_owned()))?;
+        set_metric(&FOREX_PAIRS, &[base, quote], rate.amount);
+    }
+
+    Ok(())
 }
 
 fn save(path: &Path) -> EmptyResult {
