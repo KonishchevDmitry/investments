@@ -24,7 +24,7 @@ use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
 
-const SUPPORTED_YEAR: i32 = 2021;
+const SUPPORTED_YEAR: i32 = 2022;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,
@@ -294,7 +294,7 @@ mod tests {
 
         {
             let currency = "USD"; // 840 - Доллар США
-            let currency_rate = dec!(73.8757);
+            let currency_rate = dec!(74.2926);
 
             let local_amount = amount * currency_rate;
             let local_paid_tax = util::round(paid_tax * currency_rate, 2);
@@ -306,6 +306,8 @@ mod tests {
                 "Дивиденд", date, CountryCode::Usa, CountryCode::Russia,
                 currency, currency_rate, amount, paid_tax, local_amount, local_paid_tax).unwrap();
 
+            // 840 - Код страны источника выплаты
+            // 840 - Код страны зачисления выплаты
             // 1530 - (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)
             statement.add_stock_income(
                 "Акции", date, CountryCode::Usa, currency, currency_rate, amount, local_amount,
@@ -318,20 +320,20 @@ mod tests {
         }
 
         for currency in [CurrencyTestCase {
+            name: "AUD", // 036 - Австралийский доллар
+            rate: dec!(53.9141),
+        }, CurrencyTestCase {
             name: "EUR", // 978 - Евро
-            rate: dec!(90.7932),
+            rate: dec!(84.0695),
+        }, CurrencyTestCase {
+            name: "GBP", // 826 - Фунт стерлингов
+            rate: dec!(100.0573),
+        }, CurrencyTestCase {
+            name: "HKD", // 344 - Гонконгский доллар
+            rate: dec!(9.52640),
         }, CurrencyTestCase {
             name: "RUB", // 643 - Российский рубль
             rate: dec!(1),
-        }, CurrencyTestCase {
-            name: "GBP", // 826 - Фунт стерлингов
-            rate: dec!(100.8477),
-        }, CurrencyTestCase {
-            name: "HKD", // 344 - Гонконгский доллар
-            rate: dec!(9.53013),
-        }, CurrencyTestCase {
-            name: "AUD", // 036 - Австралийский доллар
-            rate: dec!(56.9065),
         }] {
             let local_amount = crate::currency::round(amount * currency.rate);
 
@@ -339,8 +341,8 @@ mod tests {
             //        Федерации, в отношении которых применяется налоговая ставка, предусмотренная
             //        пунктом 1 статьи 224 Кодекса
             statement.add_interest_income(
-                &format!("Проценты {}", currency.name), date, CountryCode::Usa,
-                currency.name, currency.rate, amount, local_amount).unwrap();
+                "Проценты", date, CountryCode::Usa, currency.name, currency.rate,
+                amount, local_amount).unwrap();
         }
 
         for (expected, generated) in itertools::zip_eq(&incomes, statement.get_foreign_incomes().unwrap()) {
@@ -349,6 +351,7 @@ mod tests {
         compare_to(&statement, &data);
     }
 
+    // FIXME(konishchev): Add real statement
     #[test]
     fn parse_real() {
         test_parsing(&get_path("statement"));
