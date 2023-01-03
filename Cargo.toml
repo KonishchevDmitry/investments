@@ -31,15 +31,15 @@ calamine = "0.19.1"
 chrono = "0.4.23"
 chrono-tz = "0.8.1"
 cast = "0.3.0"
-clap = "4.0.30"
-clap_complete = "4.0.6"
+clap = "4.0.32"
+clap_complete = "4.0.7"
 csv = "1.1.6"
-cusip = "0.2.1"
+cusip = "0.2.2"
 easy-logging = "0.1.2"
 encoding_rs = "0.8.31"
 governor = "0.5.1"
 indoc = "1.0.8"
-isin = "0.1.11"
+isin = "0.1.12"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
@@ -48,16 +48,16 @@ matches = "0.1.9"
 num-integer = "0.1.45"
 num-traits = "0.2.15"
 platforms = "3.0.2"
-prettytable-rs = "0.9.0"
+prettytable-rs = "0.10.0"
 prometheus = "0.13.3"
 prost = "0.11"
 prost-types = "0.11"
-quick-xml = { version = "0.26.0", features = [ "serialize" ] }
+quick-xml = { version = "0.27.1", features = [ "serialize" ] }
 rayon = "1.6.1"
 regex = "1.7.0"
 reqwest = { version = "0.11.13", features = ["blocking", "json"] }
 separator = "0.4.1"
-serde = { version = "1.0.151", features = ["derive"] }
+serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 serde_yaml = "0.8.26"
 serde-xml-rs = "0.6.0"
@@ -79,8 +79,8 @@ diesel_migrations = "2.0.0"
 diesel-derive-enum = { version = "2.0.0-rc.0", features = ["sqlite"] }
 libsqlite3-sys = { version = "0.25.2", features = ["bundled"] }
 
-static_table_derive = "0.1.50"
-xls_table_derive = "0.5.17"
+static_table_derive = "0.1.51"
+xls_table_derive = "0.5.18"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }

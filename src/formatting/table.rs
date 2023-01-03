@@ -85,21 +85,22 @@ impl Table {
 }
 
 fn print_table(title: &str, table: &RawTable) {
-    let contents = table.to_string();
+    let mut wrapping_table = RawTable::new();
 
-    let mut table = RawTable::new();
-
-    table.set_format(FormatBuilder::new()
+    wrapping_table.set_format(FormatBuilder::new()
         .separator(LinePosition::Title, LineSeparator::new(' ', ' ', ' ', ' '))
         .build());
 
-    table.set_titles(RawRow::new(vec![
+    wrapping_table.set_titles(RawRow::new(vec![
         RawCell::new_align(&(s!("\n") + title), Alignment::CENTER)
             .with_style(Attr::Bold),
     ]));
 
-    table.add_row(RawRow::new(vec![RawCell::new(&contents)]));
-    table.printstd();
+    if !table.is_empty() {
+        wrapping_table.add_row(RawRow::new(vec![RawCell::new(&table.to_string())]));
+    }
+
+    wrapping_table.printstd();
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
