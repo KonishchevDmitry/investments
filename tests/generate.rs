@@ -89,9 +89,9 @@ fn generate_regression_tests() {
     t.add("Metrics", "metrics $OUT_PATH/metrics.prom");
     t.add("Completion", "completion $OUT_PATH/completion.bash");
 
-    let accounts = &[
-        ("IB",        Some(2018)),
-        ("Firstrade", Some(2020)),
+    let accounts = [
+        ("IB",        Some((2018, None))),
+        ("Firstrade", Some((2020, Some(2022)))),
 
         ("IIA",     None),
         ("BCS",     None),
@@ -101,15 +101,17 @@ fn generate_regression_tests() {
         ("Kate",     None),
         ("Kate IIA", None),
     ];
-    let last_tax_year = 2022;
+    let last_tax_year = 2023;
 
-    for &(name, start_tax_year) in accounts {
+    for (name, year_spec) in accounts {
         let id = &name_to_id(name);
 
         t.with_args(&format!("Rebalance {}", name), &["rebalance", id]);
         t.with_args(&format!("Simulate sell {}", name), &["simulate-sell", id]);
 
-        if let Some(first_tax_year) = start_tax_year {
+        if let Some((first_tax_year, last_tax_year_spec)) = year_spec {
+            let last_tax_year = last_tax_year_spec.unwrap_or(last_tax_year);
+
             for tax_year in first_tax_year..=last_tax_year {
                 let tax_year_string = &tax_year.to_string();
 
