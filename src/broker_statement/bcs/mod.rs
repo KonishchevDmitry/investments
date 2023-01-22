@@ -109,7 +109,7 @@ mod tests {
 
         assert!(!statement.fees.is_empty());
         assert!(statement.idle_cash_interest.is_empty());
-        assert_eq!(statement.tax_agent_withholdings.is_empty(), name != "kate");
+        assert_eq!(statement.tax_agent_withholdings.is_empty(), name == "kate-iia");
 
         assert!(statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
