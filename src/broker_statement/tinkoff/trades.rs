@@ -11,7 +11,6 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
-use crate::exchanges::Exchange;
 use crate::forex::parse_forex_code;
 use crate::formatting::format_date;
 use crate::time::{Date, Time, DateTime};
@@ -21,7 +20,8 @@ use crate::util::DecimalRestrictions;
 use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{
-    read_next_table_row, parse_date_cell, parse_decimal_cell, parse_quantity_cell, parse_time_cell};
+    read_next_table_row, parse_date_cell, parse_decimal_cell, parse_quantity_cell, parse_time_cell,
+    save_instrument_exchange_info};
 
 pub type TradesRegistryRc = Rc<RefCell<HashMap<u64, bool>>>;
 
@@ -219,12 +219,8 @@ impl TradeRow {
         let forex = parse_forex_code(&self.symbol);
 
         if forex.is_err() {
-            let exchange = match self.exchange.as_str() {
-                "ММВБ" | "МосБиржа" => Exchange::Moex,
-                "СПБ" | "СПБиржа" => Exchange::Spb,
-                _ => return Err!("Unknown exchange: {:?}", self.exchange),
-            };
-            statement.instrument_info.get_or_add(&self.symbol).exchanges.add_prioritized(exchange);
+            save_instrument_exchange_info(
+                &mut statement.instrument_info, &self.symbol, &self.exchange)?;
         }
 
         match self.operation.as_str() {

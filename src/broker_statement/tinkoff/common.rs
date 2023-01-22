@@ -1,4 +1,6 @@
-use crate::core::GenericResult;
+use crate::core::{EmptyResult, GenericResult};
+use crate::exchanges::Exchange;
+use crate::instruments::InstrumentInfo;
 use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
@@ -55,4 +57,13 @@ pub fn read_next_table_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
     }.step_back();
 
     None
+}
+
+pub fn save_instrument_exchange_info(instruments: &mut InstrumentInfo, symbol: &str, exchange: &str) -> EmptyResult {
+    let exchange = match exchange {
+        "ММВБ" | "МосБиржа" => Exchange::Moex,
+        "СПБ" | "СПБиржа" => Exchange::Spb,
+        _ => return Err!("Unknown exchange: {:?}", exchange),
+    };
+    Ok(instruments.get_or_add(symbol).exchanges.add_prioritized(exchange))
 }

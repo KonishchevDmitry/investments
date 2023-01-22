@@ -5,7 +5,7 @@ use crate::core::EmptyResult;
 use crate::instruments::parse_isin;
 use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
-use super::common::read_next_table_row;
+use super::common::{read_next_table_row, save_instrument_exchange_info};
 
 pub struct SecuritiesInfoParser {
     statement: PartialBrokerStatementRc,
@@ -23,8 +23,14 @@ impl SectionParser for SecuritiesInfoParser {
 
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
             let instrument = statement.instrument_info.get_or_add(&security.symbol);
+
             instrument.set_name(&security.name);
             instrument.add_isin(parse_isin(&security.isin)?);
+
+            if let Some(exchange) = security.exchange {
+                save_instrument_exchange_info(
+                    &mut statement.instrument_info, &security.symbol, &exchange)?;
+            }
         }
 
         Ok(())
@@ -35,20 +41,22 @@ impl SectionParser for SecuritiesInfoParser {
 struct SecuritiesInfoRow {
     #[column(name="Сокращенное наименование актива")]
     name: String,
+    #[column(name="Торговая площадка", optional=true)]
+    exchange: Option<String>,
     #[column(name="Код актива")]
     symbol: String,
     #[column(name="ISIN")]
     isin: String,
     #[column(name="Код государственной регистрации", alias="Номер гос.регистрации")]
-    _3: SkipCell,
-    #[column(name="Наименование эмитента")]
     _4: SkipCell,
-    #[column(name="Тип")]
+    #[column(name="Наименование эмитента")]
     _5: SkipCell,
-    #[column(name="Номинал")]
+    #[column(name="Тип")]
     _6: SkipCell,
-    #[column(name="Валюта номинала")]
+    #[column(name="Номинал")]
     _7: SkipCell,
+    #[column(name="Валюта номинала")]
+    _8: SkipCell,
 }
 
 impl TableReader for SecuritiesInfoRow {
