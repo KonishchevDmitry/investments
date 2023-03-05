@@ -34,7 +34,9 @@ impl StatementReader {
 
 impl BrokerStatementReader for StatementReader {
     fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.ends_with(".xls"))
+        Ok(path
+            .to_lowercase() // Custom statements have uppercase extension
+            .ends_with(".xls"))
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
