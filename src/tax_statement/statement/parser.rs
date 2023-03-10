@@ -351,7 +351,6 @@ mod tests {
         compare_to(&statement, &data);
     }
 
-    // FIXME(konishchev): Add real statement
     #[test]
     fn parse_real() {
         test_parsing(&get_path("statement"));
