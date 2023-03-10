@@ -31,6 +31,62 @@ pub struct Ping {
     #[prost(message, optional, tag = "1")]
     pub time: ::core::option::Option<::prost_types::Timestamp>,
 }
+/// Тип инструмента.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum InstrumentType {
+    Unspecified = 0,
+    /// Облигация.
+    Bond = 1,
+    /// Акция.
+    Share = 2,
+    /// Валюта.
+    Currency = 3,
+    /// Exchange-traded fund. Фонд.
+    Etf = 4,
+    /// Фьючерс.
+    Futures = 5,
+    /// Структурная нота.
+    Sp = 6,
+    /// Опцион.
+    Option = 7,
+    /// Clearing certificate.
+    ClearingCertificate = 8,
+}
+impl InstrumentType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            InstrumentType::Unspecified => "INSTRUMENT_TYPE_UNSPECIFIED",
+            InstrumentType::Bond => "INSTRUMENT_TYPE_BOND",
+            InstrumentType::Share => "INSTRUMENT_TYPE_SHARE",
+            InstrumentType::Currency => "INSTRUMENT_TYPE_CURRENCY",
+            InstrumentType::Etf => "INSTRUMENT_TYPE_ETF",
+            InstrumentType::Futures => "INSTRUMENT_TYPE_FUTURES",
+            InstrumentType::Sp => "INSTRUMENT_TYPE_SP",
+            InstrumentType::Option => "INSTRUMENT_TYPE_OPTION",
+            InstrumentType::ClearingCertificate => "INSTRUMENT_TYPE_CLEARING_CERTIFICATE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INSTRUMENT_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "INSTRUMENT_TYPE_BOND" => Some(Self::Bond),
+            "INSTRUMENT_TYPE_SHARE" => Some(Self::Share),
+            "INSTRUMENT_TYPE_CURRENCY" => Some(Self::Currency),
+            "INSTRUMENT_TYPE_ETF" => Some(Self::Etf),
+            "INSTRUMENT_TYPE_FUTURES" => Some(Self::Futures),
+            "INSTRUMENT_TYPE_SP" => Some(Self::Sp),
+            "INSTRUMENT_TYPE_OPTION" => Some(Self::Option),
+            "INSTRUMENT_TYPE_CLEARING_CERTIFICATE" => Some(Self::ClearingCertificate),
+            _ => None,
+        }
+    }
+}
 /// Режим торгов инструмента
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -240,6 +296,12 @@ pub struct TradingDay {
     /// Время окончания премаркета в часовом поясе UTC.
     #[prost(message, optional, tag = "15")]
     pub premarket_end_time: ::core::option::Option<::prost_types::Timestamp>,
+    /// Время начала аукциона закрытия в часовом поясе UTC.
+    #[prost(message, optional, tag = "16")]
+    pub closing_auction_start_time: ::core::option::Option<::prost_types::Timestamp>,
+    /// Время окончания аукциона открытия в часовом поясе UTC.
+    #[prost(message, optional, tag = "17")]
+    pub opening_auction_end_time: ::core::option::Option<::prost_types::Timestamp>,
 }
 /// Запрос получения инструмента по идентификатору.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -682,18 +744,24 @@ pub struct Bond {
     /// Флаг отображающий доступность торговли инструментом только для квалифицированных инвесторов.
     #[prost(bool, tag = "52")]
     pub for_qual_investor_flag: bool,
-    /// Флаг отображающий доступность торговли инструментом по выходным.
+    /// Флаг отображающий доступность торговли инструментом по выходным
     #[prost(bool, tag = "53")]
     pub weekend_flag: bool,
-    /// Флаг заблокированного ТКС.
+    /// Флаг заблокированного ТКС
     #[prost(bool, tag = "54")]
     pub blocked_tca_flag: bool,
+    /// Признак субординированной облигации.
+    #[prost(bool, tag = "55")]
+    pub subordinated_flag: bool,
     /// Дата первой минутной свечи.
     #[prost(message, optional, tag = "61")]
     pub first_1min_candle_date: ::core::option::Option<::prost_types::Timestamp>,
     /// Дата первой дневной свечи.
     #[prost(message, optional, tag = "62")]
     pub first_1day_candle_date: ::core::option::Option<::prost_types::Timestamp>,
+    /// Уровень риска.
+    #[prost(enumeration = "RiskLevel", tag = "63")]
+    pub risk_level: i32,
 }
 /// Объект передачи информации о валюте.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -1337,6 +1405,9 @@ pub struct Instrument {
     /// Флаг заблокированного ТКС
     #[prost(bool, tag = "39")]
     pub blocked_tca_flag: bool,
+    /// Тип инструмента.
+    #[prost(enumeration = "InstrumentType", tag = "40")]
+    pub instrument_kind: i32,
     /// Дата первой минутной свечи.
     #[prost(message, optional, tag = "56")]
     pub first_1min_candle_date: ::core::option::Option<::prost_types::Timestamp>,
@@ -1530,6 +1601,9 @@ pub struct AssetSecurity {
     /// Тип ценной бумаги.
     #[prost(string, tag = "2")]
     pub r#type: ::prost::alloc::string::String,
+    /// Тип инструмента.
+    #[prost(enumeration = "InstrumentType", tag = "10")]
+    pub instrument_kind: i32,
     #[prost(oneof = "asset_security::Ext", tags = "3, 4, 5, 6, 7")]
     pub ext: ::core::option::Option<asset_security::Ext>,
 }
@@ -1877,6 +1951,9 @@ pub struct AssetInstrument {
     /// Массив связанных инструментов.
     #[prost(message, repeated, tag = "6")]
     pub links: ::prost::alloc::vec::Vec<InstrumentLink>,
+    /// Тип инструмента.
+    #[prost(enumeration = "InstrumentType", tag = "10")]
+    pub instrument_kind: i32,
 }
 /// Связь с другим инструментом.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -1926,6 +2003,9 @@ pub struct FavoriteInstrument {
     /// Параметр указывает на возможность торговать инструментом через API.
     #[prost(bool, tag = "17")]
     pub api_trade_available_flag: bool,
+    /// Тип инструмента.
+    #[prost(enumeration = "InstrumentType", tag = "18")]
+    pub instrument_kind: i32,
 }
 /// Запрос редактирования списка избранных инструментов.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -2027,6 +2107,9 @@ pub struct InstrumentShort {
     /// Уникальный идентификатор позиции инструмента.
     #[prost(string, tag = "8")]
     pub position_uid: ::prost::alloc::string::String,
+    /// Тип инструмента.
+    #[prost(enumeration = "InstrumentType", tag = "10")]
+    pub instrument_kind: i32,
     /// Параметр указывает на возможность торговать инструментом через API.
     #[prost(bool, tag = "11")]
     pub api_trade_available_flag: bool,
@@ -2539,6 +2622,42 @@ impl RealExchange {
             "REAL_EXCHANGE_MOEX" => Some(Self::Moex),
             "REAL_EXCHANGE_RTS" => Some(Self::Rts),
             "REAL_EXCHANGE_OTC" => Some(Self::Otc),
+            _ => None,
+        }
+    }
+}
+/// Уровень риска облигации.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum RiskLevel {
+    Unspecified = 0,
+    /// Низкий уровень риска
+    Low = 1,
+    /// Средний уровень риска
+    Moderate = 2,
+    /// Высокий уровень риска
+    High = 3,
+}
+impl RiskLevel {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            RiskLevel::Unspecified => "RISK_LEVEL_UNSPECIFIED",
+            RiskLevel::Low => "RISK_LEVEL_LOW",
+            RiskLevel::Moderate => "RISK_LEVEL_MODERATE",
+            RiskLevel::High => "RISK_LEVEL_HIGH",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "RISK_LEVEL_UNSPECIFIED" => Some(Self::Unspecified),
+            "RISK_LEVEL_LOW" => Some(Self::Low),
+            "RISK_LEVEL_MODERATE" => Some(Self::Moderate),
+            "RISK_LEVEL_HIGH" => Some(Self::High),
             _ => None,
         }
     }
@@ -3765,6 +3884,22 @@ pub struct GetTradingStatusRequest {
     #[prost(string, tag = "2")]
     pub instrument_id: ::prost::alloc::string::String,
 }
+/// Запрос получения торгового статуса.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTradingStatusesRequest {
+    /// Идентификатор инструмента, принимает значение figi или instrument_uid
+    #[prost(string, repeated, tag = "1")]
+    pub instrument_id: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+/// Информация о торговом статусе.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTradingStatusesResponse {
+    /// Массив информации о торговых статусах
+    #[prost(message, repeated, tag = "1")]
+    pub trading_statuses: ::prost::alloc::vec::Vec<GetTradingStatusResponse>,
+}
 /// Информация о торговом статусе.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -4042,6 +4177,22 @@ pub enum CandleInterval {
     Hour = 4,
     /// 1 день.
     Day = 5,
+    /// 2 минуты.
+    CandleInterval2Min = 6,
+    /// 3 минуты.
+    CandleInterval3Min = 7,
+    /// 10 минут.
+    CandleInterval10Min = 8,
+    /// 30 минут.
+    CandleInterval30Min = 9,
+    /// 2 часа.
+    CandleInterval2Hour = 10,
+    /// 4 часа.
+    CandleInterval4Hour = 11,
+    /// 1 неделя.
+    Week = 12,
+    /// 1 месяц.
+    Month = 13,
 }
 impl CandleInterval {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -4056,6 +4207,14 @@ impl CandleInterval {
             CandleInterval::CandleInterval15Min => "CANDLE_INTERVAL_15_MIN",
             CandleInterval::Hour => "CANDLE_INTERVAL_HOUR",
             CandleInterval::Day => "CANDLE_INTERVAL_DAY",
+            CandleInterval::CandleInterval2Min => "CANDLE_INTERVAL_2_MIN",
+            CandleInterval::CandleInterval3Min => "CANDLE_INTERVAL_3_MIN",
+            CandleInterval::CandleInterval10Min => "CANDLE_INTERVAL_10_MIN",
+            CandleInterval::CandleInterval30Min => "CANDLE_INTERVAL_30_MIN",
+            CandleInterval::CandleInterval2Hour => "CANDLE_INTERVAL_2_HOUR",
+            CandleInterval::CandleInterval4Hour => "CANDLE_INTERVAL_4_HOUR",
+            CandleInterval::Week => "CANDLE_INTERVAL_WEEK",
+            CandleInterval::Month => "CANDLE_INTERVAL_MONTH",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4067,6 +4226,14 @@ impl CandleInterval {
             "CANDLE_INTERVAL_15_MIN" => Some(Self::CandleInterval15Min),
             "CANDLE_INTERVAL_HOUR" => Some(Self::Hour),
             "CANDLE_INTERVAL_DAY" => Some(Self::Day),
+            "CANDLE_INTERVAL_2_MIN" => Some(Self::CandleInterval2Min),
+            "CANDLE_INTERVAL_3_MIN" => Some(Self::CandleInterval3Min),
+            "CANDLE_INTERVAL_10_MIN" => Some(Self::CandleInterval10Min),
+            "CANDLE_INTERVAL_30_MIN" => Some(Self::CandleInterval30Min),
+            "CANDLE_INTERVAL_2_HOUR" => Some(Self::CandleInterval2Hour),
+            "CANDLE_INTERVAL_4_HOUR" => Some(Self::CandleInterval4Hour),
+            "CANDLE_INTERVAL_WEEK" => Some(Self::Week),
+            "CANDLE_INTERVAL_MONTH" => Some(Self::Month),
             _ => None,
         }
     }
@@ -4217,6 +4384,26 @@ pub mod market_data_service_client {
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetTradingStatus",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// Метод запроса статуса торгов по инструментам.
+        pub async fn get_trading_statuses(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetTradingStatusesRequest>,
+        ) -> Result<tonic::Response<super::GetTradingStatusesResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetTradingStatuses",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
