@@ -8,7 +8,7 @@ mod transactions;
 
 use std::convert::TryInto;
 use std::fs::File;
-use std::io::{Read, BufReader, BufRead, Seek, SeekFrom};
+use std::io::{Read, BufReader, BufRead, Seek};
 
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
@@ -65,7 +65,7 @@ fn read_statement(path: &str) -> GenericResult<Ofx> {
         }
     }
 
-    let cur_pos: i64 = reader.seek(SeekFrom::Current(0))?.try_into().unwrap();
+    let cur_pos: i64 = reader.stream_position()?.try_into().unwrap();
     let mut data = String::with_capacity(std::cmp::max(0, size - cur_pos).try_into().unwrap());
 
     reader.read_to_string(&mut data)?;
