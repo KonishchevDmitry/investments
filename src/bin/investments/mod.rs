@@ -63,7 +63,7 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
         None
     } else {
         let connection = db::connect(&config.db_path)?;
-        Some(Telemetry::new(connection, btreemap! {
+        Some(Telemetry::new(connection, "https://investments.konishchev.ru", btreemap! {
             // Dummy HTTPS request averages to Moscow:
             // * Paris    - 243 ms
             // * London   - 257 ms

@@ -4,7 +4,6 @@ use std::io::Cursor;
 #[cfg(test)] use std::path::Path;
 
 use calamine::{Reader, Xlsx};
-#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::blocking::{Client, Response};
 
 use xls_table_derive::XlsTableRow;
@@ -21,12 +20,14 @@ use super::common::send_request;
 
 // Temporary provider to workaround FinEx funds suspension status (see https://finex-etf.ru/calc/nav)
 pub struct Finex {
+    url: String,
     client: Client,
 }
 
 impl Finex {
-    pub fn new() -> Finex {
+    pub fn new(url: &str) -> Finex {
         Finex {
+            url: url.to_owned(),
             client: Client::new(),
         }
     }
@@ -42,10 +43,7 @@ impl QuotesProvider for Finex {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        #[cfg(not(test))] let base_url = "https://api.finex-etf.ru";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = format!("{}/v1/fonds/nav.xlsx", base_url);
+        let url = format!("{}/v1/fonds/nav.xlsx", self.url);
         Ok(send_request(&self.client, &url, None)
             .and_then(|response| get_quotes(response, symbols))
             .map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
@@ -107,12 +105,14 @@ fn get_quotes(response: Response, symbols: &[&str]) -> GenericResult<QuotesMap> 
 
 #[cfg(test)]
 mod tests {
+    use mockito::{Server, Mock};
     use super::*;
 
     #[test]
     fn quotes() {
-        let client = Finex::new();
-        let _mock = mock_response();
+        let mut server = Server::new();
+        let client = Finex::new(&server.url());
+        let _mock = mock_response(&mut server);
 
         let mut quotes = QuotesMap::new();
         quotes.insert(s!("FXUS"), Cash::new("USD", dec!(0.721485)));
@@ -120,10 +120,10 @@ mod tests {
         assert_eq!(client.get_quotes(&["FXUS", "FXDE", "UNKNOWN"]).unwrap(), quotes);
     }
 
-    fn mock_response() -> Mock {
+    fn mock_response(server: &mut Server) -> Mock {
         let path = Path::new(file!()).parent().unwrap().join("testdata/finex.xlsx");
 
-        mock("GET", "/v1/fonds/nav.xlsx")
+        server.mock("GET", "/v1/fonds/nav.xlsx")
             .with_status(200)
             .with_header("Content-Type", "application/xlsx; charset=utf-8")
             .with_body(fs::read(path).unwrap())

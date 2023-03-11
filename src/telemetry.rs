@@ -114,7 +114,7 @@ pub struct Telemetry {
 
 impl Telemetry {
     pub fn new(
-        connection: db::Connection, flush_thresholds: BTreeMap<usize, Duration>, max_records: usize,
+        connection: db::Connection, url: &str, flush_thresholds: BTreeMap<usize, Duration>, max_records: usize,
     ) -> GenericResult<Telemetry> {
         let mut telemetry = Telemetry {
             db: connection,
@@ -135,7 +135,7 @@ impl Telemetry {
                 }
             }
 
-            telemetry.sender.replace(TelemetrySender::new(request, last_record_id, deadline));
+            telemetry.sender.replace(TelemetrySender::new(url, request, last_record_id, deadline));
         }
 
         Ok(telemetry)
@@ -235,13 +235,14 @@ struct TelemetrySender {
 }
 
 impl TelemetrySender {
-    fn new(request: TelemetryRequest, last_record_id: i64, deadline: Instant) -> TelemetrySender {
+    fn new(url: &str, request: TelemetryRequest, last_record_id: i64, deadline: Instant) -> TelemetrySender {
         let result = Arc::new((Mutex::new(None), Condvar::new()));
 
         let thread = {
+            let url = url.to_owned();
             let result = result.clone();
             thread::spawn(move || {
-                let ok = TelemetrySender::send(request);
+                let ok = TelemetrySender::send(&url, request);
 
                 let (lock, cond) = result.as_ref();
                 let mut result = lock.lock().unwrap();
@@ -284,9 +285,7 @@ impl TelemetrySender {
         result
     }
 
-    fn send(request: TelemetryRequest) -> bool {
-        #[cfg(not(test))] let base_url = "https://investments.konishchev.ru";
-        #[cfg(test)] let base_url = mockito::server_url();
+    fn send(base_url: &str, request: TelemetryRequest) -> bool {
         let url = format!("{}/telemetry", base_url);
 
         trace!("Sending telemetry ({} records)...", request.records.len());
@@ -316,19 +315,23 @@ impl TelemetrySender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockito::{self, Mock, mock};
+    use mockito::{Server, Mock};
 
     #[test]
     fn telemetry() {
+        let mut server = Server::new();
+
+        let url = server.url();
         let (_database, connection) = db::new_temporary();
+
         let new_telemetry = || {
-            Telemetry::new(connection.clone(), btreemap!{
+            Telemetry::new(connection.clone(), &url, btreemap!{
                 1 => Duration::from_millis(10),
             }, 5).unwrap()
         };
 
         let mut expected = vec![];
-        let mut server = broken_server().expect(0);
+        let mut mock = broken_server(&mut server).expect(0);
 
         // Broken server, nothing to drop, nothing to send
         let user_id = {
@@ -344,7 +347,7 @@ mod tests {
             telemetry.close().unwrap();
             user_id
         };
-        server.assert();
+        mock.assert();
         compare(connection.clone(), &expected); // 4 records
 
         // Broken server, nothing to drop, trying to send
@@ -359,8 +362,8 @@ mod tests {
 
             telemetry.close().unwrap();
         }
-        server = server.expect(1);
-        server.assert();
+        mock = mock.expect(1);
+        mock.assert();
         compare(connection.clone(), &expected); // 8 records
 
         // Broken server, dropping records, trying to send
@@ -376,13 +379,13 @@ mod tests {
 
             telemetry.close().unwrap();
         }
-        server = server.expect(2);
-        server.assert();
+        mock = mock.expect(2);
+        mock.assert();
         compare(connection.clone(), &expected); // 9 records
 
         // Healthy server, dropping records, sending remaining
         expected.drain(..4);
-        server = healthy_server(&user_id, &expected); // 5 records
+        mock = healthy_server(&mut server, &user_id, &expected); // 5 records
         {
             let telemetry = new_telemetry();
 
@@ -394,12 +397,12 @@ mod tests {
 
             telemetry.close().unwrap();
         }
-        server.assert();
+        mock.assert();
         expected.drain(..5);
         compare(connection.clone(), &expected); // 4 records
 
         // Unreachable server, nothing to drop, trying to send
-        server = unreachable_server();
+        mock = unreachable_server(&mut server);
         {
             let telemetry = new_telemetry();
 
@@ -409,11 +412,11 @@ mod tests {
 
             telemetry.close().unwrap();
         }
-        server.assert();
+        mock.assert();
         compare(connection.clone(), &expected); // 5 records
 
         // Healthy server, nothing to drop, sending all records
-        server = healthy_server(&user_id, &expected);
+        mock = healthy_server(&mut server, &user_id, &expected);
         {
             let telemetry = new_telemetry();
 
@@ -423,18 +426,18 @@ mod tests {
 
             telemetry.close().unwrap();
         }
-        server.assert();
+        mock.assert();
         expected.drain(..5);
         compare(connection.clone(), &expected); // 1 record
     }
 
-    fn broken_server() -> Mock {
-        mock("POST", "/telemetry")
+    fn broken_server(server: &mut Server, ) -> Mock {
+        server.mock("POST", "/telemetry")
             .with_status(500)
             .create()
     }
 
-    fn healthy_server(user_id: &str, expected: &[TelemetryRecord]) -> Mock {
+    fn healthy_server(server: &mut Server, user_id: &str, expected: &[TelemetryRecord]) -> Mock {
         let expected_request = TelemetryRequest {
             user_id: user_id.to_owned(),
             records: expected.iter().map(|record| {
@@ -443,15 +446,15 @@ mod tests {
         };
         let expected_body = serde_json::to_string(&expected_request).unwrap();
 
-        mock("POST", "/telemetry")
+        server.mock("POST", "/telemetry")
             .match_header("content-type", "application/json")
             .match_body(expected_body.as_str())
             .with_status(200)
             .create()
     }
 
-    fn unreachable_server() -> Mock {
-        mock("POST", "/telemetry")
+    fn unreachable_server(server: &mut Server, ) -> Mock {
+        server.mock("POST", "/telemetry")
             .with_status(200)
             .with_body_from_fn(|_| {
                 thread::sleep(Duration::from_millis(100));

@@ -17,12 +17,16 @@ use crate::types::{Decimal, Date};
 use super::{QuotesMap, QuotesProvider};
 
 pub struct Moex {
+    url: String,
     board: String,
 }
 
 impl Moex {
-    pub fn new(board: &str) -> Moex {
-        Moex {board: board.to_owned()}
+    pub fn new(url: &str, board: &str) -> Moex {
+        Moex {
+            url: url.to_owned(),
+            board: board.to_owned(),
+        }
     }
 }
 
@@ -36,11 +40,8 @@ impl QuotesProvider for Moex {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        #[cfg(not(test))] let base_url = "https://iss.moex.com";
-        #[cfg(test)] let base_url = mockito::server_url();
-
         let url = Url::parse_with_params(
-            &format!("{}/iss/engines/stock/markets/shares/boards/{}/securities.xml", base_url, self.board),
+            &format!("{}/iss/engines/stock/markets/shares/boards/{}/securities.xml", self.url, self.board),
             &[("securities", symbols.join(",").as_str())],
         )?;
 
@@ -248,27 +249,30 @@ mod tests {
     use std::io::Read;
     use std::path::Path;
 
-    use mockito::{self, Mock, mock};
+    use mockito::{Server, ServerGuard, Mock};
 
     use super::*;
 
     #[test]
     fn no_quotes() {
         let board = "TQTF";
-        let _mock = mock_response(board, &["FXUS", "FXIT"], "moex-empty.xml");
-        assert_eq!(Moex::new(board).get_quotes(&["FXUS", "FXIT"]).unwrap(), HashMap::new());
+        let (mut server, client) = create_server(board);
+        let _mock = mock(&mut server, board, &["FXUS", "FXIT"], "moex-empty.xml");
+
+        assert_eq!(client.get_quotes(&["FXUS", "FXIT"]).unwrap(), HashMap::new());
     }
 
     #[test]
     fn quotes() {
         let board = "TQTF";
-        let _mock = mock_response(board, &["FXUS", "FXIT", "INVALID"], "moex.xml");
+        let (mut server, client) = create_server(board);
+        let _mock = mock(&mut server, board, &["FXUS", "FXIT", "INVALID"], "moex.xml");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
         quotes.insert(s!("FXIT"), Cash::new("RUB", dec!(4612)));
 
-        assert_eq!(Moex::new(board).get_quotes(&["FXUS", "FXIT", "INVALID"]).unwrap(), quotes);
+        assert_eq!(client.get_quotes(&["FXUS", "FXIT", "INVALID"]).unwrap(), quotes);
     }
 
     #[test]
@@ -289,16 +293,24 @@ mod tests {
     fn test_exchange_status(status: &str) {
         let board = "TQTF";
         let securities = ["FXAU", "FXCN", "FXDE", "FXIT", "FXJP", "FXRB", "FXRL", "FXRU", "FXUK", "FXUS"];
-        let _mock = mock_response(board, &securities, &format!("moex-{}.xml", status));
 
-        let quotes = Moex::new(board).get_quotes(&securities).unwrap();
+        let (mut server, client) = create_server(board);
+        let _mock = mock(&mut server, board, &securities, &format!("moex-{}.xml", status));
+
+        let quotes = client.get_quotes(&securities).unwrap();
         assert_eq!(
             quotes.keys().map(String::as_str).collect::<HashSet<&str>>(),
             securities.iter().cloned().collect::<HashSet<&str>>(),
         );
     }
 
-    fn mock_response(board: &str, securities: &[&str], body_path: &str) -> Mock {
+    fn create_server(board: &str) -> (ServerGuard, Moex) {
+        let server = Server::new();
+        let client = Moex::new(&server.url(), board);
+        (server, client)
+    }
+
+    fn mock(server: &mut Server, board: &str, securities: &[&str], body_path: &str) -> Mock {
         let securities =
             url::form_urlencoded::byte_serialize(securities.join(",").as_bytes())
             .collect::<String>();
@@ -311,7 +323,7 @@ mod tests {
         let body_path = Path::new(file!()).parent().unwrap().join("testdata").join(body_path);
         File::open(body_path).unwrap().read_to_string(&mut body).unwrap();
 
-        mock("GET", path.as_str())
+        server.mock("GET", path.as_str())
             .with_status(200)
             .with_header("Content-Type", "application/xml; charset=utf-8")
             .with_body(body)

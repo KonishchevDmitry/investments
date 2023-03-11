@@ -82,9 +82,9 @@ impl Quotes {
             let providers: [Arc<dyn QuotesProvider>; 5] = [
                 Arc::new(Finnhub::new(finnhub)),
                 Arc::new(FcsApi::new(fcsapi)),
-                Arc::new(Finex::new()),
-                Arc::new(Moex::new("TQTF")),
-                Arc::new(Moex::new("TQBR")),
+                Arc::new(Finex::new("https://api.finex-etf.ru")),
+                Arc::new(Moex::new("https://iss.moex.com", "TQTF")),
+                Arc::new(Moex::new("https://iss.moex.com", "TQBR")),
             ];
             providers
         });
@@ -106,7 +106,7 @@ impl Quotes {
             QuoteQuery::Stock(symbol, exchanges) => self.batch_stock(symbol, exchanges),
         }
     }
-    
+
     pub fn batch_all<T>(&self, queries: T) -> EmptyResult
         where T: IntoIterator<Item=QuoteQuery>
     {

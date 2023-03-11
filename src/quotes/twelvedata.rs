@@ -1,7 +1,6 @@
 use chrono::Utc;
 #[cfg(test)] use indoc::indoc;
 use log::debug;
-#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::Deserialize;
@@ -20,10 +19,19 @@ use super::common::{send_request, parallelize_quotes, parse_response, is_outdate
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TwelveDataConfig {
+    #[serde(skip, default = "TwelveDataConfig::default_url")]
+    url: String,
     token: String,
 }
 
+impl TwelveDataConfig {
+    fn default_url() -> String {
+        s!("https://api.twelvedata.com")
+    }
+}
+
 pub struct TwelveData {
+    url: String,
     token: String,
     client: Client,
 }
@@ -34,16 +42,14 @@ impl TwelveData {
     #[allow(dead_code)]
     pub fn new(config: &TwelveDataConfig) -> TwelveData {
         TwelveData {
+            url: config.url.clone(),
             token: config.token.clone(),
             client: Client::new(),
         }
     }
 
     fn get_quote(&self, symbol: &str) -> GenericResult<Option<Cash>> {
-        #[cfg(not(test))] let base_url = "https://api.twelvedata.com";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = Url::parse_with_params(&format!("{}/time_series", base_url), &[
+        let url = Url::parse_with_params(&format!("{}/time_series", self.url), &[
             ("symbol", symbol),
             ("interval", "1min"),
             ("outputsize", "1"),
@@ -147,20 +153,20 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
 #[cfg(test)]
 mod tests {
-    use rstest::{rstest, fixture};
+    use mockito::{Server, Mock};
+    use rstest::rstest;
     use super::*;
 
-    #[fixture]
-    fn client() -> TwelveData {
-        TwelveData::new(&TwelveDataConfig {
-            token: s!("mock")
-        })
-    }
-
-
     #[rstest]
-    fn quotes(client: TwelveData) {
-        let _forex_quote_mock = mock_response("/time_series?symbol=USD%2FRUB&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
+    fn quotes() {
+        let mut server = Server::new();
+
+        let client = TwelveData::new(&TwelveDataConfig {
+            url: server.url(),
+            token: s!("mock")
+        });
+
+        let _forex_quote_mock = mock(&mut server, "/time_series?symbol=USD%2FRUB&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
             {
                 "meta": {
                     "currency_base": "US Dollar",
@@ -182,7 +188,7 @@ mod tests {
             }
         "#));
 
-        let _stock_quote_mock = mock_response("/time_series?symbol=AMZN&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
+        let _stock_quote_mock = mock(&mut server, "/time_series?symbol=AMZN&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
             {
                 "meta": {
                     "currency": "USD",
@@ -206,7 +212,7 @@ mod tests {
             }
         "#));
 
-        let _outdated_quote_mock = mock_response("/time_series?symbol=AAPL&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
+        let _outdated_quote_mock = mock(&mut server, "/time_series?symbol=AAPL&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
             {
                 "meta": {
                     "currency": "USD",
@@ -230,7 +236,7 @@ mod tests {
             }
         "#));
 
-        let _unknown_quote_mock = mock_response("/time_series?symbol=UNKNOWN&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
+        let _unknown_quote_mock = mock(&mut server, "/time_series?symbol=UNKNOWN&interval=1min&outputsize=1&timezone=UTC&apikey=mock", indoc!(r#"
             {
                 "data": null,
                 "message": "symbol_ticker not found",
@@ -244,8 +250,8 @@ mod tests {
         });
     }
 
-    fn mock_response(path: &str, data: &str) -> Mock {
-        mock("GET", path)
+    fn mock(server: &mut Server, path: &str, data: &str) -> Mock {
+        server.mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/json")
             .with_body(data)

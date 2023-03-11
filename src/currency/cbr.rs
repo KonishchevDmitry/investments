@@ -4,7 +4,6 @@ use std::sync::Mutex;
 
 #[cfg(test)] use indoc::indoc;
 use log::trace;
-#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
@@ -18,13 +17,15 @@ use crate::types::{Date, Decimal};
 pub const BASE_CURRENCY: &str = "RUB";
 
 pub struct Cbr {
+    url: String,
     client: Client,
     codes: Mutex<Option<HashMap<String, String>>>,
 }
 
 impl Cbr {
-    pub fn new() -> Cbr {
+    pub fn new(url: &str) -> Cbr {
         Cbr {
+            url: url.to_owned(),
             client: Client::new(),
             codes: Mutex::new(None),
         }
@@ -126,10 +127,7 @@ impl Cbr {
     }
 
     fn query<T: DeserializeOwned>(&self, name: &str, method: &str, params: &[(&str, &str)]) -> GenericResult<T> {
-        #[cfg(not(test))] let base_url = "http://www.cbr.ru";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = Url::parse_with_params(&format!("{}/scripts/{}", base_url, method), params)?;
+        let url = Url::parse_with_params(&format!("{}/scripts/{}", self.url, method), params)?;
         let get = |url| -> GenericResult<T> {
             trace!("Sending request to {}...", url);
             let response = self.client.get(url)
@@ -151,15 +149,16 @@ impl Cbr {
 
 #[cfg(test)]
 mod tests {
+    use mockito::{Server, ServerGuard, Mock};
     use super::*;
 
     #[test]
     fn empty_rates() {
-        let cbr = Cbr::new();
+        let (mut server, client) = create_server();
 
-        let _currencies_mock = mock_currencies();
-        let _usd_mock = mock_cbr_response(
-            "/scripts/XML_dynamic.asp?date_req1=02%2F09%2F2018&date_req2=03%2F09%2F2018&VAL_NM_RQ=R01235",
+        let _currencies_mock = mock_currencies(&mut server);
+        let _usd_mock = mock_response(
+            &mut server, "/scripts/XML_dynamic.asp?date_req1=02%2F09%2F2018&date_req2=03%2F09%2F2018&VAL_NM_RQ=R01235",
             indoc!(r#"
                 <?xml version="1.0" encoding="windows-1251"?>
                 <ValCurs ID="R01235" DateRange1="02.09.2018" DateRange2="03.09.2018" name="Foreign Currency Market Dynamic">
@@ -167,16 +166,16 @@ mod tests {
             "#)
         );
 
-        assert_eq!(cbr.get_currency_rates("USD", date!(2018, 9, 2), date!(2018, 9, 3)).unwrap(), vec![]);
+        assert_eq!(client.get_currency_rates("USD", date!(2018, 9, 2), date!(2018, 9, 3)).unwrap(), vec![]);
     }
 
     #[test]
     fn rates() {
-        let cbr = Cbr::new();
-        let _currencies_mock = mock_currencies();
+        let (mut server, client) = create_server();
 
-        let _usd_mock = mock_cbr_response(
-            "/scripts/XML_dynamic.asp?date_req1=01%2F09%2F2018&date_req2=04%2F09%2F2018&VAL_NM_RQ=R01235",
+        let _currencies_mock = mock_currencies(&mut server);
+        let _usd_mock = mock_response(
+            &mut server, "/scripts/XML_dynamic.asp?date_req1=01%2F09%2F2018&date_req2=04%2F09%2F2018&VAL_NM_RQ=R01235",
             indoc!(r#"
                 <?xml version="1.0" encoding="windows-1251"?>
                 <ValCurs ID="R01235" DateRange1="01.09.2018" DateRange2="04.09.2018" name="Foreign Currency Market Dynamic">
@@ -193,7 +192,7 @@ mod tests {
         );
 
         assert_eq!(
-            cbr.get_currency_rates("USD", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
+            client.get_currency_rates("USD", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
             vec![CurrencyRate {
                 date: date!(2018, 9, 1),
                 price: dec!(68.0447),
@@ -203,8 +202,8 @@ mod tests {
             }],
         );
 
-        let _jpy_mock = mock_cbr_response(
-            "/scripts/XML_dynamic.asp?date_req1=01%2F09%2F2018&date_req2=04%2F09%2F2018&VAL_NM_RQ=R01820",
+        let _jpy_mock = mock_response(
+            &mut server, "/scripts/XML_dynamic.asp?date_req1=01%2F09%2F2018&date_req2=04%2F09%2F2018&VAL_NM_RQ=R01820",
             indoc!(r#"
                 <?xml version="1.0" encoding="windows-1251"?>
                 <ValCurs ID="R01820" DateRange1="01.09.2018" DateRange2="04.09.2018" name="Foreign Currency Market Dynamic">
@@ -221,7 +220,7 @@ mod tests {
         );
 
         assert_eq!(
-            cbr.get_currency_rates("JPY", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
+            client.get_currency_rates("JPY", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
             vec![CurrencyRate {
                 date: date!(2018, 9, 1),
                 price: dec!(0.614704),
@@ -232,9 +231,15 @@ mod tests {
         );
     }
 
-    fn mock_currencies() -> Mock {
-        mock_cbr_response(
-            "/scripts/XML_valFull.asp?d=0",
+    fn create_server() -> (ServerGuard, Cbr) {
+        let server = Server::new();
+        let client = Cbr::new(&server.url());
+        (server, client)
+    }
+
+    fn mock_currencies(server: &mut Server) -> Mock {
+        mock_response(
+            server, "/scripts/XML_valFull.asp?d=0",
             indoc!(r#"
                 <?xml version="1.0" encoding="windows-1251"?>
                 <Valuta name="Foreign Currency Market Lib">
@@ -283,11 +288,11 @@ mod tests {
         )
     }
 
-    fn mock_cbr_response(path: &str, data: &str) -> Mock {
+    fn mock_response(server: &mut Server, path: &str, data: &str) -> Mock {
         let (data, _, errors) = encoding_rs::WINDOWS_1251.encode(data);
         assert!(!errors);
 
-        mock("GET", path)
+        server.mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/xml; charset=windows-1251")
             .with_body(data)

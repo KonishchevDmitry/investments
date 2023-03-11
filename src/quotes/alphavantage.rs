@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 #[cfg(test)] use indoc::indoc;
 use log::error;
-#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::Deserialize;
@@ -19,10 +18,19 @@ use super::common::{send_request, is_outdated_time};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlphaVantageConfig {
+    #[serde(skip, default = "AlphaVantageConfig::default_url")]
+    url: String,
     api_key: String,
 }
 
+impl AlphaVantageConfig {
+    fn default_url() -> String {
+        s!("https://www.alphavantage.co")
+    }
+}
+
 pub struct AlphaVantage {
+    url: String,
     api_key: String,
     client: Client,
 }
@@ -34,6 +42,7 @@ impl AlphaVantage {
     #[allow(dead_code)]
     pub fn new(config: &AlphaVantageConfig) -> AlphaVantage {
         AlphaVantage {
+            url: config.url.clone(),
             api_key: config.api_key.clone(),
             client: Client::new(),
         }
@@ -50,10 +59,7 @@ impl QuotesProvider for AlphaVantage {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        #[cfg(not(test))] let base_url = "https://www.alphavantage.co";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = Url::parse_with_params(&format!("{}/query", base_url), &[
+        let url = Url::parse_with_params(&format!("{}/query", self.url), &[
             ("function", "BATCH_STOCK_QUOTES"),
             ("symbols", symbols.join(",").as_ref()),
             ("apikey", self.api_key.as_ref()),
@@ -128,20 +134,16 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
 
 #[cfg(test)]
 mod tests {
-    use rstest::{rstest, fixture};
+    use mockito::{Server, ServerGuard, Mock};
+    use rstest::rstest;
     use super::*;
 
-    #[fixture]
-    fn client() -> AlphaVantage {
-        AlphaVantage::new(&AlphaVantageConfig {
-            api_key: s!("mock")
-        })
-    }
-
     #[rstest]
-    fn no_quotes(client: AlphaVantage) {
-        let _mock = mock_response(
-            "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX&apikey=mock",
+    fn no_quotes() {
+        let (mut server, client) = create_server();
+
+        let _mock = mock(
+            &mut server, "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX&apikey=mock",
             indoc!(r#"
                 {
                     "Meta Data": {
@@ -153,13 +155,16 @@ mod tests {
                 }
             "#)
         );
+
         assert_eq!(client.get_quotes(&["BND", "BNDX"]).unwrap(), HashMap::new());
     }
 
     #[rstest]
-    fn quotes(client: AlphaVantage) {
-        let _mock = mock_response(
-            "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX%2COUTDATED%2CINVALID&apikey=mock",
+    fn quotes() {
+        let (mut server, client) = create_server();
+
+        let _mock = mock(
+            &mut server, "/query?function=BATCH_STOCK_QUOTES&symbols=BND%2CBNDX%2COUTDATED%2CINVALID&apikey=mock",
             indoc!(r#"
                 {
                     "Meta Data": {
@@ -197,8 +202,19 @@ mod tests {
         assert_eq!(client.get_quotes(&["BND", "BNDX", "OUTDATED", "INVALID"]).unwrap(), quotes);
     }
 
-    fn mock_response(path: &str, data: &str) -> Mock {
-        mock("GET", path)
+    fn create_server() -> (ServerGuard, AlphaVantage) {
+        let server = Server::new();
+
+        let client = AlphaVantage::new(&AlphaVantageConfig {
+            url: server.url(),
+            api_key: s!("mock")
+        });
+
+        (server, client)
+    }
+
+    fn mock(server: &mut Server, path: &str, data: &str) -> Mock {
+        server.mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/json")
             .with_body(data)

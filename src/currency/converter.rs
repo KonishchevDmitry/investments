@@ -135,7 +135,7 @@ impl CurrencyRateCacheBackend {
     pub fn new(rate_cache: CurrencyRateCache, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> Box<dyn CurrencyConverterBackend> {
         Box::new(CurrencyRateCacheBackend {
             #[cfg(not(test))]
-            cbr: cbr::Cbr::new(),
+            cbr: cbr::Cbr::new("http://www.cbr.ru"),
             quotes,
             rate_cache,
             strict_mode,

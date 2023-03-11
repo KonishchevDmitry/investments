@@ -2,7 +2,6 @@ use std::time::Duration;
 
 #[cfg(test)] use indoc::indoc;
 use log::debug;
-#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
@@ -21,11 +20,21 @@ use super::common::{parallelize_quotes, send_request, is_outdated_unix_time};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FinnhubConfig {
+    #[serde(skip, default="FinnhubConfig::default_url")]
+    url: String,
     token: String,
 }
 
+impl FinnhubConfig {
+    fn default_url() -> String {
+        s!("https://finnhub.io")
+    }
+}
+
 pub struct Finnhub {
+    url: String,
     token: String,
+
     client: Client,
     rate_limiter: RateLimiter,
 }
@@ -33,7 +42,9 @@ pub struct Finnhub {
 impl Finnhub {
     pub fn new(config: &FinnhubConfig) -> Finnhub {
         Finnhub {
+            url: config.url.clone(),
             token: config.token.clone(),
+
             client: Client::new(),
             rate_limiter: RateLimiter::new()
                 .with_limit(60 / 2, Duration::from_secs(60))
@@ -88,10 +99,7 @@ impl Finnhub {
     }
 
     fn query<T: DeserializeOwned>(&self, method: &str, symbol: &str) -> GenericResult<Option<T>> {
-        #[cfg(not(test))] let base_url = "https://finnhub.io";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = Url::parse_with_params(&format!("{}/api/v1/{}", base_url, method), &[
+        let url = Url::parse_with_params(&format!("{}/api/v1/{}", self.url, method), &[
             ("symbol", symbol),
             ("token", self.token.as_ref()),
         ])?;
@@ -131,20 +139,20 @@ impl QuotesProvider for Finnhub {
 
 #[cfg(test)]
 mod tests {
-    use rstest::{rstest, fixture};
+    use mockito::{Server, Mock};
+    use rstest::rstest;
     use super::*;
 
-    #[fixture]
-    fn client() -> Finnhub {
-        Finnhub::new(&FinnhubConfig {
-            token: s!("mock")
-        })
-    }
-
-
     #[rstest]
-    fn quotes(client: Finnhub) {
-        let _bnd_profile_mock = mock_response("/api/v1/stock/profile2?symbol=BND&token=mock", indoc!(r#"
+    fn quotes() {
+        let mut server = Server::new();
+
+        let client = Finnhub::new(&FinnhubConfig {
+            url: server.url(),
+            token: s!("mock")
+        });
+
+        let _bnd_profile_mock = mock(&mut server, "/api/v1/stock/profile2?symbol=BND&token=mock", indoc!(r#"
             {
                 "country": "US",
                 "currency": "USD",
@@ -160,7 +168,7 @@ mod tests {
                 "weburl": "http://www.vanguard.com/"
             }
         "#));
-        let _bnd_quote_mock = mock_response("/api/v1/quote?symbol=BND&token=mock", indoc!(r#"
+        let _bnd_quote_mock = mock(&mut server, "/api/v1/quote?symbol=BND&token=mock", indoc!(r#"
             {
                 "c": 85.80000305175781,
                 "h": 85.93000030517578,
@@ -171,7 +179,7 @@ mod tests {
             }
         "#));
 
-        let _outdated_profile_mock = mock_response("/api/v1/stock/profile2?symbol=AMZN&token=mock", indoc!(r#"
+        let _outdated_profile_mock = mock(&mut server, "/api/v1/stock/profile2?symbol=AMZN&token=mock", indoc!(r#"
              {
                 "country": "US",
                 "currency": "USD",
@@ -187,7 +195,7 @@ mod tests {
                 "weburl": "http://www.amazon.com/"
             }
        "#));
-        let _outdated_quote_mock = mock_response("/api/v1/quote?symbol=AMZN&token=mock", indoc!(r#"
+        let _outdated_quote_mock = mock(&mut server, "/api/v1/quote?symbol=AMZN&token=mock", indoc!(r#"
             {
                 "c": 2095.969970703125,
                 "h": 2144.550048828125,
@@ -198,12 +206,12 @@ mod tests {
             }
         "#));
 
-        let _unknown_profile_mock = mock_response("/api/v1/stock/profile2?symbol=UNKNOWN&token=mock", "{}");
-        let _unknown_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN&token=mock", "{}");
+        let _unknown_profile_mock = mock(&mut server, "/api/v1/stock/profile2?symbol=UNKNOWN&token=mock", "{}");
+        let _unknown_quote_mock = mock(&mut server, "/api/v1/quote?symbol=UNKNOWN&token=mock", "{}");
 
         // Old response for unknown symbols
-        let _unknown_old_1_profile_mock = mock_response("/api/v1/stock/profile2?symbol=UNKNOWN_OLD_1&token=mock", "{}");
-        let _unknown_old_1_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN_OLD_1&token=mock", indoc!(r#"
+        let _unknown_old_1_profile_mock = mock(&mut server, "/api/v1/stock/profile2?symbol=UNKNOWN_OLD_1&token=mock", "{}");
+        let _unknown_old_1_quote_mock = mock(&mut server, "/api/v1/quote?symbol=UNKNOWN_OLD_1&token=mock", indoc!(r#"
             {
                 "c": 0,
                 "h": 0,
@@ -212,10 +220,10 @@ mod tests {
                 "pc": 0
             }
         "#));
-        let _unknown_old_2_profile_mock = mock_response("/api/v1/stock/profile2?symbol=UNKNOWN_OLD_2&token=mock", "{}");
-        let _unknown_old_2_quote_mock = mock_response("/api/v1/quote?symbol=UNKNOWN_OLD_2&token=mock", "Symbol not supported");
+        let _unknown_old_2_profile_mock = mock(&mut server, "/api/v1/stock/profile2?symbol=UNKNOWN_OLD_2&token=mock", "{}");
+        let _unknown_old_2_quote_mock = mock(&mut server, "/api/v1/quote?symbol=UNKNOWN_OLD_2&token=mock", "Symbol not supported");
 
-        let _fxrl_profile_mock = mock_response("/api/v1/stock/profile2?symbol=FXRL.ME&token=mock", indoc!(r#"
+        let _fxrl_profile_mock = mock(&mut server, "/api/v1/stock/profile2?symbol=FXRL.ME&token=mock", indoc!(r#"
             {
                 "country": "IE",
                 "currency": "RUB",
@@ -231,7 +239,7 @@ mod tests {
                 "weburl": ""
             }
         "#));
-        let _fxrl_quote_mock = mock_response("/api/v1/quote?symbol=FXRL.ME&token=mock", indoc!(r#"
+        let _fxrl_quote_mock = mock(&mut server, "/api/v1/quote?symbol=FXRL.ME&token=mock", indoc!(r#"
             {
                 "c": 2758.5,
                 "h": 2796,
@@ -250,10 +258,10 @@ mod tests {
         });
     }
 
-    fn mock_response(path: &str, data: &str) -> Mock {
+    fn mock(server: &mut Server, path: &str, data: &str) -> Mock {
         // All responses are always 200 OK, some of them are returned with application/json content
         // type, some - with text/plain even for JSON payload.
-        mock("GET", path)
+        server.mock("GET", path)
             .with_status(200)
             .with_body(data)
             .create()

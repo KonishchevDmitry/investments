@@ -2,7 +2,6 @@ use std::time::Duration;
 
 #[cfg(test)] use indoc::indoc;
 use log::debug;
-#[cfg(test)] use mockito::{self, Mock, mock};
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::Deserialize;
@@ -21,20 +20,32 @@ use super::common::{send_request, parse_response, is_outdated_unix_time};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FcsApiConfig {
+    #[serde(skip, default = "FcsApiConfig::default_url")]
+    url: String,
     access_key: String,
 }
 
+impl FcsApiConfig {
+    fn default_url() -> String {
+        s!("https://fcsapi.com")
+    }
+}
+
 pub struct FcsApi {
-    client: Client,
+    url: String,
     access_key: String,
+
+    client: Client,
     rate_limiter: RateLimiter,
 }
 
 impl FcsApi {
     pub fn new(config: &FcsApiConfig) -> FcsApi {
         FcsApi {
-            client: Client::new(),
+            url: config.url.clone(),
             access_key: config.access_key.clone(),
+
+            client: Client::new(),
             rate_limiter: RateLimiter::new().with_quota(Duration::from_secs(30), 2),
         }
     }
@@ -55,10 +66,7 @@ impl QuotesProvider for FcsApi {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        #[cfg(not(test))] let base_url = "https://fcsapi.com";
-        #[cfg(test)] let base_url = mockito::server_url();
-
-        let url = Url::parse_with_params(&format!("{}/api-v3/forex/latest", base_url), &[
+        let url = Url::parse_with_params(&format!("{}/api-v3/forex/latest", self.url), &[
             ("symbol", &symbols.join(",")),
             ("access_key", &self.access_key),
         ])?;
@@ -118,19 +126,15 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
 
 #[cfg(test)]
 mod tests {
-    use rstest::{rstest, fixture};
+    use mockito::{Server, ServerGuard, Mock};
+    use rstest::rstest;
     use super::*;
 
-    #[fixture]
-    fn client() -> FcsApi {
-        FcsApi::new(&FcsApiConfig {
-            access_key: s!("mock")
-        })
-    }
-
     #[rstest]
-    fn quotes(client: FcsApi) {
-        let _quotes_mock = mock_response("/api-v3/forex/latest?symbol=USD%2FRUB%2CUSD%2FEUR%2COUTDATED%2CUNKNOWN&access_key=mock", indoc!(r#"
+    fn quotes() {
+        let (mut server, client) = create_server();
+
+        let _quotes_mock = mock(&mut server, "/api-v3/forex/latest?symbol=USD%2FRUB%2CUSD%2FEUR%2COUTDATED%2CUNKNOWN&access_key=mock", indoc!(r#"
             {
                 "status": true,
                 "code": 200,
@@ -188,8 +192,10 @@ mod tests {
     }
 
     #[rstest]
-    fn invalid_access_key(client: FcsApi) {
-        let _invalid_access_key_mock = mock_response("/api-v3/forex/latest?symbol=USD%2FRUB&access_key=mock", indoc!(r#"
+    fn invalid_access_key() {
+        let (mut server, client) = create_server();
+
+        let _invalid_access_key_mock = mock(&mut server, "/api-v3/forex/latest?symbol=USD%2FRUB&access_key=mock", indoc!(r#"
             {
                 "status": false,
                 "code": 101,
@@ -204,8 +210,19 @@ mod tests {
         assert!(err.to_string().ends_with(": You have not supplied a valid API Access Key"));
     }
 
-    fn mock_response(path: &str, data: &str) -> Mock {
-        mock("GET", path)
+    fn create_server() -> (ServerGuard, FcsApi) {
+        let server = Server::new();
+
+        let client = FcsApi::new(&FcsApiConfig {
+            url: server.url(),
+            access_key: s!("mock")
+        });
+
+        (server, client)
+    }
+
+    fn mock(server: &mut Server, path: &str, data: &str) -> Mock {
+        server.mock("GET", path)
             .with_status(200)
             .with_header("Content-Type", "application/json")
             .with_body(data)
