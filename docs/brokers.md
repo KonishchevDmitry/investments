@@ -22,8 +22,35 @@ and download the statements for all periods where you have any trades. Investmen
 Every year IB has to adjust the 1042 withholding (i.e. withholding on US dividends paid to non-US accounts) to reflect dividend reclassifications. This is typically done in February the following year. As such, the majority of these adjustments are refunds to customers. The typical case is when IB's best information at the time of paying a dividend indicates that the distribution is an ordinary dividend (and therefore subject to withholding), then later at year end, the dividend is reclassified as Return of Capital, proceeds, or capital gains (all of which are not subject to 1042 withholding).
 
 <a name="ib-tax-remapping"></a>
-Investments finds such reclassifications and handles them properly, but at this time it matches dividends to taxes using (date, symbol) pair (matching by description is too fragile). As it turns out sometimes dates of reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option using which you can
-manually map reclassified tax to date of its origin dividend.
+Investments finds such reclassifications and handles them properly, but at this time it matches dividends to taxes using (date, symbol) pair (matching by description is too fragile). As it turns out sometimes dates of reclassified taxes don't match dividend dates. To workaround such cases there is `tax_remapping` configuration option using which you can manually map reclassified tax to date of its origin dividend.
+
+Here is how it works. The typical case is the following:
+
+1. You've got the following error:
+```
+E: Unable to find origin operations for the following taxes:
+* 10.02.2022: AGG
+```
+
+2. You look into you statements and find the lines the error originates from:
+```
+Withholding Tax,Data,USD,2022-02-10,AGG(US4642872265) Cash Dividend USD 0.191959 per Share - US Tax,0.86,
+Withholding Tax,Data,USD,2022-02-10,AGG(US4642872265) Cash Dividend USD 0.191959 per Share - US Tax,-0.08,
+```
+These lines say that we've got `$0.86` tax refund and new `$0.08` tax.
+
+3. Now we need to find the origin dividend. There may be more complex cases but for the typical one we should find `AGG(US4642872265) Cash Dividend USD 0.191959 per Share` string in our statements (includes issuer and dividend amount as somewhat that almost uniquely identifies the dividend) and get the following lines:
+```
+Dividends,Data,USD,2021-02-05,AGG(US4642872265) Cash Dividend USD 0.191959 per Share (Ordinary Dividend),8.64
+Withholding Tax,Data,USD,2021-02-05,AGG(US4642872265) Cash Dividend USD 0.191959 per Share - US Tax,-0.86,
+```
+If we find more than one dividend, it means that issuer + dividend amount pair is not unique enough and we have to find the right one by matching their taxes – there must be withheld tax with amount equal to our refund (`$0.86` in our specific case).
+
+4. Having the origin dividend, insert the following lines into configuration file:
+```yaml
+tax_remapping:
+  - {date: 2022.02.10, to_date: 2021.02.05, description: AGG(US4642872265) Cash Dividend USD 0.191959 per Share - US Tax}
+```
 
 <a name="ib-cash-flow-info"></a>
 <a name="ib-custom-activity-statement"></a>
@@ -53,7 +80,7 @@ Please take into account the following issues with Firstrade statements:
    2.1. Firstrade allows to generate the statement for past three years only.
 
    2.2. You should have your statements split by years for [cash-flow](taxes.md#cash-flow) command.
-   
+
    So, considering this, I recommend to generate new statement for the previous year on each January 1.
 
 
