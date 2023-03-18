@@ -44,7 +44,7 @@ These lines say that we've got `$0.86` tax refund and new `$0.08` tax.
 Dividends,Data,USD,2021-02-05,AGG(US4642872265) Cash Dividend USD 0.191959 per Share (Ordinary Dividend),8.64
 Withholding Tax,Data,USD,2021-02-05,AGG(US4642872265) Cash Dividend USD 0.191959 per Share - US Tax,-0.86,
 ```
-If we find more than one dividend, it means that issuer + dividend amount pair is not unique enough and we have to find the right one by matching their taxes – there must be withheld tax with amount equal to our refund (`$0.86` in our specific case).
+If we find more than one dividend, it means that issuer + dividend amount pair is not unique enough ([example](https://github.com/KonishchevDmitry/investments/issues/74#issuecomment-1464879536)) and we have to find the right one by matching their taxes – there must be withheld tax with amount equal to our refund (`$0.86` in our specific case).
 
 4. Having the origin dividend, insert the following lines into configuration file:
 ```yaml
