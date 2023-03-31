@@ -456,7 +456,7 @@ mod tests {
     fn unreachable_server(server: &mut Server, ) -> Mock {
         server.mock("POST", "/telemetry")
             .with_status(200)
-            .with_body_from_fn(|_| {
+            .with_chunked_body(|_| {
                 thread::sleep(Duration::from_millis(100));
                 Ok(())
             })

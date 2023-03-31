@@ -11,6 +11,7 @@ use super::{bcs, firstrade, ib, open, tinkoff};
 use super::PartialBrokerStatement;
 
 bitflags! {
+    #[derive(Clone, Copy)]
     pub struct ReadingStrictness: u32 {
         const TRADE_SETTLE_DATE = 1 << 0;
         const CASH_FLOW_DATES   = 1 << 1;

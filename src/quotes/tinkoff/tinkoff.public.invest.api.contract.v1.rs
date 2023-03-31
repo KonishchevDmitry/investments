@@ -2675,7 +2675,7 @@ pub mod instruments_service_client {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
-            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D: TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
             let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
@@ -2731,11 +2731,30 @@ pub mod instruments_service_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
         /// Метод получения расписания торгов торговых площадок.
         pub async fn trading_schedules(
             &mut self,
             request: impl tonic::IntoRequest<super::TradingSchedulesRequest>,
-        ) -> Result<tonic::Response<super::TradingSchedulesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::TradingSchedulesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -2749,13 +2768,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/TradingSchedules",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "TradingSchedules",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения облигации по её идентификатору.
         pub async fn bond_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::BondResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::BondResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2769,13 +2796,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/BondBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "BondBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка облигаций.
         pub async fn bonds(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
-        ) -> Result<tonic::Response<super::BondsResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::BondsResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2789,13 +2824,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Bonds",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "Bonds",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения графика выплат купонов по облигации.
         pub async fn get_bond_coupons(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBondCouponsRequest>,
-        ) -> Result<tonic::Response<super::GetBondCouponsResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetBondCouponsResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -2809,13 +2855,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetBondCoupons",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetBondCoupons",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения валюты по её идентификатору.
         pub async fn currency_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::CurrencyResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::CurrencyResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -2829,13 +2886,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/CurrencyBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "CurrencyBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка валют.
         pub async fn currencies(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
-        ) -> Result<tonic::Response<super::CurrenciesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::CurrenciesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -2849,13 +2917,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Currencies",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "Currencies",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения инвестиционного фонда по его идентификатору.
         pub async fn etf_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::EtfResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::EtfResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2869,13 +2945,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/EtfBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "EtfBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка инвестиционных фондов.
         pub async fn etfs(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
-        ) -> Result<tonic::Response<super::EtfsResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::EtfsResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2889,13 +2973,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Etfs",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "Etfs",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения фьючерса по его идентификатору.
         pub async fn future_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::FutureResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::FutureResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2909,13 +3001,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/FutureBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "FutureBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка фьючерсов.
         pub async fn futures(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
-        ) -> Result<tonic::Response<super::FuturesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::FuturesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -2929,13 +3032,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Futures",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "Futures",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения опциона по его идентификатору.
         pub async fn option_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::OptionResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::OptionResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2949,13 +3060,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/OptionBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "OptionBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка опционов.
         pub async fn options(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
-        ) -> Result<tonic::Response<super::OptionsResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::OptionsResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -2969,13 +3091,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Options",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "Options",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения акции по её идентификатору.
         pub async fn share_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::ShareResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::ShareResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -2989,13 +3119,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/ShareBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "ShareBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка акций.
         pub async fn shares(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
-        ) -> Result<tonic::Response<super::SharesResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::SharesResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -3009,13 +3147,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/Shares",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "Shares",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения накопленного купонного дохода по облигации.
         pub async fn get_accrued_interests(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAccruedInterestsRequest>,
-        ) -> Result<tonic::Response<super::GetAccruedInterestsResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetAccruedInterestsResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3029,13 +3178,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetAccruedInterests",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetAccruedInterests",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения размера гарантийного обеспечения по фьючерсам.
         pub async fn get_futures_margin(
             &mut self,
             request: impl tonic::IntoRequest<super::GetFuturesMarginRequest>,
-        ) -> Result<tonic::Response<super::GetFuturesMarginResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetFuturesMarginResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3049,13 +3209,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetFuturesMargin",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetFuturesMargin",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения основной информации об инструменте.
         pub async fn get_instrument_by(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentRequest>,
-        ) -> Result<tonic::Response<super::InstrumentResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::InstrumentResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3069,13 +3240,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetInstrumentBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetInstrumentBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод для получения событий выплаты дивидендов по инструменту.
         pub async fn get_dividends(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDividendsRequest>,
-        ) -> Result<tonic::Response<super::GetDividendsResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetDividendsResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3089,13 +3271,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetDividends",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetDividends",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения актива по его идентификатору.
         pub async fn get_asset_by(
             &mut self,
             request: impl tonic::IntoRequest<super::AssetRequest>,
-        ) -> Result<tonic::Response<super::AssetResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::AssetResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -3109,13 +3299,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetAssetBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetAssetBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка активов.
         pub async fn get_assets(
             &mut self,
             request: impl tonic::IntoRequest<super::AssetsRequest>,
-        ) -> Result<tonic::Response<super::AssetsResponse>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::AssetsResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -3129,13 +3327,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetAssets",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetAssets",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка избранных инструментов.
         pub async fn get_favorites(
             &mut self,
             request: impl tonic::IntoRequest<super::GetFavoritesRequest>,
-        ) -> Result<tonic::Response<super::GetFavoritesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetFavoritesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3149,13 +3358,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetFavorites",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetFavorites",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод редактирования списка избранных инструментов.
         pub async fn edit_favorites(
             &mut self,
             request: impl tonic::IntoRequest<super::EditFavoritesRequest>,
-        ) -> Result<tonic::Response<super::EditFavoritesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::EditFavoritesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3169,13 +3389,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/EditFavorites",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "EditFavorites",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка стран.
         pub async fn get_countries(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCountriesRequest>,
-        ) -> Result<tonic::Response<super::GetCountriesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetCountriesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3189,13 +3420,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetCountries",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetCountries",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод поиска инструмента.
         pub async fn find_instrument(
             &mut self,
             request: impl tonic::IntoRequest<super::FindInstrumentRequest>,
-        ) -> Result<tonic::Response<super::FindInstrumentResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::FindInstrumentResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3209,13 +3451,24 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/FindInstrument",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "FindInstrument",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения списка брендов.
         pub async fn get_brands(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBrandsRequest>,
-        ) -> Result<tonic::Response<super::GetBrandsResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetBrandsResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -3229,13 +3482,21 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetBrands",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetBrands",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения бренда по его идентификатору.
         pub async fn get_brand_by(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBrandRequest>,
-        ) -> Result<tonic::Response<super::Brand>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::Brand>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -3249,7 +3510,15 @@ pub mod instruments_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetBrandBy",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetBrandBy",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
     }
 }
@@ -4251,7 +4520,7 @@ pub mod market_data_service_client {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
-            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D: TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
             let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
@@ -4307,11 +4576,30 @@ pub mod market_data_service_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
         /// Метод запроса исторических свечей по инструменту.
         pub async fn get_candles(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCandlesRequest>,
-        ) -> Result<tonic::Response<super::GetCandlesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetCandlesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4325,13 +4613,24 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetCandles",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetCandles",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод запроса цен последних сделок по инструментам.
         pub async fn get_last_prices(
             &mut self,
             request: impl tonic::IntoRequest<super::GetLastPricesRequest>,
-        ) -> Result<tonic::Response<super::GetLastPricesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetLastPricesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4345,13 +4644,24 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetLastPrices",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetLastPrices",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод получения стакана по инструменту.
         pub async fn get_order_book(
             &mut self,
             request: impl tonic::IntoRequest<super::GetOrderBookRequest>,
-        ) -> Result<tonic::Response<super::GetOrderBookResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetOrderBookResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4365,13 +4675,24 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetOrderBook",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetOrderBook",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод запроса статуса торгов по инструментам.
         pub async fn get_trading_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetTradingStatusRequest>,
-        ) -> Result<tonic::Response<super::GetTradingStatusResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetTradingStatusResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4385,13 +4706,24 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetTradingStatus",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetTradingStatus",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод запроса статуса торгов по инструментам.
         pub async fn get_trading_statuses(
             &mut self,
             request: impl tonic::IntoRequest<super::GetTradingStatusesRequest>,
-        ) -> Result<tonic::Response<super::GetTradingStatusesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetTradingStatusesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4405,13 +4737,24 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetTradingStatuses",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetTradingStatuses",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод запроса обезличенных сделок за последний час.
         pub async fn get_last_trades(
             &mut self,
             request: impl tonic::IntoRequest<super::GetLastTradesRequest>,
-        ) -> Result<tonic::Response<super::GetLastTradesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetLastTradesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4425,13 +4768,24 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetLastTrades",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetLastTrades",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
         /// Метод запроса цен закрытия торговой сессии по инструментам.
         pub async fn get_close_prices(
             &mut self,
             request: impl tonic::IntoRequest<super::GetClosePricesRequest>,
-        ) -> Result<tonic::Response<super::GetClosePricesResponse>, tonic::Status> {
+        ) -> std::result::Result<
+            tonic::Response<super::GetClosePricesResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -4445,7 +4799,15 @@ pub mod market_data_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetClosePrices",
             );
-            self.inner.unary(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetClosePrices",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
         }
     }
 }
@@ -4462,7 +4824,7 @@ pub mod market_data_stream_service_client {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
-            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D: TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
             let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
@@ -4520,11 +4882,27 @@ pub mod market_data_stream_service_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
         /// Bi-directional стрим предоставления биржевой информации.
         pub async fn market_data_stream(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::MarketDataRequest>,
-        ) -> Result<
+        ) -> std::result::Result<
             tonic::Response<tonic::codec::Streaming<super::MarketDataResponse>>,
             tonic::Status,
         > {
@@ -4541,13 +4919,21 @@ pub mod market_data_stream_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataStreamService/MarketDataStream",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            let mut req = request.into_streaming_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataStreamService",
+                        "MarketDataStream",
+                    ),
+                );
+            self.inner.streaming(req, path, codec).await
         }
         /// Server-side стрим предоставления биржевой информации.
         pub async fn market_data_server_side_stream(
             &mut self,
             request: impl tonic::IntoRequest<super::MarketDataServerSideStreamRequest>,
-        ) -> Result<
+        ) -> std::result::Result<
             tonic::Response<tonic::codec::Streaming<super::MarketDataResponse>>,
             tonic::Status,
         > {
@@ -4564,7 +4950,15 @@ pub mod market_data_stream_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/tinkoff.public.invest.api.contract.v1.MarketDataStreamService/MarketDataServerSideStream",
             );
-            self.inner.server_streaming(request.into_request(), path, codec).await
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataStreamService",
+                        "MarketDataServerSideStream",
+                    ),
+                );
+            self.inner.server_streaming(req, path, codec).await
         }
     }
 }
