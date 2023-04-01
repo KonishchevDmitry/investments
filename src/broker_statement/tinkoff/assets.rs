@@ -54,14 +54,16 @@ struct AssetsRow {
     _6: SkipCell,
     #[column(name="Плановый исходящий остаток", parse_with="parse_quantity_cell")]
     planned: u32,
-    #[column(name="Рыночная цена")]
-    _8: SkipCell,
-    #[column(name="Валюта цены")]
-    _9: SkipCell,
-    #[column(name="НКД")]
-    _10: SkipCell,
-    #[column(name="Рыночная стоимость")]
-    _11: SkipCell,
+
+    // Deprecated columns
+    #[column(name="Рыночная цена", optional=true)]
+    _8: Option<SkipCell>,
+    #[column(name="Валюта цены", optional=true)]
+    _9: Option<SkipCell>,
+    #[column(name="НКД", optional=true)]
+    _10: Option<SkipCell>,
+    #[column(name="Рыночная стоимость", optional=true)]
+    _11: Option<SkipCell>,
 }
 
 impl TableReader for AssetsRow {
