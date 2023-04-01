@@ -22,15 +22,19 @@ impl SectionParser for SecuritiesInfoParser {
         let mut statement = self.statement.borrow_mut();
 
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
-            let instrument = statement.instrument_info.get_or_add(&security.symbol);
+            if let Some(exchange) = security.exchange {
+                // When assets are moved between depositaries we might get OTC instrument info in the statement, because
+                // they are moved through it. It has ISIN in symbol column and is not usable for us, so just skip it.
+                if exchange == "ВНБ" {
+                    continue;
+                }
 
+                save_instrument_exchange_info(&mut statement.instrument_info, &security.symbol, &exchange)?;
+            }
+
+            let instrument = statement.instrument_info.get_or_add(&security.symbol);
             instrument.set_name(&security.name);
             instrument.add_isin(parse_isin(&security.isin)?);
-
-            if let Some(exchange) = security.exchange {
-                save_instrument_exchange_info(
-                    &mut statement.instrument_info, &security.symbol, &exchange)?;
-            }
         }
 
         Ok(())
