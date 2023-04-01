@@ -174,12 +174,11 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
         },
 
         "Stock Dividend" => {
-            if other_symbol != symbol {
-                return error();
-            }
-
             let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
-            CorporateActionType::StockDividend {quantity}
+            CorporateActionType::StockDividend {
+                stock: Some(other_symbol),
+                quantity,
+            }
         },
 
         "Subscribable Rights Issue" => CorporateActionType::SubscribableRightsIssue,
@@ -295,7 +294,10 @@ mod tests {
             report_date: Some(date!(2020, 7, 17)),
 
             symbol: s!("TEF"),
-            action: CorporateActionType::StockDividend {quantity: dec!(1)},
+            action: CorporateActionType::StockDividend {
+                stock: Some(s!("TEF")),
+                quantity: dec!(1),
+            },
         });
     }
 

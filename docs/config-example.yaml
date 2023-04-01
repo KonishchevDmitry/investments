@@ -137,10 +137,8 @@ portfolios:
 
     # Tinkoff doesn't provide any information about corporate actions, so we have to specify them manually
     #corporate_actions:
-    #  - type: stock-split
-    #    date: 2020.10.27
-    #    symbol: NEE
-    #    ratio: 4:1
+    # - {date: 2020.10.27, symbol: NEE, type: stock-split, ratio: 4:1}
+    # - {date: 2023.03.24, symbol: "700", type: stock-dividend, stock: "3690", quantity: 14} # Tencent Holdings paid dividends with Meituan shares
 
 # Tax rate is assumed to be 13% by default, but you can override it. For example the following setting sets tax rate to
 # 15% starting from 2021 year.
