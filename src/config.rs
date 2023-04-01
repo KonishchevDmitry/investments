@@ -325,6 +325,7 @@ struct TaxRemappingConfig {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AssetAllocationConfig {
     pub name: String,
     pub symbol: Option<String>,
