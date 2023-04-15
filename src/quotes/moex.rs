@@ -14,7 +14,7 @@ use crate::exchanges::Exchange;
 use crate::time;
 use crate::types::{Decimal, Date};
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 
 pub struct Moex {
     url: String,
@@ -35,8 +35,8 @@ impl QuotesProvider for Moex {
         "Moscow Exchange"
     }
 
-    fn supports_stocks(&self) -> Option<Exchange> {
-        Some(Exchange::Moex)
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::Some(Exchange::Moex)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {

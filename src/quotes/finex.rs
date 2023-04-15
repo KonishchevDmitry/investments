@@ -15,7 +15,7 @@ use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 use crate::xls::{self, SheetReader, SheetParser, TableReader};
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::send_request;
 
 // Temporary provider to workaround FinEx funds suspension status (see https://finex-etf.ru/calc/nav)
@@ -38,8 +38,8 @@ impl QuotesProvider for Finex {
         "FinEx"
     }
 
-    fn supports_stocks(&self) -> Option<Exchange> {
-        Some(Exchange::Moex)
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::Some(Exchange::Moex)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {

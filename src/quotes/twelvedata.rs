@@ -7,13 +7,12 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
-use crate::exchanges::Exchange;
 use crate::forex;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::{send_request, parallelize_quotes, parse_response, is_outdated_time};
 
 #[derive(Deserialize)]
@@ -69,8 +68,8 @@ impl QuotesProvider for TwelveData {
     }
 
     // Stocks are actually supported, but use Finnhub for them now to diversify over quote providers
-    fn supports_stocks(&self) -> Option<Exchange> {
-        None
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::None
     }
 
     fn supports_forex(&self) -> bool {

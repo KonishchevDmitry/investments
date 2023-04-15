@@ -17,6 +17,7 @@ use crate::formatting;
 use crate::instruments::InstrumentInternalIds;
 use crate::localities::{self, Country, Jurisdiction};
 use crate::metrics::config::MetricsConfig;
+use crate::quotes::QuotesConfig;
 use crate::quotes::alphavantage::AlphaVantageConfig;
 use crate::quotes::fcsapi::FcsApiConfig;
 use crate::quotes::finnhub::FinnhubConfig;
@@ -45,17 +46,21 @@ pub struct Config {
     pub brokers: Option<BrokersConfig>,
     #[serde(default)]
     pub tax_rates: TaxRates,
+
+    #[validate]
+    #[serde(default)]
+    pub quotes: QuotesConfig,
     #[validate]
     #[serde(default)]
     pub metrics: MetricsConfig,
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
 
+    // Deprecated
     pub alphavantage: Option<AlphaVantageConfig>,
     pub fcsapi: Option<FcsApiConfig>,
     pub finnhub: Option<FinnhubConfig>,
     pub twelvedata: Option<TwelveDataConfig>,
-
-    #[serde(default)]
-    pub telemetry: TelemetryConfig,
 
     #[serde(default, rename="anchors")]
     _anchors: IgnoredAny,
@@ -74,6 +79,8 @@ impl Config {
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
             tax_rates: Default::default(),
+
+            quotes: Default::default(),
             metrics: Default::default(),
 
             alphavantage: None,
@@ -88,7 +95,9 @@ impl Config {
 
     pub fn load(path: &str) -> GenericResult<Config> {
         let mut config: Config = Config::read(path)?;
+
         config.validate()?;
+        config.move_deprecated_settings();
 
         let mut portfolio_names = HashSet::new();
 
@@ -165,6 +174,20 @@ impl Config {
 
             err.to_string()
         })?)
+    }
+
+    fn move_deprecated_settings(&mut self) {
+        if self.quotes.fcsapi.is_none() {
+            if let Some(fcsapi) = self.fcsapi.take() {
+                self.quotes.fcsapi.replace(fcsapi);
+            }
+        }
+
+        if self.quotes.finnhub.is_none() {
+            if let Some(finnhub) = self.finnhub.take() {
+                self.quotes.finnhub.replace(finnhub);
+            }
+        }
     }
 }
 

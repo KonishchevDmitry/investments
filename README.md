@@ -20,7 +20,7 @@ See [installation instructions](docs/install.md).
 
 # Configuration
 
-Create `~/.investments/config.yaml` configuration file. See [example](docs/config-example.yaml) configuration which contains examples of typical configuration for each broker, tax exemptions that are applicable to the account and more. Don't forget to obtain API token for FCS API and Finnhub (see the comments in example config) and optionally (but recommended) for [Tinkoff Invest API](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff-invest-api).
+Create `~/.investments/config.yaml` configuration file. See [example](docs/config-example.yaml) which contains typical configuration for each broker, tax exemptions that are applicable to the account and more. Don't forget to obtain API token for FCS API and Finnhub (see [stock and forex quotes providers](docs/quotes.md) for details).
 
 # Usage
 

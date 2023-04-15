@@ -28,7 +28,7 @@ use crate::util::{self, DecimalRestrictions};
 use crate::time::SystemTime;
 use crate::types::Decimal;
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::is_outdated_quote;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -269,8 +269,8 @@ impl QuotesProvider for Tinkoff {
         "Tinkoff"
     }
 
-    fn supports_stocks(&self) -> Option<Exchange> {
-        Some(Exchange::Spb)
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::Some(Exchange::Spb)
     }
 
     fn supports_forex(&self) -> bool {

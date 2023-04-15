@@ -12,7 +12,7 @@ use crate::exchanges::Exchange;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::{send_request, is_outdated_time};
 
 #[derive(Deserialize)]
@@ -54,8 +54,8 @@ impl QuotesProvider for AlphaVantage {
         "Alpha Vantage"
     }
 
-    fn supports_stocks(&self) -> Option<Exchange> {
-        Some(Exchange::Us)
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::Some(Exchange::Us)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {

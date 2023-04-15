@@ -1,6 +1,7 @@
 pub mod alphavantage;
 mod cache;
 mod common;
+mod custom_provider;
 pub mod fcsapi;
 mod finex;
 pub mod finnhub;
@@ -17,6 +18,8 @@ use std::sync::Arc;
 use itertools::Itertools;
 use log::debug;
 use rayon::prelude::*;
+use serde::Deserialize;
+use validator::Validate;
 
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericResult};
@@ -26,9 +29,10 @@ use crate::exchanges::{Exchange, Exchanges};
 use crate::forex;
 
 use self::cache::Cache;
-use self::fcsapi::FcsApi;
+use self::custom_provider::{CustomProvider, CustomProviderConfig};
+use self::fcsapi::{FcsApi, FcsApiConfig};
 use self::finex::Finex;
-use self::finnhub::Finnhub;
+use self::finnhub::{Finnhub, FinnhubConfig};
 use self::moex::Moex;
 use self::tinkoff::Tinkoff;
 
@@ -52,6 +56,15 @@ impl QuoteQuery {
     }
 }
 
+#[derive(Deserialize, Default, Validate)]
+#[serde(deny_unknown_fields)]
+pub struct QuotesConfig {
+    pub fcsapi: Option<FcsApiConfig>,
+    pub finnhub: Option<FinnhubConfig>,
+    #[validate]
+    pub custom_provider: Option<CustomProviderConfig>,
+}
+
 pub struct Quotes {
     cache: Cache,
     providers: Vec<Arc<dyn QuotesProvider>>,
@@ -62,26 +75,35 @@ pub type QuotesRc = Rc<Quotes>;
 
 impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
-        let fcsapi = config.fcsapi.as_ref().ok_or(
-            "FCS API access key is not set in the configuration file")?;
+        let mut providers = Vec::<Arc<dyn QuotesProvider>>::new();
 
-        let finnhub = config.finnhub.as_ref().ok_or(
-            "Finnhub token is not set in the configuration file")?;
+        let custom_provider = config.quotes.custom_provider.as_ref();
+        if let Some(config) = custom_provider {
+            providers.push(Arc::new(CustomProvider::new(config)));
+        }
 
         let tinkoff = config.brokers.as_ref()
             .and_then(|brokers| brokers.tinkoff.as_ref())
             .and_then(|tinkoff| tinkoff.api.as_ref());
 
-        let mut providers = Vec::<Arc<dyn QuotesProvider>>::new();
+        if let Some(config) = tinkoff {
+            providers.push(Arc::new(Tinkoff::new(config)))
+        }
 
-        if let Some(tinkoff) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(tinkoff)))
+        if let Some(config) = config.quotes.finnhub.as_ref() {
+            providers.push(Arc::new(Finnhub::new(config)))
+        } else if custom_provider.is_none() {
+            return Err!("Finnhub token is not set in the configuration file");
+        }
+
+        if let Some(config) = config.quotes.fcsapi.as_ref() {
+            providers.push(Arc::new(FcsApi::new(config)))
+        } else if custom_provider.is_none() {
+            return Err!("FCS API access key is not set in the configuration file");
         }
 
         providers.extend({
-            let providers: [Arc<dyn QuotesProvider>; 5] = [
-                Arc::new(Finnhub::new(finnhub)),
-                Arc::new(FcsApi::new(fcsapi)),
+            let providers: [Arc<dyn QuotesProvider>; 3] = [
                 Arc::new(Finex::new("https://api.finex-etf.ru")),
                 Arc::new(Moex::new("https://iss.moex.com", "TQTF")),
                 Arc::new(Moex::new("https://iss.moex.com", "TQBR")),
@@ -202,10 +224,16 @@ impl Quotes {
                 QuoteRequest::Stock(exchanges) => {
                     for exchange in self.pre_process_stock_exchanges(exchanges) {
                         for (index, provider) in self.providers.iter().enumerate() {
-                            if let Some(provider_exchange) = provider.supports_stocks() {
-                                if provider_exchange == exchange {
+                            match provider.supports_stocks() {
+                                SupportedExchange::Some(provider_exchange) => {
+                                    if provider_exchange == exchange {
+                                        providers.push(index);
+                                    }
+                                },
+                                SupportedExchange::Any => {
                                     providers.push(index);
-                                }
+                                },
+                                SupportedExchange::None => {},
                             }
                         }
                     }
@@ -219,7 +247,7 @@ impl Quotes {
     }
 
     fn has_stock_provider(&self, exchange: Exchange) -> bool {
-        self.providers.iter().any(|provider| provider.supports_stocks() == Some(exchange))
+        self.providers.iter().any(|provider| provider.supports_stocks() == SupportedExchange::Some(exchange))
     }
 
     fn pre_process_stock_exchanges(&self, exchanges: Vec<Exchange>) -> Vec<Exchange> {
@@ -321,9 +349,16 @@ impl Quotes {
 
 type QuotesMap = HashMap<String, Cash>;
 
+#[derive(Clone, Copy, PartialEq)]
+enum SupportedExchange {
+    Any,
+    None,
+    Some(Exchange),
+}
+
 trait QuotesProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    fn supports_stocks(&self) -> Option<Exchange> {None}
+    fn supports_stocks(&self) -> SupportedExchange {SupportedExchange::None}
     fn supports_forex(&self) -> bool {false}
     fn high_precision(&self) -> bool {false}
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
@@ -336,6 +371,36 @@ mod tests {
     #[test]
     #[allow(clippy::mutex_atomic)]
     fn cache() {
+        struct AnyProvider {
+            request_id: Mutex<usize>,
+        }
+
+        impl QuotesProvider for AnyProvider {
+            fn name(&self) -> &'static str {
+                "any-provider"
+            }
+
+            fn supports_stocks(&self) -> SupportedExchange {
+                SupportedExchange::Any
+            }
+
+            fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
+                let mut symbols = symbols.to_vec();
+                symbols.sort_unstable();
+
+                {
+                    let mut request_id = self.request_id.lock().unwrap();
+                    assert_eq!(*request_id, 0);
+                    assert_eq!(&symbols, &["BND", "BNDX", "IWDA", "VTI"]);
+                    *request_id += 1;
+                }
+
+                Ok(hashmap! {
+                    s!("IWDA") => Cash::new("USD", dec!(79.76)),
+                })
+            }
+        }
+
         struct FirstProvider {
             request_id: Mutex<usize>,
         }
@@ -345,8 +410,8 @@ mod tests {
                 "first-provider"
             }
 
-            fn supports_stocks(&self) -> Option<Exchange> {
-                Some(Exchange::Us)
+            fn supports_stocks(&self) -> SupportedExchange {
+                SupportedExchange::Some(Exchange::Us)
             }
 
             fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
@@ -376,8 +441,8 @@ mod tests {
                 "second-provider"
             }
 
-            fn supports_stocks(&self) -> Option<Exchange> {
-                Some(Exchange::Us)
+            fn supports_stocks(&self) -> SupportedExchange {
+                SupportedExchange::Some(Exchange::Us)
             }
 
             fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
@@ -402,8 +467,8 @@ mod tests {
                 "other-provider"
             }
 
-            fn supports_stocks(&self) -> Option<Exchange> {
-                Some(Exchange::Moex)
+            fn supports_stocks(&self) -> SupportedExchange {
+                SupportedExchange::Some(Exchange::Moex)
             }
 
             fn supports_forex(&self) -> bool {
@@ -417,6 +482,7 @@ mod tests {
 
         let (_database, cache) = Cache::new_temporary();
         let quotes = Quotes::new_with(cache, vec![
+            Arc::new(AnyProvider {request_id: Mutex::new(0)}),
             Arc::new(FirstProvider {request_id: Mutex::new(0)}),
             Arc::new(OtherProvider {}),
             Arc::new(SecondProvider {request_id: Mutex::new(0)}),
@@ -425,13 +491,16 @@ mod tests {
         let query = |symbol: &str| QuoteQuery::Stock(symbol.to_owned(), vec![Exchange::Us]);
 
         assert!(quotes.batch(query("VTI")).unwrap().is_none());
+        assert!(quotes.batch(query("IWDA")).unwrap().is_none());
         assert!(quotes.batch(query("BNDX")).unwrap().is_none());
         assert_eq!(quotes.get(query("BND")).unwrap(), Cash::new("USD", dec!(12.34)));
 
         assert!(quotes.batch(query("VTI")).unwrap().is_some());
+        assert!(quotes.batch(query("IWDA")).unwrap().is_some());
         assert!(quotes.batch(query("VXUS")).unwrap().is_none());
         assert_eq!(quotes.get(query("BND")).unwrap(), Cash::new("USD", dec!(12.34)));
         assert_eq!(quotes.get(query("VTI")).unwrap(), Cash::new("USD", dec!(56.78)));
+        assert_eq!(quotes.get(query("IWDA")).unwrap(), Cash::new("USD", dec!(79.76)));
         assert_eq!(quotes.get(query("BNDX")).unwrap(), Cash::new("USD", dec!(90.12)));
     }
 }

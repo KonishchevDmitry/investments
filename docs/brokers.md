@@ -123,9 +123,6 @@ can ask support for *.xlsx version of it and place it to the broker statements d
 
 Tinkoff broker statements don't contain any information about corporate actions, so stock splits must be specified manually via `corporate_actions` configuration option.
 
-<a name="tinkoff-invest-api"></a>
-It's also highly recommended to obtain [Tinkoff Invest API sandbox token](https://tinkoff.github.io/investAPI/token/) and specify it in the config: Tinkoff has a brilliant API with very high rate limits. When token is specified in config, investments will use Tinkoff API for currency and SPB Exchange quotes.
-
 
 <a name="bcs"></a>
 ## БКС

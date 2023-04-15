@@ -14,7 +14,7 @@ use crate::rate_limiter::RateLimiter;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::{parallelize_quotes, send_request, is_outdated_unix_time};
 
 #[derive(Deserialize)]
@@ -124,8 +124,8 @@ impl QuotesProvider for Finnhub {
         "Finnhub"
     }
 
-    fn supports_stocks(&self) -> Option<Exchange> {
-        Some(Exchange::Us)
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::Some(Exchange::Us)
     }
 
     fn high_precision(&self) -> bool {

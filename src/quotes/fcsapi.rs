@@ -8,13 +8,12 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
-use crate::exchanges::Exchange;
 use crate::forex;
 use crate::rate_limiter::RateLimiter;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::{QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::{send_request, parse_response, is_outdated_unix_time};
 
 #[derive(Deserialize)]
@@ -57,8 +56,8 @@ impl QuotesProvider for FcsApi {
     }
 
     // Stocks are actually supported, but we use it only for Forex quotes due to small API rate limits
-    fn supports_stocks(&self) -> Option<Exchange> {
-        None
+    fn supports_stocks(&self) -> SupportedExchange {
+        SupportedExchange::None
     }
 
     fn supports_forex(&self) -> bool {
