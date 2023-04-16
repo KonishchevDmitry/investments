@@ -178,6 +178,7 @@ brokers:
     # Sandbox token from https://tinkoff.github.io/investAPI/token/
     #api_token: secret
 
+# Stock quotes providers (see https://github.com/KonishchevDmitry/investments/blob/master/docs/quotes.md for details)
 quotes:
   fcsapi:
     # Access key that must be obtained here - https://fcsapi.com/
@@ -186,6 +187,9 @@ quotes:
   finnhub:
     # API token that must be obtained here - https://finnhub.io/register
     token: secret
+
+  #custom_provider:
+  #  url: http://localhost/
 
 # This field is always ignored. You can place any data inside of it and use YAML anchors to refer repeatable
 # configuration values from other places of the configuration file. For example, you may refer a single asset

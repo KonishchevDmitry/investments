@@ -32,3 +32,5 @@ The API is the following: investments sends `GET $url/v1/quotes?symbols=$comma_s
     }]
 }
 ```
+
+Here is an [example](https://gist.github.com/dim0xff/7798ffa5d362215ab361bdd47f9f7391) of custom provider for [Yahoo! Finance](https://finance.yahoo.com/).
