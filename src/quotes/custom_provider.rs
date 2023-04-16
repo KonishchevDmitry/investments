@@ -89,14 +89,14 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
                 quote_currency
             },
             Err(_) => {
-                match &quote.currency {
-                    Some(currency) if !currency.is_empty() => {
-                        currency
-                    },
-                    _ => {
-                        return Err!("Got {} quotes without currency", symbol);
-                    },
+                let currency = quote.currency.as_ref().ok_or_else(|| format!(
+                    "Got {} quotes without currency", symbol))?;
+
+                if currency.len() != 3 || !currency.chars().all(|c| c.is_uppercase()) {
+                    return Err!("Got an invalid currency: {:?}", currency);
                 }
+
+                currency
             },
         };
 
