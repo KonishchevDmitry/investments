@@ -17,11 +17,11 @@ mod api {
 }
 
 use api::{
-    instruments_service_client::InstrumentsServiceClient, InstrumentsRequest, RealExchange,
+    instruments_service_client::InstrumentsServiceClient, InstrumentsRequest, InstrumentStatus, RealExchange,
     market_data_service_client::MarketDataServiceClient, GetLastPricesRequest,
 };
 
-use crate::core::GenericResult;
+use crate::core::{GenericResult, EmptyResult};
 use crate::exchanges::Exchange;
 use crate::forex;
 use crate::util::{self, DecimalRestrictions};
@@ -44,6 +44,7 @@ pub struct TinkoffApiConfig {
 // Tinkoff Invest API (https://tinkoff.github.io/investAPI/)
 pub struct Tinkoff {
     token: String,
+    exchange: TinkoffExchange,
 
     channel: Channel,
     runtime: Runtime,
@@ -53,7 +54,7 @@ pub struct Tinkoff {
 }
 
 impl Tinkoff {
-    pub fn new(config: &TinkoffApiConfig) -> Tinkoff {
+    pub fn new(config: &TinkoffApiConfig, exchange: TinkoffExchange) -> Tinkoff {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all().build().unwrap();
 
@@ -66,6 +67,7 @@ impl Tinkoff {
 
         Tinkoff {
             token: config.token.clone(),
+            exchange: exchange,
 
             channel: channel,
             runtime: runtime,
@@ -219,33 +221,14 @@ impl Tinkoff {
         let mut stocks = self.stocks.lock().await;
 
         if stocks.is_empty() {
-            trace!("Getting a list of available stocks from Tinkoff...");
+            let mut instruments = HashMap::new();
 
-            let instruments = self.instruments_client().shares(InstrumentsRequest {
-                ..Default::default()
-            }).await.map_err(|e| format!(
-                "Failed to get available stocks list: {}", e,
-            ))?.into_inner().instruments;
-
-            trace!("Got the following stocks from Tinkoff:");
-            for stock in instruments {
-                if stock.real_exchange() != RealExchange::Rts {
-                    continue
-                }
-
-                trace!("* {name} ({symbol})", name=stock.name, symbol=stock.ticker);
-                stocks.entry(stock.ticker.clone()).or_default().push(Stock {
-                    uid: stock.uid,
-                    isin: stock.isin,
-                    symbol: stock.ticker,
-                    name: stock.name,
-                    currency: stock.currency.to_uppercase(),
-                })
+            self.get_all_shares(&mut instruments).await?;
+            if matches!(self.exchange, TinkoffExchange::Otc) {
+                self.get_all_etfs(&mut instruments).await?;
             }
 
-            if stocks.is_empty() {
-                return Err!("Got an empty list of available stocks");
-            }
+            *stocks = instruments;
         }
 
         let found_stocks = match stocks.get(symbol) {
@@ -262,6 +245,80 @@ impl Tinkoff {
 
         Ok(found_stocks.first().cloned())
     }
+
+    async fn get_all_shares(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
+        let (name, exchange, status) = self.exchange.to_request();
+
+        trace!("Getting a list of available {} stocks from Tinkoff...", name);
+
+        #[allow(clippy::needless_update)]
+        let instruments = self.instruments_client().shares(InstrumentsRequest {
+            instrument_status: status.into(),
+            ..Default::default()
+        }).await.map_err(|e| format!(
+            "Failed to get available {} stocks list: {}", name, e,
+        ))?.into_inner().instruments;
+
+        trace!("Got the following {} stocks from Tinkoff:", name);
+
+        for stock in instruments {
+            if stock.real_exchange() != exchange {
+                continue
+            }
+
+            trace!("* {name} ({symbol})", name=stock.name, symbol=stock.ticker);
+            stocks.entry(stock.ticker.clone()).or_default().push(Stock {
+                uid: stock.uid,
+                isin: stock.isin,
+                symbol: stock.ticker,
+                name: stock.name,
+                currency: stock.currency.to_uppercase(),
+            })
+        }
+
+        if stocks.is_empty() {
+            return Err!("Got an empty list of available {} stocks", name);
+        }
+
+        Ok(())
+    }
+
+    async fn get_all_etfs(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
+        let (name, exchange, status) = self.exchange.to_request();
+
+        trace!("Getting a list of available {} ETF from Tinkoff...", name);
+
+        #[allow(clippy::needless_update)]
+        let instruments = self.instruments_client().etfs(InstrumentsRequest {
+            instrument_status: status.into(),
+            ..Default::default()
+        }).await.map_err(|e| format!(
+            "Failed to get available {} ETF list: {}", name, e,
+        ))?.into_inner().instruments;
+
+        trace!("Got the following {} ETF from Tinkoff:", name);
+
+        for etf in instruments {
+            if etf.real_exchange() != exchange {
+                continue
+            }
+
+            trace!("* {name} ({symbol})", name=etf.name, symbol=etf.ticker);
+            stocks.entry(etf.ticker.clone()).or_default().push(Stock {
+                uid: etf.uid,
+                isin: etf.isin,
+                symbol: etf.ticker,
+                name: etf.name,
+                currency: etf.currency.to_uppercase(),
+            })
+        }
+
+        if stocks.is_empty() {
+            return Err!("Got an empty list of available {} ETF", name);
+        }
+
+        Ok(())
+    }
 }
 
 impl QuotesProvider for Tinkoff {
@@ -270,15 +327,36 @@ impl QuotesProvider for Tinkoff {
     }
 
     fn supports_stocks(&self) -> SupportedExchange {
-        SupportedExchange::Some(Exchange::Spb)
+        SupportedExchange::Some(match self.exchange {
+            TinkoffExchange::Spb => Exchange::Spb,
+            TinkoffExchange::Otc => Exchange::Us,
+        })
     }
 
     fn supports_forex(&self) -> bool {
-        true
+        match self.exchange {
+            TinkoffExchange::Spb => true,
+            TinkoffExchange::Otc => false,
+        }
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         self.runtime.block_on(self.get_quotes_async(symbols))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum TinkoffExchange {
+    Spb,
+    Otc,
+}
+
+impl TinkoffExchange {
+    fn to_request(self) -> (&'static str, RealExchange, InstrumentStatus) {
+        match self {
+            Self::Spb => ("SPB", RealExchange::Rts, InstrumentStatus::Base),
+            Self::Otc => ("OTC", RealExchange::Otc, InstrumentStatus::All),
+        }
     }
 }
 

@@ -34,7 +34,7 @@ use self::fcsapi::{FcsApi, FcsApiConfig};
 use self::finex::Finex;
 use self::finnhub::{Finnhub, FinnhubConfig};
 use self::moex::Moex;
-use self::tinkoff::Tinkoff;
+use self::tinkoff::{Tinkoff, TinkoffExchange};
 
 #[derive(Clone)]
 pub enum QuoteQuery {
@@ -77,6 +77,7 @@ impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
         let mut providers = Vec::<Arc<dyn QuotesProvider>>::new();
 
+        // Prefer custom provider over the others
         let custom_provider = config.quotes.custom_provider.as_ref();
         if let Some(config) = custom_provider {
             providers.push(Arc::new(CustomProvider::new(config)));
@@ -86,30 +87,34 @@ impl Quotes {
             .and_then(|brokers| brokers.tinkoff.as_ref())
             .and_then(|tinkoff| tinkoff.api.as_ref());
 
+        // Prefer Tinkoff for forex (FCS API has too restrictive rate limits) and use for SPB stocks
         if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config)))
+            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Spb)))
         }
 
+        // Use Finnhub for US stocks
         if let Some(config) = config.quotes.finnhub.as_ref() {
             providers.push(Arc::new(Finnhub::new(config)))
         } else if custom_provider.is_none() {
             return Err!("Finnhub token is not set in the configuration file");
         }
 
+        // Use FCS API for forex
         if let Some(config) = config.quotes.fcsapi.as_ref() {
             providers.push(Arc::new(FcsApi::new(config)))
         } else if custom_provider.is_none() {
             return Err!("FCS API access key is not set in the configuration file");
         }
 
-        providers.extend({
-            let providers: [Arc<dyn QuotesProvider>; 3] = [
-                Arc::new(Finex::new("https://api.finex-etf.ru")),
-                Arc::new(Moex::new("https://iss.moex.com", "TQTF")),
-                Arc::new(Moex::new("https://iss.moex.com", "TQBR")),
-            ];
-            providers
-        });
+        // Falling back to Tinkoff OTC if stock is not available on Finnhub
+        if let Some(config) = tinkoff {
+            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Otc)))
+        }
+
+        // Prefer FinEx provider over MOEX until their funds are suspended
+        providers.push(Arc::new(Finex::new("https://api.finex-etf.ru")));
+        providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQTF")));
+        providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQBR")));
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), providers))
     }
