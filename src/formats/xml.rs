@@ -7,11 +7,13 @@ use xml::reader::{ParserConfig, EventReader, XmlEvent};
 
 use crate::core::GenericResult;
 
+// xml-rs supports only a very limited number of encodings, so handle them manually
 pub fn deserialize<'de, R: Read, T: Deserialize<'de>>(mut reader: R) -> GenericResult<T> {
     let mut data = Vec::new();
     reader.read_to_end(&mut data)?;
 
-    let encoding_name = match EventReader::new(data.as_slice()).next()? {
+    let config = ParserConfig::new().ignore_invalid_encoding_declarations(true);
+    let encoding_name = match EventReader::new_with_config(data.as_slice(), config.clone()).next()? {
         XmlEvent::StartDocument {encoding, ..} => encoding,
         _ => unreachable!(),
     };
@@ -24,7 +26,7 @@ pub fn deserialize<'de, R: Read, T: Deserialize<'de>>(mut reader: R) -> GenericR
         return Err!("Got an invalid {} encoded data", encoding_name);
     }
 
-    let config = ParserConfig::new();
+    let config = config.override_encoding(Some(xml::Encoding::Utf8));
     let event_reader = EventReader::new_with_config(data.as_bytes(), config);
     let mut deserializer = Deserializer::new(event_reader);
 

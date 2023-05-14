@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use ::xml::reader::{EventReader, XmlEvent};
+use ::xml::reader::{ParserConfig, EventReader, XmlEvent};
 
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
@@ -52,10 +52,14 @@ impl BrokerStatementReader for StatementReader {
 }
 
 fn get_report_type(data: &[u8]) -> GenericResult<String> {
-    for event in EventReader::new(data) {
+    let config = ParserConfig::new().ignore_invalid_encoding_declarations(true);
+
+    for event in EventReader::new_with_config(data, config) {
         match event? {
             XmlEvent::ProcessingInstruction {name, data} if name == "xml-stylesheet" => {
-                let data = data.unwrap_or_default();
+                let data = data.unwrap_or_default()
+                    // xml-rs has some strange bug here which converts "/" to "</". Workaround it.
+                    .replace("</", "/");
 
                 #[derive(Deserialize)]
                 pub struct XmlStylesheet {
