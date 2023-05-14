@@ -11,6 +11,7 @@ use serde::de::DeserializeOwned;
 
 use crate::core::GenericResult;
 use crate::currency::CurrencyRate;
+use crate::formats::xml;
 use crate::time;
 use crate::types::{Date, Decimal};
 
@@ -140,7 +141,7 @@ impl Cbr {
                 return Err!("The server returned an error: {}", response.status());
             }
 
-            Ok(serde_xml_rs::from_str(&response.text()?)?)
+            xml::deserialize(response)
         };
 
         Ok(get(url.as_str()).map_err(|e| format!("Failed to get {} from {}: {}", name, url, e))?)

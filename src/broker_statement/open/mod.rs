@@ -1,10 +1,10 @@
-use encoding_rs::Encoding;
 use serde::Deserialize;
-use xml::reader::{EventReader, XmlEvent};
+use ::xml::reader::{EventReader, XmlEvent};
 
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
+use crate::formats::xml;
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
@@ -30,25 +30,17 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let data = std::fs::read(path)?;
-        let (encoding_name, report_type) = preprocess_statement(&data)?;
-
-        let encoding = Encoding::for_label(encoding_name.as_bytes()).ok_or_else(|| format!(
-            "Unsupported document encoding: {:?}", encoding_name))?;
-
-        let (data, _, errors) = encoding.decode(data.as_slice());
-        if errors {
-            return Err!("Got an invalid {} encoded data", encoding_name);
-        }
+        let report_type = get_report_type(&data)?;
 
         let statement = match report_type.as_str() {
             "https://account.open-broker.ru/common/report/broker_report_spot.xsl" |
             "https://account.open-broker.ru/common/report/broker_report_unified.xsl" => {
-                let report: moex::BrokerReport = serde_xml_rs::from_str(&data)?;
+                let report: moex::BrokerReport = xml::deserialize(data.as_slice())?;
                 report.parse()?
             },
 
             "https://account.open-broker.ru/common/report/broker_report_spb.xsl" => {
-                let report: spb::BrokerReport = serde_xml_rs::from_str(&data)?;
+                let report: spb::BrokerReport = xml::deserialize(data.as_slice())?;
                 report.parse()?
             },
 
@@ -59,16 +51,9 @@ impl BrokerStatementReader for StatementReader {
     }
 }
 
-fn preprocess_statement(data: &[u8]) -> GenericResult<(String, String)> {
-    let mut document_encoding = None;
-    let reader = EventReader::new(data);
-
-    for event in reader {
+fn get_report_type(data: &[u8]) -> GenericResult<String> {
+    for event in EventReader::new(data) {
         match event? {
-            XmlEvent::StartDocument {encoding, ..} => {
-                document_encoding.replace(encoding);
-            },
-
             XmlEvent::ProcessingInstruction {name, data} if name == "xml-stylesheet" => {
                 let data = data.unwrap_or_default();
 
@@ -78,10 +63,10 @@ fn preprocess_statement(data: &[u8]) -> GenericResult<(String, String)> {
                 }
 
                 let to_decode = format!("<{} {}/>", name, data);
-                let xml_stylesheet: XmlStylesheet = serde_xml_rs::from_str(&to_decode).map_err(|_| format!(
+                let xml_stylesheet: XmlStylesheet = xml::deserialize(to_decode.as_bytes()).map_err(|_| format!(
                     "Unexpected {} contents: {:?}", name, data))?;
 
-                return Ok((document_encoding.unwrap(), xml_stylesheet.href))
+                return Ok(xml_stylesheet.href)
             },
 
             _ => {},

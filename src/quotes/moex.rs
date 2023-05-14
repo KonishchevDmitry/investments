@@ -10,6 +10,7 @@ use serde::de::{Deserializer, Error};
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::formats::xml;
 #[cfg(not(test))] use crate::localities;
 use crate::time;
 use crate::types::{Decimal, Date};
@@ -54,7 +55,7 @@ impl QuotesProvider for Moex {
                 return Err!("The server returned an error: {}", response.status());
             }
 
-            Ok(parse_quotes(&response.text()?).map_err(|e| format!(
+            Ok(parse_quotes(&response.bytes()?).map_err(|e| format!(
                 "Quotes info parsing error: {}", e))?)
         };
 
@@ -63,7 +64,7 @@ impl QuotesProvider for Moex {
     }
 }
 
-fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
+fn parse_quotes(data: &[u8]) -> GenericResult<HashMap<String, Cash>> {
     #[derive(Deserialize)]
     struct Document {
         data: Vec<Data>,
@@ -122,7 +123,7 @@ fn parse_quotes(data: &str) -> GenericResult<HashMap<String, Cash>> {
         time: Option<String>,
     }
 
-    let result: Document = serde_xml_rs::from_str(data).map_err(|e| e.to_string())?;
+    let result: Document = xml::deserialize(data)?;
     let (mut securities, mut market_data) = (None, None);
 
     for data in result.data {
