@@ -1,5 +1,3 @@
-extern crate proc_macro;
-
 use darling::FromMeta;
 use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
@@ -101,6 +99,7 @@ struct Column {
 impl Column {
     fn parse(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         let mut columns = Vec::new();
+        let column_ident = ColumnParams::ident();
 
         let fields = match ast.data {
             Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
@@ -112,7 +111,6 @@ impl Column {
             let mut field_params = None;
 
             for attr in &field.attrs {
-                let column_ident = ColumnParams::ident();
                 if !attr.path().is_ident(&column_ident) {
                     continue;
                 }
@@ -176,8 +174,7 @@ impl syn::parse::Parser for ColumnParamsParser {
     type Output = ColumnParams;
 
     fn parse2(self, tokens: proc_macro2::TokenStream) -> syn::Result<Self::Output> {
-        let args = NestedMeta::parse_meta_list(tokens.into())?;
-        Ok(ColumnParams::from_list(&args)?)
+        Ok(ColumnParams::from_list(&NestedMeta::parse_meta_list(tokens)?)?)
     }
 }
 

@@ -1,25 +1,14 @@
 #![recursion_limit="128"]
 
-extern crate proc_macro;
-
 use darling::FromMeta;
+use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{self, DeriveInput, Fields, Data, DataStruct, Meta, MetaList, MetaNameValue};
+use syn::{self, DeriveInput, Fields, Data, DataStruct};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type GenericResult<T> = Result<T, GenericError>;
-
-#[cfg_attr(test, derive(Debug))]
-struct Column {
-    id: String,
-    name: Option<String>,
-    alignment: Option<String>,
-}
-
-const TABLE_ATTR_NAME: &str = "table";
-const COLUMN_ATTR_NAME: &str = "column";
 
 macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
@@ -37,8 +26,8 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
     let span = Span::call_site();
 
-    let table_name = get_table_params(&ast)?;
-    let columns = get_table_columns(&ast)?;
+    let table_name = TableParams::parse(&ast)?.name;
+    let columns = Column::parse(&ast)?;
 
     let mod_ident = quote!(crate::formatting::table);
     let table_ident = Ident::new(&table_name, span);
@@ -143,97 +132,132 @@ fn static_table_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     }.into())
 }
 
-fn get_table_params(ast: &DeriveInput) -> GenericResult<String> {
-    #[derive(FromMeta)]
-    struct TableParams {
-        name: String,
-    }
-
-    let mut table_name = None;
-
-    for attr in &ast.attrs {
-        let meta = attr.parse_meta().map_err(|e| format!(
-            "Failed to parse `{:#?}`: {}", attr, e))?;
-
-        if match_attribute_name(&meta, COLUMN_ATTR_NAME) {
-            return Err!("{:?} attribute is allowed on struct fields only", COLUMN_ATTR_NAME);
-        } else if !match_attribute_name(&meta, TABLE_ATTR_NAME) {
-            continue;
-        }
-
-        let params = TableParams::from_meta(&meta).map_err(|e| format!(
-            "{:?} attribute validation error: {}", TABLE_ATTR_NAME, e))?;
-
-        if table_name.replace(params.name).is_some() {
-            return Err!("Duplicated {:?} attribute", TABLE_ATTR_NAME);
-        }
-    }
-
-    Ok(table_name.unwrap_or_else(|| String::from("Table")))
+#[derive(FromMeta)]
+struct TableParams {
+    name: String,
 }
 
-fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
-    #[derive(FromMeta, Default)]
-    struct ColumnParams {
-        #[darling(default)]
-        name: Option<String>,
-        #[darling(default)]
-        align: Option<String>,
+impl TableParams {
+    fn ident() -> Ident {
+        Ident::new("table", Span::call_site())
     }
 
-    let mut columns = Vec::new();
+    fn parse(ast: &DeriveInput) -> GenericResult<TableParams> {
+        let mut table_params = None;
 
-    let fields = match ast.data {
-        Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
-        _ => return Err!("A struct with named fields is expected"),
-    };
+        let table_ident = TableParams::ident();
+        let column_ident = ColumnParams::ident();
 
-    for field in fields {
-        let field_name = field.ident.as_ref()
-            .ok_or("A struct with named fields is expected")?.to_string();
-        let mut field_params = None;
-
-        for attr in &field.attrs {
-            let meta = attr.parse_meta().map_err(|e| format!(
-                "Failed to parse `{:#?}` on {:?} field: {}", attr, field_name, e))?;
-
-            if match_attribute_name(&meta, TABLE_ATTR_NAME) {
-                return Err!("{:?} attribute is allowed on struct definition only", TABLE_ATTR_NAME);
-            } else if !match_attribute_name(&meta, COLUMN_ATTR_NAME) {
+        for attr in &ast.attrs {
+            if attr.path().is_ident(&column_ident) {
+                return Err!("`{}` attribute is allowed on struct fields only", column_ident);
+            } else if !attr.path().is_ident(&table_ident) {
                 continue;
             }
 
-            let params = ColumnParams::from_meta(&meta).map_err(|e| format!(
-                "{:?} attribute on {:?} field validation error: {}", COLUMN_ATTR_NAME, field_name, e))?;
+            let params = attr.parse_args_with(TableParamsParser{}).map_err(|e| format!(
+                "`{}` attribute: {}", table_ident, e))?;
 
-            match params.align.as_deref() {
-                Some("left") | Some("center") | Some("right") | None => {},
-                _ => return Err!("Invalid alignment of {:?}: {:?}",
-                                 field_name, params.align.unwrap()),
-            };
-
-            if field_params.replace(params).is_some() {
-                return Err!("Duplicated {:?} attribute on {:?} field", COLUMN_ATTR_NAME, field_name);
+            if table_params.replace(params).is_some() {
+                return Err!("Duplicated `{}` attribute", table_ident);
             }
         }
 
-        let column_params = field_params.unwrap_or_default();
-        columns.push(Column {
-            id: field_name,
-            name: column_params.name,
-            alignment: column_params.align,
-        })
+        Ok(table_params.unwrap_or_else(|| TableParams {
+             name: "Table".to_owned(),
+        }))
     }
-
-    Ok(columns)
 }
 
-fn match_attribute_name(meta: &Meta, name: &str) -> bool {
-    let path = match meta {
-        Meta::Path(path) => path,
-        Meta::List(MetaList{path, ..}) => path,
-        Meta::NameValue(MetaNameValue{path, ..}) => path,
-    };
-
-    path.segments.len() == 1 && path.segments.first().unwrap().ident == name
+struct TableParamsParser {
 }
+
+impl syn::parse::Parser for TableParamsParser {
+    type Output = TableParams;
+
+    fn parse2(self, tokens: proc_macro2::TokenStream) -> syn::Result<Self::Output> {
+        Ok(TableParams::from_list(&NestedMeta::parse_meta_list(tokens)?)?)
+    }
+}
+
+#[cfg_attr(test, derive(Debug))]
+struct Column {
+    id: String,
+    name: Option<String>,
+    alignment: Option<String>,
+}
+
+impl Column {
+    fn parse(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
+        let mut columns = Vec::new();
+
+        let table_ident = TableParams::ident();
+        let column_ident = ColumnParams::ident();
+
+        let fields = match ast.data {
+            Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
+            _ => return Err!("A struct with named fields is expected"),
+        };
+
+        for field in fields {
+            let field_ident = field.ident.as_ref().ok_or("A struct with named fields is expected")?;
+            let mut field_params = None;
+
+            for attr in &field.attrs {
+                if attr.path().is_ident(&table_ident) {
+                    return Err!("`{}` attribute is allowed on struct definition only", table_ident);
+                } else if !attr.path().is_ident(&column_ident) {
+                    continue;
+                }
+
+                let params = attr.parse_args_with(ColumnParamsParser{}).map_err(|e| format!(
+                    "`{}` attribute on `{}` field: {}", column_ident, field_ident, e))?;
+
+                match params.align.as_deref() {
+                    Some("left") | Some("center") | Some("right") | None => {},
+                    _ => return Err!("Invalid alignment of `{}`: {:?}", field_ident, params.align.unwrap()),
+                };
+
+                if field_params.replace(params).is_some() {
+                    return Err!("Duplicated `{}` attribute on `{}` field", column_ident, field_ident);
+                }
+            }
+
+            let column_params = field_params.unwrap_or_default();
+
+            columns.push(Column {
+                id: field_ident.to_string(),
+                name: column_params.name,
+                alignment: column_params.align,
+            })
+        }
+
+        Ok(columns)
+    }
+}
+
+#[derive(FromMeta, Default)]
+struct ColumnParams {
+    #[darling(default)]
+    name: Option<String>,
+    #[darling(default)]
+    align: Option<String>,
+}
+
+impl ColumnParams {
+    fn ident() -> Ident {
+        Ident::new("column", Span::call_site())
+    }
+}
+
+struct ColumnParamsParser {
+}
+
+impl syn::parse::Parser for ColumnParamsParser {
+    type Output = ColumnParams;
+
+    fn parse2(self, tokens: proc_macro2::TokenStream) -> syn::Result<Self::Output> {
+        Ok(ColumnParams::from_list(&NestedMeta::parse_meta_list(tokens)?)?)
+    }
+}
+
