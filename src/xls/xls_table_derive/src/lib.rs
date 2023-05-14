@@ -10,15 +10,6 @@ use syn::{self, Data, DataStruct, DeriveInput, Expr, ExprArray, Fields, Lit};
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type GenericResult<T> = Result<T, GenericError>;
 
-struct Column {
-    field: String,
-    name: String,
-    regex: bool,
-    aliases: Vec<String>,
-    parse_with: Option<String>,
-    optional: bool,
-}
-
 macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
 }
@@ -35,7 +26,7 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
     let span = Span::call_site();
 
-    let columns = get_table_columns(&ast)?;
+    let columns = Column::parse(&ast)?;
     let mod_ident = quote!(crate::xls);
     let row_ident = &ast.ident;
 
@@ -98,52 +89,63 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     }.into())
 }
 
-fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
-    let mut columns = Vec::new();
+struct Column {
+    field: String,
+    name: String,
+    regex: bool,
+    aliases: Vec<String>,
+    parse_with: Option<String>,
+    optional: bool,
+}
 
-    let fields = match ast.data {
-        Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
-        _ => return Err!("A struct with named fields is expected"),
-    };
+impl Column {
+    fn parse(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
+        let mut columns = Vec::new();
 
-    for field in fields {
-        let field_ident = field.ident.as_ref().ok_or("A struct with named fields is expected")?;
-        let mut field_params = None;
+        let fields = match ast.data {
+            Data::Struct(DataStruct{fields: Fields::Named(ref fields), ..}) => &fields.named,
+            _ => return Err!("A struct with named fields is expected"),
+        };
 
-        for attr in &field.attrs {
-            let column_ident = ColumnParams::ident();
-            if !attr.path().is_ident(&column_ident) {
-                continue;
+        for field in fields {
+            let field_ident = field.ident.as_ref().ok_or("A struct with named fields is expected")?;
+            let mut field_params = None;
+
+            for attr in &field.attrs {
+                let column_ident = ColumnParams::ident();
+                if !attr.path().is_ident(&column_ident) {
+                    continue;
+                }
+
+                let params = attr.parse_args_with(ColumnParamsParser{}).map_err(|e| format!(
+                    "`{}` attribute on `{}` field: {}", column_ident, field_ident, e))?;
+
+                if field_params.replace(params).is_some() {
+                    return Err!("Duplicated `{}` attribute on `{}` field", column_ident, field_ident);
+                }
             }
 
-            let params = attr.parse_args_with(ColumnParamsParser{}).map_err(|e| format!(
-                "`{}` attribute on `{}` field: {}", column_ident, field_ident, e))?;
+            let column_params = field_params.ok_or_else(|| format!(
+                "Column name is not specified for `{}` field", field_ident
+            ))?;
 
-            if field_params.replace(params).is_some() {
-                return Err!("Duplicated `{}` attribute on `{}` field", column_ident, field_ident);
+            let mut aliases = column_params.aliases;
+            if let Some(alias) = column_params.alias {
+                aliases.push(alias);
             }
+
+            columns.push(Column {
+                field: field_ident.to_string(),
+                name: column_params.name,
+                regex: column_params.regex,
+                aliases: aliases,
+                parse_with: column_params.parse_with,
+                optional: column_params.optional,
+            })
         }
 
-        let column_params = field_params.ok_or_else(|| format!(
-            "Column name is not specified for `{}` field", field_ident
-        ))?;
-
-        let mut aliases = column_params.aliases;
-        if let Some(alias) = column_params.alias {
-            aliases.push(alias);
-        }
-
-        columns.push(Column {
-            field: field_ident.to_string(),
-            name: column_params.name,
-            regex: column_params.regex,
-            aliases: aliases,
-            parse_with: column_params.parse_with,
-            optional: column_params.optional,
-        })
+        Ok(columns)
     }
-
-    Ok(columns)
 }
 
 #[derive(FromMeta)]
