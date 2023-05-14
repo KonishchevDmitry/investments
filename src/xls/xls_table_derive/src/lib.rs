@@ -1,10 +1,11 @@
 extern crate proc_macro;
 
 use darling::FromMeta;
+use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{self, Data, DataStruct, DeriveInput, Expr, ExprArray, Fields, Lit, Meta, MetaList, MetaNameValue};
+use syn::{self, Data, DataStruct, DeriveInput, Expr, ExprArray, Fields, Lit};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type GenericResult<T> = Result<T, GenericError>;
@@ -98,22 +99,6 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
 }
 
 fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
-    #[derive(FromMeta)]
-    struct ColumnParams {
-        name: String,
-        #[darling(default)]
-        regex: bool,
-        #[darling(default)]
-        alias: Option<String>,
-        #[darling(default, map="parse_string_array")]
-        aliases: Vec<String>,
-        #[darling(default)]
-        parse_with: Option<String>,
-        #[darling(default)]
-        optional: bool,
-    }
-    let column_attr_name = "column";
-
     let mut columns = Vec::new();
 
     let fields = match ast.data {
@@ -122,29 +107,25 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     };
 
     for field in fields {
-        let field_name = field.ident.as_ref()
-            .ok_or("A struct with named fields is expected")?.to_string();
+        let field_ident = field.ident.as_ref().ok_or("A struct with named fields is expected")?;
         let mut field_params = None;
 
         for attr in &field.attrs {
-            let meta = attr.parse_meta().map_err(|e| format!(
-                "Failed to parse `{:#?}` on {:?} field: {}", attr, field_name, e))?;
-
-            if !match_attribute_name(&meta, column_attr_name) {
+            let column_ident = ColumnParams::ident();
+            if !attr.path().is_ident(&column_ident) {
                 continue;
             }
 
-            let params = ColumnParams::from_meta(&meta).map_err(|e| format!(
-                "{:?} attribute on {:?} field validation error: {}",
-                column_attr_name, field_name, e))?;
+            let params = attr.parse_args_with(ColumnParamsParser{}).map_err(|e| format!(
+                "`{}` attribute on `{}` field: {}", column_ident, field_ident, e))?;
 
             if field_params.replace(params).is_some() {
-                return Err!("Duplicated {:?} attribute on {:?} field", column_attr_name, field_name);
+                return Err!("Duplicated `{}` attribute on `{}` field", column_ident, field_ident);
             }
         }
 
         let column_params = field_params.ok_or_else(|| format!(
-            "Column name is not specified for {:?} field", field_name
+            "Column name is not specified for `{}` field", field_ident
         ))?;
 
         let mut aliases = column_params.aliases;
@@ -153,7 +134,7 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         }
 
         columns.push(Column {
-            field: field_name,
+            field: field_ident.to_string(),
             name: column_params.name,
             regex: column_params.regex,
             aliases: aliases,
@@ -163,6 +144,39 @@ fn get_table_columns(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
     }
 
     Ok(columns)
+}
+
+#[derive(FromMeta)]
+struct ColumnParams {
+    name: String,
+    #[darling(default)]
+    regex: bool,
+    #[darling(default)]
+    alias: Option<String>,
+    #[darling(default, map="parse_string_array")]
+    aliases: Vec<String>,
+    #[darling(default)]
+    parse_with: Option<String>,
+    #[darling(default)]
+    optional: bool,
+}
+
+impl ColumnParams {
+    fn ident() -> Ident {
+        Ident::new("column", Span::call_site())
+    }
+}
+
+struct ColumnParamsParser {
+}
+
+impl syn::parse::Parser for ColumnParamsParser {
+    type Output = ColumnParams;
+
+    fn parse2(self, tokens: proc_macro2::TokenStream) -> syn::Result<Self::Output> {
+        let args = NestedMeta::parse_meta_list(tokens.into())?;
+        Ok(ColumnParams::from_list(&args)?)
+    }
 }
 
 // Please note that due to Darling limitations the array must be specified as `array = r#"["a", "b"]"#`
@@ -182,14 +196,4 @@ fn parse_string_array(value: Lit) -> Vec<String> {
     }
 
     array
-}
-
-fn match_attribute_name(meta: &Meta, name: &str) -> bool {
-    let path = match meta {
-        Meta::Path(path) => path,
-        Meta::List(MetaList{path, ..}) => path,
-        Meta::NameValue(MetaNameValue{path, ..}) => path,
-    };
-
-    path.segments.len() == 1 && path.segments.first().unwrap().ident == name
 }
