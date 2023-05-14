@@ -3,9 +3,9 @@ use std::cmp::Ordering;
 use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::EmptyResult;
+use crate::formats::xls::{self, XlsStatementParser, SheetReader, SectionParser, TableReader, Cell, SkipCell};
 use crate::formatting;
 use crate::time::Date;
-use crate::xls::{self, XlsStatementParser, SheetReader, SectionParser, TableReader, Cell, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 

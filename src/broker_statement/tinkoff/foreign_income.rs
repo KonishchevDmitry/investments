@@ -10,14 +10,13 @@ use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
+use crate::formats::xls::{self, XlsStatementParser, SheetParser, SheetReader, Section, SectionParser, TableReader, Cell, SkipCell};
 use crate::formatting;
 use crate::instruments::{InstrumentId, Instrument, IssuerTaxationType, parse_isin};
 use crate::localities::Jurisdiction;
 use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions, RoundingMethod};
-use crate::xls::{self, XlsStatementParser, SheetParser, SheetReader, Section, SectionParser,
-                 TableReader, Cell, SkipCell};
 
 use super::common::{parse_date_cell, parse_decimal_cell, parse_quantity_cell};
 

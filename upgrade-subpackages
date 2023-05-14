@@ -7,7 +7,7 @@ set -eu
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
 
-for package in formatting/static_table_derive xls/xls_table_derive; do
+for package in formats/xls/xls_table_derive formatting/static_table_derive; do
     (
         cd "src/$package"
         cargo upgrade --pinned allow --incompatible allow

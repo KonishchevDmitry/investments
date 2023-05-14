@@ -1,10 +1,10 @@
 use crate::core::{EmptyResult, GenericResult};
 use crate::exchanges::Exchange;
+use crate::formats::xls::{self, SheetReader, Cell, CellType};
 use crate::instruments::InstrumentInfo;
 use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, SheetReader, Cell, CellType};
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%Y")

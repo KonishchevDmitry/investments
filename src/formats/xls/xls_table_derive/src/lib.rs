@@ -25,7 +25,7 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let span = Span::call_site();
 
     let columns = Column::parse(&ast)?;
-    let mod_ident = quote!(crate::xls);
+    let mod_ident = quote!(crate::formats::xls);
     let row_ident = &ast.ident;
 
     let columns_code = columns.iter().map(|column| {

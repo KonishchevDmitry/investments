@@ -3,10 +3,10 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
+use crate::formats::xls::{self, XlsStatementParser, SectionParser, TableReader, Cell, SkipCell};
 use crate::formatting;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, XlsStatementParser, SectionParser, TableReader, Cell, SkipCell};
 
 use xls_table_derive::XlsTableRow;
 

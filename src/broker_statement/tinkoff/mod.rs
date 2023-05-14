@@ -35,10 +35,10 @@ use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 #[cfg(test)] use crate::config::Config;
 use crate::core::{GenericResult, EmptyResult};
 use crate::exchanges::Exchange;
+use crate::formats::xls::{XlsStatementParser, Section, SheetParser, SectionParserRc, Cell};
 use crate::formatting;
 use crate::instruments::InstrumentId;
 #[cfg(test)] use crate::taxes::TaxRemapping;
-use crate::xls::{XlsStatementParser, Section, SheetParser, SectionParserRc, Cell};
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};

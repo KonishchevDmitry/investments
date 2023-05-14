@@ -3,8 +3,8 @@ use regex::{self, Regex};
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::core::{EmptyResult, GenericResult};
+use crate::formats::xls::{self, XlsStatementParser, SectionParser};
 use crate::time::{Date, Period};
-use crate::xls::{self, XlsStatementParser, SectionParser};
 
 use super::common::parse_date;
 

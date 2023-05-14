@@ -6,10 +6,10 @@ use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, TableRow, SkipCell, ColumnsMapping};
 use crate::time::{DateTime, DateOptTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, TableRow, SkipCell, ColumnsMapping};
 
 use xls_table_derive::XlsTableRow;
 

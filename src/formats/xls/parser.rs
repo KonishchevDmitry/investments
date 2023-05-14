@@ -3,7 +3,7 @@ use std::ops::Range;
 use std::rc::Rc;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::xls::{self, Cell, SheetReader, SheetParser};
+use crate::formats::xls::{self, Cell, SheetReader, SheetParser};
 
 pub struct XlsStatementParser {
     pub sheet: SheetReader,

@@ -11,9 +11,9 @@ use xls_table_derive::XlsTableRow;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::formats::xls::{self, SheetReader, SheetParser, TableReader};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
-use crate::xls::{self, SheetReader, SheetParser, TableReader};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::send_request;

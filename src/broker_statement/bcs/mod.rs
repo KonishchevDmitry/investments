@@ -11,8 +11,8 @@ use std::rc::Rc;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 use crate::exchanges::Exchange;
+use crate::formats::xls::{XlsStatementParser, Section, SheetParser};
 #[cfg(test)] use crate::taxes::TaxRemapping;
-use crate::xls::{XlsStatementParser, Section, SheetParser};
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};

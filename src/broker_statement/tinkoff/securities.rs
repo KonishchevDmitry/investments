@@ -2,8 +2,8 @@ use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::core::EmptyResult;
+use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 use crate::instruments::parse_isin;
-use crate::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 
 use super::common::{read_next_table_row, save_instrument_exchange_info};
 

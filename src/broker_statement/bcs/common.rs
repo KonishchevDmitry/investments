@@ -2,8 +2,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::core::GenericResult;
+use crate::formats::xls::{self, Cell};
 use crate::time::{self, Date, Time};
-use crate::xls::{self, Cell};
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%Y")
