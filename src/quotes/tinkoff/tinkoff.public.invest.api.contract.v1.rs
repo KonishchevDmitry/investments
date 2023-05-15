@@ -325,6 +325,17 @@ pub struct InstrumentsRequest {
     #[prost(enumeration = "InstrumentStatus", tag = "1")]
     pub instrument_status: i32,
 }
+/// Параметры фильтрации опционов
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FilterOptionsRequest {
+    /// Идентификатор базового актива опциона.  Обязательный параметр.
+    #[prost(string, tag = "1")]
+    pub basic_asset_uid: ::prost::alloc::string::String,
+    /// Идентификатор позиции базового актива опциона
+    #[prost(string, tag = "2")]
+    pub basic_asset_position_uid: ::prost::alloc::string::String,
+}
 /// Информация об облигации.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -753,6 +764,9 @@ pub struct Bond {
     /// Признак субординированной облигации.
     #[prost(bool, tag = "55")]
     pub subordinated_flag: bool,
+    /// Флаг достаточной ликвидности
+    #[prost(bool, tag = "56")]
+    pub liquidity_flag: bool,
     /// Дата первой минутной свечи.
     #[prost(message, optional, tag = "61")]
     pub first_1min_candle_date: ::core::option::Option<::prost_types::Timestamp>,
@@ -982,6 +996,9 @@ pub struct Etf {
     /// Флаг заблокированного ТКС.
     #[prost(bool, tag = "44")]
     pub blocked_tca_flag: bool,
+    /// Флаг достаточной ликвидности
+    #[prost(bool, tag = "45")]
+    pub liquidity_flag: bool,
     /// Дата первой минутной свечи.
     #[prost(message, optional, tag = "56")]
     pub first_1min_candle_date: ::core::option::Option<::prost_types::Timestamp>,
@@ -1229,6 +1246,9 @@ pub struct Share {
     /// Флаг заблокированного ТКС
     #[prost(bool, tag = "49")]
     pub blocked_tca_flag: bool,
+    /// Флаг достаточной ликвидности
+    #[prost(bool, tag = "50")]
+    pub liquidity_flag: bool,
     /// Дата первой минутной свечи.
     #[prost(message, optional, tag = "56")]
     pub first_1min_candle_date: ::core::option::Option<::prost_types::Timestamp>,
@@ -1490,7 +1510,10 @@ pub struct AssetResponse {
 /// Запрос списка активов.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AssetsRequest {}
+pub struct AssetsRequest {
+    #[prost(enumeration = "InstrumentType", tag = "1")]
+    pub instrument_type: i32,
+}
 /// Список активов.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1954,6 +1977,9 @@ pub struct AssetInstrument {
     /// Тип инструмента.
     #[prost(enumeration = "InstrumentType", tag = "10")]
     pub instrument_kind: i32,
+    /// id позиции.
+    #[prost(string, tag = "11")]
+    pub position_uid: ::prost::alloc::string::String,
 }
 /// Связь с другим инструментом.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -2070,6 +2096,12 @@ pub struct FindInstrumentRequest {
     /// Строка поиска.
     #[prost(string, tag = "1")]
     pub query: ::prost::alloc::string::String,
+    /// Фильтр по типу инструмента.
+    #[prost(enumeration = "InstrumentType", tag = "2")]
+    pub instrument_kind: i32,
+    /// Фильтр для отображения только торговых инструментов.
+    #[prost(bool, tag = "3")]
+    pub api_trade_available_flag: bool,
 }
 /// Результат поиска инструментов.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -3070,7 +3102,7 @@ pub mod instruments_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// Метод получения списка опционов.
+        /// Deprecated Метод получения списка опционов.
         pub async fn options(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
@@ -3097,6 +3129,37 @@ pub mod instruments_service_client {
                     GrpcMethod::new(
                         "tinkoff.public.invest.api.contract.v1.InstrumentsService",
                         "Options",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Метод получения списка опционов.
+        pub async fn options_by(
+            &mut self,
+            request: impl tonic::IntoRequest<super::FilterOptionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::OptionsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/tinkoff.public.invest.api.contract.v1.InstrumentsService/OptionsBy",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "OptionsBy",
                     ),
                 );
             self.inner.unary(req, path, codec).await
@@ -3642,6 +3705,7 @@ pub struct SubscribeCandlesRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CandleInstrument {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Интервал свечей.
@@ -3695,6 +3759,7 @@ pub struct SubscribeOrderBookRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OrderBookInstrument {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Глубина стакана.
@@ -3748,6 +3813,7 @@ pub struct SubscribeTradesRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TradeInstrument {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Идентификатор инструмента, принимает значение figi или instrument_uid
@@ -3795,6 +3861,7 @@ pub struct SubscribeInfoRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InfoInstrument {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Идентификатор инструмента, принимает значение figi или instrument_uid
@@ -3842,6 +3909,7 @@ pub struct SubscribeLastPriceRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LastPriceInstrument {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Идентификатор инструмента, принимает значение figi или instrument_uid
@@ -4002,6 +4070,7 @@ pub struct TradingStatus {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCandlesRequest {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Начало запрашиваемого периода в часовом поясе UTC.
@@ -4056,6 +4125,7 @@ pub struct HistoricCandle {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetLastPricesRequest {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, repeated, tag = "1")]
     pub figi: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Массив идентификаторов инструмента, принимает значения figi или instrument_uid.
@@ -4092,6 +4162,7 @@ pub struct LastPrice {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetOrderBookRequest {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Глубина стакана.
@@ -4147,6 +4218,7 @@ pub struct GetOrderBookResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetTradingStatusRequest {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Идентификатор инструмента, принимает значение figi или instrument_uid.
@@ -4197,6 +4269,7 @@ pub struct GetTradingStatusResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetLastTradesRequest {
     /// Deprecated Figi-идентификатор инструмента. Необходимо использовать instrument_id.
+    #[deprecated]
     #[prost(string, tag = "1")]
     pub figi: ::prost::alloc::string::String,
     /// Начало запрашиваемого периода в часовом поясе UTC.
