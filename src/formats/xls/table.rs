@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use regex::{self, Regex};
 
 use crate::core::GenericResult;
@@ -90,13 +91,17 @@ impl TableColumn {
     }
 
     fn matches(&self, value: &str) -> GenericResult<bool> {
-        let value = value.trim();
+        lazy_static! {
+            static ref EXTRA_SPACES_REGEX: Regex = Regex::new(r"\s{2,}").unwrap();
+        }
+
+        let value = EXTRA_SPACES_REGEX.replace_all(value.trim(), " ");
         let mut names = Vec::from(self.aliases);
 
         if self.regex {
             if Regex::new(self.name).map_err(|_| format!(
                 "Invalid column name regex: {:?}", self.name,
-            ))?.is_match(value) {
+            ))?.is_match(&value) {
                 return Ok(true);
             }
         } else {
@@ -104,7 +109,7 @@ impl TableColumn {
         }
 
         let value_regex = Regex::new(&format!(
-            "^{}$", regex::escape(value).replace('\r', "").replace('\n', " ?"))).unwrap();
+            "^{}$", regex::escape(&value).replace('\r', "").replace('\n', " ?"))).unwrap();
 
         for name in names {
             if value_regex.is_match(name) {
