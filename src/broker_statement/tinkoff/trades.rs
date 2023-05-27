@@ -20,8 +20,8 @@ use crate::util;
 use crate::util::DecimalRestrictions;
 
 use super::common::{
-    read_next_table_row, parse_date_cell, parse_decimal_cell, parse_quantity_cell, parse_time_cell,
-    save_instrument_exchange_info};
+    read_next_table_row, parse_date_cell, parse_planned_actual_date_cell, parse_decimal_cell, parse_quantity_cell,
+    parse_time_cell, save_instrument_exchange_info};
 
 pub type TradesRegistryRc = Rc<RefCell<HashMap<u64, bool>>>;
 
@@ -143,9 +143,9 @@ struct TradeRow {
     leverage_rate: Option<String>,
     #[column(name="Контрагент / Брокер", alias="Контрагент")]
     _25: SkipCell,
-    #[column(name="Дата расчетов", parse_with="parse_date_cell")]
+    #[column(name="Дата расчетов план/факт", alias="Дата расчетов", parse_with="parse_planned_actual_date_cell")]
     execution_date: Date,
-    #[column(name="Дата поставки")]
+    #[column(name="Дата поставки план/факт", alias="Дата поставки")]
     _27: SkipCell,
     #[column(name="Статус брокера")]
     _28: SkipCell,

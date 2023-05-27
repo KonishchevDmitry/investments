@@ -14,6 +14,19 @@ pub fn parse_date_cell(cell: &Cell) -> GenericResult<Date> {
     parse_date(xls::get_string_cell(cell)?)
 }
 
+pub fn parse_planned_actual_date_cell(cell: &Cell) -> GenericResult<Date> {
+    let value = xls::get_string_cell(cell)?;
+    let values: Vec<&str> = value.split('/').collect();
+
+    let date = match values.len() {
+        1 => values.first(), // Deprecated case: old broker statements contains only one date
+        2 => values.last(),
+        _ => return Err!("Invalid date: {:?}", value)
+    }.unwrap();
+
+    parse_date(date)
+}
+
 pub fn parse_time(time: &str) -> GenericResult<Time> {
     time::parse_time(time, "%H:%M:%S")
 }
