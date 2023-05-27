@@ -92,7 +92,7 @@ impl TableColumn {
 
     fn matches(&self, value: &str) -> GenericResult<bool> {
         lazy_static! {
-            static ref EXTRA_SPACES_REGEX: Regex = Regex::new(r"\s{2,}").unwrap();
+            static ref EXTRA_SPACES_REGEX: Regex = Regex::new(r" {2,}").unwrap();
         }
 
         let value = EXTRA_SPACES_REGEX.replace_all(value.trim(), " ");
