@@ -6,7 +6,6 @@ use std::str::FromStr;
 use chrono::Duration;
 use serde::Deserialize;
 use serde::de::{Deserializer, IgnoredAny, Error};
-use serde_yaml::Value;
 use validator::Validate;
 
 use crate::analysis::config::PerformanceMergingConfig;
@@ -154,15 +153,22 @@ impl Config {
         let mut data = Vec::new();
         File::open(path)?.read_to_end(&mut data)?;
 
-        // yaml-rust doesn't support merge key (https://github.com/chyh1990/yaml-rust/issues/68)
-        let value: Value = serde_yaml::from_slice(&data)?;
-        let merged = yaml_merge_keys::merge_keys_serde(value.clone())?;
-        if merged == value {
-            return Ok(serde_yaml::from_slice(&data)?);
+        {
+            // yaml-rust doesn't support merge key (https://github.com/chyh1990/yaml-rust/issues/68)
+
+            use yaml_merge_keys::serde_yaml::{self as yaml, Value};
+
+            let value: Value = yaml::from_slice(&data)?;
+            let merged = yaml_merge_keys::merge_keys_serde(value.clone())?;
+            if merged == value {
+                return Ok(serde_yaml::from_slice(&data)?);
+            }
+
+            data.clear();
+            yaml::to_writer(&mut data, &merged)?
         }
 
-        let modified_data = serde_yaml::to_vec(&merged)?;
-        Ok(serde_yaml::from_slice(&modified_data).map_err(|err| {
+        Ok(serde_yaml::from_slice(&data).map_err(|err| {
             // To not confuse user with changed positions
             if let Some(message) = err.location().and_then(|location| {
                 let message = err.to_string();

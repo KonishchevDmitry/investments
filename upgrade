@@ -13,7 +13,7 @@ set -eux
 )
 
 command -v cargo-upgrade > /dev/null || cargo install cargo-edit
-cargo upgrade --pinned allow --incompatible allow --exclude libsqlite3-sys --exclude serde_yaml
+cargo upgrade --pinned allow --incompatible allow --exclude libsqlite3-sys
 cargo update
 
 cargo clean
