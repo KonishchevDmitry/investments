@@ -27,22 +27,22 @@ path = "examples/tax_statement_parser.rs"
 [dependencies]
 ansi_term = "0.12.1"
 bitflags = "2.3.1"
-calamine = "0.19.1"
-chrono = "0.4.24"
+calamine = "0.20.0"
+chrono = "0.4.26"
 chrono-tz = "0.8.2"
 cast = "0.3.0"
-clap = "4.3.0"
-clap_complete = "4.3.0"
-csv = "1.2.1"
+clap = "4.3.2"
+clap_complete = "4.3.1"
+csv = "1.2.2"
 cusip = "0.2.4"
 easy-logging = "0.1.2"
 encoding_rs = "0.8.32"
 governor = "0.5.1"
 indoc = "2.0.1"
-isin = "0.1.14"
+isin = "0.1.16"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
-log = "0.4.17"
+log = "0.4.18"
 maplit = "1.0.2"
 matches = "0.1.10"
 num-integer = "0.1.45"
@@ -54,21 +54,21 @@ prost = "0.11"
 prost-types = "0.11"
 quick-xml = { version = "0.28.2", features = [ "serialize" ] }
 rayon = "1.7.0"
-regex = "1.8.3"
+regex = "1.8.4"
 reqwest = { version = "0.11.18", features = ["blocking", "json"] }
 separator = "0.4.1"
-serde = { version = "1.0.163", features = ["derive"] }
+serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.96"
-serde_yaml = "0.8.26"
+serde_yaml = "0.9.21"
 serde-xml-rs = "0.6.0"
 shellexpand = "3.1.0"
 textwrap = "0.16.0"
-tokio = "1.28.1"
+tokio = "1.28.2"
 tonic = { version = "0.9", features = ["tls", "tls-roots"] }
 uuid = { version = "1.3.3", features = ["v4"] }
 validator = { version = "0.16.0", features = ["derive"] }
-xml-rs = "0.8.13"
-yaml-merge-keys = { version = "0.5.1", features = ["serde_yaml"] }
+xml-rs = "0.8.14"
+yaml-merge-keys = { version = "0.6.0", features = ["serde_yaml"] }
 
 # Pin rust_decimal version since it's not stable enough yet
 rust_decimal = "~1.29.1"
@@ -76,11 +76,11 @@ rust_decimal_macros = "~1.29.1"
 
 diesel = { version = "2.1.0", features = ["sqlite", "chrono"] }
 diesel_migrations = "2.1.0"
-diesel-derive-enum = { version = "2.0.1", features = ["sqlite"] }
+diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 libsqlite3-sys = { version = ">=0.17.2, <0.26.0", features = ["bundled"] }
 
-static_table_derive = "0.1.56"
-xls_table_derive = "0.6.1"
+static_table_derive = "0.1.57"
+xls_table_derive = "0.6.2"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
@@ -93,5 +93,5 @@ tonic-build = "0.9"
 mockito = "1.0.2"
 qtrac-retest = "4.0.14"
 rstest = "0.17.0"
-tempfile = "3.5.0"
-url = "2.3.1"
+tempfile = "3.6.0"
+url = "2.4.0"

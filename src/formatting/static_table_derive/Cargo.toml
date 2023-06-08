@@ -1,6 +1,6 @@
 [package]
 name = "static_table_derive"
-version = "0.1.56"
+version = "0.1.57"
 description = "Procedural macros for investments crate"
 
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
@@ -13,6 +13,6 @@ proc-macro = true
 
 [dependencies]
 darling = "0.20.1"
-proc-macro2 = "1.0.59"
+proc-macro2 = "1.0.60"
 quote = "1.0.28"
 syn = "2.0.18"

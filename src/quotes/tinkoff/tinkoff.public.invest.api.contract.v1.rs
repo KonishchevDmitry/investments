@@ -539,22 +539,22 @@ pub struct Option {
     /// Размер основного актива.
     #[prost(message, optional, tag = "211")]
     pub basic_asset_size: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска длинной позиции по клиенту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "221")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по клиенту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "222")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи лонг.
+    /// Ставка риска начальной маржи для КСУР лонг.
     #[prost(message, optional, tag = "223")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи шорт.
+    /// Ставка риска начальной маржи для КСУР шорт.
     #[prost(message, optional, tag = "224")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи лонг.
+    /// Ставка риска начальной маржи для КПУР лонг.
     #[prost(message, optional, tag = "225")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи шорт.
+    /// Ставка риска начальной маржи для КПУР шорт.
     #[prost(message, optional, tag = "226")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Минимальный шаг цены.
@@ -3372,7 +3372,7 @@ pub mod instruments_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// Метод получения списка активов.
+        /// Метод получения списка активов. Метод работает для всех инструментов, за исключением срочных - опционов и фьючерсов.
         pub async fn get_assets(
             &mut self,
             request: impl tonic::IntoRequest<super::AssetsRequest>,
@@ -4509,31 +4509,31 @@ impl TradeDirection {
 pub enum CandleInterval {
     /// Интервал не определён.
     Unspecified = 0,
-    /// 1 минута.
+    /// от 1 минуты до 1 дня.
     CandleInterval1Min = 1,
-    /// 5 минут.
+    /// от 5 минуты до 1 дня.
     CandleInterval5Min = 2,
-    /// 15 минут.
+    /// от 15 минут до 1 дня.
     CandleInterval15Min = 3,
-    /// 1 час.
+    /// от 1 часа до 1 недели.
     Hour = 4,
-    /// 1 день.
+    /// от 1 дня до 1 года.
     Day = 5,
-    /// 2 минуты.
+    /// от 2 минут до 1 дня.
     CandleInterval2Min = 6,
-    /// 3 минуты.
+    /// от 3 минут до 1 дня.
     CandleInterval3Min = 7,
-    /// 10 минут.
+    /// от 10 минут до 1 дня.
     CandleInterval10Min = 8,
-    /// 30 минут.
+    /// от 30 минут до 2 дней.
     CandleInterval30Min = 9,
-    /// 2 часа.
+    /// от 2 часов до 1 месяца.
     CandleInterval2Hour = 10,
-    /// 4 часа.
+    /// от 4 часов до 1 месяца.
     CandleInterval4Hour = 11,
-    /// 1 неделя.
+    /// от 1 недели до 2 лет.
     Week = 12,
-    /// 1 месяц.
+    /// от 1 месяца до 10 лет.
     Month = 13,
 }
 impl CandleInterval {
