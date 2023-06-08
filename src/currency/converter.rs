@@ -1,3 +1,4 @@
+use std::ops::Add;
 use std::rc::Rc;
 
 use chrono::Duration;
@@ -11,7 +12,7 @@ use crate::forex::get_currency_pair;
 use crate::formatting;
 use crate::localities;
 use crate::quotes::{Quotes, QuoteQuery};
-use crate::time;
+#[cfg(test)] use crate::time;
 use crate::types::{Date, Decimal};
 #[cfg(test)] use crate::util;
 
@@ -29,7 +30,7 @@ use crate::types::{Date, Decimal};
 //
 // The converter uses CBR currency rate for dates <= today and real time forex quotes for dates >
 // today. It works great for both tax calculations where only official currency rates must be used
-// and portfolio analysis / sell simulations where all calculations are processed in T+2 mode and
+// and portfolio analysis / sell simulations where all calculations are processed in T+N mode and
 // forex quotes at conclusion date will be the closest approximation to the future CBR currency rate
 // for trade execution date.
 pub struct CurrencyConverter {
@@ -114,11 +115,12 @@ impl CurrencyConverter {
     }
 
     pub fn real_time_date(&self) -> Date {
-        time::today_trade_execution_date()
+        self.backend.today().add(Duration::days(1))
     }
 }
 
 pub trait CurrencyConverterBackend {
+    fn today(&self) -> Date;
     fn batch(&self, from: &str, to: &str, date: Date) -> EmptyResult;
     fn currency_rate(&self, from: &str, to: &str, date: Date) -> GenericResult<(Option<Decimal>, Option<Decimal>)>;
 }
@@ -150,7 +152,7 @@ impl CurrencyRateCacheBackend {
             self.strict_mode && date > today ||
 
             // Default mode for portfolio performance and other calculations where we have to
-            // operate with future dates because of T+2 trade mode with vacations
+            // operate with future dates because of T+N trade mode with vacations
             !self.strict_mode && date > today + Duration::days(7)
         {
             return Err!("An attempt to make currency conversion for future date: {}",
@@ -222,6 +224,10 @@ impl CurrencyRateCacheBackend {
 }
 
 impl CurrencyConverterBackend for CurrencyRateCacheBackend {
+    fn today(&self) -> Date {
+        self.rate_cache.today()
+    }
+
     fn batch(&self, from: &str, to: &str, date: Date) -> EmptyResult {
         if let Some(quotes) = self.check_date(date)? {
             quotes.batch(QuoteQuery::Forex(get_currency_pair(from, to)))?;
@@ -274,17 +280,24 @@ impl CurrencyConverterBackend for CurrencyRateCacheBackend {
 
 #[cfg(test)]
 struct CurrencyRateCacheBackendMock {
+    today: Date,
 }
 
 #[cfg(test)]
 impl CurrencyRateCacheBackendMock {
     fn new() -> Box<dyn CurrencyConverterBackend> {
-        Box::new(CurrencyRateCacheBackendMock {})
+        Box::new(CurrencyRateCacheBackendMock {
+            today: time::today(),
+        })
     }
 }
 
 #[cfg(test)]
 impl CurrencyConverterBackend for CurrencyRateCacheBackendMock {
+    fn today(&self) -> Date {
+        self.today
+    }
+
     fn batch(&self, _from: &str, _to: &str, _date: Date) -> EmptyResult {
         Ok(())
     }

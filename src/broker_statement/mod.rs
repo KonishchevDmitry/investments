@@ -28,10 +28,9 @@ use crate::commissions::CommissionCalc;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::exchanges::Exchanges;
+use crate::exchanges::{Exchanges, TradingMode};
 use crate::formatting;
 use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
-use crate::localities;
 use crate::quotes::{Quotes, QuoteQuery};
 use crate::taxes::TaxRemapping;
 use crate::time::{self, Date, DateOptTime, Period};
@@ -257,6 +256,11 @@ impl BrokerStatement {
         )
     }
 
+    pub fn get_instrument_supposed_trading_mode(&self, symbol: &str) -> TradingMode {
+        let exchanges = self.get_instrument_supposed_exchanges(symbol);
+        exchanges.get_prioritized().first().unwrap().trading_mode()
+    }
+
     pub fn batch_quotes(&self, quotes: &Quotes) -> EmptyResult {
         quotes.batch_all(self.open_positions.keys().map(|symbol| {
             self.get_quote_query(symbol)
@@ -264,10 +268,7 @@ impl BrokerStatement {
     }
 
     pub fn get_quote_query(&self, symbol: &str) -> QuoteQuery {
-        let exchanges = match self.instrument_info.get(symbol) {
-            Some(instrument) if !instrument.exchanges.is_empty() => &instrument.exchanges,
-            _ => &self.exchanges,
-        };
+        let exchanges = self.get_instrument_supposed_exchanges(symbol);
         QuoteQuery::Stock(symbol.to_owned(), exchanges.get_prioritized())
     }
 
@@ -297,8 +298,10 @@ impl BrokerStatement {
         &mut self, symbol: &str, quantity: Decimal, price: Cash,
         commission_calc: &mut CommissionCalc,
     ) -> EmptyResult {
-        let conclusion_time = time::today_trade_conclusion_time();
-        let mut execution_date = time::today_trade_execution_date();
+        let trading_mode = self.get_instrument_supposed_trading_mode(symbol);
+
+        let conclusion_time = crate::exchanges::today_trade_conclusion_time();
+        let mut execution_date = trading_mode.execution_date(conclusion_time);
 
         for trade in self.stock_sells.iter().rev() {
             if trade.execution_date > execution_date {
@@ -430,6 +433,13 @@ impl BrokerStatement {
         }
 
         Ok(())
+    }
+
+    fn get_instrument_supposed_exchanges(&self, symbol: &str) -> &Exchanges {
+        match self.instrument_info.get(symbol) {
+            Some(instrument) if !instrument.exchanges.is_empty() => &instrument.exchanges,
+            _ => &self.exchanges,
+        }
     }
 
     fn merge(
@@ -585,7 +595,9 @@ impl BrokerStatement {
     fn sort_and_alter_fees(&mut self, max_date: Date) {
         if self.broker.allow_future_fees {
             for fee in &mut self.fees {
-                if fee.date > max_date && localities::is_valid_execution_date(max_date, fee.date) {
+                if fee.date > max_date && self.exchanges.get_prioritized().iter().any(|exchange| {
+                    exchange.is_valid_execution_date(max_date, fee.date)
+                }) {
                     fee.date = max_date;
                 }
             }

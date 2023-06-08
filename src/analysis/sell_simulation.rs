@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use itertools::Itertools;
 use static_table_derive::StaticTable;
 
@@ -10,9 +12,8 @@ use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::formatting::table::Cell;
 use crate::localities::Country;
 use crate::quotes::Quotes;
-use crate::taxes::{IncomeType, long_term_ownership::LtoDeductionCalculator};
+use crate::taxes::{IncomeType, LtoDeduction, long_term_ownership::LtoDeductionCalculator};
 use crate::trades;
-use crate::time;
 use crate::types::{Date, Decimal};
 use crate::util;
 
@@ -21,13 +22,22 @@ pub fn simulate_sell(
     converter: CurrencyConverterRc, quotes: &Quotes,
     positions: Option<Vec<(String, Option<Decimal>)>>, base_currency: Option<&str>,
 ) -> EmptyResult {
-    let all_positions = positions.is_none();
-    let positions = positions.unwrap_or_else(|| {
-        statement.open_positions.keys()
-            .map(|symbol| (symbol.to_owned(), None))
-            .sorted_unstable()
-            .collect()
-    });
+    let (positions, all_positions) = match positions {
+        Some(positions) => (positions, false),
+        None => {
+            let positions: Vec<_> = statement.open_positions.keys()
+                .map(|symbol| (symbol.to_owned(), None))
+                .sorted_unstable()
+                .collect();
+
+            if positions.is_empty() {
+                println!("The portfolio has no open positions.");
+                return Ok(())
+            }
+
+            (positions, true)
+        }
+    };
 
     for (symbol, _quantity) in &positions {
         if !all_positions {
@@ -72,15 +82,29 @@ pub fn simulate_sell(
     print_results(country, portfolio, stock_sells, additional_commissions, &converter)
 }
 
+struct TaxYearTotals {
+    local_profit: Cash,
+    taxable_local_profit: Cash,
+    lto_calculator: Option<LtoDeductionCalculator>,
+}
+
+impl TaxYearTotals {
+    fn new(country: &Country) -> TaxYearTotals {
+        TaxYearTotals {
+            local_profit: Cash::zero(country.currency),
+            taxable_local_profit: Cash::zero(country.currency),
+            lto_calculator: None,
+        }
+    }
+}
+
 fn print_results(
     country: &Country, portfolio: &PortfolioConfig,
     stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
     converter: &CurrencyConverter,
 ) -> EmptyResult {
-    let mut lto_calculator = LtoDeductionCalculator::new();
-
-    let conclusion_time = time::today_trade_conclusion_time();
-    let execution_date = time::today_trade_execution_date();
+    let mut trades_table = TradesTable::new();
+    let mut fifo_table = FifoTable::new();
 
     let mut total_purchase_cost = MultiCurrencyCashAccount::new();
     let mut total_purchase_local_cost = Cash::zero(country.currency);
@@ -89,28 +113,19 @@ fn print_results(
     let mut total_local_revenue = Cash::zero(country.currency);
 
     let mut total_profit = MultiCurrencyCashAccount::new();
-    let mut total_local_profit = Cash::zero(country.currency);
-    let mut total_taxable_local_profit = Cash::zero(country.currency);
-
     let mut total_commission = MultiCurrencyCashAccount::new();
-
-    for commission in additional_commissions.iter() {
-        total_commission.deposit(commission.round());
-
-        let local_commission = converter.convert_to_cash_rounding(
-            conclusion_time.date, commission, country.currency)?;
-
-        total_profit.withdraw(commission);
-        total_local_profit -= local_commission;
-        total_taxable_local_profit -= local_commission;
-    }
-
-    let mut trades_table = TradesTable::new();
-    let mut fifo_table = FifoTable::new();
+    let mut tax_year_totals: BTreeMap<i32, TaxYearTotals> = BTreeMap::new();
 
     let mut same_currency = true;
     let mut tax_exemptions = false;
-    let mut long_term_ownership = false;
+
+    let sell_date = stock_sells.iter()
+        .map(|trade| trade.conclusion_time.date)
+        .reduce(|prev, next| {
+            assert_eq!(prev, next);
+            prev
+        })
+        .unwrap();
 
     for trade in stock_sells {
         let (sell_price, commission) = match trade.type_ {
@@ -126,6 +141,8 @@ fn print_results(
         total_commission.deposit(commission);
 
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
+        let totals = tax_year_totals.entry(tax_year).or_insert_with(|| TaxYearTotals::new(country));
+
         let details = trade.calculate(country, tax_year, &portfolio.tax_exemptions, converter)?;
         let real = details.real_profit(converter)?;
         tax_exemptions |= details.tax_exemption_applied();
@@ -137,8 +154,8 @@ fn print_results(
         total_local_revenue += details.local_revenue;
 
         total_profit.deposit(details.profit);
-        total_local_profit += details.local_profit;
-        total_taxable_local_profit += details.taxable_local_profit;
+        totals.local_profit += details.local_profit;
+        totals.taxable_local_profit += details.taxable_local_profit;
 
         let price_precision = std::cmp::max(2, util::decimal_precision(sell_price.amount));
         let mut purchase_cost = Cash::zero(sell_price.currency);
@@ -148,8 +165,8 @@ fn print_results(
             purchase_cost += buy_trade.cost(purchase_cost.currency, converter)?;
 
             if let Some(ref deductible) = buy_trade.long_term_ownership_deductible {
+                let lto_calculator = totals.lto_calculator.get_or_insert_with(LtoDeductionCalculator::new);
                 lto_calculator.add(deductible.profit, deductible.years, false);
-                long_term_ownership = true;
             }
 
             fifo_table.add_row(FifoRow {
@@ -189,21 +206,51 @@ fn print_results(
         });
     }
 
-    let lto = lto_calculator.calculate();
-    total_taxable_local_profit.amount -= lto.deduction;
+    for commission in additional_commissions.iter() {
+        let totals = tax_year_totals.values_mut().next().unwrap();
+        let local_commission = converter.convert_to_cash_rounding(sell_date, commission, country.currency)?;
 
-    let (tax_year, _) = portfolio.tax_payment_day().get(execution_date, true);
-    let tax_without_deduction = country.tax_to_pay(
-        IncomeType::Trading, tax_year, total_local_profit, None);
-    let tax_to_pay = country.tax_to_pay(
-        IncomeType::Trading, tax_year, total_taxable_local_profit, None);
+        total_profit.withdraw(commission);
+        total_commission.deposit(commission.round());
 
-    let tax_deduction = tax_without_deduction - tax_to_pay;
-    assert!(!tax_deduction.is_negative());
+        totals.local_profit -= local_commission;
+        totals.taxable_local_profit -= local_commission;
+    }
+
+    let mut total_local_profit = Cash::zero(country.currency);
+    let mut total_taxable_local_profit = Cash::zero(country.currency);
+
+    let mut total_tax_to_pay = Cash::zero(country.currency);
+    let mut total_tax_deduction = Cash::zero(country.currency);
+
+    let mut lto_deductions: BTreeMap<i32, LtoDeduction> = BTreeMap::new();
+
+    for (tax_year, mut totals) in tax_year_totals {
+        if let Some(lto_calculator) = totals.lto_calculator.take() {
+            let lto = lto_calculator.calculate();
+            totals.taxable_local_profit.amount -= lto.deduction;
+            lto_deductions.insert(tax_year, lto);
+        }
+
+        let tax_without_deduction = country.tax_to_pay(
+            IncomeType::Trading, tax_year, totals.local_profit, None);
+
+        let tax_to_pay = country.tax_to_pay(
+            IncomeType::Trading, tax_year, totals.taxable_local_profit, None);
+
+        let tax_deduction = tax_without_deduction - tax_to_pay;
+        assert!(!tax_deduction.is_negative());
+
+        total_local_profit += totals.local_profit;
+        total_taxable_local_profit += totals.taxable_local_profit;
+
+        total_tax_to_pay += tax_to_pay;
+        total_tax_deduction += tax_deduction;
+    }
 
     let total_real = trades::calculate_real_profit(
         converter.real_time_date(), total_purchase_cost, total_purchase_local_cost,
-        total_profit.clone(), total_local_profit, tax_to_pay, converter)?;
+        total_profit.clone(), total_local_profit, total_tax_to_pay, converter)?;
 
     let mut totals = trades_table.add_empty_row();
     totals.set_commission(total_commission);
@@ -212,8 +259,8 @@ fn print_results(
     totals.set_profit(total_profit);
     totals.set_local_profit(total_local_profit);
     totals.set_taxable_local_profit(total_taxable_local_profit);
-    totals.set_tax_to_pay(tax_to_pay);
-    totals.set_tax_deduction(tax_deduction);
+    totals.set_tax_to_pay(total_tax_to_pay);
+    totals.set_tax_deduction(total_tax_deduction);
     totals.set_real_profit(total_real.profit_ratio.map(Cell::new_ratio));
     totals.set_real_tax(total_real.tax_ratio.map(Cell::new_ratio));
     totals.set_real_local_profit(total_real.local_profit_ratio.map(Cell::new_ratio));
@@ -223,25 +270,29 @@ fn print_results(
         trades_table.hide_local_profit();
         trades_table.hide_real_local_profit();
     }
-    if same_currency && !long_term_ownership {
+    if same_currency && lto_deductions.is_empty() {
         trades_table.hide_real_tax();
     }
-    if !tax_exemptions && !long_term_ownership {
+    if !tax_exemptions && lto_deductions.is_empty() {
         trades_table.hide_taxable_local_profit();
         trades_table.hide_tax_deduction();
     }
     if !tax_exemptions {
         fifo_table.hide_tax_free();
     }
-    if !long_term_ownership {
+    if lto_deductions.is_empty() {
         fifo_table.hide_long_term_ownership();
     }
 
     trades_table.print("Sell simulation results");
     fifo_table.print("FIFO details");
 
-    if long_term_ownership {
-        lto.print("Long term ownership deduction");
+    for (tax_year, lto) in &lto_deductions {
+        let mut title = s!("Long term ownership deduction");
+        if lto_deductions.len() > 1 {
+            title = format!("{} ({})", title, tax_year)
+        }
+        lto.print(&title);
     }
 
     Ok(())

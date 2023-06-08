@@ -3,9 +3,7 @@ mod month;
 mod parsing;
 mod period;
 
-use std::ops::Add;
-
-use chrono::{Duration, Local, TimeZone};
+use chrono::{Local, TimeZone};
 #[cfg(debug_assertions)] use lazy_static::lazy_static;
 
 pub use chrono::DateTime as TzDateTime;
@@ -18,14 +16,6 @@ pub use period::*;
 
 pub fn today() -> Date {
     tz_now().naive_local().date()
-}
-
-pub fn today_trade_conclusion_time() -> DateOptTime {
-    now().into()
-}
-
-pub fn today_trade_execution_date() -> Date {
-    today().add(Duration::days(2))
 }
 
 pub fn now() -> DateTime {

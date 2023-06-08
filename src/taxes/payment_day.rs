@@ -82,7 +82,7 @@ impl TaxPaymentDaySpec {
     {
         let tax_payment_day: String = Deserialize::deserialize(deserializer)?;
         if tax_payment_day == "on-close" {
-            return Ok(TaxPaymentDaySpec::OnClose(localities::nearest_possible_account_close_date()));
+            return Ok(TaxPaymentDaySpec::OnClose(localities::get_nearest_possible_russian_account_close_date()));
         }
 
         Regex::new(r"^(?P<day>[0-9]+)\.(?P<month>[0-9]+)$").unwrap().captures(&tax_payment_day).and_then(|captures| {

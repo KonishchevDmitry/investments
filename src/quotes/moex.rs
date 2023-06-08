@@ -11,7 +11,6 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formats::xml;
-#[cfg(not(test))] use crate::localities;
 use crate::time;
 use crate::types::{Decimal, Date};
 
@@ -222,7 +221,7 @@ fn get_value<T>(value: Option<T>) -> GenericResult<T> {
 
 #[cfg(not(test))]
 fn is_outdated(date: Date) -> bool {
-    date < localities::get_russian_stock_exchange_min_last_working_day(time::today())
+    date < Exchange::Moex.min_last_working_day(time::today())
 }
 
 #[cfg(test)]

@@ -8,7 +8,6 @@ use crate::commissions::CommissionCalc;
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverterRc;
-use crate::time;
 use crate::types::{Decimal, TradeType};
 use crate::util;
 
@@ -620,7 +619,7 @@ fn calculate_target_commission(
         (TradeType::Sell, holding.current_shares - target_shares)
     };
 
-    let date = time::today_trade_conclusion_time().date;
+    let date = crate::exchanges::today_trade_conclusion_time().date;
     let commission = commission_calc.add_trade(date, trade_type, shares, holding.currency_price)
         .map_err(|e| format!("{}: {}", name, e))?;
 
@@ -635,7 +634,7 @@ fn calculate_total_commissions(portfolio: &Portfolio, converter: CurrencyConvert
     let trade_commissions = calculate_trade_commissions(
         &portfolio.assets, &mut calc, &portfolio.currency, converter.clone())?;
 
-    let date = time::today_trade_conclusion_time().date;
+    let date = crate::exchanges::today_trade_conclusion_time().date;
     let mut additional_commissions = dec!(0);
 
     for commissions in calc.calculate()?.values() {

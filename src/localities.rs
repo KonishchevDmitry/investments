@@ -4,8 +4,8 @@ use std::ops::Bound;
 use chrono::{Datelike, Duration};
 
 use crate::currency::Cash;
+use crate::exchanges::Exchange;
 use crate::taxes::IncomeType;
-use crate::time;
 use crate::types::{Date, Decimal};
 
 #[derive(Clone)]
@@ -135,11 +135,6 @@ pub fn us() -> Country {
     }, 2)
 }
 
-pub fn is_valid_execution_date(conclusion: Date, execution: Date) -> bool {
-    let expected_execution = conclusion + Duration::days(2);
-    conclusion <= execution && get_russian_stock_exchange_min_last_working_day(execution) <= expected_execution
-}
-
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
     // New Year holidays
     if today.month() == 1 && today.day() < 12 {
@@ -156,20 +151,15 @@ pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
     }
 }
 
-pub fn get_russian_stock_exchange_min_last_working_day(today: Date) -> Date {
-    // Experimentally deduced timeout. Originally was smaller, but for example in 2022 when FinEx
-    // ETF have been suspended, MOEX returned their price, but with day delay, so for example during
-    // May holidays we had quotes only for 29 april during 30 april - 4 may period.
-    today - Duration::days(5)
-}
+pub fn get_nearest_possible_russian_account_close_date() -> Date {
+    [Exchange::Moex, Exchange::Spb].iter().map(|exchange| {
+        let execution_date = exchange.trading_mode().execution_date(crate::exchanges::today_trade_conclusion_time());
 
-pub fn nearest_possible_account_close_date() -> Date {
-    let execution_date = time::today_trade_execution_date();
+        let mut close_date = execution_date;
+        while exchange.min_last_working_day(close_date) < execution_date {
+            close_date += Duration::days(1);
+        }
 
-    let mut close_date = execution_date;
-    while get_russian_stock_exchange_min_last_working_day(close_date) < execution_date {
-        close_date += Duration::days(1);
-    }
-
-    close_date
+        close_date
+    }).max().unwrap()
 }

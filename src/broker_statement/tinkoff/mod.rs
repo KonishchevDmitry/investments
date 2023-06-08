@@ -1,15 +1,15 @@
 /*
-Tinkoff statement T+2 specific:
+Tinkoff statement T+N specific:
 
 All trades are split into two categories: executed and not executed (yet). If trade is not executed
 yet, it's listed in not executed table in current statement and then will be listed in executed
-table of next statement, so we have to deduplicate them there (we want to capture T+2 state of the
+table of next statement, so we have to deduplicate them there (we want to capture T+N state of the
 broker statement, because it's much intuitive and convenient compared to T+0 state).
 
 Trade related cash flows are also listed in cash flow table. For not executed trades they have
 "План" comment (and so may appear in several statements). At this time we ignore them because there
 is no any new information inside of them. Dates there show that commission withholding is actually
-T+2 instead of expected T+0, but we don't take it into account yet.
+T+N instead of expected T+0, but we don't take it into account yet.
 
 Deposits and withholdings are always T+0, so there is no problems with them.
 */
