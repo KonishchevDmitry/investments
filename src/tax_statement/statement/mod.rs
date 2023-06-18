@@ -24,6 +24,7 @@ pub use self::countries::CountryCode;
 pub struct TaxStatement {
     path: PathBuf,
     pub year: i32,
+    pub modified: bool,
     records: Vec<Box<dyn Record>>,
 }
 
@@ -54,7 +55,7 @@ impl TaxStatement {
         source_from: CountryCode, received_in: CountryCode, currency: &str, currency_rate: Decimal,
         amount: Decimal, paid_tax: Decimal, local_amount: Decimal, local_paid_tax: Decimal,
     ) -> EmptyResult {
-        self.get_foreign_incomes()?.push(CurrencyIncome {
+        self.add_foreign_income(CurrencyIncome {
             type_: IncomeType::Dividend,
             description: description.to_owned(),
             source_from, received_in,
@@ -71,16 +72,14 @@ impl TaxStatement {
             deduction: DeductionInfo::new_none(),
 
             controlled_foreign_company: ControlledForeignCompanyInfo::new_none(),
-        });
-
-        Ok(())
+        })
     }
 
     pub fn add_interest_income(
         &mut self, description: &str, date: Date, broker_jurisdiction: CountryCode,
         currency: &str, currency_rate: Decimal, amount: Decimal, local_amount: Decimal,
     ) -> EmptyResult {
-        self.get_foreign_incomes()?.push(CurrencyIncome {
+        self.add_foreign_income(CurrencyIncome {
             type_: IncomeType::Interest,
             description: description.to_owned(),
 
@@ -99,9 +98,7 @@ impl TaxStatement {
             deduction: DeductionInfo::new_none(),
 
             controlled_foreign_company: ControlledForeignCompanyInfo::new_none(),
-        });
-
-        Ok(())
+        })
     }
 
     pub fn add_stock_income(
@@ -109,7 +106,7 @@ impl TaxStatement {
         currency: &str, currency_rate: Decimal, amount: Decimal, local_amount: Decimal,
         purchase_local_cost: Decimal,
     ) -> EmptyResult {
-        self.get_foreign_incomes()?.push(CurrencyIncome {
+        self.add_foreign_income(CurrencyIncome {
             type_: IncomeType::Stock,
             description: description.to_owned(),
 
@@ -134,8 +131,12 @@ impl TaxStatement {
             },
 
             controlled_foreign_company: ControlledForeignCompanyInfo::new_none(),
-        });
+        })
+    }
 
+    fn add_foreign_income(&mut self, income: CurrencyIncome) -> EmptyResult {
+        self.get_foreign_incomes()?.push(income);
+        self.modified = true;
         Ok(())
     }
 

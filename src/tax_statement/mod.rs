@@ -6,6 +6,8 @@ mod trades;
 
 use std::path::Path;
 
+use ansi_term::Color;
+
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::Config;
 use crate::core::GenericResult;
@@ -50,25 +52,42 @@ pub fn generate_tax_statement(
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, None, true);
 
-    let trades_tax = trades::process_income(
+    let (trades_tax, has_trading_income, has_trading_income_to_declare) = trades::process_income(
         &country, portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
-    let dividends_tax = dividends::process_income(
+    let (dividends_tax, has_dividend_income, has_dividend_income_to_declare) = dividends::process_income(
         &country, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
-    let interest_tax = interest::process_income(
+    let (interest_tax, has_interest_income) = interest::process_income(
         &country, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
+    let has_income = has_trading_income | has_dividend_income | has_interest_income;
+    let has_income_to_declare = has_trading_income_to_declare | has_dividend_income_to_declare | has_interest_income;
+
     if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
         let total_tax = trades_tax + dividends_tax + interest_tax;
-        tax_agent::process_tax_agent_withholdings(&broker_statement, year, total_tax)?;
+        tax_agent::process_tax_agent_withholdings(&broker_statement, year, has_income, total_tax)?;
     }
 
     if let Some(ref tax_statement) = tax_statement {
-        tax_statement.save()?;
+        assert_eq!(tax_statement.modified, has_income_to_declare);
+
+        if has_income_to_declare {
+            tax_statement.save()?;
+            println!("{}", Color::Green.paint(
+                "The income has been added to the tax statement."));
+        }
+    } else if has_income_to_declare {
+        println!("{}", Color::Yellow.paint(
+            "The income must be declared to tax inspection."));
+    }
+
+    if !has_income_to_declare {
+        println!("{}", Color::Green.paint(
+            "There is no any income to declare."));
     }
 
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))

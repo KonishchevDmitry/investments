@@ -27,7 +27,7 @@ use super::statement::TaxStatement;
 pub fn process_income(
     country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement,
     year: Option<i32>, tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> GenericResult<Cash> {
+) -> GenericResult<(Cash, bool, bool)> {
     let mut processor = TradesProcessor {
         portfolio,
         broker_statement,
@@ -47,17 +47,23 @@ pub fn process_income(
         tax_exemptions: false,
         long_term_ownership: false,
 
+        has_income: false,
+        has_income_to_declare: false,
+
         tax_year_stat: BTreeMap::new(),
     };
 
     processor.process_trades(tax_statement)?;
 
     let totals = processor.process_totals()?;
+    let has_income = processor.has_income;
+    let has_income_to_declare = processor.has_income_to_declare;
+
     if !processor.trades_table.is_empty() {
         processor.print(&totals);
     }
 
-    Ok(totals.tax_to_pay)
+    Ok((totals.tax_to_pay, has_income, has_income_to_declare))
 }
 
 struct TradesProcessor<'a> {
@@ -78,6 +84,9 @@ struct TradesProcessor<'a> {
     stock_splits: bool,
     tax_exemptions: bool,
     long_term_ownership: bool,
+
+    has_income: bool,
+    has_income_to_declare: bool,
 
     tax_year_stat: BTreeMap<i32, TaxYearStat>,
 }
@@ -185,15 +194,19 @@ impl<'a> TradesProcessor<'a> {
             self.process_trade(trade_id, trade, &details)?;
             trade_id += 1;
 
-            if let Some(ref mut statement) = tax_statement {
-                match broker_jurisdiction {
-                    Jurisdiction::Usa => {
+            match broker_jurisdiction {
+                Jurisdiction::Usa => {
+                    self.has_income_to_declare = true;
+
+                    if let Some(ref mut statement) = tax_statement {
                         let tax_year_stat = self.tax_year_stat.get_mut(&tax_year).unwrap();
                         let additional_fees = tax_year_stat.deductible_fees.take().unwrap_or_default();
                         self.add_income(statement, trade, &details, additional_fees)?;
-                    },
+                    }
+                },
 
-                    Jurisdiction::Russia => {
+                Jurisdiction::Russia => {
+                    if tax_statement.is_some() {
                         warn!(concat!(
                             "Don't declare income from trading in the tax statement ",
                             "assuming that it will be declared by broker's tax agent.",
@@ -250,6 +263,7 @@ impl<'a> TradesProcessor<'a> {
             tax_year.taxable_local_profit += details.taxable_local_profit;
         }
 
+        self.has_income = true;
         self.trades_table.add_row(TradeRow {
             id: trade_id,
             conclusion_date: trade.conclusion_time.date,

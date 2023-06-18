@@ -35,10 +35,11 @@ struct Row {
 pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> GenericResult<Cash> {
+) -> GenericResult<(Cash, bool)> {
     let broker_jurisdiction = broker_statement.broker.type_.jurisdiction();
 
     let mut table = Table::new();
+    let mut has_income = false;
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
     let mut total_amount = Cash::zero(country.currency);
@@ -55,6 +56,8 @@ pub fn process_income(
         if interest.amount.is_negative() {
             continue;
         }
+
+        has_income = true;
 
         let foreign_amount = interest.amount.round();
         total_foreign_amount.deposit(foreign_amount);
@@ -124,5 +127,5 @@ pub fn process_income(
             broker_statement.broker.name));
     }
 
-    Ok(total_tax_to_pay)
+    Ok((total_tax_to_pay, has_income))
 }

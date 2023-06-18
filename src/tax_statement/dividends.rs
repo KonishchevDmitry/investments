@@ -21,7 +21,7 @@ use super::statement::{TaxStatement, CountryCode};
 pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> GenericResult<Cash> {
+) -> GenericResult<(Cash, bool, bool)> {
     let mut processor = Processor {
         broker_statement, tax_statement, tax_year: year,
         country, converter,
@@ -32,6 +32,9 @@ pub fn process_income(
 
         same_currency: true,
         tax_agent_issuers: BTreeSet::new(),
+
+        has_income: false,
+        has_income_to_declare: false,
 
         total_foreign_amount: MultiCurrencyCashAccount::new(),
         total_amount: Cash::zero(country.currency),
@@ -45,10 +48,14 @@ pub fn process_income(
     };
 
     processor.process_dividends()?;
+
     let total_tax_to_pay = processor.total_tax_to_pay;
+    let has_income = processor.has_income;
+    let has_income_to_declare = processor.has_income_to_declare;
+
     processor.print();
 
-    Ok(total_tax_to_pay)
+    Ok((total_tax_to_pay, has_income, has_income_to_declare))
 }
 
 #[derive(StaticTable)]
@@ -95,6 +102,9 @@ struct Processor<'a> {
 
     same_currency: bool,
     tax_agent_issuers: BTreeSet<String>,
+
+    has_income: bool,
+    has_income_to_declare: bool,
 
     total_foreign_amount: MultiCurrencyCashAccount,
     total_amount: Cash,
@@ -171,6 +181,7 @@ impl<'a> Processor<'a> {
         let income = amount - paid_tax - tax_to_pay;
         self.total_income += income;
 
+        self.has_income = true;
         self.table.add_row(Row {
             date: dividend.date,
             issuer: issuer.to_owned(),
@@ -246,6 +257,8 @@ impl<'a> Processor<'a> {
                 "{}: Tax currency is different from dividend currency: {} vs {}",
                 dividend.description(), foreign_paid_tax.currency, foreign_amount.currency);
         }
+
+        self.has_income_to_declare = true;
 
         if let Some(ref mut tax_statement) = self.tax_statement {
             let source_from = CountryCode::new(income_country)?;

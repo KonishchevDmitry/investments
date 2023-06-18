@@ -92,7 +92,7 @@ fn print_table(title: &str, table: &RawTable) {
         .build());
 
     wrapping_table.set_titles(RawRow::new(vec![
-        RawCell::new_align(&(s!("\n") + title), Alignment::CENTER)
+        RawCell::new_align(title, Alignment::CENTER)
             .with_style(Attr::Bold),
     ]));
 
@@ -100,7 +100,9 @@ fn print_table(title: &str, table: &RawTable) {
         wrapping_table.add_row(RawRow::new(vec![RawCell::new(&table.to_string())]));
     }
 
+    println!();
     wrapping_table.printstd();
+    println!();
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]

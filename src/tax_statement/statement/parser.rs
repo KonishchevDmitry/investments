@@ -107,6 +107,7 @@ impl TaxStatementReader {
         let statement = TaxStatement {
             path: path.to_owned(),
             year: year,
+            modified: false,
             records: records,
         };
         debug!("Read statement:\n{:#?}", statement);
