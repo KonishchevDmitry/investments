@@ -4511,7 +4511,7 @@ pub enum CandleInterval {
     Unspecified = 0,
     /// от 1 минуты до 1 дня.
     CandleInterval1Min = 1,
-    /// от 5 минуты до 1 дня.
+    /// от 5 минут до 1 дня.
     CandleInterval5Min = 2,
     /// от 15 минут до 1 дня.
     CandleInterval15Min = 3,
