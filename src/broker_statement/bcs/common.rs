@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -44,6 +46,13 @@ pub fn parse_symbol(name: &str) -> GenericResult<String> {
     Ok(captures.name("symbol").unwrap().as_str().to_owned())
 }
 
+pub fn trim_column_title(title: &str) -> Cow<str> {
+    lazy_static! {
+        static ref FOOTNOTE_REFERENCE_REGEX: Regex = Regex::new(r"\s*\(\d+\*\)\s*$").unwrap();
+    }
+    FOOTNOTE_REFERENCE_REGEX.replace(title, "")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -56,5 +65,13 @@ mod tests {
     )]
     fn symbol_parsing(name: &str, symbol: &str) {
         assert_eq!(parse_symbol(name).unwrap(), symbol);
+    }
+
+    #[rstest(input, expected,
+        case("Тип сделки", "Тип сделки"),
+        case("Тип сделки (20*)", "Тип сделки"),
+    )]
+    fn column_title_trimming(input: &str, expected: &str) {
+        assert_eq!(trim_column_title(input), expected);
     }
 }

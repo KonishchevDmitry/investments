@@ -12,7 +12,7 @@ macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
 }
 
-#[proc_macro_derive(XlsTableRow, attributes(column))]
+#[proc_macro_derive(XlsTableRow, attributes(table, column))]
 pub fn xls_table_row_derive(input: TokenStream) -> TokenStream {
     match xls_table_row_derive_impl(input) {
         Ok(output) => output,
@@ -23,6 +23,15 @@ pub fn xls_table_row_derive(input: TokenStream) -> TokenStream {
 fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
     let span = Span::call_site();
+
+    let table = TableParams::parse(&ast)?;
+    let trim_title_func = match table.trim_column_title_with {
+        Some(name) => {
+            let ident = Ident::new(&name, span);
+            quote!(#ident)
+        },
+        None => quote!(::std::borrow::Cow::from),
+    };
 
     let columns = Column::parse(&ast)?;
     let mod_ident = quote!(crate::formats::xls);
@@ -78,6 +87,10 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
                 vec![#(#columns_code,)*]
             }
 
+            fn trim_column_title(title: &str) -> ::std::borrow::Cow<str> {
+                #trim_title_func(title)
+            }
+
             fn parse(row: &[Option<&#mod_ident::Cell>]) -> crate::core::GenericResult<#row_ident> {
                 Ok(#row_ident {
                     #(#columns_parse_code,)*
@@ -85,6 +98,54 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
             }
         }
     }.into())
+}
+
+#[derive(FromMeta)]
+struct TableParams {
+    trim_column_title_with: Option<String>,
+}
+
+impl TableParams {
+    fn ident() -> Ident {
+        Ident::new("table", Span::call_site())
+    }
+
+    fn parse(ast: &DeriveInput) -> GenericResult<TableParams> {
+        let mut table_params = None;
+
+        let table_ident = TableParams::ident();
+        let column_ident = ColumnParams::ident();
+
+        for attr in &ast.attrs {
+            if attr.path().is_ident(&column_ident) {
+                return Err!("`{}` attribute is allowed on struct fields only", column_ident);
+            } else if !attr.path().is_ident(&table_ident) {
+                continue;
+            }
+
+            let params = attr.parse_args_with(TableParamsParser{}).map_err(|e| format!(
+                "`{}` attribute: {}", table_ident, e))?;
+
+            if table_params.replace(params).is_some() {
+                return Err!("Duplicated `{}` attribute", table_ident);
+            }
+        }
+
+        Ok(table_params.unwrap_or_else(|| TableParams {
+            trim_column_title_with: None,
+        }))
+    }
+}
+
+struct TableParamsParser {
+}
+
+impl syn::parse::Parser for TableParamsParser {
+    type Output = TableParams;
+
+    fn parse2(self, tokens: proc_macro2::TokenStream) -> syn::Result<Self::Output> {
+        Ok(TableParams::from_list(&NestedMeta::parse_meta_list(tokens)?)?)
+    }
 }
 
 struct Column {
@@ -99,6 +160,8 @@ struct Column {
 impl Column {
     fn parse(ast: &DeriveInput) -> GenericResult<Vec<Column>> {
         let mut columns = Vec::new();
+
+        let table_ident = TableParams::ident();
         let column_ident = ColumnParams::ident();
 
         let fields = match ast.data {
@@ -111,7 +174,9 @@ impl Column {
             let mut field_params = None;
 
             for attr in &field.attrs {
-                if !attr.path().is_ident(&column_ident) {
+                if attr.path().is_ident(&table_ident) {
+                    return Err!("`{}` attribute is allowed on struct definition only", table_ident);
+                } else if !attr.path().is_ident(&column_ident) {
                     continue;
                 }
 

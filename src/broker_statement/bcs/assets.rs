@@ -6,7 +6,7 @@ use crate::types::Decimal;
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_currency, parse_symbol};
+use super::common::{parse_currency, parse_symbol, trim_column_title};
 
 pub struct AssetsParser {
     statement: PartialBrokerStatementRc,
@@ -40,6 +40,7 @@ impl SectionParser for AssetsParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title")]
 struct AssetRow {
     #[column(name="Вид актива")]
     name: String,
@@ -49,7 +50,7 @@ struct AssetRow {
     security_type: Option<String>,
     #[column(name="Кол-во ЦБ / Масса ДМ (шт/г)", alias="Кол-во ценных бумаг")]
     _3: SkipCell,
-    #[column(name="Цена закрытия/котировка вторич.(5*)")]
+    #[column(name="Цена закрытия/котировка вторич.")]
     _4: SkipCell,
     #[column(name="Сумма НКД")]
     _5: SkipCell,
@@ -57,13 +58,13 @@ struct AssetRow {
     start_value: Option<Decimal>,
     #[column(name="Кол-во ЦБ / Масса ДМ (шт/г)", alias="Кол-во ценных бумаг")]
     end_quantity: Option<i32>,
-    #[column(name="Цена закрытия/ котировка вторич.(5*)")]
+    #[column(name="Цена закрытия/ котировка вторич.")]
     _8: SkipCell,
     #[column(name="Сумма НКД")]
     _9: SkipCell,
     #[column(name="Сумма, в т.ч. НКД")]
     end_value: Option<Decimal>,
-    #[column(name="Организатор торгов (2*)")]
+    #[column(name="Организатор торгов")]
     _11: SkipCell,
     #[column(name="Место хранения")]
     _12: SkipCell,

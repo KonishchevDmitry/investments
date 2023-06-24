@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::{self, Regex};
@@ -8,6 +10,7 @@ use super::{SheetReader, Cell, is_empty_row};
 
 pub trait TableRow: Sized {
     fn columns() -> Vec<TableColumn>;
+    fn trim_column_title(title: &str) -> Cow<str>;
     fn parse(row: &[Option<&Cell>]) -> GenericResult<Self>;
 }
 
@@ -32,11 +35,11 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
     let columns = T::columns();
     let repeatable_table_column_titles = sheet.repeatable_table_column_titles();
 
-    let mut columns_mapping = map_columns(sheet.next_row_checked()?, &columns)?;
+    let mut columns_mapping = map_columns(sheet.next_row_checked()?, &columns, T::trim_column_title)?;
 
     while let Some(row) = T::next_row(sheet) {
         if repeatable_table_column_titles {
-            if let Ok(new_mapping) = map_columns(row, &columns) {
+            if let Ok(new_mapping) = map_columns(row, &columns, T::trim_column_title) {
                 columns_mapping = new_mapping;
                 continue;
             }
@@ -65,11 +68,11 @@ impl TableColumn {
         TableColumn {name, regex, aliases, optional}
     }
 
-    fn find(&self, row: &[Cell]) -> GenericResult<Option<usize>> {
+    fn find(&self, row: &[Cell], trim_title: fn(&str) -> Cow<str>) -> GenericResult<Option<usize>> {
         for (cell_id, cell) in row.iter().enumerate() {
             match cell {
                 Cell::String(value) => {
-                    return if self.matches(value)? {
+                    return if self.matches(&trim_title(value))? {
                         Ok(Some(cell_id))
                     } else if self.optional {
                         Ok(None)
@@ -183,12 +186,12 @@ impl ColumnsMapping {
     }
 }
 
-pub fn map_columns(mut row: &[Cell], columns: &[TableColumn]) -> GenericResult<ColumnsMapping> {
+pub fn map_columns(mut row: &[Cell], columns: &[TableColumn], trim_title: fn(&str) -> Cow<str>) -> GenericResult<ColumnsMapping> {
     let mut mapping = Vec::with_capacity(columns.len());
     let mut offset = 0;
 
     for column in columns {
-        let cell_id = match column.find(row)? {
+        let cell_id = match column.find(row, trim_title)? {
             Some(index) => {
                 row = &row[index + 1..];
                 let cell_id = offset + index;

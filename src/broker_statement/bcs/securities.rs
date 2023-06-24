@@ -9,7 +9,7 @@ use crate::time::Date;
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_symbol, parse_short_date_cell};
+use super::common::{parse_symbol, parse_short_date_cell, trim_column_title};
 
 pub struct SecuritiesParser {
     statement: PartialBrokerStatementRc,
@@ -44,6 +44,7 @@ impl SectionParser for SecuritiesParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title")]
 struct SecurityRow {
     #[column(name="ЦБ")]
     symbol: String,

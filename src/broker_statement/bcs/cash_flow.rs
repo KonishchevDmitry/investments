@@ -10,7 +10,7 @@ use crate::util::{self, DecimalRestrictions};
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_short_date, parse_currency};
+use super::common::{parse_short_date, parse_currency, trim_column_title};
 
 pub struct CashFlowParser {
     statement: PartialBrokerStatementRc,
@@ -42,6 +42,7 @@ impl SectionParser for CashFlowParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title")]
 struct CashFlowRow {
     #[column(name="Дата")]
     date: String,

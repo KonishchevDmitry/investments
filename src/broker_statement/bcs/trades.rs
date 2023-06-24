@@ -13,7 +13,7 @@ use crate::util::{self, DecimalRestrictions};
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_short_date, parse_time, parse_currency, parse_symbol};
+use super::common::{parse_short_date, parse_time, parse_currency, parse_symbol, trim_column_title};
 
 pub struct TradesParser {
     statement: PartialBrokerStatementRc,
@@ -33,7 +33,7 @@ impl SectionParser for TradesParser {
         parser.sheet.next_row_checked()?;
 
         let columns_mapping = xls::map_columns(
-            parser.sheet.next_row_checked()?, &TradeRow::columns())?;
+            parser.sheet.next_row_checked()?, &TradeRow::columns(), TradeRow::trim_column_title)?;
 
         let mut current_instrument: Option<CurrentInstrument> = None;
 
@@ -74,6 +74,7 @@ impl SectionParser for TradesParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title")]
 struct TradeRow {
     #[column(name="Дата")]
     date: String,
