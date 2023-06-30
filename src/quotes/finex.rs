@@ -11,7 +11,7 @@ use xls_table_derive::XlsTableRow;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::formats::xls::{self, SheetReader, SheetParser, TableReader};
+use crate::formats::xls::{self, SheetReader, SheetParser, TableReader, SkipCell};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
@@ -64,7 +64,7 @@ struct QuotesRow {
     #[column(name="ticker")]
     symbol: String,
     #[column(name="date")]
-    _date: String,
+    _date: SkipCell,
     #[column(name="currency")]
     currency: String,
     #[column(name="value")]
