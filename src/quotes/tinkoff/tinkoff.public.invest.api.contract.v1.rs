@@ -491,7 +491,7 @@ pub struct Option {
     /// Текущий режим торгов инструмента.
     #[prost(enumeration = "SecurityTradingStatus", tag = "21")]
     pub trading_status: i32,
-    /// Реальная площадка исполнения расчётов. Допустимые значения: [REAL_EXCHANGE_MOEX, REAL_EXCHANGE_RTS]
+    /// Реальная площадка исполнения расчётов (биржа). Допустимые значения: [REAL_EXCHANGE_MOEX, REAL_EXCHANGE_RTS]
     #[prost(enumeration = "RealExchange", tag = "31")]
     pub real_exchange: i32,
     /// Направление опциона.
@@ -521,7 +521,7 @@ pub struct Option {
     /// Основной актив.
     #[prost(string, tag = "132")]
     pub basic_asset: ::prost::alloc::string::String,
-    /// Биржа.
+    /// Tорговая площадка (секция биржи).
     #[prost(string, tag = "141")]
     pub exchange: ::prost::alloc::string::String,
     /// Код страны рисков.
@@ -545,16 +545,16 @@ pub struct Option {
     /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "222")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи для КСУР лонг.
+    /// Ставка риска начальной маржи для КСУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "223")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи для КСУР шорт.
+    /// Ставка риска начальной маржи для КСУР шорт.  Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "224")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи для КПУР лонг.
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "225")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи для КПУР шорт.
+    /// Ставка риска начальной маржи для КПУР шорт.  Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "226")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Минимальный шаг цены.
@@ -644,22 +644,22 @@ pub struct Bond {
     /// Валюта расчётов.
     #[prost(string, tag = "6")]
     pub currency: ::prost::alloc::string::String,
-    /// Коэффициент ставки риска длинной позиции по инструменту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "7")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по инструменту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "8")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "9")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "10")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "11")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "12")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Признак доступности для операций в шорт.
@@ -668,7 +668,7 @@ pub struct Bond {
     /// Название инструмента.
     #[prost(string, tag = "15")]
     pub name: ::prost::alloc::string::String,
-    /// Торговая площадка.
+    /// Tорговая площадка (секция биржи).
     #[prost(string, tag = "16")]
     pub exchange: ::prost::alloc::string::String,
     /// Количество выплат по купонам в год.
@@ -743,7 +743,7 @@ pub struct Bond {
     /// Уникальный идентификатор инструмента.
     #[prost(string, tag = "40")]
     pub uid: ::prost::alloc::string::String,
-    /// Реальная площадка исполнения расчётов.
+    /// Реальная площадка исполнения расчётов. (биржа)
     #[prost(enumeration = "RealExchange", tag = "41")]
     pub real_exchange: i32,
     /// Уникальный идентификатор позиции инструмента.
@@ -799,22 +799,22 @@ pub struct Currency {
     /// Валюта расчётов.
     #[prost(string, tag = "6")]
     pub currency: ::prost::alloc::string::String,
-    /// Коэффициент ставки риска длинной позиции по инструменту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "7")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по инструменту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "8")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР лонг.Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "9")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "10")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "11")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "12")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Признак доступности для операций в шорт.
@@ -823,7 +823,7 @@ pub struct Currency {
     /// Название инструмента.
     #[prost(string, tag = "15")]
     pub name: ::prost::alloc::string::String,
-    /// Торговая площадка.
+    /// Tорговая площадка (секция биржи)
     #[prost(string, tag = "16")]
     pub exchange: ::prost::alloc::string::String,
     /// Номинал.
@@ -859,7 +859,7 @@ pub struct Currency {
     /// Уникальный идентификатор инструмента.
     #[prost(string, tag = "27")]
     pub uid: ::prost::alloc::string::String,
-    /// Реальная площадка исполнения расчётов.
+    /// Реальная площадка исполнения расчётов (биржа).
     #[prost(enumeration = "RealExchange", tag = "28")]
     pub real_exchange: i32,
     /// Уникальный идентификатор позиции инструмента.
@@ -906,22 +906,22 @@ pub struct Etf {
     /// Валюта расчётов.
     #[prost(string, tag = "6")]
     pub currency: ::prost::alloc::string::String,
-    /// Коэффициент ставки риска длинной позиции по инструменту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "7")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по инструменту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "8")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР лонг.Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "9")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "10")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "11")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "12")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Признак доступности для операций в шорт.
@@ -930,7 +930,7 @@ pub struct Etf {
     /// Название инструмента.
     #[prost(string, tag = "15")]
     pub name: ::prost::alloc::string::String,
-    /// Торговая площадка.
+    /// Tорговая площадка (секция биржи).
     #[prost(string, tag = "16")]
     pub exchange: ::prost::alloc::string::String,
     /// Размер фиксированной комиссии фонда.
@@ -978,7 +978,7 @@ pub struct Etf {
     /// Уникальный идентификатор инструмента.
     #[prost(string, tag = "31")]
     pub uid: ::prost::alloc::string::String,
-    /// Реальная площадка исполнения расчётов.
+    /// Реальная площадка исполнения расчётов (биржа).
     #[prost(enumeration = "RealExchange", tag = "32")]
     pub real_exchange: i32,
     /// Уникальный идентификатор позиции инструмента.
@@ -1025,22 +1025,22 @@ pub struct Future {
     /// Валюта расчётов.
     #[prost(string, tag = "5")]
     pub currency: ::prost::alloc::string::String,
-    /// Коэффициент ставки риска длинной позиции по клиенту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "6")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по клиенту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "7")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР лонг.Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "8")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "9")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "10")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "11")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Признак доступности для операций шорт.
@@ -1049,7 +1049,7 @@ pub struct Future {
     /// Название инструмента.
     #[prost(string, tag = "13")]
     pub name: ::prost::alloc::string::String,
-    /// Торговая площадка.
+    /// Tорговая площадка (секция биржи).
     #[prost(string, tag = "14")]
     pub exchange: ::prost::alloc::string::String,
     /// Дата начала обращения контракта в часовом поясе UTC.
@@ -1103,7 +1103,7 @@ pub struct Future {
     /// Уникальный идентификатор инструмента.
     #[prost(string, tag = "31")]
     pub uid: ::prost::alloc::string::String,
-    /// Реальная площадка исполнения расчётов.
+    /// Реальная площадка исполнения расчётов (биржа).
     #[prost(enumeration = "RealExchange", tag = "32")]
     pub real_exchange: i32,
     /// Уникальный идентификатор позиции инструмента.
@@ -1153,22 +1153,22 @@ pub struct Share {
     /// Валюта расчётов.
     #[prost(string, tag = "6")]
     pub currency: ::prost::alloc::string::String,
-    /// Коэффициент ставки риска длинной позиции по инструменту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "7")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по инструменту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "8")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР лонг.Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "9")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "10")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "11")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "12")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Признак доступности для операций в шорт.
@@ -1177,7 +1177,7 @@ pub struct Share {
     /// Название инструмента.
     #[prost(string, tag = "15")]
     pub name: ::prost::alloc::string::String,
-    /// Торговая площадка.
+    /// Tорговая площадка (секция биржи).
     #[prost(string, tag = "16")]
     pub exchange: ::prost::alloc::string::String,
     /// Дата IPO акции в часовом поясе UTC.
@@ -1228,7 +1228,7 @@ pub struct Share {
     /// Уникальный идентификатор инструмента.
     #[prost(string, tag = "33")]
     pub uid: ::prost::alloc::string::String,
-    /// Реальная площадка исполнения расчётов.
+    /// Реальная площадка исполнения расчётов (биржа).
     #[prost(enumeration = "RealExchange", tag = "34")]
     pub real_exchange: i32,
     /// Уникальный идентификатор позиции инструмента.
@@ -1350,22 +1350,22 @@ pub struct Instrument {
     /// Валюта расчётов.
     #[prost(string, tag = "6")]
     pub currency: ::prost::alloc::string::String,
-    /// Коэффициент ставки риска длинной позиции по инструменту.
+    /// Коэффициент ставки риска длинной позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "7")]
     pub klong: ::core::option::Option<Quotation>,
-    /// Коэффициент ставки риска короткой позиции по инструменту.
+    /// Коэффициент ставки риска короткой позиции по клиенту. 2 – клиент со стандартным уровнем риска (КСУР). 1 – клиент с повышенным уровнем риска (КПУР)
     #[prost(message, optional, tag = "8")]
     pub kshort: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// ССтавка риска начальной маржи для КСУР лонг.Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "9")]
     pub dlong: ::core::option::Option<Quotation>,
-    /// Ставка риска минимальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КСУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "10")]
     pub dshort: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР лонг. Подробнее: [ставка риска в лонг](<https://help.tinkoff.ru/margin-trade/long/risk-rate/>)
     #[prost(message, optional, tag = "11")]
     pub dlong_min: ::core::option::Option<Quotation>,
-    /// Ставка риска начальной маржи в шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
+    /// Ставка риска начальной маржи для КПУР шорт. Подробнее: [ставка риска в шорт](<https://help.tinkoff.ru/margin-trade/short/risk-rate/>)
     #[prost(message, optional, tag = "12")]
     pub dshort_min: ::core::option::Option<Quotation>,
     /// Признак доступности для операций в шорт.
@@ -1374,7 +1374,7 @@ pub struct Instrument {
     /// Название инструмента.
     #[prost(string, tag = "14")]
     pub name: ::prost::alloc::string::String,
-    /// Торговая площадка.
+    /// Tорговая площадка (секция биржи).
     #[prost(string, tag = "15")]
     pub exchange: ::prost::alloc::string::String,
     /// Код страны риска, т.е. страны, в которой компания ведёт основной бизнес.
@@ -1407,7 +1407,7 @@ pub struct Instrument {
     /// Уникальный идентификатор инструмента.
     #[prost(string, tag = "25")]
     pub uid: ::prost::alloc::string::String,
-    /// Реальная площадка исполнения расчётов.
+    /// Реальная площадка исполнения расчётов (биржа).
     #[prost(enumeration = "RealExchange", tag = "26")]
     pub real_exchange: i32,
     /// Уникальный идентификатор позиции инструмента.
