@@ -19,10 +19,22 @@ pub fn parse_planned_actual_date_cell(cell: &Cell) -> GenericResult<Date> {
     let values: Vec<&str> = value.split('/').collect();
 
     let date = match values.len() {
-        1 => values.first(), // Deprecated case: old broker statements contains only one date
-        2 => values.last(),
+        1 => {
+             // Deprecated case: old broker statements contain only one date
+             values.first().unwrap()
+        },
+        2 => {
+            let actual = values.last().unwrap();
+
+            // For non-executed trades actual date is empty
+            if actual.is_empty() {
+                values.first().unwrap()
+            } else {
+                actual
+            }
+        },
         _ => return Err!("Invalid date: {:?}", value)
-    }.unwrap();
+    };
 
     parse_date(date)
 }
