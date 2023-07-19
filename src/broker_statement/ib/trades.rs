@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::EmptyResult;
 use crate::time::DateTime;
@@ -53,8 +51,8 @@ fn parse_forex_record(
         return Err!("Invalid forex pair: {}", symbol)
     }
 
-    let base = pair.first().unwrap().deref();
-    let quote = pair.last().unwrap().deref();
+    let base = *pair.first().unwrap();
+    let quote = *pair.last().unwrap();
     let volume = record.parse_cash("Proceeds", quote, DecimalRestrictions::NonZero)?;
 
     // Please note: The value is actually may be rounded which leads to inaccuracy in cash flow
