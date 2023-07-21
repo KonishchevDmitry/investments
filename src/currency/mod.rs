@@ -58,6 +58,7 @@ pub fn validate_currency_list<C, I>(currencies: C) -> Result<(), ValidationError
 fn format_currency(currency: &str, mut amount: &str) -> String {
     let prefix = match currency {
         "AUD" => Some("AU$"),
+        "CNY" => Some("¥"),
         "EUR" => Some("€"),
         "GBP" => Some("£"),
         "USD" => Some("$"),
