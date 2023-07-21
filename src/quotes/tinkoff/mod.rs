@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::time::Duration;
 
 use chrono::{LocalResult, TimeZone, Utc};
 use itertools::Itertools;
-use log::{debug, trace};
+use log::{Level, debug, log_enabled, trace};
 use serde::Deserialize;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
@@ -224,9 +224,7 @@ impl Tinkoff {
             let mut instruments = HashMap::new();
 
             self.get_all_shares(&mut instruments).await?;
-            if matches!(self.exchange, TinkoffExchange::Otc) {
-                self.get_all_etfs(&mut instruments).await?;
-            }
+            self.get_all_etfs(&mut instruments).await?;
 
             *stocks = instruments;
         }
@@ -247,77 +245,106 @@ impl Tinkoff {
     }
 
     async fn get_all_shares(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
-        let (name, exchange, status) = self.exchange.to_request();
+        let (name, status) = match self.exchange {
+            TinkoffExchange::Spb => ("SPB stocks", InstrumentStatus::Base),
+            TinkoffExchange::Unknown => ("other stocks", InstrumentStatus::All),
+            TinkoffExchange::Currency => unreachable!(),
+        };
 
-        trace!("Getting a list of available {} stocks from Tinkoff...", name);
+        let mut trace = InstrumentTrace::new(name);
 
         #[allow(clippy::needless_update)]
         let instruments = self.instruments_client().shares(InstrumentsRequest {
             instrument_status: status.into(),
             ..Default::default()
         }).await.map_err(|e| format!(
-            "Failed to get available {} stocks list: {}", name, e,
+            "Failed to get available {} list: {}", name, e,
         ))?.into_inner().instruments;
 
-        trace!("Got the following {} stocks from Tinkoff:", name);
-
         for stock in instruments {
-            if stock.real_exchange() != exchange {
-                continue
+            let real_exchange = stock.real_exchange();
+
+            if !self.match_stock(real_exchange, &stock.exchange) {
+                trace.skipped(real_exchange, stock.exchange, stock.ticker);
+                continue;
             }
 
-            trace!("* {name} ({symbol})", name=stock.name, symbol=stock.ticker);
             stocks.entry(stock.ticker.clone()).or_default().push(Stock {
                 uid: stock.uid,
                 isin: stock.isin,
-                symbol: stock.ticker,
+                symbol: stock.ticker.clone(),
                 name: stock.name,
                 currency: stock.currency.to_uppercase(),
-            })
+            });
+
+            trace.found(real_exchange, stock.exchange, stock.ticker);
         }
 
-        if stocks.is_empty() {
-            return Err!("Got an empty list of available {} stocks", name);
-        }
-
-        Ok(())
+        trace.finish()
     }
 
     async fn get_all_etfs(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
-        let (name, exchange, status) = self.exchange.to_request();
+        let (name, status) = match self.exchange {
+            TinkoffExchange::Spb => ("SPB ETF", InstrumentStatus::Base),
+            TinkoffExchange::Unknown => ("other ETF", InstrumentStatus::All),
+            TinkoffExchange::Currency => unreachable!(),
+        };
 
-        trace!("Getting a list of available {} ETF from Tinkoff...", name);
+        let mut trace = InstrumentTrace::new(name);
 
         #[allow(clippy::needless_update)]
         let instruments = self.instruments_client().etfs(InstrumentsRequest {
             instrument_status: status.into(),
             ..Default::default()
         }).await.map_err(|e| format!(
-            "Failed to get available {} ETF list: {}", name, e,
+            "Failed to get available {} list: {}", name, e,
         ))?.into_inner().instruments;
 
-        trace!("Got the following {} ETF from Tinkoff:", name);
+        for stock in instruments {
+            let real_exchange = stock.real_exchange();
 
-        for etf in instruments {
-            if etf.real_exchange() != exchange {
-                continue
+            if !self.match_stock(real_exchange, &stock.exchange) {
+                trace.skipped(real_exchange, stock.exchange, stock.ticker);
+                continue;
             }
 
-            trace!("* {name} ({symbol})", name=etf.name, symbol=etf.ticker);
-            stocks.entry(etf.ticker.clone()).or_default().push(Stock {
-                uid: etf.uid,
-                isin: etf.isin,
-                symbol: etf.ticker,
-                name: etf.name,
-                currency: etf.currency.to_uppercase(),
-            })
+            stocks.entry(stock.ticker.clone()).or_default().push(Stock {
+                uid: stock.uid,
+                isin: stock.isin,
+                symbol: stock.ticker.clone(),
+                name: stock.name,
+                currency: stock.currency.to_uppercase(),
+            });
+
+            trace.found(real_exchange, stock.exchange, stock.ticker);
         }
 
-        if stocks.is_empty() {
-            return Err!("Got an empty list of available {} ETF", name);
+        trace.finish()
+    }
+
+    fn match_stock(&self, real_exchange: RealExchange, exchange: &str) -> bool {
+        // Skipping some strange exchanges
+        if matches!(exchange, "Issuance" | "moex_close" | "spb_close") {
+            return false;
         }
 
-        Ok(())
+        match self.exchange {
+            TinkoffExchange::Spb => {
+                real_exchange == RealExchange::Rts ||
+
+                // SPB Hong Kong ETF (iShares Core MSCI Asia ex Japan ETF / 83010 for example) have unspecified real
+                // exchange, so match them by exchange name
+                exchange == "SPB_HK"
+            },
+
+            TinkoffExchange::Unknown => {
+                // Some stocks from other exchanges are available as OTC, some - as SPB, so use all real exchanges
+                // except MOEX
+                real_exchange != RealExchange::Moex
+            },
+
+            TinkoffExchange::Currency => unreachable!(),
+        }
     }
 }
 
@@ -327,17 +354,15 @@ impl QuotesProvider for Tinkoff {
     }
 
     fn supports_stocks(&self) -> SupportedExchange {
-        SupportedExchange::Some(match self.exchange {
-            TinkoffExchange::Spb => Exchange::Spb,
-            TinkoffExchange::Otc => Exchange::Us,
-        })
+        match self.exchange {
+            TinkoffExchange::Currency => SupportedExchange::None,
+            TinkoffExchange::Spb => SupportedExchange::Some(Exchange::Spb),
+            TinkoffExchange::Unknown => SupportedExchange::Some(Exchange::Other),
+        }
     }
 
     fn supports_forex(&self) -> bool {
-        match self.exchange {
-            TinkoffExchange::Spb => true,
-            TinkoffExchange::Otc => false,
-        }
+        matches!(self.exchange, TinkoffExchange::Currency)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
@@ -347,17 +372,9 @@ impl QuotesProvider for Tinkoff {
 
 #[derive(Clone, Copy)]
 pub enum TinkoffExchange {
+    Currency,
     Spb,
-    Otc,
-}
-
-impl TinkoffExchange {
-    fn to_request(self) -> (&'static str, RealExchange, InstrumentStatus) {
-        match self {
-            Self::Spb => ("SPB", RealExchange::Rts, InstrumentStatus::Base),
-            Self::Otc => ("OTC", RealExchange::Otc, InstrumentStatus::All),
-        }
-    }
+    Unknown, // Try to collect here instruments from exchanges that we don't support yet to use it as best effort fallback
 }
 
 enum Instrument {
@@ -407,5 +424,92 @@ impl Interceptor for ClientInterceptor {
 
         request.set_timeout(REQUEST_TIMEOUT);
         Ok(request)
+    }
+}
+
+struct InstrumentTrace {
+    name: &'static str,
+    count: usize,
+    found_by_symbol: BTreeMap<String, Vec<(RealExchange, String)>>,
+    found_by_exchange: BTreeMap<RealExchange, BTreeMap<String, BTreeSet<String>>>,
+    skipped_by_exchange: BTreeMap<RealExchange, BTreeMap<String, BTreeSet<String>>>,
+}
+
+impl InstrumentTrace {
+    fn new(name: &'static str) -> InstrumentTrace {
+        trace!("Getting a list of available {} from Tinkoff...", name);
+
+        InstrumentTrace {
+            name,
+            count: 0,
+            found_by_symbol: BTreeMap::new(),
+            found_by_exchange: BTreeMap::new(),
+            skipped_by_exchange: BTreeMap::new(),
+        }
+    }
+
+    fn found(&mut self, real_exchange: RealExchange, exchange: String, symbol: String) {
+        self.count += 1;
+
+        if log_enabled!(Level::Trace) {
+            self.found_by_symbol.entry(symbol.clone()).or_default()
+                .push((real_exchange, exchange.clone()));
+
+            self.found_by_exchange.entry(real_exchange).or_default()
+                .entry(exchange).or_default()
+                .insert(symbol);
+        }
+    }
+
+    fn skipped(&mut self, real_exchange: RealExchange, exchange: String, symbol: String) {
+        if log_enabled!(Level::Trace) {
+            self.skipped_by_exchange.entry(real_exchange).or_default()
+                .entry(exchange).or_default()
+                .insert(symbol);
+        }
+    }
+
+    fn finish(self) -> EmptyResult {
+        if log_enabled!(Level::Trace) {
+            trace!("Got the following {} from Tinkoff:", self.name);
+            for (real_exchange, exchanges) in self.found_by_exchange {
+                trace!("* {}:", real_exchange.as_str_name());
+                for (exchange, symbols) in exchanges {
+                    trace!("  * {}: {}", exchange, symbols.iter().join(", "));
+                }
+            }
+
+            if !self.skipped_by_exchange.is_empty() {
+                trace!("Skipped non-{} from Tinkoff:", self.name);
+                for (real_exchange, exchanges) in self.skipped_by_exchange {
+                    trace!("* {}:", real_exchange.as_str_name());
+                    for (exchange, symbols) in exchanges {
+                        trace!("  * {}: {}", exchange, symbols.iter().join(", "));
+                    }
+                }
+            }
+
+            let mut has_duplicates = false;
+            for (symbol, exchanges) in self.found_by_symbol {
+                if exchanges.len() == 1 {
+                    continue;
+                }
+
+                if !has_duplicates {
+                    trace!("Duplicated {} from Tinkoff:", self.name);
+                    has_duplicates = true;
+                }
+
+                trace!("* {}: {}", symbol, exchanges.iter().map(|(real_exchange, exchange)| {
+                    format!("{}/{}", real_exchange.as_str_name(), exchange)
+                }).join(", "));
+            }
+        }
+
+        if self.count == 0 {
+            return Err!("Got an empty list of available {}", self.name);
+        }
+
+        Ok(())
     }
 }

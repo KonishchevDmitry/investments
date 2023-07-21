@@ -185,7 +185,8 @@ impl BrokerInfo {
     pub fn exchanges(&self) -> Vec<Exchange> {
         match self.type_ {
             Broker::Bcs | Broker::Open | Broker::Tinkoff => vec![Exchange::Moex, Exchange::Spb],
-            Broker::Firstrade | Broker::InteractiveBrokers => vec![Exchange::Us],
+            Broker::Firstrade => vec![Exchange::Us],
+            Broker::InteractiveBrokers => vec![Exchange::Us, Exchange::Other],
         }
     }
 }

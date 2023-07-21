@@ -9,6 +9,7 @@ pub enum Exchange {
     Moex,
     Spb,
     Us,
+    Other,
 }
 
 impl Exchange {
