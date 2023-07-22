@@ -7,12 +7,37 @@ use crate::util::RoundingMethod;
 pub fn investor() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .cumulative(CumulativeCommissionSpecBuilder::new()
+            .percent(dec!(0.3))
+            .build())
+        .build()
+}
+
+#[cfg(test)]
+fn investor_deprecated() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .cumulative(CumulativeCommissionSpecBuilder::new()
             .percent(dec!(0.1))
             .build())
         .build()
 }
 
-pub fn investor_pro() -> CommissionSpec {
+pub fn trader() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .cumulative(CumulativeCommissionSpecBuilder::new()
+            .portfolio_net_value_tiered(btreemap!{
+                         0 => dec!(0.0300),
+                 2_500_000 => dec!(0.0200),
+                 5_000_000 => dec!(0.0150),
+                10_000_000 => dec!(0.0125),
+                30_000_000 => dec!(0.0100),
+            }).unwrap()
+            .percent_fee(dec!(0.02))
+            .monthly_depositary(dec!(299))
+            .build())
+        .build()
+}
+
+pub fn investor_pro_deprecated() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .cumulative(CumulativeCommissionSpecBuilder::new()
             .portfolio_net_value_tiered(btreemap!{
@@ -29,7 +54,7 @@ pub fn investor_pro() -> CommissionSpec {
         .build()
 }
 
-pub fn professional() -> CommissionSpec {
+pub fn professional_deprecated() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .cumulative(CumulativeCommissionSpecBuilder::new()
             .volume_tiered(btreemap!{
@@ -55,11 +80,11 @@ mod tests {
     use super::*;
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
-    fn investor(trade_type: TradeType) {
+    fn investor_deprecated(trade_type: TradeType) {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::investor(), Cash::zero(currency)).unwrap();
+            converter, super::investor_deprecated(), Cash::zero(currency)).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2020, 10, 13),  28, dec!(1639.9)),
@@ -89,11 +114,11 @@ mod tests {
     }
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
-    fn investor_pro(trade_type: TradeType) {
+    fn investor_pro_deprecated(trade_type: TradeType) {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::investor_pro(), Cash::new(currency, dec!(1_000_000))).unwrap();
+            converter, super::investor_pro_deprecated(), Cash::new(currency, dec!(1_000_000))).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2020, 10, 13),  78, dec!(1640.0)),
@@ -123,11 +148,11 @@ mod tests {
     }
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
-    fn professional(trade_type: TradeType) {
+    fn professional_deprecated(trade_type: TradeType) {
         let currency = "RUB";
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::professional(), Cash::zero(currency)).unwrap();
+            converter, super::professional_deprecated(), Cash::zero(currency)).unwrap();
 
         for &(date, shares, price) in &[
             (date!(2019, 12, 2),  35, dec!(2959.5)),

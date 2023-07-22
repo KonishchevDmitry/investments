@@ -40,6 +40,17 @@ pub fn premium() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
         .trade(TradeCommissionSpecBuilder::new()
             .commission(TransactionCommissionSpecBuilder::new()
+                .percent(dec!(0.04))
+                .build().unwrap())
+            .build())
+        .build()
+}
+
+#[cfg(test)]
+fn premium_deprecated() -> CommissionSpec {
+    CommissionSpecBuilder::new("RUB")
+        .trade(TradeCommissionSpecBuilder::new()
+            .commission(TransactionCommissionSpecBuilder::new()
                 .percent(dec!(0.025))
                 .build().unwrap())
             .build())
@@ -147,10 +158,10 @@ mod tests {
     }
 
     #[rstest(trade_type => [TradeType::Buy, TradeType::Sell])]
-    fn premium(trade_type: TradeType) {
+    fn premium_deprecated(trade_type: TradeType) {
         let converter = CurrencyConverter::mock();
         let mut calc = CommissionCalc::new(
-            converter, super::premium(), Cash::zero("RUB")).unwrap();
+            converter, super::premium_deprecated(), Cash::zero("RUB")).unwrap();
 
         let date = date!(2021, 2, 20);
 

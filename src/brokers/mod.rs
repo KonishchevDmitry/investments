@@ -105,17 +105,23 @@ impl Broker {
         let (default, plans): (PlanFn, BTreeMap<&str, PlanFn>) = match self {
             Broker::Bcs => (plans::bcs::investor, btreemap!{
                 "Инвестор" => plans::bcs::investor as PlanFn,
-                "Инвестор Про" => plans::bcs::investor_pro as PlanFn,
-                "Профессиональный" => plans::bcs::professional as PlanFn,
+                "Трейдер" => plans::bcs::trader as PlanFn,
+
+                "Инвестор Про" => plans::bcs::investor_pro_deprecated as PlanFn,
+                "Профессиональный" => plans::bcs::professional_deprecated as PlanFn,
             }),
+
             Broker::Firstrade => (plans::firstrade::free, btreemap!{}),
+
             Broker::InteractiveBrokers => (plans::ib::fixed, btreemap!{
                 "Fixed" => plans::ib::fixed as PlanFn,
             }),
+
             Broker::Open => (plans::open::all_inclusive, btreemap!{
                 "Всё включено" => plans::open::all_inclusive as PlanFn,
                 "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
             }),
+
             Broker::Tinkoff => (plans::tinkoff::investor, btreemap!{
                 "Инвестор" => plans::tinkoff::investor as PlanFn,
                 "Трейдер" => plans::tinkoff::trader as PlanFn,
