@@ -31,7 +31,7 @@ calamine = "0.21.2"
 chrono = "0.4.26"
 chrono-tz = "0.8.3"
 cast = "0.3.0"
-clap = "4.3.17"
+clap = "4.3.19"
 clap_complete = "4.3.2"
 csv = "1.2.2"
 cusip = "0.2.5"
@@ -46,7 +46,7 @@ log = "0.4.19"
 maplit = "1.0.2"
 matches = "0.1.10"
 num-integer = "0.1.45"
-num-traits = "0.2.15"
+num-traits = "0.2.16"
 platforms = "3.0.2"
 prettytable-rs = "0.10.0"
 prometheus = "0.13.3"
@@ -57,9 +57,9 @@ rayon = "1.7.0"
 regex = "1.9.1"
 reqwest = { version = "0.11.18", features = ["blocking", "json"] }
 separator = "0.4.1"
-serde = { version = "1.0.171", features = ["derive"] }
+serde = { version = "1.0.174", features = ["derive"] }
 serde_json = "1.0.103"
-serde_yaml = "0.9.24"
+serde_yaml = "0.9.25"
 serde-xml-rs = "0.6.0"
 shellexpand = "3.1.0"
 textwrap = "0.16.0"
@@ -67,7 +67,7 @@ tokio = "1.29.1"
 tonic = { version = "0.9", features = ["tls", "tls-roots"] }
 uuid = { version = "1.4.1", features = ["v4"] }
 validator = { version = "0.16.1", features = ["derive"] }
-xml-rs = "0.8.15"
+xml-rs = "0.8.16"
 yaml-merge-keys = { version = "0.6.0", features = ["serde_yaml"] }
 
 # Pin rust_decimal version since it's not stable enough yet
@@ -79,8 +79,8 @@ diesel_migrations = "2.1.0"
 diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 libsqlite3-sys = { version = ">=0.17.2, <0.26.0", features = ["bundled"] }
 
-static_table_derive = "0.1.58"
-xls_table_derive = "0.6.3"
+static_table_derive = "0.1.59"
+xls_table_derive = "0.6.4"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
@@ -93,5 +93,5 @@ tonic-build = "0.9"
 mockito = "1.1.0"
 qtrac-retest = "4.0.14"
 rstest = "0.18.1"
-tempfile = "3.6.0"
+tempfile = "3.7.0"
 url = "2.4.0"
