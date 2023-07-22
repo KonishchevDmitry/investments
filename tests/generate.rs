@@ -90,13 +90,13 @@ fn generate_regression_tests() {
     t.add("Completion", "completion $OUT_PATH/completion.bash");
 
     let accounts = [
-        ("IB",        Some((2018, None))),
         ("Firstrade", Some((2020, Some(2022)))),
+        ("IB",        Some((2018, None))),
+        ("Tinkoff",   Some((2019, None))),
 
-        ("IIA",     None),
         ("BCS",     None),
+        ("IIA",     None),
         ("Open",    None),
-        ("Tinkoff", None),
 
         ("Kate",     None),
         ("Kate IIA", None),
