@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 
 use chrono::Datelike;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use xls_table_derive::XlsTableRow;
 
@@ -11,7 +13,7 @@ use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
-use crate::instruments::InstrumentId;
+use crate::instruments::{InstrumentId, ISIN_REGEX};
 use crate::time::{Date, Time};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
@@ -247,26 +249,28 @@ impl CashFlowRow {
 }
 
 fn parse_dividend_description(description: &str) -> GenericResult<&str> {
-    let mut parts = description.rsplitn(2, '/');
-    parts.next();
-
-    let issuer = parts.next().unwrap_or_default().trim();
-    if issuer.is_empty() {
-        return Err!("Unexpected dividend description: {:?}", description);
+    lazy_static! {
+        static ref REGEX: Regex = Regex::new(&format!(
+            r"^(?:{isin}/ )?(?P<issuer_name>[^/]+)/ \d+ шт\.$", isin=ISIN_REGEX),
+        ).unwrap();
     }
 
-    Ok(issuer)
+    let captures = REGEX.captures(description).ok_or_else(|| format!(
+        "Unexpected dividend description: {:?}", description))?;
+
+    Ok(captures.name("issuer_name").unwrap().as_str())
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn dividend_parsing() {
-        assert_eq!(
-            parse_dividend_description("Ростел -ап/ 20 шт.").unwrap(),
-            "Ростел -ап",
-        );
+    #[rstest(description, issuer,
+        case("Ростел -ап/ 20 шт.", "Ростел -ап"),
+        case("KYG875721634/ Tencent Holdings LTD_ORD SHS/ 251 шт.", "Tencent Holdings LTD_ORD SHS"),
+    )]
+    fn dividend_parsing(description: &str, issuer: &str) {
+        assert_eq!(parse_dividend_description(description).unwrap(), issuer);
     }
 }
