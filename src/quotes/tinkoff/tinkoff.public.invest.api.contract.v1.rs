@@ -12,7 +12,7 @@ pub struct MoneyValue {
     #[prost(int32, tag = "3")]
     pub nano: i32,
 }
-/// Котировка - денежная сумма без указания валюты
+/// Котировка — денежная сумма без указания валюты
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Quotation {
@@ -2428,7 +2428,7 @@ impl InstrumentIdType {
 pub enum InstrumentStatus {
     /// Значение не определено.
     Unspecified = 0,
-    /// Базовый список инструментов (по умолчанию). Инструменты доступные для торговли через TINKOFF INVEST API.
+    /// Базовый список инструментов (по умолчанию). Инструменты доступные для торговли через TINKOFF INVEST API. Cейчас списки бумаг, доступных из api и других интерфейсах совпадают (за исключением внебиржевых бумаг), но в будущем возможны ситуации, когда списки инструментов будут отличаться
     Base = 1,
     /// Список всех инструментов.
     All = 2,
@@ -2662,13 +2662,12 @@ impl RealExchange {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum RiskLevel {
-    Unspecified = 0,
-    /// Низкий уровень риска
-    Low = 1,
-    /// Средний уровень риска
-    Moderate = 2,
     /// Высокий уровень риска
-    High = 3,
+    High = 0,
+    /// Средний уровень риска
+    Moderate = 1,
+    /// Низкий уровень риска
+    Low = 2,
 }
 impl RiskLevel {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2677,19 +2676,17 @@ impl RiskLevel {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            RiskLevel::Unspecified => "RISK_LEVEL_UNSPECIFIED",
-            RiskLevel::Low => "RISK_LEVEL_LOW",
-            RiskLevel::Moderate => "RISK_LEVEL_MODERATE",
             RiskLevel::High => "RISK_LEVEL_HIGH",
+            RiskLevel::Moderate => "RISK_LEVEL_MODERATE",
+            RiskLevel::Low => "RISK_LEVEL_LOW",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "RISK_LEVEL_UNSPECIFIED" => Some(Self::Unspecified),
-            "RISK_LEVEL_LOW" => Some(Self::Low),
-            "RISK_LEVEL_MODERATE" => Some(Self::Moderate),
             "RISK_LEVEL_HIGH" => Some(Self::High),
+            "RISK_LEVEL_MODERATE" => Some(Self::Moderate),
+            "RISK_LEVEL_LOW" => Some(Self::Low),
             _ => None,
         }
     }
@@ -4423,6 +4420,8 @@ pub enum SubscriptionStatus {
     InternalError = 7,
     /// Превышен лимит на количество запросов на подписки в течение установленного отрезка времени
     TooManyRequests = 8,
+    /// Активная подписка не найдена. Ошибка может возникнуть только при отписке от не существующей отписки
+    SubscriptionNotFound = 9,
 }
 impl SubscriptionStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -4450,6 +4449,9 @@ impl SubscriptionStatus {
             SubscriptionStatus::TooManyRequests => {
                 "SUBSCRIPTION_STATUS_TOO_MANY_REQUESTS"
             }
+            SubscriptionStatus::SubscriptionNotFound => {
+                "SUBSCRIPTION_STATUS_SUBSCRIPTION_NOT_FOUND"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4466,6 +4468,9 @@ impl SubscriptionStatus {
             "SUBSCRIPTION_STATUS_LIMIT_IS_EXCEEDED" => Some(Self::LimitIsExceeded),
             "SUBSCRIPTION_STATUS_INTERNAL_ERROR" => Some(Self::InternalError),
             "SUBSCRIPTION_STATUS_TOO_MANY_REQUESTS" => Some(Self::TooManyRequests),
+            "SUBSCRIPTION_STATUS_SUBSCRIPTION_NOT_FOUND" => {
+                Some(Self::SubscriptionNotFound)
+            }
             _ => None,
         }
     }
