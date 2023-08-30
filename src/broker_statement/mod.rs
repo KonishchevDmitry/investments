@@ -459,19 +459,19 @@ impl BrokerStatement {
             return Err!("Unable to find any information about current cash assets");
         }
 
-        self.fees.extend(statement.fees.into_iter());
-        self.cash_flows.extend(statement.cash_flows.into_iter());
-        self.deposits_and_withdrawals.extend(statement.deposits_and_withdrawals.into_iter());
-        self.idle_cash_interest.extend(statement.idle_cash_interest.into_iter());
+        self.fees.extend(statement.fees);
+        self.cash_flows.extend(statement.cash_flows);
+        self.deposits_and_withdrawals.extend(statement.deposits_and_withdrawals);
+        self.idle_cash_interest.extend(statement.idle_cash_interest);
         self.tax_agent_withholdings.merge(statement.tax_agent_withholdings);
 
         self.exchanges.merge(statement.exchanges);
-        self.forex_trades.extend(statement.forex_trades.into_iter());
-        self.stock_buys.extend(statement.stock_buys.into_iter());
-        self.stock_sells.extend(statement.stock_sells.into_iter());
-        self.stock_grants.extend(statement.stock_grants.into_iter());
+        self.forex_trades.extend(statement.forex_trades);
+        self.stock_buys.extend(statement.stock_buys);
+        self.stock_sells.extend(statement.stock_sells);
+        self.stock_grants.extend(statement.stock_grants);
 
-        self.corporate_actions.extend(statement.corporate_actions.into_iter());
+        self.corporate_actions.extend(statement.corporate_actions);
         self.open_positions = statement.open_positions;
         self.instrument_info.merge(statement.instrument_info);
 
