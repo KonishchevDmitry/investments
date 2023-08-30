@@ -98,10 +98,11 @@ impl InstrumentInfo {
         }
     }
 
-    pub fn get_or_add_by_id(&mut self, instrument_id: &InstrumentId) -> GenericResult<&Instrument> {
+    pub fn get_by_id(&self, instrument_id: &InstrumentId) -> GenericResult<&Instrument> {
         Ok(match instrument_id {
             InstrumentId::Symbol(symbol) => {
-                self.get_or_add(symbol)
+                self.get(symbol).ok_or_else(|| format!(
+                    "Unable to find instrument information by its symbol ({})", symbol))?
             },
 
             InstrumentId::Isin(isin) => {
@@ -115,7 +116,7 @@ impl InstrumentInfo {
 
                 match results.len() {
                     1 => results.first().unwrap(),
-                    0 => return Err!("Unable to find instrument information by its ISIN: {}", isin),
+                    0 => return Err!("Unable to find instrument information by its ISIN ({})", isin),
                     _ => return Err!(
                         "Unable to map {} ISIN to instrument symbol: it maps into several symbols: {}",
                         isin, results.iter().map(|result| &result.symbol).join(", ")),
@@ -133,7 +134,7 @@ impl InstrumentInfo {
 
                 match results.len() {
                     1 => results.first().unwrap(),
-                    0 => return Err!("Unable to find instrument information by its name: {:?}", name),
+                    0 => return Err!("Unable to find instrument information by its name ({})", name),
                     _ => return Err!(
                         "Unable to map {:?} to instrument symbol: it maps into several symbols: {}",
                         name, results.iter().map(|result| &result.symbol).join(", ")),
@@ -142,9 +143,30 @@ impl InstrumentInfo {
 
             InstrumentId::InternalId(id) => {
                 let symbol = self.internal_ids.as_ref().unwrap().get_symbol(id)?.to_owned();
-                self.get_or_add(&symbol)
+                self.get_by_id(&InstrumentId::Symbol(symbol))?
             },
         })
+    }
+
+    pub fn get_or_add_by_id(&mut self, instrument_id: &InstrumentId) -> GenericResult<&Instrument> {
+        Ok(match instrument_id {
+            InstrumentId::Symbol(symbol) => {
+                self.get_or_add(symbol)
+            },
+
+            InstrumentId::InternalId(id) => {
+                let symbol = self.internal_ids.as_ref().unwrap().get_symbol(id)?.to_owned();
+                self.get_or_add(&symbol)
+            },
+
+            InstrumentId::Isin(..) | InstrumentId::Name(..) => {
+                self.get_by_id(instrument_id)?
+            },
+        })
+    }
+
+    pub fn remove(&mut self, symbol: &str) -> Option<Instrument> {
+        self.instruments.remove(symbol)
     }
 
     pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
@@ -166,7 +188,7 @@ impl InstrumentInfo {
         for (symbol, info) in other.instruments {
             match self.instruments.entry(symbol) {
                 Entry::Occupied(mut entry) => {
-                    entry.get_mut().merge(info);
+                    entry.get_mut().merge(info, true);
                 },
                 Entry::Vacant(entry) => {
                     entry.insert(info);
@@ -250,10 +272,13 @@ impl Instrument {
         })
     }
 
-    fn merge(&mut self, other: Instrument) {
+    pub fn merge(&mut self, other: Instrument, newer: bool) {
         if let Some(name) = other.name {
-            self.name.replace(name);
+            if self.name.is_none() || newer {
+                self.name.replace(name);
+            }
         }
+
         self.isin.extend(other.isin);
         self.cusip.extend(other.cusip);
         self.exchanges.merge(other.exchanges);

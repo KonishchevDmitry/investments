@@ -1,3 +1,9 @@
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
+
+use isin::ISIN;
+
 use crate::core::{EmptyResult, GenericResult};
 use crate::exchanges::Exchange;
 use crate::formats::xls::{self, SheetReader, Cell, CellType};
@@ -5,6 +11,18 @@ use crate::instruments::InstrumentInfo;
 use crate::time;
 use crate::types::{Date, Time, Decimal};
 use crate::util::{self, DecimalRestrictions};
+
+#[derive(Default)]
+pub struct SecurityInfo {
+    pub isin: HashSet<ISIN>,
+    pub symbols: HashSet<String>,
+}
+
+// Depending on when the statement has been generated it contains such information as instrument symbol and ISIN spread
+// over different statement sections and the only way to find them is to join this information using instrument name as
+// a key.
+pub type SecuritiesRegistry = HashMap<String, SecurityInfo>;
+pub type SecuritiesRegistryRc = Rc<RefCell<SecuritiesRegistry>>;
 
 pub fn parse_date(date: &str) -> GenericResult<Date> {
     time::parse_date(date, "%d.%m.%Y")

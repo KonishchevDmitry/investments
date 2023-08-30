@@ -3,32 +3,42 @@ use xls_table_derive::XlsTableRow;
 use crate::broker_statement::partial::PartialBrokerStatementRc;
 use crate::core::EmptyResult;
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
+use crate::instruments::parse_isin;
 
-use super::common::{read_next_table_row, parse_quantity_cell};
+use super::common::{SecuritiesRegistryRc, read_next_table_row, parse_quantity_cell};
 
 pub struct AssetsParser {
     statement: PartialBrokerStatementRc,
+    securities: SecuritiesRegistryRc,
 }
 
 impl AssetsParser {
-    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
-        Box::new(AssetsParser {statement})
+    pub fn new(statement: PartialBrokerStatementRc, securities: SecuritiesRegistryRc) -> Box<dyn SectionParser> {
+        Box::new(AssetsParser {statement, securities})
     }
 }
 
 impl SectionParser for AssetsParser {
     fn parse(&mut self, parser: &mut XlsStatementParser) -> EmptyResult {
         let mut statement = self.statement.borrow_mut();
+        let mut securities = self.securities.borrow_mut();
 
-        for asset in &xls::read_table::<AssetsRow>(&mut parser.sheet)? {
-            let symbol = &asset.symbol;
+        for asset in xls::read_table::<AssetsRow>(&mut parser.sheet)? {
+            let info = securities.entry(asset.name).or_default();
+
+            // We can have multiple rows per one instrument: a technical one with ISIN and a real one with stock symbol
+            if let Ok(isin) = parse_isin(&asset.code) {
+                info.isin.insert(isin);
+            } else {
+                info.symbols.insert(asset.code.clone());
+            }
 
             if asset.starting != 0 {
                 statement.has_starting_assets.replace(true);
             }
 
             if asset.planned != 0 {
-                statement.add_open_position(symbol, asset.planned.into())?;
+                statement.add_open_position(&asset.code, asset.planned.into())?;
             }
         }
 
@@ -39,9 +49,9 @@ impl SectionParser for AssetsParser {
 #[derive(XlsTableRow)]
 struct AssetsRow {
     #[column(name="Сокращенное наименование актива")]
-    _0: SkipCell,
+    name: String,
     #[column(name="Код актива")]
-    symbol: String,
+    code: String,
     #[column(name="Место хранения")]
     _2: SkipCell,
     #[column(name="Входящий остаток", parse_with="parse_quantity_cell")]

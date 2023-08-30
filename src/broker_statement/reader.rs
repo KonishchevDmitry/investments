@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use bitflags::bitflags;
+use log::debug;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::brokers::Broker;
@@ -57,6 +58,7 @@ pub fn read(
         let path = Path::new(statement_dir_path).join(file_name);
         let path = path.to_str().unwrap();
 
+        debug!("Reading {:?}...", path);
         let statement = statement_reader.read(path, is_last).map_err(|e| format!(
             "Error while reading {:?} broker statement: {}", path, e))?;
 

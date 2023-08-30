@@ -26,6 +26,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::{self, Regex};
 
@@ -33,11 +34,11 @@ use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
-use crate::core::{GenericResult, EmptyResult};
+use crate::core::{GenericResult, EmptyResult, GenericError};
 use crate::exchanges::Exchange;
 use crate::formats::xls::{XlsStatementParser, Section, SheetParser, SectionParserRc, Cell};
 use crate::formatting;
-use crate::instruments::InstrumentId;
+use crate::instruments::{InstrumentId, parse_isin};
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
@@ -45,11 +46,11 @@ use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
+use common::SecuritiesRegistryRc;
 use foreign_income::ForeignIncomeStatementReader;
 use period::PeriodParser;
 use securities::SecuritiesInfoParser;
 use trades::{TradesParser, TradesRegistryRc};
-use itertools::Itertools;
 
 pub struct StatementReader {
     trades: TradesRegistryRc,
@@ -82,12 +83,42 @@ impl StatementReader {
         let mut dividends = HashMap::new();
         let mut taxes = HashMap::new();
 
+        for trade in &mut statement.stock_buys {
+            if let Ok(isin) = parse_isin(&trade.symbol) {
+                let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
+                    "Failed to remap {} trade from ISIN to stock symbol: {}", trade.symbol, e))?;
+                trade.original_symbol = instrument.symbol.clone();
+                trade.symbol = instrument.symbol.clone();
+            }
+        }
+
+        for trade in &mut statement.stock_sells {
+            if let Ok(isin) = parse_isin(&trade.symbol) {
+                let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
+                    "Failed to remap {} trade from ISIN to stock symbol: {}", trade.symbol, e))?;
+                trade.original_symbol = instrument.symbol.clone();
+                trade.symbol = instrument.symbol.clone();
+            }
+        }
+
+        for symbol in statement.open_positions.keys().cloned().collect::<Vec<String>>() {
+            if let Ok(isin) = parse_isin(&symbol) {
+                let map_err = |e: GenericError| -> GenericError {
+                    format!("Failed to remap {} open position from ISIN to stock symbol: {}", symbol, e).into()
+                };
+
+                let new_symbol = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(map_err)?.symbol.clone();
+                let quantity = statement.open_positions.remove(&symbol).unwrap();
+                statement.add_open_position(&new_symbol, quantity).map_err(map_err)?;
+            }
+        }
+
         for (mut dividend_id, dividend_accruals) in statement.dividend_accruals.drain().sorted_by_key(|(dividend_id, _)| {
             (dividend_id.date, dividend_id.issuer.to_string())
         }) {
             let instrument = match dividend_id.issuer {
                 InstrumentId::Name(_) => {
-                    statement.instrument_info.get_or_add_by_id(&dividend_id.issuer).map_err(|e| format!(
+                    statement.instrument_info.get_by_id(&dividend_id.issuer).map_err(|e| format!(
                         "Failed to process {}: {}", dividend_id.description(), e))?
                 },
                 _ => unreachable!(),
@@ -148,6 +179,12 @@ impl BrokerStatementReader for StatementReader {
         let pending_trades_parser: SectionParserRc = Rc::new(RefCell::new(
             TradesParser::new(false, statement.clone(), self.trades.clone())));
 
+        let cash_assets_parser = CashAssetsParser::new(statement.clone());
+
+        let securities = SecuritiesRegistryRc::default();
+        let assets_parser = AssetsParser::new(statement.clone(), securities.clone());
+        let securities_info_parser = SecuritiesInfoParser::new(statement.clone(), securities);
+
         XlsStatementParser::read(path, parser, vec![
             Section::new(PeriodParser::CALCULATION_DATE_PREFIX).by_prefix()
                 .parser_rc(period_parser.clone()).required(),
@@ -159,12 +196,12 @@ impl BrokerStatementReader for StatementReader {
                 .parser_rc(pending_trades_parser).required(),
             Section::new("2. Операции с денежными средствами и драг. металлами")
                 .alias("2. Операции с денежными средствами")
-                .parser(CashAssetsParser::new(statement.clone())).required(),
+                .parser(cash_assets_parser).required(),
             Section::new("3.1 Движение по ценным бумагам инвестора")
                 .alias("3. Движение финансовых активов инвестора")
-                .parser(AssetsParser::new(statement.clone())).required(),
+                .parser(assets_parser).required(),
             Section::new("4.1 Информация о ценных бумагах")
-                .parser(SecuritiesInfoParser::new(statement.clone())).required(),
+                .parser(securities_info_parser).required(),
         ])?;
 
         self.postprocess(Rc::try_unwrap(statement).ok().unwrap().into_inner())

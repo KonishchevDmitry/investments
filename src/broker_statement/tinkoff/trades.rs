@@ -96,8 +96,8 @@ struct TradeRow {
     time: Time,
     #[column(name="Торговая площадка")]
     exchange: String,
-    #[column(name="Режим торгов")]
-    _6: SkipCell,
+    #[column(name="Режим торгов", optional=true)]
+    _6: Option<SkipCell>,
     #[column(name="Вид сделки")]
     operation: String,
     #[column(name="Сокращенное наименование", alias="Сокращенное наименование актива")]
@@ -141,8 +141,8 @@ struct TradeRow {
 
     #[column(name="Ставка РЕПО(%)")]
     leverage_rate: Option<String>,
-    #[column(name="Контрагент / Брокер", alias="Контрагент")]
-    _25: SkipCell,
+    #[column(name="Контрагент / Брокер", alias="Контрагент", optional=true)]
+    _25: Option<SkipCell>,
     #[column(name="Дата расчетов план/факт", alias="Дата расчетов", parse_with="parse_planned_actual_date_cell")]
     execution_date: Date,
     #[column(name="Дата поставки план/факт", alias="Дата поставки")]
@@ -218,7 +218,8 @@ impl TradeRow {
 
         let forex = parse_forex_code(&self.symbol);
 
-        if forex.is_err() {
+        // Old statements contain a valid exchange, but later the column has been broken and now always contains the same value "Б"
+        if forex.is_err() && self.exchange != "Б" {
             save_instrument_exchange_info(
                 &mut statement.instrument_info, &self.symbol, &self.exchange)?;
         }
