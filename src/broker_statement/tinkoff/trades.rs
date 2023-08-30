@@ -1,5 +1,7 @@
+use std::cmp::Ordering;
 use std::cell::RefCell;
 use std::collections::{HashMap, hash_map::Entry};
+use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
 use log::debug;
@@ -7,6 +9,7 @@ use num_traits::FromPrimitive;
 
 use xls_table_derive::XlsTableRow;
 
+use crate::broker_statement::cash_flows::{CashFlow, CashFlowType};
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
@@ -23,7 +26,7 @@ use super::common::{
     read_next_table_row, parse_date_cell, parse_planned_actual_date_cell, parse_decimal_cell, parse_quantity_cell,
     parse_time_cell, save_instrument_exchange_info};
 
-pub type TradesRegistryRc = Rc<RefCell<HashMap<u64, bool>>>;
+pub type TradesRegistryRc = Rc<RefCell<HashMap<TradeId, bool>>>;
 
 pub struct TradesParser {
     executed: bool,
@@ -38,8 +41,8 @@ impl TradesParser {
         Box::new(TradesParser {executed, processed_trades, statement})
     }
 
-    fn check_trade_id(&self, trade_id: u64) -> GenericResult<bool> {
-        Ok(match self.processed_trades.borrow_mut().entry(trade_id) {
+    fn check_trade_id(&self, trade_id: &TradeId) -> GenericResult<bool> {
+        Ok(match self.processed_trades.borrow_mut().entry(trade_id.clone()) {
             Entry::Vacant(entry) => {
                 entry.insert(self.executed);
                 true
@@ -64,10 +67,27 @@ impl SectionParser for TradesParser {
         let mut statement = self.statement.borrow_mut();
 
         let mut trades = xls::read_table::<TradeRow>(&mut parser.sheet)?;
-        trades.sort_by_key(|trade| (trade.date, trade.time, trade.id));
+        trades.sort_by(|a, b| -> Ordering {
+            let ord = a.date.cmp(&b.date);
+            if ord != Ordering::Equal {
+                return ord;
+            }
 
-        for trade in trades {
-            if !self.check_trade_id(trade.id)? {
+            let ord = a.time.cmp(&b.time);
+            if ord != Ordering::Equal {
+                return ord;
+            }
+
+            a.id.cmp(&b.id)
+        });
+
+        for mut trade in trades {
+            // REPO trades share their ID
+            if matches!(trade.operation.as_str(), "РЕПО 1 Продажа" | "РЕПО 2 Покупка") {
+                trade.id = TradeId::String(format!("{}/{}", trade.id, trade.operation));
+            }
+
+            if !self.check_trade_id(&trade.id)? {
                 debug!(
                     "{}: Skipping #{} trade: it's already processed for another statement.",
                     statement.get_period()?.format(), trade.id,
@@ -84,8 +104,8 @@ impl SectionParser for TradesParser {
 
 #[derive(XlsTableRow)]
 struct TradeRow {
-    #[column(name="Номер сделки", parse_with="parse_trade_id")]
-    id: u64,
+    #[column(name="Номер сделки", parse_with="TradeId::parse")]
+    id: TradeId,
     #[column(name="Номер поручения")]
     _1: SkipCell,
     #[column(name="Признак исполнения", optional=true)]
@@ -140,7 +160,7 @@ struct TradeRow {
     stamp_duty_currency: Option<String>,
 
     #[column(name="Ставка РЕПО(%)")]
-    leverage_rate: Option<String>,
+    _24: Option<SkipCell>,
     #[column(name="Контрагент / Брокер", alias="Контрагент", optional=true)]
     _25: Option<SkipCell>,
     #[column(name="Дата расчетов план/факт", alias="Дата расчетов", parse_with="parse_planned_actual_date_cell")]
@@ -169,8 +189,6 @@ impl TradeRow {
     fn parse(self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         if !self.accumulated_coupon_income.is_zero() {
             return Err!("Bonds aren't supported yet");
-        } else if self.leverage_rate.is_some() {
-            return Err!("Leverage is not supported yet");
         }
 
         let conclusion_time = DateTime::new(self.date, self.time);
@@ -217,14 +235,9 @@ impl TradeRow {
         }
 
         let forex = parse_forex_code(&self.symbol);
+        let operation = self.operation.as_str();
 
-        // Old statements contain a valid exchange, but later the column has been broken and now always contains the same value "Б"
-        if forex.is_err() && self.exchange != "Б" {
-            save_instrument_exchange_info(
-                &mut statement.instrument_info, &self.symbol, &self.exchange)?;
-        }
-
-        match self.operation.as_str() {
+        let repo_trade = match operation {
             "Покупка" => {
                 if let Ok((base, _quote, _lot_size)) = forex {
                     let from = volume;
@@ -236,6 +249,7 @@ impl TradeRow {
                         &self.symbol, self.quantity.into(), price, volume, commission,
                         conclusion_time.into(), self.execution_date));
                 }
+                false
             },
             "Продажа" => {
                 if let Ok((base, _quote, _lot_size)) = forex {
@@ -248,15 +262,57 @@ impl TradeRow {
                         &self.symbol, self.quantity.into(), price, volume,
                         commission, conclusion_time.into(), self.execution_date, false));
                 }
+                false
+            },
+            "РЕПО 1 Продажа" | "РЕПО 2 Покупка" if forex.is_err() => {
+                let amount = if operation == "РЕПО 2 Покупка" {
+                    -volume
+                } else {
+                    volume
+                };
+
+                statement.cash_flows.push(CashFlow::new(conclusion_time.into(), amount, CashFlowType::Repo {
+                    symbol: self.symbol.clone(),
+                    commission
+                }));
+
+                true
             },
             _ => return Err!("Unsupported trade operation: {:?}", self.operation),
+        };
+
+        // Old statements contain a valid exchange, but later the column has been broken and now always contains the same value "Б"
+        if forex.is_err() && !repo_trade && self.exchange != "Б" {
+            save_instrument_exchange_info(
+                &mut statement.instrument_info, &self.symbol, &self.exchange)?;
         }
 
         Ok(())
     }
 }
 
-fn parse_trade_id(cell: &Cell) -> GenericResult<u64> {
-    let value = xls::get_string_cell(cell)?;
-    Ok(value.parse().map_err(|_| format!("Got an unexpected trade ID: {:?}", value))?)
+#[derive(Eq, Hash, Ord, PartialEq, PartialOrd, Clone)]
+pub enum TradeId {
+    String(String), // Used in REPO trades
+    Integer(u64),
+}
+
+impl TradeId {
+    fn parse(cell: &Cell) -> GenericResult<TradeId> {
+        let value = xls::get_string_cell(cell)?;
+        Ok(match value.parse::<u64>() {
+            Ok(id) => TradeId::Integer(id),
+            Err(_) => TradeId::String(value.to_owned()),
+        })
+    }
+}
+
+impl Display for TradeId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let id: &dyn Display = match self {
+            TradeId::Integer(value) => value,
+            TradeId::String(value) => value,
+        };
+        id.fmt(f)
+    }
 }

@@ -186,7 +186,7 @@ impl TradeRow {
             statement.cash_flows.push(CashFlow::new(conclusion_time, amount, CashFlowType::Repo {
                 symbol: symbol.to_owned(),
                 commission
-            }))
+            }));
         } else {
             let exchange = match self.exchange.as_str() {
                 "ММВБ" => Exchange::Moex,

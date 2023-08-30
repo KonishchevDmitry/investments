@@ -207,7 +207,7 @@ impl CashFlowRow {
                     date, -check_amount(withdrawal)?));
             },
 
-            "Покупка/продажа" | "Комиссия за сделки" | "Гербовый сбор" => {},
+            "Покупка/продажа" | "РЕПО" | "Комиссия за сделки" | "Гербовый сбор" => {},
             "Комиссия по тарифу" => {
                 let amount = check_amount(withdrawal)?;
                 let description = operation.clone();

@@ -30,6 +30,7 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::{self, Regex};
 
+use crate::broker_statement::cash_flows::CashFlowType;
 use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 #[cfg(test)] use crate::brokers::Broker;
@@ -98,6 +99,21 @@ impl StatementReader {
                     "Failed to remap {} trade from ISIN to stock symbol: {}", trade.symbol, e))?;
                 trade.original_symbol = instrument.symbol.clone();
                 trade.symbol = instrument.symbol.clone();
+            }
+        }
+
+        for cash_flow in &mut statement.cash_flows {
+            match &mut cash_flow.type_ {
+                CashFlowType::Repo {symbol, ..} => {
+                    if let Ok(isin) = parse_isin(symbol) {
+                        let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
+                            "Failed to remap {} trade from ISIN to stock symbol: {}", symbol, e))?;
+                        *symbol = instrument.symbol.clone();
+                    }
+                },
+                CashFlowType::Dividend {..} | CashFlowType::Tax {..} => {
+                    unreachable!();
+                },
             }
         }
 
