@@ -46,6 +46,7 @@ for portfolio in \
     investments other tax-statement "$portfolio"
 done
 
+wait-api-rate-limits
 rate-limited-investments other simulate-sell open-first-iia-a
 rate-limited-investments other simulate-sell ib-complex 1 VTRS
 rate-limited-investments other simulate-sell ib-stock-split all AAPL
