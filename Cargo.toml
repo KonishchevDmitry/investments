@@ -79,8 +79,8 @@ diesel_migrations = "2.1.0"
 diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 libsqlite3-sys = { version = ">=0.17.2, <0.26.0", features = ["bundled"] }
 
-static_table_derive = "0.1.59"
-xls_table_derive = "0.6.4"
+static_table_derive = "0.1.60"
+xls_table_derive = "0.6.5"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
