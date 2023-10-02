@@ -14,7 +14,10 @@ pub enum Exchange {
 
 impl Exchange {
     pub fn trading_mode(self) -> TradingMode {
-        TradingMode(2)
+        TradingMode(match self {
+            Exchange::Moex => 1,
+            _              => 2,
+        })
     }
 
     pub fn min_last_working_day(self, today: Date) -> Date {
