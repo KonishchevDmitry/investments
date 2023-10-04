@@ -27,10 +27,11 @@ use self::config::{AssetGroupConfig, PerformanceMergingConfig};
 use self::portfolio_analysis::PortfolioAnalyser;
 use self::portfolio_statistics::PortfolioStatistics;
 
+pub use self::portfolio_performance_types::PerformanceAnalysisMethod;
+
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,
-    asset_groups: &HashMap<String, AssetGroupConfig>,
-    merge_performance: Option<&PerformanceMergingConfig>,
+    asset_groups: &HashMap<String, AssetGroupConfig>, merge_performance: Option<&PerformanceMergingConfig>,
     interactive: bool,
 ) -> GenericResult<(PortfolioStatistics, QuotesRc, TelemetryRecordBuilder)> {
     let mut telemetry = TelemetryRecordBuilder::new();

@@ -62,6 +62,7 @@ serde_json = "1.0.105"
 serde_yaml = "0.9.25"
 serde-xml-rs = "0.6.0"
 shellexpand = "3.1.0"
+strum = { version = "0.25", features = ["derive"] }
 textwrap = "0.16.0"
 tokio = "1.32.0"
 tonic = { version = "0.9", features = ["tls", "tls-roots"] }
@@ -70,14 +71,14 @@ validator = { version = "0.16.1", features = ["derive"] }
 xml-rs = "0.8.16"
 yaml-merge-keys = { version = "0.6.0", features = ["serde_yaml"] }
 
-# Pin rust_decimal version since it's not stable enough yet
-rust_decimal = "~1.32.0"
-rust_decimal_macros = "~1.32.0"
-
 diesel = { version = "2.1.1", features = ["sqlite", "chrono"] }
 diesel_migrations = "2.1.0"
 diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 libsqlite3-sys = { version = ">=0.17.2, <0.26.0", features = ["bundled"] }
+
+# Pin rust_decimal version since it's not stable enough yet
+rust_decimal = "~1.32.0"
+rust_decimal_macros = "~1.32.0"
 
 static_table_derive = "0.1.60"
 xls_table_derive = "0.6.5"

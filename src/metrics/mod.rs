@@ -89,7 +89,8 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
 
 fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     let currency = &statistics.currency;
-    let performance = statistics.performance.as_ref().unwrap();
+    // FIXME(konishchev): Support
+    let performance = statistics.real_performance.as_ref().unwrap();
     let income_structure = &performance.income_structure;
 
     for (broker, &value) in &statistics.brokers {

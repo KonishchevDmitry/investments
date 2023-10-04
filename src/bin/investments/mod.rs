@@ -74,10 +74,10 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
     };
 
     let record: TelemetryRecordBuilder = match action {
-        Action::Analyse {name, show_closed_positions} => {
+        Action::Analyse {name, method, show_closed_positions} => {
             let (statistics, _, telemetry) = analysis::analyse(
                 &config, name.as_deref(), show_closed_positions, &Default::default(), None, true)?;
-            statistics.print();
+            statistics.print(method);
             telemetry
         },
         Action::SimulateSell {name, positions, base_currency} => analysis::simulate_sell(

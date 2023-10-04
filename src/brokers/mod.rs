@@ -10,10 +10,9 @@ use crate::broker_statement::StatementsMergingStrategy;
 use crate::commissions::CommissionSpec;
 use crate::config::{Config, BrokersConfig, BrokerConfig};
 use crate::core::GenericResult;
-use crate::currency::CashAssets;
+use crate::currency::{Cash, CashAssets};
 use crate::exchanges::Exchange;
 use crate::localities::Jurisdiction;
-use crate::types::Decimal;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
 pub enum Broker {
@@ -175,7 +174,7 @@ pub struct BrokerInfo {
 }
 
 impl BrokerInfo {
-    pub fn get_deposit_commission(&self, assets: CashAssets) -> GenericResult<Decimal> {
+    pub fn get_deposit_commission(&self, assets: CashAssets) -> GenericResult<Cash> {
         let currency = assets.cash.currency;
 
         let commission_spec = match self.config.deposit_commissions.get(currency) {
@@ -185,7 +184,7 @@ impl BrokerInfo {
                 "specification in the configuration file"), currency, self.brief_name),
         };
 
-        Ok(commission_spec.fixed_amount)
+        Ok(Cash::new(currency, commission_spec.fixed_amount))
     }
 
     pub fn exchanges(&self) -> Vec<Exchange> {

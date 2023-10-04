@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use easy_logging::GlobalContext;
+use strum::IntoEnumIterator;
 
 use crate::broker_statement::{BrokerStatement, StockSell, StockSellType};
 use crate::commissions::CommissionCalc;
@@ -14,6 +15,7 @@ use crate::taxes::{IncomeType, LtoDeductionCalculator};
 
 use super::config::{AssetGroupConfig, PerformanceMergingConfig};
 use super::portfolio_performance::PortfolioPerformanceAnalyser;
+use super::portfolio_performance_types::PerformanceAnalysisMethod;
 use super::portfolio_statistics::{PortfolioStatistics, LtoStatistics};
 
 pub struct PortfolioAnalyser<'a> {
@@ -158,33 +160,43 @@ impl<'a> PortfolioAnalyser<'a> {
     }
 
     fn process_totals(
-        self, portfolios: Vec<(&'a PortfolioConfig, BrokerStatement)>,
-        statistics: &mut PortfolioStatistics,
+        self, portfolios: Vec<(&'a PortfolioConfig, BrokerStatement)>, statistics: &mut PortfolioStatistics,
     ) -> EmptyResult {
         let mut applied_lto = None;
 
-        statistics.process(|statistics| {
-            let mut analyser = PortfolioPerformanceAnalyser::new(
-                &self.country, &statistics.currency, &self.converter, self.include_closed_positions);
+        for method in PerformanceAnalysisMethod::iter() {
+            let _logging_context = GlobalContext::new(&method.to_string());
 
-            for (portfolio, statement) in &portfolios {
-                let mut performance_merging_config = portfolio.merge_performance.clone();
-                if let Some(merge_performance) = self.merge_performance {
-                    performance_merging_config.add(merge_performance)?;
+            statistics.process(|statistics| {
+                let mut analyser = PortfolioPerformanceAnalyser::new(
+                    &self.country, &statistics.currency, &self.converter,
+                    method, self.include_closed_positions);
+
+                for (portfolio, statement) in &portfolios {
+                    let mut performance_merging_config = portfolio.merge_performance.clone();
+                    if let Some(merge_performance) = self.merge_performance {
+                        performance_merging_config.add(merge_performance)?;
+                    }
+                    analyser.add(portfolio, statement, performance_merging_config)?;
                 }
-                analyser.add(portfolio, statement, performance_merging_config)?;
-            }
 
-            let (performance, lto) = analyser.analyse()?;
-            statistics.performance.replace(performance);
+                let (performance, lto) = analyser.analyse()?;
 
-            if let Some(prev) = applied_lto.take() {
-                assert_eq!(prev, lto);
-            }
-            applied_lto.replace(lto);
+                match method {
+                    PerformanceAnalysisMethod::Virtual => &mut statistics.virtual_performance,
+                    PerformanceAnalysisMethod::Real => &mut statistics.real_performance,
+                }.replace(performance);
 
-            Ok(())
-        })?;
+                if method == PerformanceAnalysisMethod::Real {
+                    if let Some(prev) = applied_lto.take() {
+                        assert_eq!(prev, lto);
+                    }
+                    applied_lto.replace(lto);
+                }
+
+                Ok(())
+            })?;
+        }
 
         statistics.lto = Some(LtoStatistics {
             applied: applied_lto.unwrap(),

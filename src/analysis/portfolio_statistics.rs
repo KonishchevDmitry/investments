@@ -9,7 +9,7 @@ use crate::localities::Country;
 use crate::taxes::{LtoDeduction, NetLtoDeduction};
 use crate::types::Decimal;
 
-use super::portfolio_performance_types::PortfolioPerformanceAnalysis;
+use super::portfolio_performance_types::{PerformanceAnalysisMethod, PortfolioPerformanceAnalysis};
 
 pub struct PortfolioStatistics {
     country: Country,
@@ -33,7 +33,9 @@ impl PortfolioStatistics {
 
                     assets: BTreeMap::new(),
                     brokers: BTreeMap::new(),
-                    performance: None,
+
+                    virtual_performance: None,
+                    real_performance: None,
 
                     projected_taxes: dec!(0),
                     projected_tax_deductions: dec!(0),
@@ -45,27 +47,34 @@ impl PortfolioStatistics {
         }
     }
 
-    pub fn print(&self) {
+    pub fn print(&self, method: PerformanceAnalysisMethod) {
         let lto = self.lto.as_ref().unwrap();
 
-        for (year, result) in &lto.applied {
-            if !result.loss.is_zero() {
-                warn!("Long-term ownership tax deduction loss in {}: {}.",
-                      year, self.country.cash(result.loss));
-            }
+        if method.tax_aware() {
+            for (year, result) in &lto.applied {
+                if !result.loss.is_zero() {
+                    warn!("Long-term ownership tax deduction loss in {}: {}.",
+                          year, self.country.cash(result.loss));
+                }
 
-            if !result.applied_above_limit.is_zero() {
-                warn!("Long-term ownership tax deductions applied in {} have exceeded the total limit by {}.",
-                      year, self.country.cash(result.applied_above_limit));
+                if !result.applied_above_limit.is_zero() {
+                    warn!("Long-term ownership tax deductions applied in {} have exceeded the total limit by {}.",
+                          year, self.country.cash(result.applied_above_limit));
+                }
             }
         }
 
         for statistics in &self.currencies {
-            statistics.performance.as_ref().unwrap().print(&format!(
+            let performance = match method {
+                PerformanceAnalysisMethod::Virtual => &statistics.virtual_performance,
+                PerformanceAnalysisMethod::Real => &statistics.real_performance,
+            }.as_ref().unwrap();
+
+            performance.print(&format!(
                 "Average rate of return from cash investments in {}", &statistics.currency));
         }
 
-        if !lto.projected.deduction.is_zero() {
+        if method.tax_aware() && !lto.projected.deduction.is_zero() {
             lto.projected.print("Projected LTO deduction")
         }
     }
@@ -87,7 +96,9 @@ pub struct PortfolioCurrencyStatistics {
     // Use BTreeMap to get consistent metrics order
     pub assets: BTreeMap<String, Decimal>,
     pub brokers: BTreeMap<Broker, Decimal>,
-    pub performance: Option<PortfolioPerformanceAnalysis>,
+
+    pub virtual_performance: Option<PortfolioPerformanceAnalysis>,
+    pub real_performance: Option<PortfolioPerformanceAnalysis>,
 
     pub projected_taxes: Decimal,
     pub projected_tax_deductions: Decimal,

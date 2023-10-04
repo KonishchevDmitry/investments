@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 
+use investments::analysis::PerformanceAnalysisMethod;
 use investments::time::Date;
 use investments::types::Decimal;
 
 pub enum Action {
     Analyse {
         name: Option<String>,
+        method: PerformanceAnalysisMethod,
         show_closed_positions: bool,
     },
     SimulateSell {

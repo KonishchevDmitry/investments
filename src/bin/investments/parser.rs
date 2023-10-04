@@ -7,6 +7,7 @@ use clap_complete::{self, Shell};
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use investments::analysis::PerformanceAnalysisMethod;
 use investments::config::Config;
 use investments::core::GenericResult;
 use investments::time;
@@ -87,6 +88,13 @@ impl Parser {
                     and monthly capitalization.
                 "))
                 .args([
+                    Arg::new("method").short('m').long("method")
+                        .value_parser(PerformanceAnalysisMethod::from_str)
+                        .default_value(Into::<&'static str>::into(PerformanceAnalysisMethod::Real))
+                        .help(format!(
+                            "{} - don't take taxes into account, {} - take taxes into account",
+                            PerformanceAnalysisMethod::Virtual, PerformanceAnalysisMethod::Real)),
+
                     Arg::new("all").short('a').long("all")
                         .help("Don't hide closed positions")
                         .action(ArgAction::SetTrue),
@@ -269,6 +277,7 @@ impl Parser {
         Ok(match command {
             "analyse" => Action::Analyse {
                 name: matches.get_one("PORTFOLIO").cloned(),
+                method: matches.get_one("method").cloned().unwrap(),
                 show_closed_positions: matches.get_flag("all"),
             },
 

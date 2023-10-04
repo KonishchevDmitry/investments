@@ -6,6 +6,23 @@ use crate::formatting::table::{Cell, Style};
 use crate::types::Decimal;
 use crate::util;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(strum::Display, strum::EnumIter, strum::EnumString, strum::IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
+pub enum PerformanceAnalysisMethod {
+    Virtual, // Taxes aren't taken into account
+    Real,    // Taxes are taken into account
+}
+
+impl PerformanceAnalysisMethod {
+    pub fn tax_aware(self) -> bool {
+        match self {
+            PerformanceAnalysisMethod::Virtual => false,
+            PerformanceAnalysisMethod::Real => true,
+        }
+    }
+}
+
 pub struct PortfolioPerformanceAnalysis {
     pub income_structure: IncomeStructure,
     pub instruments: BTreeMap<String, InstrumentPerformanceAnalysis>,
