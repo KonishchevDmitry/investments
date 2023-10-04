@@ -11,14 +11,17 @@ fn generate_regression_tests() {
 
     // cli
     t.with_args("No command", &[]).exit_code(2);
-    t.add("Help", "--help");
+
+    t.add("Help short", "-h");
+    t.add("Help long", "--help");
 
     for command in [
         "sync", "show", "rebalance", "cash", "buy", "sell",
         "analyse", "simulate-sell", "tax-statement", "cash-flow",
         "deposits", "metrics", "completion",
     ] {
-        t.add(&format!("Help {}", command), &format!("{} --help", command));
+        t.add(&format!("Help {} short", command), &format!("{} -h", command));
+        t.add(&format!("Help {} long", command), &format!("{} --help", command));
     }
 
     // deposits
@@ -31,6 +34,7 @@ fn generate_regression_tests() {
 
     // analyse
     t.add("Analyse", "analyse --all");
+    t.add("Analyse virtual", "analyse --all --method virtual");
     t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
 
     // simulate-sell
