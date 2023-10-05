@@ -321,7 +321,7 @@ pub struct InstrumentRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstrumentsRequest {
-    /// Статус запрашиваемых инструментов. Возможные значения: \[InstrumentStatus\](#instrumentstatus)
+    /// Статус запрашиваемых инструментов. Возможные значения: [InstrumentStatus](#instrumentstatus)
     #[prost(enumeration = "InstrumentStatus", tag = "1")]
     pub instrument_status: i32,
 }
@@ -491,7 +491,7 @@ pub struct Option {
     /// Текущий режим торгов инструмента.
     #[prost(enumeration = "SecurityTradingStatus", tag = "21")]
     pub trading_status: i32,
-    /// Реальная площадка исполнения расчётов (биржа). Допустимые значения: [REAL_EXCHANGE_MOEX, REAL_EXCHANGE_RTS]
+    /// Реальная площадка исполнения расчётов (биржа). Допустимые значения: \[REAL_EXCHANGE_MOEX, REAL_EXCHANGE_RTS\]
     #[prost(enumeration = "RealExchange", tag = "31")]
     pub real_exchange: i32,
     /// Направление опциона.
@@ -638,7 +638,7 @@ pub struct Bond {
     /// Isin-идентификатор инструмента.
     #[prost(string, tag = "4")]
     pub isin: ::prost::alloc::string::String,
-    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: \[лот\](<https://tinkoff.github.io/investAPI/glossary#lot>)
+    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: [лот](<https://tinkoff.github.io/investAPI/glossary#lot>)
     #[prost(int32, tag = "5")]
     pub lot: i32,
     /// Валюта расчётов.
@@ -793,7 +793,7 @@ pub struct Currency {
     /// Isin-идентификатор инструмента.
     #[prost(string, tag = "4")]
     pub isin: ::prost::alloc::string::String,
-    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: \[лот\](<https://tinkoff.github.io/investAPI/glossary#lot>)
+    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: [лот](<https://tinkoff.github.io/investAPI/glossary#lot>)
     #[prost(int32, tag = "5")]
     pub lot: i32,
     /// Валюта расчётов.
@@ -900,7 +900,7 @@ pub struct Etf {
     /// Isin-идентификатор инструмента.
     #[prost(string, tag = "4")]
     pub isin: ::prost::alloc::string::String,
-    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: \[лот\](<https://tinkoff.github.io/investAPI/glossary#lot>)
+    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: [лот](<https://tinkoff.github.io/investAPI/glossary#lot>)
     #[prost(int32, tag = "5")]
     pub lot: i32,
     /// Валюта расчётов.
@@ -1019,7 +1019,7 @@ pub struct Future {
     /// Класс-код (секция торгов).
     #[prost(string, tag = "3")]
     pub class_code: ::prost::alloc::string::String,
-    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: \[лот\](<https://tinkoff.github.io/investAPI/glossary#lot>)
+    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: [лот](<https://tinkoff.github.io/investAPI/glossary#lot>)
     #[prost(int32, tag = "4")]
     pub lot: i32,
     /// Валюта расчётов.
@@ -1147,7 +1147,7 @@ pub struct Share {
     /// Isin-идентификатор инструмента.
     #[prost(string, tag = "4")]
     pub isin: ::prost::alloc::string::String,
-    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: \[лот\](<https://tinkoff.github.io/investAPI/glossary#lot>)
+    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: [лот](<https://tinkoff.github.io/investAPI/glossary#lot>)
     #[prost(int32, tag = "5")]
     pub lot: i32,
     /// Валюта расчётов.
@@ -1216,7 +1216,7 @@ pub struct Share {
     /// Признак наличия дивидендной доходности.
     #[prost(bool, tag = "29")]
     pub div_yield_flag: bool,
-    /// Тип акции. Возможные значения: \[ShareType\](<https://tinkoff.github.io/investAPI/instruments#sharetype>)
+    /// Тип акции. Возможные значения: [ShareType](<https://tinkoff.github.io/investAPI/instruments#sharetype>)
     #[prost(enumeration = "ShareType", tag = "30")]
     pub share_type: i32,
     /// Шаг цены.
@@ -1344,7 +1344,7 @@ pub struct Instrument {
     /// Isin-идентификатор инструмента.
     #[prost(string, tag = "4")]
     pub isin: ::prost::alloc::string::String,
-    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: \[лот\](<https://tinkoff.github.io/investAPI/glossary#lot>)
+    /// Лотность инструмента. Возможно совершение операций только на количества ценной бумаги, кратные параметру *lot*. Подробнее: [лот](<https://tinkoff.github.io/investAPI/glossary#lot>)
     #[prost(int32, tag = "5")]
     pub lot: i32,
     /// Валюта расчётов.
@@ -3716,7 +3716,7 @@ pub struct CandleInstrument {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscribeCandlesResponse {
-    /// Уникальный идентификатор запроса, подробнее: \[tracking_id\](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
+    /// Уникальный идентификатор запроса, подробнее: [tracking_id](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
     #[prost(string, tag = "1")]
     pub tracking_id: ::prost::alloc::string::String,
     /// Массив статусов подписки на свечи.
@@ -3770,7 +3770,7 @@ pub struct OrderBookInstrument {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscribeOrderBookResponse {
-    /// Уникальный идентификатор запроса, подробнее: \[tracking_id\](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
+    /// Уникальный идентификатор запроса, подробнее: [tracking_id](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
     #[prost(string, tag = "1")]
     pub tracking_id: ::prost::alloc::string::String,
     /// Массив статусов подписки на стаканы.
@@ -3821,7 +3821,7 @@ pub struct TradeInstrument {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscribeTradesResponse {
-    /// Уникальный идентификатор запроса, подробнее: \[tracking_id\](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
+    /// Уникальный идентификатор запроса, подробнее: [tracking_id](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
     #[prost(string, tag = "1")]
     pub tracking_id: ::prost::alloc::string::String,
     /// Массив статусов подписки на поток сделок.
@@ -3869,7 +3869,7 @@ pub struct InfoInstrument {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscribeInfoResponse {
-    /// Уникальный идентификатор запроса, подробнее: \[tracking_id\](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
+    /// Уникальный идентификатор запроса, подробнее: [tracking_id](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
     #[prost(string, tag = "1")]
     pub tracking_id: ::prost::alloc::string::String,
     /// Массив статусов подписки на торговый статус.
@@ -3917,7 +3917,7 @@ pub struct LastPriceInstrument {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscribeLastPriceResponse {
-    /// Уникальный идентификатор запроса, подробнее: \[tracking_id\](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
+    /// Уникальный идентификатор запроса, подробнее: [tracking_id](<https://tinkoff.github.io/investAPI/grpc#tracking-id>).
     #[prost(string, tag = "1")]
     pub tracking_id: ::prost::alloc::string::String,
     /// Массив статусов подписки на цену последней сделки.
@@ -4408,11 +4408,11 @@ pub enum SubscriptionStatus {
     Success = 1,
     /// Инструмент не найден.
     InstrumentNotFound = 2,
-    /// Некорректный статус подписки, список возможных значений: \[SubscriptionAction\](<https://tinkoff.github.io/investAPI/marketdata#subscriptionaction>).
+    /// Некорректный статус подписки, список возможных значений: [SubscriptionAction](<https://tinkoff.github.io/investAPI/marketdata#subscriptionaction>).
     SubscriptionActionIsInvalid = 3,
     /// Некорректная глубина стакана, доступные значения: 1, 10, 20, 30, 40, 50.
     DepthIsInvalid = 4,
-    /// Некорректный интервал свечей, список возможных значений: \[SubscriptionInterval\](<https://tinkoff.github.io/investAPI/marketdata#subscriptioninterval>).
+    /// Некорректный интервал свечей, список возможных значений: [SubscriptionInterval](<https://tinkoff.github.io/investAPI/marketdata#subscriptioninterval>).
     IntervalIsInvalid = 5,
     /// Превышен лимит на общее количество подписок в рамках стрима, подробнее: [Лимитная политика](<https://tinkoff.github.io/investAPI/limits/>).
     LimitIsExceeded = 6,

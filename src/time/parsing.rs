@@ -7,7 +7,7 @@ use serde::de::{Deserializer, Error};
 
 use crate::core::GenericResult;
 
-use super::{Date, Time, DateTime, DateOptTime, utc_now};
+use super::{Date, Time, DateTime, DateOptTime, TzDateTime, utc_now};
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
     Ok(Date::parse_from_str(date, format).map_err(|_| format!(
@@ -30,9 +30,10 @@ pub fn parse_date_time(date_time: &str, format: &str) -> GenericResult<DateTime>
 
 pub fn parse_tz_date_time<T: TimeZone>(
     string: &str, format: &str, tz: T, future_check: bool,
-) -> GenericResult<chrono::DateTime<T>> {
-    let date_time = tz.datetime_from_str(string, format).map_err(|_| format!(
-        "Invalid time: {:?}", string))?;
+) -> GenericResult<TzDateTime<T>> {
+    let date_time = chrono::NaiveDateTime::parse_from_str(string, format).ok()
+        .and_then(|date_time| tz.from_local_datetime(&date_time).single())
+        .ok_or_else(|| format!("Invalid time: {:?}", string))?;
 
     if future_check && (date_time.naive_utc() - utc_now()).num_hours() > 0 {
         return Err!("Invalid time: {:?}. It's from future", date_time);
@@ -84,23 +85,21 @@ pub fn parse_duration(string: &str) -> GenericResult<Duration> {
 }
 
 #[cfg(debug_assertions)]
-pub fn parse_fake_now() -> GenericResult<Option<chrono::DateTime<Local>>> {
+pub fn parse_fake_now() -> GenericResult<Option<TzDateTime<Local>>> {
     use std::env::{self, VarError};
 
     let name = "INVESTMENTS_NOW";
 
-    match env::var(name) {
+    let fake_now = match env::var(name) {
         Ok(value) => {
-            let timezone = chrono::Local::now().timezone();
-            if let Ok(now) = timezone.datetime_from_str(&value, "%Y.%m.%d %H:%M:%S") {
-                return Ok(Some(now));
-            }
+            chrono::NaiveDateTime::parse_from_str(&value, "%Y.%m.%d %H:%M:%S").ok()
+                .and_then(|date_time| Local.from_local_datetime(&date_time).single())
         },
         Err(e) => match e {
             VarError::NotPresent => return Ok(None),
-            VarError::NotUnicode(_) => {},
+            VarError::NotUnicode(_) => None,
         },
-    };
+    }.ok_or_else(|| format!("Invalid {} environment variable value", name))?;
 
-    Err!("Invalid {} environment variable value", name)
+    Ok(Some(fake_now))
 }

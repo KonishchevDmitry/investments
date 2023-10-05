@@ -27,7 +27,7 @@ impl SectionParser for SecuritiesInfoParser {
 
         for security in xls::read_table::<SecuritiesInfoRow>(&mut parser.sheet)? {
             let (symbol, isin) = security.parse(&securities)?;
-            let misnamed_instrument = statement.instrument_info.remove(&isin.to_string());
+            let misnamed_instrument = statement.instrument_info.remove(isin.as_ref());
 
             if let Some(exchange) = &security.exchange {
                 // New statements don't have exchange info for some reason

@@ -280,7 +280,7 @@ pub fn match_statement_dividends_to_foreign_income(
 
     for isin in &instrument.isin {
         let foreign_dividend_id = DividendId::new(
-            dividend_id.date, InstrumentId::Isin(isin.clone()));
+            dividend_id.date, InstrumentId::Isin(*isin));
 
         if let Some((dividends, taxes)) = foreign_income.remove(&foreign_dividend_id) {
             if foreign_income_details.replace((foreign_dividend_id, dividends, taxes)).is_some() {
