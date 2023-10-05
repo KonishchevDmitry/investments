@@ -375,7 +375,7 @@ impl BrokerStatement {
 
             let symbol_buys = match unsold_buys.get_mut(&stock_buy.symbol) {
                 Some(symbol_buys) => symbol_buys,
-                None => unsold_buys.entry(stock_buy.symbol.clone()).or_insert_with(Vec::new),
+                None => unsold_buys.entry(stock_buy.symbol.clone()).or_default(),
             };
 
             symbol_buys.push(index);
