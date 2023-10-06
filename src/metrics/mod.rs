@@ -9,7 +9,8 @@ use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, register_gauge_vec};
 
-use crate::analysis::{self, portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics}};
+use crate::analysis::{self, PerformanceAnalysisMethod};
+use crate::analysis::portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::currency::Cash;
@@ -33,7 +34,7 @@ lazy_static! {
     static ref ASSET_GROUPS: GaugeVec = register_metric(
         "asset_groups", "Net asset value of custom groups", &["name", "currency"]);
 
-    static ref PERFORMANCE: GaugeVec = register_instrument_metric(
+    static ref PERFORMANCE: GaugeVec = register_performance_metric(
         "performance", "Instrument performance");
 
     static ref INCOME_STRUCTURE: GaugeVec = register_structure_metric(
@@ -89,9 +90,7 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
 
 fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     let currency = &statistics.currency;
-    // FIXME(konishchev): Support
-    let performance = statistics.real_performance.as_ref().unwrap();
-    let income_structure = &performance.income_structure;
+    let income_structure = &statistics.real_performance.as_ref().unwrap().income_structure;
 
     for (broker, &value) in &statistics.brokers {
         set_metric(&BROKERS, &[currency, broker.brief_name(), broker.jurisdiction().name()], value);
@@ -101,14 +100,22 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
         set_instrument_metric(&ASSETS, currency, instrument, value);
     }
 
-    for (instrument, analysis) in &performance.instruments {
-        if let Some(interest) = analysis.interest {
-            set_instrument_metric(&PERFORMANCE, currency, instrument, interest);
-        }
-    }
+    for (method, performance) in [
+        (PerformanceAnalysisMethod::Virtual, &statistics.virtual_performance),
+        (PerformanceAnalysisMethod::Real, &statistics.real_performance),
+    ] {
+        let method: &str = method.into();
+        let performance = performance.as_ref().unwrap();
 
-    if let Some(interest) = performance.portfolio.interest {
-        set_instrument_metric(&PERFORMANCE, currency, "Portfolio", interest);
+        for (instrument, analysis) in &performance.instruments {
+            if let Some(interest) = analysis.interest {
+                set_performance_metric(&PERFORMANCE, currency, instrument, method, interest);
+            }
+        }
+
+        if let Some(interest) = performance.portfolio.interest {
+            set_performance_metric(&PERFORMANCE, currency, "Portfolio", method, interest);
+        }
     }
 
     set_portfolio_metric(&PROFIT, currency, income_structure.profit());
@@ -198,6 +205,10 @@ fn register_instrument_metric(name: &str, help: &str) -> GaugeVec {
     register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, "instrument"])
 }
 
+fn register_performance_metric(name: &str, help: &str) -> GaugeVec {
+    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, "instrument", "type"])
+}
+
 fn register_structure_metric(name: &str, help: &str) -> GaugeVec {
     register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, "type"])
 }
@@ -216,6 +227,10 @@ fn set_portfolio_metric(collector: &GaugeVec, currency: &str, value: Decimal) {
 
 fn set_instrument_metric(collector: &GaugeVec, currency: &str, instrument: &str, value: Decimal) {
     set_metric(collector, &[PORTFOLIO_LABEL_ALL, currency, instrument], value)
+}
+
+fn set_performance_metric(collector: &GaugeVec, currency: &str, instrument: &str, method: &str, value: Decimal) {
+    set_metric(collector, &[PORTFOLIO_LABEL_ALL, currency, instrument, method], value)
 }
 
 fn set_structure_metric(collector: &GaugeVec, currency: &str, type_: &str, value: Decimal) {
