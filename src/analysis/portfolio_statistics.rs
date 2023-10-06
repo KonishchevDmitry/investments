@@ -65,12 +65,7 @@ impl PortfolioStatistics {
         }
 
         for statistics in &self.currencies {
-            let performance = match method {
-                PerformanceAnalysisMethod::Virtual => &statistics.virtual_performance,
-                PerformanceAnalysisMethod::Real => &statistics.real_performance,
-            }.as_ref().unwrap();
-
-            performance.print(&format!(
+            statistics.performance(method).print(&format!(
                 "Average rate of return from cash investments in {}", &statistics.currency));
         }
 
@@ -109,5 +104,20 @@ impl PortfolioCurrencyStatistics {
     pub fn add_assets(&mut self, broker: Broker, instrument: &str, amount: Decimal) {
         *self.assets.entry(instrument.to_owned()).or_default() += amount;
         *self.brokers.entry(broker).or_default() += amount;
+    }
+
+    pub fn performance(&self, method: PerformanceAnalysisMethod) -> &PortfolioPerformanceAnalysis {
+        match method {
+            PerformanceAnalysisMethod::Virtual => &self.virtual_performance,
+            PerformanceAnalysisMethod::Real => &self.real_performance,
+        }.as_ref().unwrap()
+    }
+
+    pub fn set_performance(&mut self, method: PerformanceAnalysisMethod, performance: PortfolioPerformanceAnalysis) {
+        let container = match method {
+            PerformanceAnalysisMethod::Virtual => &mut self.virtual_performance,
+            PerformanceAnalysisMethod::Real => &mut self.real_performance,
+        };
+        assert!(container.replace(performance).is_none());
     }
 }

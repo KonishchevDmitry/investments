@@ -8,6 +8,7 @@ use std::path::Path;
 use lazy_static::lazy_static;
 use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, register_gauge_vec};
+use strum::IntoEnumIterator;
 
 use crate::analysis::{self, PerformanceAnalysisMethod};
 use crate::analysis::portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics};
@@ -100,21 +101,18 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
         set_instrument_metric(&ASSETS, currency, instrument, value);
     }
 
-    for (method, performance) in [
-        (PerformanceAnalysisMethod::Virtual, &statistics.virtual_performance),
-        (PerformanceAnalysisMethod::Real, &statistics.real_performance),
-    ] {
-        let method: &str = method.into();
-        let performance = performance.as_ref().unwrap();
+    for method in PerformanceAnalysisMethod::iter() {
+        let method_name: &str = method.into();
+        let performance = statistics.performance(method);
 
         for (instrument, analysis) in &performance.instruments {
             if let Some(interest) = analysis.interest {
-                set_performance_metric(&PERFORMANCE, currency, instrument, method, interest);
+                set_performance_metric(&PERFORMANCE, currency, instrument, method_name, interest);
             }
         }
 
         if let Some(interest) = performance.portfolio.interest {
-            set_performance_metric(&PERFORMANCE, currency, "Portfolio", method, interest);
+            set_performance_metric(&PERFORMANCE, currency, "Portfolio", method_name, interest);
         }
     }
 

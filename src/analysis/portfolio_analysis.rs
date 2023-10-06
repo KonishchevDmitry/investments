@@ -181,11 +181,7 @@ impl<'a> PortfolioAnalyser<'a> {
                 }
 
                 let (performance, lto) = analyser.analyse()?;
-
-                match method {
-                    PerformanceAnalysisMethod::Virtual => &mut statistics.virtual_performance,
-                    PerformanceAnalysisMethod::Real => &mut statistics.real_performance,
-                }.replace(performance);
+                statistics.set_performance(method, performance);
 
                 if method == PerformanceAnalysisMethod::Real {
                     if let Some(prev) = applied_lto.take() {
