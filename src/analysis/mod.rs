@@ -1,6 +1,7 @@
 pub mod config;
 pub mod deposit_emulator;
 mod deposit_performance;
+#[cfg(test)] mod inflation;
 mod instrument_view;
 mod portfolio_analysis;
 mod portfolio_performance_types;
