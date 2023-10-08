@@ -1,5 +1,6 @@
 use chrono::Datelike;
 
+use crate::core::GenericResult;
 use crate::time::Date;
 use crate::types::Decimal;
 
@@ -9,8 +10,15 @@ pub struct InflationCalc {
 }
 
 impl InflationCalc {
-    pub fn new(today: Date, get_inflation: fn(year: i32) -> Option<Decimal>) -> InflationCalc {
-        InflationCalc { today, get_inflation }
+    pub fn new(currency: &str, today: Date) -> GenericResult<InflationCalc> {
+        Ok(InflationCalc {
+            today,
+            get_inflation: match currency {
+                "RUB" => russia_inflation,
+                "USD" => us_inflation,
+                _ => return Err!("{} currency is not supported by inflation calculator", currency),
+            },
+        })
     }
 
     pub fn adjust(&self, mut date: Date, mut amount: Decimal) -> Decimal {
@@ -38,8 +46,7 @@ impl InflationCalc {
     }
 }
 
-#[allow(dead_code)]
-pub fn russia_inflation(year: i32) -> Option<Decimal> {
+fn russia_inflation(year: i32) -> Option<Decimal> {
     // https://www.statbureau.org/ru/russia/inflation-tables
     Some(match year {
         1991 => dec!(160.40),
@@ -78,7 +85,7 @@ pub fn russia_inflation(year: i32) -> Option<Decimal> {
     })
 }
 
-pub fn us_inflation(year: i32) -> Option<Decimal> {
+fn us_inflation(year: i32) -> Option<Decimal> {
     // https://fred.stlouisfed.org/series/FPCPITOTLZGUSA
     Some(match year {
         1960 => dec!(1.45797598627786),
@@ -162,7 +169,7 @@ mod tests {
             )
         };
 
-        let calc = InflationCalc::new(date!(1962, 1, 5), us_inflation);
+        let calc = InflationCalc::new("USD", date!(1962, 1, 5)).unwrap();
         assert_eq!((date!(1963, 1, 1) - date!(1962, 1, 1)).num_days(), 365);
         check(
             calc.adjust(date!(1958, 3, 4), dec!(123)),
@@ -172,7 +179,7 @@ mod tests {
                 * (dec!(1) + dec!(1.19877334820185) / dec!(100) * dec!(4) / dec!(365))
         );
 
-        let calc = InflationCalc::new(date!(2010, 4, 6), us_inflation);
+        let calc = InflationCalc::new("USD", date!(2010, 4, 6)).unwrap();
         assert_eq!((date!(2008, 1, 1) - date!(2007, 1, 1)).num_days(), 365);
         assert_eq!((date!(2008, 1, 1) - date!(2007, 7, 3)).num_days(), 182);
         assert_eq!((date!(2010, 4, 6) - date!(2010, 1, 1)).num_days(), 95);
@@ -186,7 +193,7 @@ mod tests {
                 * (dec!(1) + dec!(1.64004344238989) / dec!(100) * dec!(95) / dec!(365))   // 2010
         );
 
-        let calc = InflationCalc::new(date!(2023, 10, 7), us_inflation);
+        let calc = InflationCalc::new("USD", date!(2023, 10, 7)).unwrap();
         assert_eq!((date!(2021, 1, 1) - date!(2020, 1, 1)).num_days(), 366);
         assert_eq!((date!(2021, 1, 1) - date!(2020, 7, 3)).num_days(), 182);
         check(

@@ -35,6 +35,7 @@ fn generate_regression_tests() {
     // analyse
     t.add("Analyse", "analyse --all");
     t.add("Analyse virtual", "analyse --all --method virtual");
+    t.add("Analyse inflation-adjusted", "analyse --all --method inflation-adjusted");
     t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
 
     // simulate-sell

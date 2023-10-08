@@ -36,6 +36,7 @@ impl PortfolioStatistics {
 
                     virtual_performance: None,
                     real_performance: None,
+                    inflation_adjusted_performance: None,
 
                     projected_taxes: dec!(0),
                     projected_tax_deductions: dec!(0),
@@ -94,6 +95,7 @@ pub struct PortfolioCurrencyStatistics {
 
     pub virtual_performance: Option<PortfolioPerformanceAnalysis>,
     pub real_performance: Option<PortfolioPerformanceAnalysis>,
+    pub inflation_adjusted_performance: Option<PortfolioPerformanceAnalysis>,
 
     pub projected_taxes: Decimal,
     pub projected_tax_deductions: Decimal,
@@ -110,6 +112,7 @@ impl PortfolioCurrencyStatistics {
         match method {
             PerformanceAnalysisMethod::Virtual => &self.virtual_performance,
             PerformanceAnalysisMethod::Real => &self.real_performance,
+            PerformanceAnalysisMethod::InflationAdjusted => &self.inflation_adjusted_performance,
         }.as_ref().unwrap()
     }
 
@@ -117,6 +120,7 @@ impl PortfolioCurrencyStatistics {
         let container = match method {
             PerformanceAnalysisMethod::Virtual => &mut self.virtual_performance,
             PerformanceAnalysisMethod::Real => &mut self.real_performance,
+            PerformanceAnalysisMethod::InflationAdjusted => &mut self.inflation_adjusted_performance,
         };
         assert!(container.replace(performance).is_none());
     }

@@ -17,6 +17,7 @@ use crate::types::Decimal;
 use super::config::PerformanceMergingConfig;
 use super::deposit_emulator::{Transaction, InterestPeriod};
 use super::deposit_performance;
+use super::inflation::InflationCalc;
 use super::instrument_view::InstrumentDepositView;
 use super::portfolio_performance_types::{
     PerformanceAnalysisMethod, PortfolioPerformanceAnalysis, InstrumentPerformanceAnalysis, IncomeStructure};
@@ -127,12 +128,13 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         trace!("Analysing {} performance...", symbol);
 
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
+        let adjusted_transactions = self.adjust_transactions(&deposit_view.transactions)?;
 
         let interest = deposit_performance::compare_to_bank_deposit(
-            &deposit_view.transactions, &deposit_view.interest_periods, dec!(0),
+            &adjusted_transactions, &deposit_view.interest_periods, dec!(0),
         ).map(|(interest, difference)| -> GenericResult<Decimal> {
             deposit_performance::check_emulation_precision(
-                symbol, self.currency, &deposit_view.transactions,
+                symbol, self.currency, &adjusted_transactions,
                 dec!(0), difference)?;
             Ok(interest)
         }).transpose()?;
@@ -163,16 +165,18 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         if self.transactions.is_empty() {
             return Err!("The portfolio has no activity yet");
         }
+
         self.transactions.sort_by_key(|transaction| transaction.date);
+        let adjusted_transactions = self.adjust_transactions(&self.transactions)?;
 
         let activity_periods = vec![InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
         let interest = deposit_performance::compare_to_bank_deposit(
-            &self.transactions, &activity_periods, self.current_assets,
+            &adjusted_transactions, &activity_periods, self.current_assets,
         ).map(|(interest, difference)| -> GenericResult<Decimal> {
             deposit_performance::check_emulation_precision(
-                "portfolio", self.currency, &self.transactions,
+                "portfolio", self.currency, &adjusted_transactions,
                 self.current_assets, difference)?;
             Ok(interest)
         }).transpose()?;
@@ -475,6 +479,23 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
     fn transaction(&mut self, date: Date, amount: Decimal) {
         self.transactions.push(Transaction::new(date, amount));
+    }
+
+    fn adjust_transactions(&self, transactions: &[Transaction]) -> GenericResult<Vec<Transaction>> {
+        let inflation_calc = match self.method {
+            PerformanceAnalysisMethod::Virtual | PerformanceAnalysisMethod::Real => None,
+            PerformanceAnalysisMethod::InflationAdjusted => Some(
+                InflationCalc::new(self.currency, self.today)?
+            ),
+        };
+
+        Ok(transactions.iter().map(|transaction| {
+            let amount = match inflation_calc.as_ref() {
+                Some(calc) => calc.adjust(transaction.date, transaction.amount),
+                None => transaction.amount,
+            };
+            Transaction::new(transaction.date, amount)
+        }).collect())
     }
 
     fn map_tax_to_deposit_amount(&self, tax_payment_date: Date, tax_to_pay: Cash) -> GenericResult<Option<Decimal>> {

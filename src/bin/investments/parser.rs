@@ -4,8 +4,10 @@ use std::str::FromStr;
 use clap::{Arg, ArgAction, ArgMatches, Command, value_parser};
 use clap::builder::NonEmptyStringValueParser;
 use clap_complete::{self, Shell};
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
+use strum::{EnumMessage, IntoEnumIterator};
 
 use investments::analysis::PerformanceAnalysisMethod;
 use investments::config::Config;
@@ -89,11 +91,13 @@ impl Parser {
                 "))
                 .args([
                     Arg::new("method").short('m').long("method")
+                        .help(
+                            PerformanceAnalysisMethod::iter().map(|method| {
+                                format!("{} - {}", Into::<&'static str>::into(method), method.get_message().unwrap())
+                            }).join(", ")
+                        )
                         .value_parser(PerformanceAnalysisMethod::from_str)
-                        .default_value(Into::<&'static str>::into(PerformanceAnalysisMethod::Real))
-                        .help(format!(
-                            "{} - don't take taxes into account, {} - take taxes into account",
-                            PerformanceAnalysisMethod::Virtual, PerformanceAnalysisMethod::Real)),
+                        .default_value(Into::<&'static str>::into(PerformanceAnalysisMethod::Real)),
 
                     Arg::new("all").short('a').long("all")
                         .help("Don't hide closed positions")

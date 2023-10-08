@@ -7,11 +7,15 @@ use crate::types::Decimal;
 use crate::util;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[derive(strum::Display, strum::EnumIter, strum::EnumString, strum::IntoStaticStr)]
+#[derive(strum::Display, strum::EnumIter, strum::EnumMessage, strum::EnumString, strum::IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 pub enum PerformanceAnalysisMethod {
-    Virtual, // Taxes aren't taken into account
-    Real,    // Taxes are taken into account
+    #[strum(message = "don't take taxes into account")]
+    Virtual,
+    #[strum(message = "take taxes into account")]
+    Real,
+    #[strum(message = "take taxes and inflation into account")]
+    InflationAdjusted,
 }
 
 impl PerformanceAnalysisMethod {
@@ -19,6 +23,7 @@ impl PerformanceAnalysisMethod {
         match self {
             PerformanceAnalysisMethod::Virtual => false,
             PerformanceAnalysisMethod::Real => true,
+            PerformanceAnalysisMethod::InflationAdjusted => true,
         }
     }
 }

@@ -6,8 +6,7 @@ Helps you with managing your investments:
 * **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your asset allocation.
 * **Stock selling simulation:** calculates revenue, profit, taxes and real profit percent which considers taxes into account.
 * **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program named Декларация) by adding all required information about income from stock selling, paid dividends and idle cash interest.
-* **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization.
-  Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
+* **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends, tax deductions and optionally inflation when calculates portfolio performance.
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
 Targeted for Russian investors who use [Interactive Brokers](https://interactivebrokers.com/),
@@ -44,7 +43,7 @@ Investments keeps some data in local database located at `~/.investments/db.sqli
 <a name="analyse"></a>
 ### Performance analysis
 
-`investments analyse` command calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends and tax deductions when calculates portfolio performance.
+`investments analyse` command calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends, tax deductions and optionally inflation when calculates portfolio performance.
 
 <img src="/docs/images/analyse-command.png?raw=true" width="80%" height="80%" alt="investments analyse" title="investments analyse">
 
