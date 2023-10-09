@@ -32,6 +32,9 @@ lazy_static! {
     static ref ASSETS: GaugeVec = register_instrument_metric(
         "assets", "Open positions value");
 
+    static ref NET_ASSETS: GaugeVec = register_instrument_metric(
+        "net_assets", "Open positions net value");
+
     static ref ASSET_GROUPS: GaugeVec = register_metric(
         "asset_groups", "Net asset value of custom groups", &["name", "currency"]);
 
@@ -97,8 +100,9 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
         set_metric(&BROKERS, &[currency, broker.brief_name(), broker.jurisdiction().name()], value);
     }
 
-    for (instrument, &value) in &statistics.assets {
-        set_instrument_metric(&ASSETS, currency, instrument, value);
+    for (instrument, asset) in &statistics.assets {
+        set_instrument_metric(&ASSETS, currency, instrument, asset.value);
+        set_instrument_metric(&NET_ASSETS, currency, instrument, asset.net_value);
     }
 
     for method in PerformanceAnalysisMethod::iter() {
