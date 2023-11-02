@@ -33,11 +33,11 @@ use super::{BrokerStatementReader, ReadingStrictness, PartialBrokerStatement};
 
 use self::cash_flows::CashFlows;
 use self::common::{Record, format_record, format_error_record};
-use self::confirmation::{TradeExecutionDates, OrderId};
+use self::confirmation::{TradeExecutionInfo, OrderId};
 
 pub struct StatementReader {
     tax_remapping: TaxRemapping,
-    trade_execution_dates: TradeExecutionDates,
+    trade_execution_info: TradeExecutionInfo,
 
     warn_on_margin_account: bool,
     warn_on_missing_execution_date: bool,
@@ -48,7 +48,7 @@ impl StatementReader {
     pub fn new(tax_remapping: TaxRemapping, strictness: ReadingStrictness) -> GenericResult<Box<dyn BrokerStatementReader>> {
         Ok(Box::new(StatementReader {
             tax_remapping: tax_remapping,
-            trade_execution_dates: TradeExecutionDates::new(),
+            trade_execution_info: TradeExecutionInfo::new(),
 
             warn_on_margin_account: true,
             warn_on_missing_execution_date: strictness.contains(ReadingStrictness::TRADE_SETTLE_DATE),
@@ -63,7 +63,7 @@ impl BrokerStatementReader for StatementReader {
             return Ok(false)
         }
 
-        let is_confirmation_report = confirmation::try_parse(path, &mut self.trade_execution_dates)
+        let is_confirmation_report = confirmation::try_parse(path, &mut self.trade_execution_info)
             .map_err(|e| format!("Error while reading {:?}: {}", path, e))?;
 
         Ok(!is_confirmation_report)
@@ -78,7 +78,7 @@ impl BrokerStatementReader for StatementReader {
             cash_flows: CashFlows::new(self.warn_on_missing_cash_flow_info),
 
             tax_remapping: &mut self.tax_remapping,
-            trade_execution_dates: &self.trade_execution_dates,
+            trade_execution_info: &self.trade_execution_info,
 
             warn_on_margin_account: &mut self.warn_on_margin_account,
             warn_on_missing_execution_date: &mut self.warn_on_missing_execution_date,
@@ -105,7 +105,7 @@ pub struct StatementParser<'a> {
     cash_flows: CashFlows,
 
     tax_remapping: &'a mut TaxRemapping,
-    trade_execution_dates: &'a TradeExecutionDates,
+    trade_execution_info: &'a TradeExecutionInfo,
 
     warn_on_margin_account: &'a mut bool,
     warn_on_missing_execution_date: &'a mut bool,
@@ -225,11 +225,11 @@ impl<'a> StatementParser<'a> {
     }
 
     fn get_execution_date(&mut self, symbol: &str, conclusion_time: DateTime) -> Date {
-        if let Some(&execution_date) = self.trade_execution_dates.get(&OrderId {
+        if let Some(info) = self.trade_execution_info.get(&OrderId {
             time: conclusion_time,
             symbol: symbol.to_owned(),
         }) {
-            return execution_date;
+            return info.execution_date;
         }
 
         if *self.warn_on_missing_execution_date {

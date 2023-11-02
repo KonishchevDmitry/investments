@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map::Entry};
 #[cfg(test)] use std::fs;
 #[cfg(test)] use std::path::Path;
 
@@ -8,7 +8,7 @@ use crate::time::{Date, DateTime};
 
 use super::common::{Record, RecordSpec, format_error_record};
 
-pub type TradeExecutionDates = HashMap<OrderId, Date>;
+pub type TradeExecutionInfo = HashMap<OrderId, OrderInfo>;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct OrderId {
@@ -16,7 +16,12 @@ pub struct OrderId {
     pub symbol: String,
 }
 
-pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> GenericResult<bool> {
+pub struct OrderInfo {
+    pub execution_date: Date,
+    non_trade: bool,
+}
+
+pub fn try_parse(path: &str, execution_info: &mut TradeExecutionInfo) -> GenericResult<bool> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(path)?;
@@ -39,7 +44,7 @@ pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> Gener
 
     for record in records {
         let record = record?;
-        parse_record(&Record::new(&record_spec, &record), execution_dates).map_err(|e| format!(
+        parse_record(&Record::new(&record_spec, &record), execution_info).map_err(|e| format!(
             "Failed to parse {} record: {}", format_error_record(&record), e
         ))?;
     }
@@ -47,27 +52,47 @@ pub fn try_parse(path: &str, execution_dates: &mut TradeExecutionDates) -> Gener
     Ok(true)
 }
 
-fn parse_record(record: &Record, execution_dates: &mut TradeExecutionDates) -> EmptyResult {
-    if record.get_value("AssetClass")? != "STK" ||
-        record.get_value("LevelOfDetail")? != "EXECUTION" {
+fn parse_record(record: &Record, execution_dates: &mut TradeExecutionInfo) -> EmptyResult {
+    if record.get_value("AssetClass")? != "STK" || record.get_value("LevelOfDetail")? != "EXECUTION" {
         return Ok(());
     }
 
     let symbol = record.parse_symbol("Symbol")?;
     let conclusion_time = record.parse_date_time("Date/Time")?;
-    let execution_date = record.parse_date("SettleDate")?;
-
-    match execution_dates.insert(OrderId {
+    let order_id = OrderId {
         time: conclusion_time,
         symbol: symbol.clone(),
-    }, execution_date) {
-        Some(other_date) if other_date != execution_date => {
-            return Err!("Got several execution dates for {} trade on {}: {} and {}",
-                symbol, format_date(conclusion_time), format_date(execution_date),
-                format_date(other_date));
-        },
-        _ => {},
     };
+
+    // Corporate actions may lead to receiving of fractional shares which are immediately sold out by technical sell
+    // operations which have no settle date.
+    let non_trade = record.get_value("SettleDate")?.is_empty() && record.get_value("TradeID")?.is_empty();
+    let execution_date = record.parse_date(if non_trade {
+        "TradeDate"
+    } else {
+        "SettleDate"
+    })?;
+
+    match execution_dates.entry(order_id) {
+        Entry::Occupied(mut entry) => {
+            let entry = entry.get_mut();
+
+            if non_trade {
+                if entry.non_trade && entry.execution_date < execution_date {
+                    entry.execution_date = execution_date;
+                }
+            } else if entry.non_trade {
+                *entry = OrderInfo {execution_date, non_trade}
+            } else if entry.execution_date != execution_date {
+                return Err!(
+                    "Got several execution dates for {} trade on {}: {} and {}",
+                    symbol, format_date(conclusion_time), format_date(entry.execution_date), format_date(execution_date));
+            }
+        },
+        Entry::Vacant(entry) => {
+            entry.insert(OrderInfo {execution_date, non_trade});
+        },
+    }
 
     Ok(())
 }
@@ -78,17 +103,17 @@ mod tests {
 
     #[test]
     fn parse_empty() {
-        let mut execution_dates = TradeExecutionDates::new();
+        let mut info = TradeExecutionInfo::new();
         let path = Path::new(file!()).parent().unwrap().join(
             "testdata/empty-trade-confirmation.csv");
-        assert!(try_parse(path.to_str().unwrap(), &mut execution_dates).unwrap());
-        assert!(execution_dates.is_empty());
+        assert!(try_parse(path.to_str().unwrap(), &mut info).unwrap());
+        assert!(info.is_empty());
     }
 
     #[test]
     fn parse_real() {
         let mut count = 0;
-        let mut execution_dates = TradeExecutionDates::new();
+        let mut info = TradeExecutionInfo::new();
 
         for entry in fs::read_dir("testdata/interactive-brokers/my").unwrap() {
             let path = entry.unwrap().path();
@@ -98,12 +123,12 @@ mod tests {
                 continue
             }
 
-            if try_parse(path, &mut execution_dates).unwrap() {
+            if try_parse(path, &mut info).unwrap() {
                 count += 1;
             }
         }
 
         assert_ne!(count, 0);
-        assert!(!execution_dates.is_empty());
+        assert!(!info.is_empty());
     }
 }
