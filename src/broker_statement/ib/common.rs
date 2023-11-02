@@ -179,6 +179,10 @@ pub fn check_volume(quantity: Decimal, price: Cash, volume: Cash) -> EmptyResult
     Err!("Got an unexpected volume: {} vs {}", volume, expected_volume)
 }
 
+pub fn is_header_field(value: &str) -> bool {
+    matches!(value, "Header" | "Headers") // https://github.com/KonishchevDmitry/investments/issues/81
+}
+
 pub fn format_record<'a, I>(iter: I) -> String
     where I: IntoIterator<Item = &'a str> {
 

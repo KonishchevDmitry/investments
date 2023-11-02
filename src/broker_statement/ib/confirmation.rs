@@ -6,7 +6,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting::format_date;
 use crate::time::{Date, DateTime};
 
-use super::common::{Record, RecordSpec, format_error_record};
+use super::common::{Record, RecordSpec, format_error_record, is_header_field};
 
 pub type TradeExecutionInfo = HashMap<OrderId, OrderInfo>;
 
@@ -36,7 +36,7 @@ pub fn try_parse(path: &str, execution_info: &mut TradeExecutionInfo) -> Generic
     // Assume that it's trade confirmation report if it doesn't look like activity report, because
     // activity report has more strict format unlike trade confirmation report which is effectively
     // flex query and may include an arbitrary combination of enabled columns.
-    if headers.len() >= 2 && headers[1] == "Header" {
+    if headers.len() >= 2 && is_header_field(headers[1]) {
         return Ok(false);
     }
 
@@ -65,7 +65,7 @@ fn parse_record(record: &Record, execution_dates: &mut TradeExecutionInfo) -> Em
     };
 
     // Corporate actions may lead to receiving of fractional shares which are immediately sold out by technical sell
-    // operations which have no settle date.
+    // operations which may have no settle date (https://github.com/KonishchevDmitry/investments/issues/80).
     let non_trade = record.get_value("SettleDate")?.is_empty() && record.get_value("TradeID")?.is_empty();
     let execution_date = record.parse_date(if non_trade {
         "TradeDate"

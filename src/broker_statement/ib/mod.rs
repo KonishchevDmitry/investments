@@ -32,7 +32,7 @@ use crate::time::{Date, DateTime};
 use super::{BrokerStatementReader, ReadingStrictness, PartialBrokerStatement};
 
 use self::cash_flows::CashFlows;
-use self::common::{Record, format_record, format_error_record};
+use self::common::{Record, format_record, format_error_record, is_header_field};
 use self::confirmation::{TradeExecutionInfo, OrderId};
 
 pub struct StatementReader {
@@ -148,7 +148,7 @@ impl<'a> StatementParser<'a> {
                         return Err!("Invalid record: {}", format_error_record(&record));
                     }
 
-                    if record.get(1).unwrap() == "Header" {
+                    if is_header_field(record.get(1).unwrap()) {
                         state = Some(State::Header(record));
                     } else if record.get(1).unwrap() == "" {
                         trace!("Headerless record: {}.", format_record(&record));
@@ -175,7 +175,7 @@ impl<'a> StatementParser<'a> {
                         }
 
                         let data_type = record.get(1).unwrap();
-                        if data_type == "Header" {
+                        if is_header_field(data_type) {
                             state = Some(State::Header(record));
                             continue 'state;
                         } else if data_type == "Notes" {
