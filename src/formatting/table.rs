@@ -232,7 +232,7 @@ impl From<MultiCurrencyCashAccount> for Cell {
         let result = amounts.iter()
             .map(|amount| amount.to_string())
             .collect::<Vec<_>>()
-            .join(" + ");
+            .join("\n+ ");
 
         Cell::new(result, Alignment::RIGHT)
     }
