@@ -27,8 +27,8 @@ pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRec
 
     let statement = BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
-        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
-        ReadingStrictness::empty())?;
+        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions,
+        &portfolio.corporate_actions, ReadingStrictness::empty())?;
     statement.check_date();
 
     let assets = Assets::new(statement.assets.cash, statement.open_positions);
@@ -142,8 +142,8 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
         BrokerStatement::read(
             broker.clone(), path, &portfolio_config.symbol_remapping,
             &portfolio_config.instrument_internal_ids, &portfolio_config.instrument_names,
-            portfolio_config.get_tax_remapping()?, &portfolio_config.corporate_actions,
-            ReadingStrictness::empty())
+            portfolio_config.get_tax_remapping()?, &portfolio_config.tax_exemptions,
+            &portfolio_config.corporate_actions, ReadingStrictness::empty())
     }).transpose()?;
 
     let mut portfolio = Portfolio::load(

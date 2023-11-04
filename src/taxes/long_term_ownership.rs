@@ -1,9 +1,10 @@
 // Long-term ownership tax exemption logic
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use chrono::Datelike;
+use isin::ISIN;
 use num_traits::Zero;
 
 use static_table_derive::StaticTable;
@@ -163,6 +164,16 @@ impl LtoDeduction {
 
         table.print(title);
     }
+}
+
+// FIXME(konishchev): Support
+pub fn is_applicable(_isin: &HashSet<ISIN>, _sell_date: Date) -> Option<bool> {
+    Some(true)
+    // if isin.is_empty() {
+    //     None
+    // } else {
+    //     Some(true)
+    // }
 }
 
 pub fn is_deductible(buy_date: Date, sell_date: Date) -> Option<u32> {

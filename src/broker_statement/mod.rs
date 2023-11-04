@@ -21,6 +21,7 @@ mod tinkoff;
 use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap, BTreeSet, hash_map::Entry};
 
+use itertools::Itertools;
 use log::warn;
 
 use crate::brokers::{BrokerInfo, Broker};
@@ -32,7 +33,7 @@ use crate::exchanges::{Exchanges, TradingMode};
 use crate::formatting;
 use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::quotes::{Quotes, QuoteQuery};
-use crate::taxes::TaxRemapping;
+use crate::taxes::{TaxRemapping, TaxExemption, long_term_ownership};
 use crate::time::{self, Date, DateOptTime, Period};
 use crate::types::{Decimal, TradeType};
 use crate::util;
@@ -87,10 +88,10 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        broker: BrokerInfo, statement_dir_path: &str,
-        symbol_remapping: &HashMap<String, String>, instrument_internal_ids: &InstrumentInternalIds,
-        instrument_names: &HashMap<String, String>, tax_remapping: TaxRemapping,
-        corporate_actions: &[CorporateAction], strictness: ReadingStrictness,
+        broker: BrokerInfo, statement_dir_path: &str, symbol_remapping: &HashMap<String, String>,
+        instrument_internal_ids: &InstrumentInternalIds, instrument_names: &HashMap<String, String>,
+        tax_remapping: TaxRemapping, tax_exemptions: &[TaxExemption], corporate_actions: &[CorporateAction],
+        strictness: ReadingStrictness,
     ) -> GenericResult<BrokerStatement> {
         let broker_jurisdiction = broker.type_.jurisdiction();
 
@@ -180,6 +181,8 @@ impl BrokerStatement {
 
         process_corporate_actions(&mut statement)?;
         statement.process_trades(None)?;
+
+        statement.validate_tax_exemptions(tax_exemptions, strictness)?;
 
         Ok(statement)
     }
@@ -616,6 +619,43 @@ impl BrokerStatement {
         let date_validator = DateValidator::new(self.period);
         sort_and_validate_trades("sell", &mut self.stock_sells)?;
         date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_time)
+    }
+
+    fn validate_tax_exemptions(&mut self, tax_exemptions: &[TaxExemption], strictness: ReadingStrictness) -> EmptyResult {
+        if !strictness.contains(ReadingStrictness::TAX_EXEMPTIONS) || !tax_exemptions.contains(&TaxExemption::LongTermOwnership) {
+            return Ok(());
+        }
+
+        let mut unknown = BTreeSet::new();
+
+        for trade in &self.stock_sells {
+            let instrument = self.instrument_info.get_or_empty(&trade.symbol);
+            if long_term_ownership::is_applicable(&instrument.isin, trade.execution_date).is_none() {
+                unknown.insert(&trade.symbol);
+            }
+        }
+
+        for trade in &self.stock_buys {
+            if trade.is_sold() {
+                continue;
+            }
+
+            let instrument = self.instrument_info.get_or_empty(&trade.symbol);
+            let execution_date = self.get_instrument_supposed_trading_mode(&trade.symbol).execution_date(time::today());
+
+            if long_term_ownership::is_applicable(&instrument.isin, execution_date).is_none() {
+                unknown.insert(&trade.symbol);
+            }
+        }
+
+        if !unknown.is_empty() {
+            warn!(concat!(
+                "Unable to determine long-term ownership tax exemption applicability for the following stocks: {}. ",
+                "Assuming them non-applicable."
+            ), unknown.iter().join(", "));
+        }
+
+        Ok(())
     }
 
     fn validate_open_positions(&self) -> EmptyResult {

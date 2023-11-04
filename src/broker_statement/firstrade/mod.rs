@@ -85,9 +85,8 @@ mod tests {
         let broker = Broker::Firstrade.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
-            broker, "testdata/firstrade/my",
-            &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(),
-            &[], ReadingStrictness::all()).unwrap();
+            broker, "testdata/firstrade/my", &Default::default(), &Default::default(), &Default::default(),
+            TaxRemapping::new(), &[], &[], ReadingStrictness::all()).unwrap();
 
         assert!(!statement.assets.cash.is_empty());
         assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements

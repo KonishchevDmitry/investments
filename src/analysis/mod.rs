@@ -65,7 +65,7 @@ pub fn simulate_sell(
     base_currency: Option<&str>,
 ) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let statement = load_portfolio(config, portfolio, ReadingStrictness::TRADE_SETTLE_DATE)?;
+    let statement = load_portfolio(config, portfolio, ReadingStrictness::TRADE_SETTLE_DATE | ReadingStrictness::TAX_EXEMPTIONS)?;
     let (converter, quotes) = load_tools(config)?;
 
     sell_simulation::simulate_sell(
@@ -77,7 +77,7 @@ pub fn simulate_sell(
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
     let mut portfolios = Vec::new();
-    let reading_strictness = ReadingStrictness::REPO_TRADES;
+    let reading_strictness = ReadingStrictness::REPO_TRADES | ReadingStrictness::TAX_EXEMPTIONS;
 
     if let Some(name) = name {
         let portfolio = config.get_portfolio(name)?;
@@ -104,8 +104,8 @@ fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strictness: Read
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
     BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
-        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
-        strictness)
+        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions,
+        &portfolio.corporate_actions, strictness)
 }
 
 fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, QuotesRc)> {

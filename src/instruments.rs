@@ -5,6 +5,7 @@ use std::fmt::{self, Display};
 use cusip::CUSIP;
 use itertools::Itertools;
 use isin::ISIN;
+use maybe_owned::MaybeOwned;
 use serde::Deserialize;
 use serde::de::Deserializer;
 
@@ -89,6 +90,13 @@ impl InstrumentInfo {
 
     pub fn get(&self, symbol: &str) -> Option<&Instrument> {
         self.instruments.get(symbol)
+    }
+
+    pub fn get_or_empty(&self, symbol: &str) -> MaybeOwned<Instrument> {
+        match self.instruments.get(symbol) {
+            Some(instrument) => MaybeOwned::Borrowed(instrument),
+            None => MaybeOwned::Owned(Instrument::new(symbol))
+        }
     }
 
     pub fn get_or_add(&mut self, symbol: &str) -> &mut Instrument {

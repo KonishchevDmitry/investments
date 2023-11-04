@@ -24,7 +24,7 @@ pub enum IncomeType {
     Interest,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TaxExemption {
     LongTermOwnership,
     TaxFree,

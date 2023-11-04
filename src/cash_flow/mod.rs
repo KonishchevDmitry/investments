@@ -29,8 +29,8 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
 
     let statement = BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
-        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.corporate_actions,
-        ReadingStrictness::CASH_FLOW_DATES)?;
+        &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions,
+        &portfolio.corporate_actions, ReadingStrictness::CASH_FLOW_DATES)?;
 
     let period = match year {
         Some(year) => statement.check_period_against_tax_year(year)?,
