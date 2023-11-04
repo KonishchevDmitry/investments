@@ -2,6 +2,7 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, TableReader, Cell, SkipCell};
+use crate::instruments;
 use crate::types::Decimal;
 
 use xls_table_derive::XlsTableRow;
@@ -45,7 +46,7 @@ struct AssetRow {
     #[column(name="Вид актива")]
     name: String,
     #[column(name="Номер гос. регистрации ЦБ/ ISIN")]
-    _1: SkipCell,
+    id: Option<String>,
     #[column(name="Тип актива (для ЦБ - № вып.)", alias="Тип ЦБ (№ вып.)")]
     security_type: Option<String>,
     #[column(name="Кол-во ЦБ / Масса ДМ (шт/г)", alias="Кол-во ценных бумаг")]
@@ -84,19 +85,36 @@ impl AssetRow {
             .map(|value| value.trim().len()).unwrap_or(0) == 0;
 
         if is_currency {
-            if let Some(amount) = self.end_value {
-                let currency = &parse_currency(&self.name)?;
-                statement.assets.cash.as_mut().unwrap().deposit(Cash::new(currency, amount))
-            }
+            self.parse_currency(statement)?;
         } else {
-            let quantity = self.end_quantity.unwrap_or(0);
-            if quantity < 0 {
-                return Err!("Got a negative open position for {:?}", self.name);
-            } else if quantity != 0 {
-                let symbol = parse_symbol(&self.name)?;
-                statement.add_open_position(&symbol, quantity.into())?;
-            }
+            self.parse_stock(statement)?;
         }
+
+        Ok(())
+    }
+
+    fn parse_currency(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        if let Some(amount) = self.end_value {
+            let currency = &parse_currency(&self.name)?;
+            statement.assets.cash.as_mut().unwrap().deposit(Cash::new(currency, amount))
+        }
+        Ok(())
+    }
+
+    fn parse_stock(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        let symbol = parse_symbol(&self.name)?;
+
+        let quantity = self.end_quantity.unwrap_or(0);
+        if quantity < 0 {
+            return Err!("Got a negative open position for {:?}", self.name);
+        } else if quantity != 0 {
+            statement.add_open_position(&symbol, quantity.into())?;
+        }
+
+        let isin = self.id.as_ref().and_then(|id| instruments::parse_isin(id).ok())
+            .or_else(|| instruments::parse_isin(&self.name).ok())
+            .ok_or_else(|| format!("There is no ISIN info for {:?}", self.name))?;
+        statement.instrument_info.get_or_add(&symbol).add_isin(isin);
 
         Ok(())
     }
