@@ -10,6 +10,7 @@ use crate::core::EmptyResult;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::formatting::table::Cell;
+use crate::instruments::InstrumentInfo;
 use crate::localities::Country;
 use crate::quotes::Quotes;
 use crate::taxes::{IncomeType, LtoDeduction, long_term_ownership::LtoDeductionCalculator};
@@ -79,7 +80,7 @@ pub fn simulate_sell(
         .cloned().collect::<Vec<_>>();
     assert_eq!(stock_sells.len(), positions.len());
 
-    print_results(country, portfolio, stock_sells, additional_commissions, &converter)
+    print_results(country, portfolio, &statement.instrument_info, stock_sells, additional_commissions, &converter)
 }
 
 struct TaxYearTotals {
@@ -99,7 +100,7 @@ impl TaxYearTotals {
 }
 
 fn print_results(
-    country: &Country, portfolio: &PortfolioConfig,
+    country: &Country, portfolio: &PortfolioConfig, instrument_info: &InstrumentInfo,
     stock_sells: Vec<StockSell>, additional_commissions: MultiCurrencyCashAccount,
     converter: &CurrencyConverter,
 ) -> EmptyResult {
@@ -143,7 +144,8 @@ fn print_results(
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let totals = tax_year_totals.entry(tax_year).or_insert_with(|| TaxYearTotals::new(country));
 
-        let details = trade.calculate(country, tax_year, &portfolio.tax_exemptions, converter)?;
+        let instrument = instrument_info.get_or_empty(&trade.symbol);
+        let details = trade.calculate(country, &instrument, tax_year, &portfolio.tax_exemptions, converter)?;
         let real = details.real_profit(converter)?;
         tax_exemptions |= details.tax_exemption_applied();
 

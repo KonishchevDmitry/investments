@@ -9,6 +9,7 @@ use crate::config::PortfolioConfig;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverterRc;
+use crate::instruments::Instrument;
 use crate::localities::Country;
 use crate::quotes::QuotesRc;
 use crate::taxes::{IncomeType, LtoDeductionCalculator};
@@ -87,7 +88,9 @@ impl<'a> PortfolioAnalyser<'a> {
                 if !trade.emulation {
                     break;
                 }
-                self.process_asset(portfolio, trade, statistics)?;
+
+                let instrument = statement.instrument_info.get_or_empty(&trade.symbol);
+                self.process_asset(portfolio, &instrument, trade, statistics)?;
             }
         }
 
@@ -95,7 +98,7 @@ impl<'a> PortfolioAnalyser<'a> {
     }
 
     fn process_asset(
-        &mut self, portfolio: &PortfolioConfig, trade: &StockSell,
+        &mut self, portfolio: &PortfolioConfig, instrument: &Instrument, trade: &StockSell,
         statistics: &mut PortfolioStatistics,
     ) -> EmptyResult {
         let (volume, commission) = match trade.type_ {
@@ -104,7 +107,7 @@ impl<'a> PortfolioAnalyser<'a> {
         };
 
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-        let details = trade.calculate(&self.country, tax_year, &portfolio.tax_exemptions, &self.converter)?;
+        let details = trade.calculate(&self.country, instrument, tax_year, &portfolio.tax_exemptions, &self.converter)?;
 
         let mut taxable_local_profit = details.taxable_local_profit;
         for source in &details.fifo {

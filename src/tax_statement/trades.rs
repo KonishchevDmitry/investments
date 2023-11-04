@@ -190,7 +190,8 @@ impl<'a> TradesProcessor<'a> {
                 self.post_process_fee(fees.pop_front().unwrap());
             }
 
-            let details = trade.calculate(self.country, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
+            let instrument = self.broker_statement.instrument_info.get_or_empty(&trade.symbol);
+            let details = trade.calculate(self.country, &instrument, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
             self.process_trade(trade_id, trade, &details)?;
             trade_id += 1;
 

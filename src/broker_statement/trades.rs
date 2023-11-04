@@ -2,6 +2,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
+use crate::instruments::Instrument;
 use crate::localities::Country;
 use crate::taxes::{self, IncomeType, LtoDeductibleProfit, TaxExemption};
 use crate::time::DateOptTime;
@@ -204,16 +205,16 @@ impl StockSell {
     }
 
     pub fn calculate(
-        &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
+        &self, country: &Country, instrument: &Instrument, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
-        Ok(self.calculate_impl(country, tax_year, tax_exemptions, converter).map_err(|e| format!(
+        Ok(self.calculate_impl(country, instrument, tax_year, tax_exemptions, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
             self.original_symbol, formatting::format_date(self.conclusion_time), e))?)
     }
 
     fn calculate_impl(
-        &self, country: &Country, tax_year: i32, tax_exemptions: &[TaxExemption],
+        &self, country: &Country, instrument: &Instrument, tax_year: i32, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
         let (price, volume, commission) = match self.type_ {
@@ -245,7 +246,9 @@ impl StockSell {
             for tax_exemption in tax_exemptions {
                 match tax_exemption {
                     TaxExemption::LongTermOwnership => {
-                        if let Some(years) = taxes::long_term_ownership::is_deductible(source.execution_date, self.execution_date) {
+                        if let Some(years) = taxes::long_term_ownership::is_deductible(
+                            &instrument.isin, source.execution_date, self.execution_date,
+                        ) {
                             let source_local_revenue = local_execution(price * source_quantity)?;
                             let source_local_commission = local_conclusion(
                                 commission * source_quantity / self.quantity)?;

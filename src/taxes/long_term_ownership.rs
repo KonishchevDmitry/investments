@@ -176,7 +176,11 @@ pub fn is_applicable(_isin: &HashSet<ISIN>, _sell_date: Date) -> Option<bool> {
     // }
 }
 
-pub fn is_deductible(buy_date: Date, sell_date: Date) -> Option<u32> {
+pub fn is_deductible(isin: &HashSet<ISIN>, buy_date: Date, sell_date: Date) -> Option<u32> {
+    if !is_applicable(isin, sell_date).unwrap_or_default() {
+        return None;
+    }
+
     if buy_date < date!(2014, 1, 1) {
         return None;
     }

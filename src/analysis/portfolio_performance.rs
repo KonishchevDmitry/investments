@@ -308,7 +308,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
                     if let Some(taxes) = taxes.as_mut() {
                         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-                        let details = trade.calculate(self.country, tax_year, &portfolio.tax_exemptions, self.converter)?;
+                        let instrument = statement.instrument_info.get_or_empty(&trade.symbol);
+                        let details = trade.calculate(self.country, &instrument, tax_year, &portfolio.tax_exemptions, self.converter)?;
 
                         let mut lto_deductibles = Vec::new();
 
