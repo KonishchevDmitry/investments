@@ -166,14 +166,26 @@ impl LtoDeduction {
     }
 }
 
-// FIXME(konishchev): Support
+// FIXME(konishchev): Support the changes in long-term ownership tax exemption rules
 pub fn is_applicable(_isin: &HashSet<ISIN>, _sell_date: Date) -> Option<bool> {
     Some(true)
-    // if isin.is_empty() {
-    //     None
-    // } else {
-    //     Some(true)
+
+    // if sell_date.year() < 2024 {
+    //     return Some(true)
     // }
+
+    // let mut result = None;
+
+    // for isin in isin {
+    //     let applicable = isin.prefix() == "RU";
+    //     if let Some(prev) = result.replace(applicable) {
+    //         if prev != applicable {
+    //             return None;
+    //         }
+    //     }
+    // }
+
+    // result
 }
 
 pub fn is_deductible(isin: &HashSet<ISIN>, buy_date: Date, sell_date: Date) -> Option<u32> {
