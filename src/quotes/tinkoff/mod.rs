@@ -251,7 +251,7 @@ impl Tinkoff {
             TinkoffExchange::Currency => unreachable!(),
         };
 
-        let mut trace = InstrumentTrace::new(name);
+        let mut trace = InstrumentTrace::new(name, false);
 
         #[allow(clippy::needless_update)]
         let instruments = self.instruments_client().shares(InstrumentsRequest {
@@ -284,13 +284,14 @@ impl Tinkoff {
     }
 
     async fn get_all_etfs(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
-        let (name, status) = match self.exchange {
-            TinkoffExchange::Spb => ("SPB ETF", InstrumentStatus::Base),
-            TinkoffExchange::Unknown => ("other ETF", InstrumentStatus::All),
+        let (name, status, may_be_empty) = match self.exchange {
+            TinkoffExchange::Spb => ("SPB ETF", InstrumentStatus::Base, true),
+            TinkoffExchange::Unknown => ("other ETF", InstrumentStatus::All, false),
             TinkoffExchange::Currency => unreachable!(),
         };
 
-        let mut trace = InstrumentTrace::new(name);
+        // When SPB Exchange got under US sanctions, the list became empty, so we should allow it
+        let mut trace = InstrumentTrace::new(name, may_be_empty);
 
         #[allow(clippy::needless_update)]
         let instruments = self.instruments_client().etfs(InstrumentsRequest {
@@ -430,18 +431,20 @@ impl Interceptor for ClientInterceptor {
 struct InstrumentTrace {
     name: &'static str,
     count: usize,
+    may_be_empty: bool,
     found_by_symbol: BTreeMap<String, Vec<(RealExchange, String)>>,
     found_by_exchange: BTreeMap<RealExchange, BTreeMap<String, BTreeSet<String>>>,
     skipped_by_exchange: BTreeMap<RealExchange, BTreeMap<String, BTreeSet<String>>>,
 }
 
 impl InstrumentTrace {
-    fn new(name: &'static str) -> InstrumentTrace {
+    fn new(name: &'static str, may_be_empty: bool) -> InstrumentTrace {
         trace!("Getting a list of available {} from Tinkoff...", name);
 
         InstrumentTrace {
             name,
             count: 0,
+            may_be_empty,
             found_by_symbol: BTreeMap::new(),
             found_by_exchange: BTreeMap::new(),
             skipped_by_exchange: BTreeMap::new(),
@@ -506,7 +509,7 @@ impl InstrumentTrace {
             }
         }
 
-        if self.count == 0 {
+        if !self.may_be_empty && self.count == 0 {
             return Err!("Got an empty list of available {}", self.name);
         }
 
