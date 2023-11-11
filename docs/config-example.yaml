@@ -191,6 +191,11 @@ quotes:
   #custom_provider:
   #  url: http://localhost/
 
+  #static:
+  #  RSHE:  95.02 RUB
+  #  83010: 45.26 CNY
+
+
 # This field is always ignored. You can place any data inside of it and use YAML anchors to refer repeatable
 # configuration values from other places of the configuration file. For example, you may refer a single asset
 # allocation configuration from multiple portfolios.

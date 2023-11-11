@@ -6,6 +6,7 @@ pub mod fcsapi;
 mod finex;
 pub mod finnhub;
 mod moex;
+mod static_provider;
 pub mod tinkoff;
 pub mod twelvedata;
 
@@ -34,6 +35,7 @@ use self::fcsapi::{FcsApi, FcsApiConfig};
 use self::finex::Finex;
 use self::finnhub::{Finnhub, FinnhubConfig};
 use self::moex::Moex;
+use self::static_provider::{StaticProvider, StaticProviderConfig};
 use self::tinkoff::{Tinkoff, TinkoffExchange};
 
 #[derive(Clone)]
@@ -62,7 +64,9 @@ pub struct QuotesConfig {
     pub fcsapi: Option<FcsApiConfig>,
     pub finnhub: Option<FinnhubConfig>,
     #[validate]
-    pub custom_provider: Option<CustomProviderConfig>,
+    custom_provider: Option<CustomProviderConfig>,
+    #[serde(rename="static")]
+    static_provider: Option<StaticProviderConfig>,
 }
 
 pub struct Quotes {
@@ -76,15 +80,22 @@ pub type QuotesRc = Rc<Quotes>;
 impl Quotes {
     pub fn new(config: &Config, database: db::Connection) -> GenericResult<Quotes> {
         let mut providers = Vec::<Arc<dyn QuotesProvider>>::new();
+        let mut has_custom_provider = false;
 
         let tinkoff = config.brokers.as_ref()
             .and_then(|brokers| brokers.tinkoff.as_ref())
             .and_then(|tinkoff| tinkoff.api.as_ref());
 
         // Prefer custom provider over the others
-        let custom_provider = config.quotes.custom_provider.as_ref();
-        if let Some(config) = custom_provider {
+        if let Some(config) = config.quotes.custom_provider.as_ref() {
             providers.push(Arc::new(CustomProvider::new(config)));
+            has_custom_provider = true;
+        }
+
+        // Static provider is used to complement and override default providers
+        if let Some(config) = config.quotes.static_provider.as_ref() {
+            providers.push(Arc::new(StaticProvider::new(config)));
+            has_custom_provider = true;
         }
 
         // Prefer Tinkoff for forex (FCS API has too restrictive rate limits)
@@ -95,7 +106,7 @@ impl Quotes {
         // Use FCS API for forex
         if let Some(config) = config.quotes.fcsapi.as_ref() {
             providers.push(Arc::new(FcsApi::new(config)))
-        } else if custom_provider.is_none() {
+        } else if !has_custom_provider {
             return Err!("FCS API access key is not set in the configuration file");
         }
 
@@ -107,7 +118,7 @@ impl Quotes {
         // Use Finnhub for US stocks
         if let Some(config) = config.quotes.finnhub.as_ref() {
             providers.push(Arc::new(Finnhub::new(config)))
-        } else if custom_provider.is_none() {
+        } else if !has_custom_provider {
             return Err!("Finnhub token is not set in the configuration file");
         }
 
@@ -148,13 +159,16 @@ impl Quotes {
         Ok(())
     }
 
+    pub fn execute(&self) -> EmptyResult {
+        self.execute_query_plan(self.build_query_plan())
+    }
+
     pub fn get(&self, query: QuoteQuery) -> GenericResult<Cash> {
         if let Some(price) = self.batch(query.clone())? {
             return Ok(price);
         }
 
-        let query_plan = self.build_query_plan();
-        self.execute_query_plan(query_plan)?;
+        self.execute()?;
 
         Ok(self.cache.get(query.symbol())?.unwrap())
     }

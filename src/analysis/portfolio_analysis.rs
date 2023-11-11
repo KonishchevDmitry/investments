@@ -44,6 +44,10 @@ impl<'a> PortfolioAnalyser<'a> {
             statement.batch_quotes(&self.quotes)?;
         }
 
+        if multiple {
+            self.quotes.execute()?; // To write shared logs without context
+        }
+
         for (name, group) in self.asset_groups {
             let results = group.currencies.iter().map(|currency| Cash::zero(currency)).collect();
             assert!(statistics.asset_groups.insert(name.clone(), results).is_none());

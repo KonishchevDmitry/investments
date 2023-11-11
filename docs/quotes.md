@@ -34,3 +34,14 @@ The API is the following: investments sends `GET $url/v1/quotes?symbols=$comma_s
 ```
 
 Here is an [example](https://gist.github.com/dim0xff/7798ffa5d362215ab361bdd47f9f7391) of custom provider for [Yahoo! Finance](https://finance.yahoo.com/).
+
+## Static quotes
+
+And, as a simplest workaround for various possible issues, there is an option to specify static quotes in the configuration file:
+
+```yaml
+quotes:
+  static:
+    RSHE:  95.02 RUB
+    83010: 45.26 CNY
+```
