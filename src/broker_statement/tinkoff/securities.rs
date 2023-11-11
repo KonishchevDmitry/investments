@@ -70,10 +70,10 @@ struct SecuritiesInfoRow {
     _5: SkipCell,
     #[column(name="Тип")]
     _6: SkipCell,
-    #[column(name="Номинал")]
-    _7: SkipCell,
-    #[column(name="Валюта номинала")]
-    _8: SkipCell,
+    #[column(name="Номинал", optional=true)]
+    _7: Option<SkipCell>,
+    #[column(name="Валюта номинала", optional=true)]
+    _8: Option<SkipCell>,
 }
 
 impl TableReader for SecuritiesInfoRow {
