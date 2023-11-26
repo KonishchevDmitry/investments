@@ -106,6 +106,7 @@ pub fn save_instrument_exchange_info(instruments: &mut InstrumentInfo, symbol: &
     let exchange = match exchange {
         "ММВБ" | "МосБиржа" => Exchange::Moex,
         "СПБ" | "СПБиржа" => Exchange::Spb,
+        "ВНБ" => Exchange::Otc, // https://github.com/KonishchevDmitry/investments/issues/82
         _ => return Err!("Unknown exchange: {:?}", exchange),
     };
     Ok(instruments.get_or_add(symbol).exchanges.add_prioritized(exchange))

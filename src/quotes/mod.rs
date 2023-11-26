@@ -274,20 +274,42 @@ impl Quotes {
         self.providers.iter().any(|provider| provider.supports_stocks() == SupportedExchange::Some(exchange))
     }
 
-    fn pre_process_stock_exchanges(&self, exchanges: Vec<Exchange>) -> Vec<Exchange> {
-        let mut new_exchanges = Exchanges::new_empty();
+    fn pre_process_stock_exchanges(&self, mut exchanges: Vec<Exchange>) -> Vec<Exchange> {
+        // Try to find OTC stocks on all known exchanges
+        if exchanges.contains(&Exchange::Otc) {
+            let mut new_exchanges = Exchanges::new_empty();
 
-        for exchange in exchanges.into_iter().rev() {
-            if exchange == Exchange::Spb && !self.has_stock_provider(exchange) {
-                // Emulate SPB provider if we don't have it
-                new_exchanges.add_prioritized(Exchange::Moex);
-                new_exchanges.add_prioritized(Exchange::Us);
-            } else {
+            for exchange in exchanges.into_iter().rev() {
+                if exchange == Exchange::Otc {
+                    new_exchanges.add_prioritized(Exchange::Moex);
+                    new_exchanges.add_prioritized(Exchange::Spb);
+                    new_exchanges.add_prioritized(Exchange::Other);
+                    new_exchanges.add_prioritized(Exchange::Us);
+                }
                 new_exchanges.add_prioritized(exchange);
             }
+
+            exchanges = new_exchanges.get_prioritized();
         }
 
-        new_exchanges.get_prioritized()
+        // Emulate SPB provider if we don't have it
+        if exchanges.contains(&Exchange::Spb) && !self.has_stock_provider(Exchange::Spb) {
+            let mut new_exchanges = Exchanges::new_empty();
+
+            for exchange in exchanges.into_iter().rev() {
+                if exchange == Exchange::Spb {
+                    new_exchanges.add_prioritized(Exchange::Moex);
+                    new_exchanges.add_prioritized(Exchange::Other);
+                    new_exchanges.add_prioritized(Exchange::Us);
+                } else {
+                    new_exchanges.add_prioritized(exchange);
+                }
+            }
+
+            exchanges = new_exchanges.get_prioritized();
+        }
+
+        exchanges
     }
 
     fn execute_query_plan(&self, mut plan: HashMap<String, Vec<usize>>) -> EmptyResult {
