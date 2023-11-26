@@ -43,11 +43,19 @@ impl QuotesProvider for Finex {
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
+        if !symbols.iter().cloned().any(is_finex_fund) {
+            return Ok(QuotesMap::new());
+        }
+
         let url = format!("{}/v1/fonds/nav.xlsx", self.url);
         Ok(send_request(&self.client, &url, None)
             .and_then(|response| get_quotes(response, symbols))
             .map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
     }
+}
+
+fn is_finex_fund(symbol: &str) -> bool {
+    matches!(symbol, "FXBC"|"FXCN"|"FXDE"|"FXDM"|"FXEM"|"FXES"|"FXFA"|"FXGD"|"FXIM"|"FXIP"|"FXIT"|"FXKZ"|"FXMM"|"FXRD"|"FXRE"|"FXRL"|"FXRU"|"FXRW"|"FXTB"|"FXTP"|"FXUS"|"FXWO")
 }
 
 struct QuotesParser {
