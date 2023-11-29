@@ -138,6 +138,7 @@ portfolios:
     # Tinkoff doesn't provide any information about corporate actions, so we have to specify them manually
     #corporate_actions:
     # - {date: 2020.10.27, symbol: NEE, type: stock-split, ratio: 4:1}
+    # - {date: 2022.06.27, symbol: FXRB, type: delisting, quantity: 12460} # FinEx FXRB fund lost all its assets and has been closed
     # - {date: 2023.03.24, symbol: "700", type: stock-dividend, stock: "3690", quantity: 14} # Tencent Holdings paid dividends with Meituan shares
 
 # Tax rate is assumed to be 13% by default, but you can override it. For example the following setting sets tax rate to

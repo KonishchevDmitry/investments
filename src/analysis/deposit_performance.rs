@@ -73,8 +73,8 @@ pub fn compare_to_bank_deposit(
             },
 
             Ordering::Equal => if index == 0 {
-                // Some assets can be acquired for free due to corporate actions or other
-                // non-trading operations. In this case we can't calculate their performance.
+                // Some assets can be acquired for free due to corporate actions or other non-trading operations. In
+                // this case we can't calculate their performance.
                 //
                 // An example is spinoff corporate action, where we have:
                 // * no buy transaction (it's zero cost)
@@ -83,7 +83,9 @@ pub fn compare_to_bank_deposit(
                 // * effectively zero interest period with positive balance
                 return None;
             } else {
-                unreachable!();
+                // When we have a very big/small interest (huge profit / liquidation), it's OK that small changes in
+                // interest may not affect the calculation result.
+                break;
             },
         }
 

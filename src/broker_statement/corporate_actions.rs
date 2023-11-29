@@ -49,6 +49,19 @@ impl CorporateAction {
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type", rename_all="kebab-case")]
 pub enum CorporateActionType {
+    // See https://github.com/KonishchevDmitry/investments/issues/73 for details
+    //
+    // Intended for events similar to delisting of FinEx FXRB fund which lost all its assets and has been closed
+    // (https://finex-etf.ru/university/news/chto_delisting_fxrb_znachit_dlya_investorov/)
+    //
+    // Please note that we can't balance losses and profits between securities traded on organized securities market and
+    // securities that aren't traded on organized securities market (see Article 220.1 of the Tax Code of the Russian
+    // Federation or https://www.nalog.gov.ru/rn77/taxation/taxes/ndfl/nalog_vichet/nv_ubit/ details), so for now we
+    // just ignore such events in all tax calculation.
+    Delisting {
+        quantity: Decimal,
+    },
+
     #[serde(skip)]
     Liquidation {
         quantity: Decimal,
@@ -213,6 +226,12 @@ pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult
 
 fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAction) -> EmptyResult {
     match action.action {
+        CorporateActionType::Delisting {quantity} => {
+            statement.stock_sells.push(StockSell::new_corporate_action(
+                &action.symbol, quantity, action.time, action.execution_date()));
+            statement.sort_and_validate_stock_sells()?;
+        },
+
         CorporateActionType::Liquidation {quantity, price, volume, ref currency} => {
             let price = Cash::new(currency, price);
             let volume = Cash::new(currency, volume);

@@ -146,6 +146,7 @@ pub enum StockSellType {
     // Non-trade operation due to a corporate action that doesn't affect cash balance and doesn't
     // lead to any taxes:
     // * Emulated sell to convert position during stock split
+    // * Delisting
     CorporateAction,
 }
 

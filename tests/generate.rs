@@ -36,10 +36,12 @@ fn generate_regression_tests() {
     t.add("Analyse", "analyse --all");
     t.add("Analyse virtual", "analyse --all --method virtual");
     t.add("Analyse inflation-adjusted", "analyse --all --method inflation-adjusted");
+    t.add("Analyse delisted", "analyse tinkoff-delisting --all").config("other");
     t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
 
     // simulate-sell
     t.add("Simulate sell partial", "simulate-sell ib all VTI 50 BND 50 BND");
+    t.add("Simulate sell OTC trade", "simulate-sell tinkoff-delisting").config("other");
     t.add("Simulate sell IIA type A", "simulate-sell open-first-iia-a").config("other");
     t.add("Simulate sell in other currency", "simulate-sell tinkoff --base-currency USD");
     t.add("Simulate sell after stock split", "simulate-sell ib-stock-split all AAPL").config("other");
@@ -64,6 +66,7 @@ fn generate_regression_tests() {
     t.add("Open MOEX dividends tax statement", "tax-statement open-dividends-moex").config("other");
     t.add("Open SPB dividends tax statement", "tax-statement open-dividends-spb").config("other");
     t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
+    t.add("Tinkoff delisting tax statement", "tax-statement tinkoff-delisting").config("other");
     t.add("Tinkoff complex full tax statement", "tax-statement tinkoff-complex-full").config("other");
 
     // Not all calculations are seen in tax-statement output. For example, dividend jurisdiction
