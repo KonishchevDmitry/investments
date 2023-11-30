@@ -28,7 +28,8 @@ pub fn generate_tax_statement(
     let broker_statement = BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions, &portfolio.corporate_actions,
-        ReadingStrictness::TRADE_SETTLE_DATE | ReadingStrictness::TAX_EXEMPTIONS | ReadingStrictness::REPO_TRADES | ReadingStrictness::GRANTS)?;
+        ReadingStrictness::TRADE_SETTLE_DATE | ReadingStrictness::OTC_INSTRUMENTS | ReadingStrictness::TAX_EXEMPTIONS |
+        ReadingStrictness::REPO_TRADES | ReadingStrictness::GRANTS)?;
 
     if let Some(year) = year {
         broker_statement.check_period_against_tax_year(year)?;

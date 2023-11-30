@@ -65,7 +65,9 @@ pub fn simulate_sell(
     base_currency: Option<&str>,
 ) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let statement = load_portfolio(config, portfolio, ReadingStrictness::TRADE_SETTLE_DATE | ReadingStrictness::TAX_EXEMPTIONS)?;
+
+    let statement = load_portfolio(config, portfolio,
+        ReadingStrictness::TRADE_SETTLE_DATE | ReadingStrictness::OTC_INSTRUMENTS | ReadingStrictness::TAX_EXEMPTIONS)?;
     let (converter, quotes) = load_tools(config)?;
 
     sell_simulation::simulate_sell(

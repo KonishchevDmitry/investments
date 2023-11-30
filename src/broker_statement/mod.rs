@@ -29,7 +29,7 @@ use crate::commissions::CommissionCalc;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
-use crate::exchanges::{Exchanges, TradingMode};
+use crate::exchanges::{Exchange, Exchanges, TradingMode};
 use crate::formatting;
 use crate::instruments::{InstrumentInternalIds, InstrumentInfo};
 use crate::quotes::{Quotes, QuoteQuery};
@@ -182,6 +182,7 @@ impl BrokerStatement {
         process_corporate_actions(&mut statement)?;
         statement.process_trades(None)?;
 
+        statement.check_otc_instruments(strictness);
         statement.validate_tax_exemptions(tax_exemptions, strictness)?;
 
         Ok(statement)
@@ -619,6 +620,38 @@ impl BrokerStatement {
         let date_validator = DateValidator::new(self.period);
         sort_and_validate_trades("sell", &mut self.stock_sells)?;
         date_validator.validate("a stock sell", &self.stock_sells, |trade| trade.conclusion_time)
+    }
+
+    fn check_otc_instruments(&mut self, strictness: ReadingStrictness) {
+        if !strictness.contains(ReadingStrictness::OTC_INSTRUMENTS) {
+            return;
+        }
+
+        // We can't balance losses and profits between securities traded on organized securities market and securities
+        // that aren't traded on organized securities market (see Article 220.1 of the Tax Code of the Russian
+        // Federation or https://www.nalog.gov.ru/rn77/taxation/taxes/ndfl/nalog_vichet/nv_ubit/ details), but we don't
+        // know for sure whether the stock marked as OTC in broker statement traded or not. So for now just show the
+        // warning about all OTC stocks.
+        //
+        // Instrument info may be non-deduplicated due to its representation issues in broker statement, so use trades
+        // here as a source of all instrument symbols.
+
+        let otc_stocks = self.stock_buys.iter().map(|trade| &trade.symbol)
+            .chain(self.stock_sells.iter().map(|trade| &trade.symbol))
+            .collect::<BTreeSet<_>>().into_iter()
+            .filter(|symbol| {
+                self.instrument_info.get(symbol)
+                    .map(|instrument| instrument.exchanges.get_prioritized().contains(&Exchange::Otc))
+                    .unwrap_or(false)
+            })
+            .join(", ");
+
+        if !otc_stocks.is_empty() {
+            warn!(concat!(
+                "Broker statement contains the following OTC stocks: {}. ",
+                "Tax calculations or losses and profits balancing for OTC trades may be incorrect, so be critical to them."
+            ), otc_stocks);
+        }
     }
 
     fn validate_tax_exemptions(&mut self, tax_exemptions: &[TaxExemption], strictness: ReadingStrictness) -> EmptyResult {
