@@ -81,8 +81,8 @@ libsqlite3-sys = { version = ">=0.17.2, <0.26.0", features = ["bundled"] }
 rust_decimal = "~1.32.0"
 rust_decimal_macros = "~1.32.0"
 
-static_table_derive = "0.1.62"
-xls_table_derive = "0.6.7"
+static_table_derive = "0.1.63"
+xls_table_derive = "0.6.8"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
