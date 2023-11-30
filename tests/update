@@ -47,6 +47,7 @@ for portfolio in \
 done
 
 wait-api-rate-limits
+rate-limited-investments other analyse tinkoff-delisting
 rate-limited-investments other simulate-sell open-first-iia-a
 rate-limited-investments other simulate-sell ib-complex 1 VTRS
 rate-limited-investments other simulate-sell ib-stock-split all AAPL
