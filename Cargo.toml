@@ -24,6 +24,16 @@ path = "src/bin/investments/mod.rs"
 name = "tax-statement-parser"
 path = "examples/tax_statement_parser.rs"
 
+[lints.clippy]
+collapsible-if = "allow"
+derive-partial-eq-without-eq = "allow"
+new-ret-no-self = "allow"
+new-without-default = "allow"
+redundant-field-names = "allow"
+too-many-arguments = "allow"
+type-complexity = "allow"
+unit-arg = "allow"
+
 [dependencies]
 ansi_term = "0.12.1"
 bitflags = "2.4.1"

@@ -5,43 +5,6 @@
 
 set -eu
 
-get_lint_args() {
-    local action="$1"
-    local lints="$2"
-
-    sed -r '
-    s/\s*#.*//
-    /^\s*$/d
-    s/^\s*(.*)/'"$action"' clippy::\1/
-    ' <<< "$lints"
-}
-
-check() {
-    local args="$1"
-    local lints="$2"
-    cargo clippy $args --all-features -- -Dwarnings $(get_lint_args -A "$lints")
-}
-
-main() {
-    local blacklist
-
-    blacklist='
-    collapsible-if
-    derive-partial-eq-without-eq
-    new-ret-no-self
-    new-without-default
-    redundant-field-names
-    too-many-arguments
-    type-complexity
-    unit-arg
-    '
-    check '--bins --examples' "$blacklist"
-    check '--bins --release' "$blacklist"
-
-    blacklist="$blacklist
-    redundant-clone
-    "
-    check --tests "$blacklist"
-}
-
-main
+for profile in dev release; do
+    cargo clippy --workspace --all-targets --all-features --no-deps --profile "$profile" -- -Dwarnings
+done
