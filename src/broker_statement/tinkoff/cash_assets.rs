@@ -207,7 +207,16 @@ impl CashFlowRow {
                     date, -check_amount(withdrawal)?));
             },
 
-            "Покупка/продажа" | "РЕПО" | "Комиссия за сделки" | "Гербовый сбор" => {},
+            "Покупка/продажа"
+                | "DVP/RVP" // Trade from non-brokerage account (https://github.com/KonishchevDmitry/investments/issues/83)
+                | "РЕПО" => {
+                // All trade-related cash flows are calculated during trades processing
+            },
+
+            "Комиссия за сделки" | "Гербовый сбор" => {
+                // All commissions are calculated during trades processing
+            },
+
             "Комиссия по тарифу" => {
                 let amount = check_amount(withdrawal)?;
                 let description = operation.clone();
