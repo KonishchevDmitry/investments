@@ -166,7 +166,7 @@ impl LtoDeduction {
     }
 }
 
-// FIXME(konishchev): Support the changes in long-term ownership tax exemption rules
+// FIXME(konishchev): Support the changes in long-term ownership tax exemption rules (https://sozd.duma.gov.ru/bill/462670-8)
 pub fn is_applicable(_isin: &HashSet<ISIN>, _sell_date: Date) -> Option<bool> {
     Some(true)
 
