@@ -131,10 +131,7 @@ impl Cbr {
         let url = Url::parse_with_params(&format!("{}/scripts/{}", self.url, method), params)?;
         let get = |url| -> GenericResult<T> {
             trace!("Sending request to {}...", url);
-            let response = self.client.get(url)
-                // FIXME(konishchev): A workaround for cbr.ru DDoS protection logic
-                .header("Host", "www.cbr.ru").header("User-Agent", "curl/7.77.0")
-                .send()?;
+            let response = self.client.get(url).send()?;
             trace!("Got response from {}.", url);
 
             if !response.status().is_success() {
