@@ -88,9 +88,7 @@ fn get_quotes(response: Response, symbols: &[&str]) -> GenericResult<QuotesMap> 
     let parser = Box::new(QuotesParser {});
     let sheet_name = parser.sheet_name();
 
-    let sheet = Xlsx::new(Cursor::new(data))?
-        .worksheet_range(sheet_name).transpose()?
-        .ok_or_else(|| format!("There is no {:?} sheet in the workbook", sheet_name))?;
+    let sheet = Xlsx::new(Cursor::new(data))?.worksheet_range(sheet_name)?;
     let mut reader = SheetReader::new(sheet, parser);
 
     let mut quotes = QuotesMap::new();

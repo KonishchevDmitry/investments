@@ -97,5 +97,10 @@ pub trait SheetParser {
 
 pub fn open_sheet(path: &str, name: &str) -> GenericResult<Option<Range<Cell>>> {
     let mut workbook = open_workbook_auto(path)?;
-    Ok(workbook.worksheet_range(name).transpose()?)
+
+    if !workbook.sheets_metadata().iter().any(|sheet| sheet.name == name) {
+        return Ok(None);
+    }
+
+    Ok(Some(workbook.worksheet_range(name)?))
 }
