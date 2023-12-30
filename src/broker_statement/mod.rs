@@ -45,8 +45,7 @@ use self::taxes::{TaxId, TaxAccruals, TaxAgentWithholdings};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
 pub use self::cash_flows::{CashFlow, CashFlowType};
-pub use self::corporate_actions::{
-    CorporateAction, CorporateActionType, StockSplitController, process_corporate_actions};
+pub use self::corporate_actions::{CorporateAction, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
 pub use self::grants::{StockGrant, process_grants};
@@ -55,9 +54,7 @@ pub use self::merging::StatementsMergingStrategy;
 pub use self::payments::Withholding;
 pub use self::reader::ReadingStrictness;
 pub use self::taxes::TaxAgentWithholding;
-pub use self::trades::{
-    ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSellSource, StockSourceDetails,
-    SellDetails, FifoDetails};
+pub use self::trades::{ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSourceDetails, SellDetails, FifoDetails};
 
 pub struct BrokerStatement {
     pub broker: BrokerInfo,
