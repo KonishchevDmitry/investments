@@ -22,6 +22,7 @@ use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
 
 #[derive(Deserialize, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
+// Don't use #[serde(deny_unknown_fields)] because of #[serde(flatten)]
 pub struct CorporateAction {
     // Date + time when the corporate action has occurred. If time is not present, assuming:
     // * The changes are made at the end of the trading day.
