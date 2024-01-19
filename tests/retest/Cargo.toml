@@ -1,0 +1,53 @@
+[[bin]]
+name = "retest"
+path = "src/bin/retest/main.rs"
+
+[package]
+version = "4.0.14"
+publish = true
+name = "qtrac-retest"
+authors = [ "Mark Summerfield <mark@qtrac.eu>",]
+edition = "2021"
+include = [ "Cargo.toml", "src/**/*.rs",]
+description = "Retest makes it simple to automate black box regression testing on Windows and Unix."
+documentation = "https://docs.rs/qtrac-retest/latest/retest/"
+homepage = "http://www.qtrac.eu/retest.html"
+readme = "README.md"
+keywords = [ "testing", "regression", "blackbox", "automation", "test-automation",]
+categories = [ "command-line-utilities", "development-tools", "development-tools::testing",]
+license = "GPL-3.0-or-later"
+
+[badges]
+maintenance = { status = "passively-maintained" }
+
+[dependencies]
+approx = "^0.5"
+chrono = "^0.4"
+dirs = "^4"
+fnv = "^1"
+image = "^0.24"
+json = "^0.12"
+lazy_static = "^1"
+num = "^0.4"
+num-traits = "^0.2"
+open = "^3"
+rayon = "^1"
+regex = "^1"
+termcolor = "^1"
+
+[lib]
+name = "retest"
+path = "src/lib.rs"
+
+[dependencies.ctrlc]
+version = "^3"
+features = [ "termination",]
+
+[dependencies.log]
+version = "^0.4"
+features = [ "release_max_level_debug", "std",]
+
+[profile.release]
+strip = true
+opt-level = 3 # 3 is fastest binary; use "s" for smallest
+lto = true
