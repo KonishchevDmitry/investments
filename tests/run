@@ -35,7 +35,7 @@ trap "exit 1" INT TERM QUIT
 export INVESTMENTS_BINARY=target/debug/investments
 rm -f "$INVESTMENTS_BINARY" && cargo build
 
-which -s retest || cargo install qtrac-retest
+which -s retest || cargo install --path ./tests/retest
 if retest -v -v tests/rt.rt; then
     exit 0
 fi

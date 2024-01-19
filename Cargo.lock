@@ -2184,8 +2184,6 @@ dependencies = [
 [[package]]
 name = "qtrac-retest"
 version = "4.0.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59ca4190af95d982400dfdd74383094b0742a31d6bfc35ddbc23505063a67da7"
 dependencies = [
  "approx",
  "chrono",
