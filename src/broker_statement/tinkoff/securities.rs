@@ -91,6 +91,7 @@ impl SecuritiesInfoRow {
             return Ok((&self.code, parse_isin(isin)?))
         }
 
+        let isin = parse_isin(&self.code)?;
         let symbol = match securities.get(&self.name) {
             Some(info) if !info.symbols.is_empty() => {
                 if info.symbols.len() > 1 {
@@ -99,9 +100,26 @@ impl SecuritiesInfoRow {
                 }
                 info.symbols.iter().next().unwrap()
             },
+
+            // OTC instruments don't have symbol, so return ISIN instead of it and rely on symbol remapping
+            Some(info) if !info.isin.is_empty() => {
+                if info.isin.len() > 1 {
+                    return Err!("{:?} resolves to multiple ISIN: {}",
+                        self.name, info.isin.iter().join(", "));
+                }
+
+                let known_isin = info.isin.iter().next().unwrap();
+                if isin != *known_isin {
+                    return Err!("{:?} resolves to multiple ISIN: {} and {}",
+                        self.name, *known_isin, isin);
+                }
+
+                known_isin.as_ref()
+            },
+
             _ => return Err!("Unable to find symbol of {:?}", self.name),
         };
 
-        Ok((symbol, parse_isin(&self.code)?))
+        Ok((symbol, isin))
     }
 }
