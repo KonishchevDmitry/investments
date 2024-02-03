@@ -5,6 +5,7 @@ use std::fmt::{self, Display};
 use cusip::CUSIP;
 use itertools::Itertools;
 use isin::ISIN;
+use log::debug;
 use maybe_owned::MaybeOwned;
 use serde::Deserialize;
 use serde::de::Deserializer;
@@ -51,6 +52,10 @@ impl InstrumentInternalIds {
     }
 }
 
+// Please note that we don't guarantee that symbol will actually be symbol (ticker). Broker statement may have no symbol
+// information for an instrument. Some brokers just don't provide it (BCS) or it may be unavailable for some particular
+// instruments (OTC stocks in Tinkoff). In this case the symbol will be actually ISIN and we rely on symbol remapping in
+// such cases.
 pub struct InstrumentInfo {
     instruments: HashMap<String, Instrument>,
     internal_ids: Option<InstrumentInternalIds>,
@@ -177,14 +182,71 @@ impl InstrumentInfo {
         self.instruments.remove(symbol)
     }
 
-    pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
-        if self.instruments.contains_key(new_symbol) {
-            return Err!("The portfolio already has {} symbol", new_symbol);
+    pub fn suggest_remapping(&self) -> Vec<(String, String)> {
+        // This method tries to generate automatic remapping rules for cases when we actually have some information, but
+        // it's scattered over broker statements.
+
+        let mut rules = Vec::new();
+
+        'symbol_loop: for symbol in self.instruments.keys() {
+            // The case:
+            //
+            // Finex ETF were bought on MOEX exchange, but then have been delisted due to sanctions. Old Tinkoff
+            // statements contain symbol <-> ISIN mapping, but new ones have only ISIN (since it's considered as
+            // an OTC stock).
+
+            let Ok(isin) = parse_isin(symbol) else {
+                continue;
+            };
+
+            let mut real_symbol = None;
+
+            for instrument in self.instruments.values() {
+                if instrument.isin.contains(&isin) && parse_isin(&instrument.symbol).is_err() {
+                    if let Some(other_symbol) = real_symbol.replace(instrument.symbol.clone()) {
+                        debug!(concat!(
+                            "Do not provide {isin} -> {other_symbol} automatic symbol remapping: ",
+                            "{current_symbol} also points to {isin} ISIN"
+                        ), isin=isin, other_symbol=other_symbol, current_symbol=instrument.symbol);
+                        continue 'symbol_loop;
+                    }
+                }
+            }
+
+            if let Some(real_symbol) = real_symbol {
+                debug!("Got automatic symbol remapping rule: {symbol} -> {real_symbol}.");
+                rules.push((symbol.clone(), real_symbol));
+            }
         }
 
-        if let Some(mut info) = self.instruments.remove(old_symbol) {
-            info.symbol = new_symbol.to_owned();
-            self.instruments.insert(new_symbol.to_owned(), info);
+        rules
+    }
+
+    pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
+        let Some(mut old_info) = self.instruments.remove(old_symbol) else {
+            return Ok(());
+        };
+
+        match self.instruments.entry(new_symbol.to_owned()) {
+            Entry::Occupied(mut entry) => {
+                let new_info = entry.get_mut();
+
+                match parse_isin(old_symbol) {
+                    Ok(isin) if new_info.isin.contains(&isin) => {
+                        // Assuming the case when some stock became delisted, lost its symbol and we want to restore the
+                        // original symbol back to merge the instruments which are actually the same.
+                        new_info.merge(old_info, false)
+                    },
+                    _ => {
+                        self.instruments.insert(old_symbol.to_owned(), old_info);
+                        return Err!("The portfolio already has {} symbol", new_symbol);
+                    }
+                }
+            },
+            Entry::Vacant(entry) => {
+                old_info.symbol = new_symbol.to_owned();
+                entry.insert(old_info);
+            },
         }
 
         Ok(())
