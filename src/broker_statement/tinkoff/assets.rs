@@ -1,3 +1,5 @@
+use log::trace;
+
 use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::partial::PartialBrokerStatementRc;
@@ -23,13 +25,17 @@ impl SectionParser for AssetsParser {
         let mut statement = self.statement.borrow_mut();
         let mut securities = self.securities.borrow_mut();
 
+        trace!("Assets:");
+
         for asset in xls::read_table::<AssetsRow>(&mut parser.sheet)? {
-            let info = securities.entry(asset.name).or_default();
+            let info = securities.entry(asset.name.clone()).or_default();
 
             // We can have multiple rows per one instrument: a technical one with ISIN and a real one with stock symbol
             if let Ok(isin) = parse_isin(&asset.code) {
+                trace!("* ISIN: {}: {}", isin, asset.name);
                 info.isin.insert(isin);
             } else {
+                trace!("* Symbol: {}: {}", asset.code, asset.name);
                 info.symbols.insert(asset.code.clone());
             }
 
