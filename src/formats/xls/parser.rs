@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::ops::Range;
 use std::rc::Rc;
 
+use log::trace;
+
 use crate::core::{EmptyResult, GenericResult};
 use crate::formats::xls::{self, Cell, SheetReader, SheetParser};
 
@@ -30,6 +32,8 @@ impl XlsStatementParser {
                 Some(section) => section,
                 None => continue,
             };
+
+            trace!("Got {:?} section at #{} row.", section.title, self.sheet.current_human_row_id());
 
             if let Some(parser) = section.parser.as_ref() {
                 let mut parser = parser.as_ref().borrow_mut();

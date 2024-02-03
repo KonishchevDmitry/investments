@@ -33,8 +33,20 @@ impl SheetReader {
         Ok(SheetReader::new(sheet, parser))
     }
 
+    pub fn parse_empty_tables(&self) -> bool {
+        self.parser.parse_empty_tables()
+    }
+
     pub fn repeatable_table_column_titles(&self) -> bool {
         self.parser.repeatable_table_column_titles()
+    }
+
+    pub fn current_human_row_id(&self) -> usize {
+        self.next_row_id
+    }
+
+    pub fn next_human_row_id(&self) -> usize {
+        self.next_row_id + 1
     }
 
     pub fn next_row(&mut self) -> Option<&[Cell]> {
@@ -78,13 +90,17 @@ impl SheetReader {
             error.to_owned()
         } else {
             format!("Starting from #{} row: {:?}: {}",
-                    self.next_row_id, self.sheet.index(self.next_row_id - 1), error)
+                    self.current_human_row_id(), self.sheet.index(self.next_row_id - 1), error)
         }
     }
 }
 
 pub trait SheetParser {
     fn sheet_name(&self) -> &str;
+
+    fn parse_empty_tables(&self) -> bool {
+        true
+    }
 
     fn repeatable_table_column_titles(&self) -> bool {
         false

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
+use log::trace;
 use regex::{self, Regex};
 
 use crate::core::GenericResult;
@@ -35,7 +36,18 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
     let columns = T::columns();
     let repeatable_table_column_titles = sheet.repeatable_table_column_titles();
 
-    let mut columns_mapping = map_columns(sheet.next_row_checked()?, &columns, T::trim_column_title)?;
+    trace!("Reading {} table starting from #{} row...", std::any::type_name::<T>(), sheet.next_human_row_id());
+
+    let mut columns_mapping = match map_columns(sheet.next_row_checked()?, &columns, T::trim_column_title) {
+        Ok(mapping) => mapping,
+        Err(err) => {
+            if T::next_row(sheet).is_none() && !sheet.parse_empty_tables() {
+                trace!("Skip empty {} table.", std::any::type_name::<T>());
+                return Ok(table);
+            }
+            return Err(err);
+        },
+    };
 
     while let Some(row) = T::next_row(sheet) {
         if repeatable_table_column_titles {
