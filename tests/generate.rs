@@ -110,7 +110,7 @@ fn generate_regression_tests() {
         ("Kate",     None),
         ("Kate IIA", None),
     ];
-    let last_tax_year = 2023;
+    let last_tax_year = 2024;
 
     for (name, year_spec) in accounts {
         let id = &name_to_id(name);
