@@ -245,7 +245,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         },
 
         CorporateActionType::Rename {ref new_symbol} => {
-            statement.rename_symbol(&action.symbol, new_symbol, Some(action.time)).map_err(|e| format!(
+            statement.rename_symbol(&action.symbol, new_symbol, Some(action.time), true).map_err(|e| format!(
                 "Failed to process {} -> {} rename corporate action: {}",
                 action.symbol, new_symbol, e))?;
         },

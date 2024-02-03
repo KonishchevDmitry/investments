@@ -22,7 +22,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap, BTreeSet, hash_map::Entry};
 
 use itertools::Itertools;
-use log::warn;
+use log::{debug, warn};
 
 use crate::brokers::{BrokerInfo, Broker};
 use crate::commissions::CommissionCalc;
@@ -165,9 +165,15 @@ impl BrokerStatement {
         process_grants(&mut statement, strictness.contains(ReadingStrictness::GRANTS))?;
 
         for (symbol, new_symbol) in symbol_remapping.iter() {
-            statement.rename_symbol(symbol, new_symbol, None).map_err(|e| format!(
+            statement.rename_symbol(symbol, new_symbol, None, true).map_err(|e| format!(
                 "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
         }
+
+        for (symbol, new_symbol) in statement.instrument_info.suggest_remapping() {
+            statement.rename_symbol(&symbol, &new_symbol, None, false).map_err(|e| format!(
+                "Failed to apply automatically generated remapping rule {} -> {}: {}", symbol, new_symbol, e))?;
+        }
+
         statement.corporate_actions.extend(corporate_actions.iter().cloned());
 
         for (symbol, name) in instrument_names {
@@ -479,11 +485,17 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, time: Option<DateOptTime>) -> EmptyResult {
+    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, time: Option<DateOptTime>, check_existence: bool) -> EmptyResult {
         // For now don't introduce any enums here:
         // * When date is set - it's always a corporate action.
         // * In other case it's a manual remapping.
-        let remapping = time.is_none();
+        let remapping = if let Some(time) = time {
+            debug!("Renaming {symbol} -> {new_symbol} due to corporate action from {}...", formatting::format_date(time.date));
+            false
+        } else {
+            debug!("Remapping {symbol} -> {new_symbol}...");
+            true
+        };
 
         let mut found = false;
         let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String, operation_original_symbol: &mut String| {
@@ -507,12 +519,16 @@ impl BrokerStatement {
         };
 
         if remapping {
-            if self.open_positions.contains_key(new_symbol) {
-                return Err!("The portfolio already has {} symbol", new_symbol);
-            }
-
             if let Some(quantity) = self.open_positions.remove(symbol) {
-                self.open_positions.insert(new_symbol.to_owned(), quantity);
+                match self.open_positions.entry(new_symbol.to_owned()) {
+                    Entry::Occupied(_) => {
+                        self.open_positions.insert(symbol.to_owned(), quantity);
+                        return Err!("The portfolio already has {new_symbol} symbol");
+                    },
+                    Entry::Vacant(entry) => {
+                        entry.insert(quantity);
+                    },
+                }
             }
 
             self.instrument_info.remap(symbol, new_symbol)?;
@@ -542,7 +558,7 @@ impl BrokerStatement {
             }
         }
 
-        if !found {
+        if check_existence && !found {
             return Err!("Unable to find any operation with it in the broker statement");
         }
 
