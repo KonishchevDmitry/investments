@@ -16,6 +16,7 @@ impl InflationCalc {
             get_inflation: match currency {
                 "RUB" => russia_inflation,
                 "USD" => us_inflation,
+                #[cfg(test)] "test" => tests::test_inflation,
                 _ => return Err!("{} currency is not supported by inflation calculator", currency),
             },
         })
@@ -81,12 +82,14 @@ fn russia_inflation(year: i32) -> Option<Decimal> {
         2020 => dec!(4.91),
         2021 => dec!(8.39),
         2022 => dec!(11.92),
+        2023 => dec!(7.42),
         _ => return None,
     })
 }
 
 fn us_inflation(year: i32) -> Option<Decimal> {
     // https://fred.stlouisfed.org/series/FPCPITOTLZGUSA
+    // https://www.usinflationcalculator.com/inflation/historical-inflation-rates/
     Some(match year {
         1960 => dec!(1.45797598627786),
         1961 => dec!(1.07072414764723),
@@ -151,6 +154,7 @@ fn us_inflation(year: i32) -> Option<Decimal> {
         2020 => dec!(1.23358439630637),
         2021 => dec!(4.69785886363739),
         2022 => dec!(8.00279982052117),
+        2023 => dec!(4.1),
         _ => return None,
     })
 }
@@ -169,7 +173,7 @@ mod tests {
             )
         };
 
-        let calc = InflationCalc::new("USD", date!(1962, 1, 5)).unwrap();
+        let calc = InflationCalc::new("test", date!(1962, 1, 5)).unwrap();
         assert_eq!((date!(1963, 1, 1) - date!(1962, 1, 1)).num_days(), 365);
         check(
             calc.adjust(date!(1958, 3, 4), dec!(123)),
@@ -179,7 +183,7 @@ mod tests {
                 * (dec!(1) + dec!(1.19877334820185) / dec!(100) * dec!(4) / dec!(365))
         );
 
-        let calc = InflationCalc::new("USD", date!(2010, 4, 6)).unwrap();
+        let calc = InflationCalc::new("test", date!(2010, 4, 6)).unwrap();
         assert_eq!((date!(2008, 1, 1) - date!(2007, 1, 1)).num_days(), 365);
         assert_eq!((date!(2008, 1, 1) - date!(2007, 7, 3)).num_days(), 182);
         assert_eq!((date!(2010, 4, 6) - date!(2010, 1, 1)).num_days(), 95);
@@ -193,7 +197,7 @@ mod tests {
                 * (dec!(1) + dec!(1.64004344238989) / dec!(100) * dec!(95) / dec!(365))   // 2010
         );
 
-        let calc = InflationCalc::new("USD", date!(2023, 10, 7)).unwrap();
+        let calc = InflationCalc::new("test", date!(2023, 10, 7)).unwrap();
         assert_eq!((date!(2021, 1, 1) - date!(2020, 1, 1)).num_days(), 366);
         assert_eq!((date!(2021, 1, 1) - date!(2020, 7, 3)).num_days(), 182);
         check(
@@ -203,5 +207,13 @@ mod tests {
                 * (dec!(1) + dec!(4.69785886363739) / dec!(100))                          // 2021
                 * (dec!(1) + dec!(8.00279982052117) / dec!(100))                          // 2022
         );
+    }
+
+    pub fn test_inflation(year: i32) -> Option<Decimal> {
+        if year < 2023 {
+            us_inflation(year)
+        } else {
+            None
+        }
     }
 }
