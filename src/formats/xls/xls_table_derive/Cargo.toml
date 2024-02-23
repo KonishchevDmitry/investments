@@ -1,6 +1,6 @@
 [package]
 name = "xls_table_derive"
-version = "0.6.10"
+version = "0.7.0"
 description = "Procedural macros for investments crate"
 
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]

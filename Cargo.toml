@@ -92,7 +92,7 @@ rust_decimal = "~1.34.2"
 rust_decimal_macros = "~1.34.2"
 
 static_table_derive = "0.1.65"
-xls_table_derive = "0.6.10"
+xls_table_derive = "0.7.0"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
