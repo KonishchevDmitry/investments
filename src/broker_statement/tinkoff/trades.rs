@@ -24,7 +24,7 @@ use crate::util::DecimalRestrictions;
 
 use super::common::{
     read_next_table_row, parse_date_cell, parse_planned_actual_date_cell, parse_decimal_cell, parse_quantity_cell,
-    parse_time_cell, save_instrument_exchange_info};
+    parse_time_cell, save_instrument_exchange_info, trim_column_title};
 
 pub type TradesRegistryRc = Rc<RefCell<HashMap<TradeId, bool>>>;
 
@@ -103,6 +103,7 @@ impl SectionParser for TradesParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct TradeRow {
     #[column(name="Номер сделки", parse_with="TradeId::parse")]
     id: TradeId,
@@ -146,20 +147,20 @@ struct TradeRow {
 
     // The following fees are actually included into brokerage commission:
     #[column(name="Комиссия биржи", optional=true)]
-    _19: Option<String>,
+    _19: Option<SkipCell>,
     #[column(name="Валюта комиссии биржи", optional=true)]
-    _20: Option<String>,
+    _20: Option<SkipCell>,
     #[column(name="Комиссия клир. центра", optional=true)]
-    _21: Option<String>,
+    _21: Option<SkipCell>,
     #[column(name="Валюта комиссии клир. центра", optional=true)]
-    _22: Option<String>,
+    _22: Option<SkipCell>,
 
     #[column(name="Гербовый сбор", parse_with="parse_decimal_cell", optional=true)]
     stamp_duty: Option<Decimal>,
     #[column(name="Валюта гербового сбора", optional=true)]
     stamp_duty_currency: Option<String>,
 
-    #[column(name="Ставка РЕПО(%)")]
+    #[column(name="Ставка РЕПО (%)")]
     _24: Option<SkipCell>,
     #[column(name="Контрагент / Брокер", alias="Контрагент", optional=true)]
     _25: Option<SkipCell>,

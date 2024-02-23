@@ -18,7 +18,7 @@ use crate::time::{Date, Time};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::{read_next_table_row, parse_date_cell, parse_decimal_cell, parse_time_cell};
+use super::common::{parse_date_cell, parse_decimal_cell, parse_time_cell, read_next_table_row, trim_column_title};
 
 pub struct CashAssetsParser {
     statement: PartialBrokerStatementRc,
@@ -70,6 +70,7 @@ fn parse_current_assets(
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct AssetsRow {
     #[column(name="Валюта")]
     currency: String,
@@ -88,7 +89,7 @@ struct AssetsRow {
     debt: Decimal,
     #[column(name="Сумма непокрытого остатка:", parse_with="parse_decimal_cell")]
     uncovered: Decimal,
-    #[column(name="Задолженность клиента перед Депозитарием (справочно)")]
+    #[column(name="Задолженность клиента перед депозитарием (справочно)")]
     _6: SkipCell,
 }
 
@@ -154,6 +155,7 @@ fn parse_cash_flows(
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct CashFlowRow {
     #[column(name="Дата", parse_with="parse_date_cell")]
     date: Option<Date>,

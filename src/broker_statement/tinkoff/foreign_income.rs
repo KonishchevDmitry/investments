@@ -18,7 +18,7 @@ use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions, RoundingMethod};
 
-use super::common::{parse_date_cell, parse_decimal_cell, parse_quantity_cell};
+use super::common::{parse_date_cell, parse_decimal_cell, parse_quantity_cell, trim_column_title};
 
 const SHEET_NAME: &str = "Отчет";
 const TITLE_PREFIX: &str = "Отчет о выплате доходов по ценным бумагам иностранных эмитентов";
@@ -103,32 +103,29 @@ impl SectionParser for ForeignIncomeParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct ForeignIncomeRow {
     #[column(name="Дата фиксации реестра")]
     _0: SkipCell,
     #[column(name="Дата выплаты", parse_with="parse_date_cell")]
     date: Date,
-    #[column(name="Тип*", alias="Тип выплаты*")]
+    #[column(name="Тип", alias="Тип выплаты")]
     type_: String,
     #[column(name="Наименование ценной бумаги")]
     name: String,
     #[column(name="ISIN")]
     isin: String,
-    #[column(name="Страна эмитента**", alias="Страна эмитента")]
+    #[column(name="Страна эмитента")]
     _5: SkipCell,
     #[column(name="Количество ценных бумаг", parse_with="parse_quantity_cell")]
     quantity: u32,
     #[column(name="Выплата на одну бумагу", parse_with="parse_decimal_cell")]
     amount_per_stock: Decimal,
-    #[column(name="Комиссия внешних платежных агентов***",
-             alias="Комиссия внешних платежных агентов**",
-             parse_with="parse_decimal_cell")]
+    #[column(name="Комиссия внешних платежных агентов", parse_with="parse_decimal_cell")]
     commission: Decimal,
     #[column(name="Сумма до удержания налога", parse_with="parse_decimal_cell", optional=true)]
     result_amount: Option<Decimal>,
-    #[column(name="Сумма налога, удержанного агентом",
-             alias="Сумма налога, удержанного эмитентом",
-             parse_with="parse_decimal_cell")]
+    #[column(name="Сумма налога, удержанного агентом", alias="Сумма налога, удержанного эмитентом", parse_with="parse_decimal_cell")]
     tax_withheld: Decimal,
     #[column(name="Итоговая сумма выплаты", parse_with="parse_decimal_cell")]
     paid_amount: Decimal,

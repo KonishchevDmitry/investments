@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use num_traits::cast::FromPrimitive;
 
 use crate::core::GenericResult;
@@ -10,6 +12,23 @@ pub fn get_string_cell(cell: &Cell) -> GenericResult<&str> {
         Cell::String(value) => Ok(value),
         _ => Err!("Got an unexpected cell value where string is expected: {:?}", cell),
     }
+}
+
+pub fn get_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell, allow_string: bool) -> GenericResult<I> {
+    Ok(match cell {
+        Cell::Int(value) => I::from_i64(*value),
+        Cell::Float(value) => {
+            if value.fract() == 0.0 {
+                I::from_f64(*value)
+            } else {
+                None
+            }
+        },
+        Cell::String(value) if allow_string => value.parse().ok(),
+        _ => None,
+    }.ok_or_else(|| format!(
+        "Got an unexpected cell value where {} is expected: {:?}", std::any::type_name::<I>(), cell
+    ))?)
 }
 
 pub trait CellType: Sized {
@@ -32,27 +51,11 @@ impl CellType for String {
     }
 }
 
-fn parse_integer<I>(cell: &Cell, type_name: &str) -> GenericResult<I> where I: FromPrimitive {
-    Ok(match cell {
-        Cell::Int(value) => I::from_i64(*value),
-        Cell::Float(value) => {
-            if value.fract() == 0.0 {
-                I::from_f64(*value)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }.ok_or_else(|| format!(
-        "Got an unexpected cell value where {} is expected: {:?}", type_name, cell
-    ))?)
-}
-
 macro_rules! impl_integer_parser {
     ($name:ident) => {
         impl CellType for $name {
             fn parse(cell: &Cell) -> GenericResult<$name> {
-                parse_integer(cell, stringify!($name))
+                get_integer_cell(cell, false)
             }
         }
     }

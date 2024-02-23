@@ -7,7 +7,8 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 use crate::instruments::parse_isin;
 
-use super::common::{SecuritiesRegistry, SecuritiesRegistryRc, read_next_table_row, save_instrument_exchange_info};
+use super::common::{
+    SecuritiesRegistry, SecuritiesRegistryRc, read_next_table_row, save_instrument_exchange_info, trim_column_title};
 
 pub struct SecuritiesInfoParser {
     statement: PartialBrokerStatementRc,
@@ -55,6 +56,7 @@ impl SectionParser for SecuritiesInfoParser {
 }
 
 #[derive(XlsTableRow)]
+#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct SecuritiesInfoRow {
     #[column(name="Сокращенное наименование актива")]
     name: String,

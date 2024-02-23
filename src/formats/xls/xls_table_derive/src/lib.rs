@@ -40,9 +40,11 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let columns_code = columns.iter().map(|column| {
         let name = &column.name;
         let regex = column.regex;
+        let case_insensitive = table.case_insensitive_match;
+        let space_insensitive = table.space_insensitive_match;
         let optional = column.optional;
         let aliases = column.aliases.iter().map(|alias| quote!(#alias));
-        quote!(#mod_ident::TableColumn::new(#name, #regex, &[#(#aliases,)*], #optional))
+        quote!(#mod_ident::TableColumn::new(#name, #regex, &[#(#aliases,)*], #case_insensitive, #space_insensitive, #optional))
     });
 
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
@@ -100,8 +102,15 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     }.into())
 }
 
-#[derive(FromMeta)]
+#[derive(Default, FromMeta)]
 struct TableParams {
+    #[darling(default)]
+    case_insensitive_match: bool,
+
+    #[darling(default)]
+    space_insensitive_match: bool,
+
+    #[darling(default)]
     trim_column_title_with: Option<String>,
 }
 
@@ -131,9 +140,7 @@ impl TableParams {
             }
         }
 
-        Ok(table_params.unwrap_or_else(|| TableParams {
-            trim_column_title_with: None,
-        }))
+        Ok(table_params.unwrap_or_default())
     }
 }
 

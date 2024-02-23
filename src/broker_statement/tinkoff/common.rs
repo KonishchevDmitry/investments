@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -66,8 +67,8 @@ pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
 }
 
 pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
-    let value = xls::get_string_cell(cell)?;
-    Ok(value.parse().map_err(|_| format!("Invalid quantity: {}", value))?)
+    // Old statements stored it as string, new - as float
+    xls::get_integer_cell(cell, true)
 }
 
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
@@ -78,6 +79,10 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
         },
         _ => Decimal::parse(cell),
     }
+}
+
+pub fn trim_column_title(title: &str) -> Cow<str> {
+    Cow::from(title.trim_end_matches('*')) // Footnotes
 }
 
 pub fn read_next_table_row(sheet: &mut SheetReader) -> Option<&[Cell]> {

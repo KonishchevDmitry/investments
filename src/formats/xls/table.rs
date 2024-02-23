@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use log::trace;
-use regex::{self, Regex};
+use regex::{self, Regex, RegexBuilder};
 
 use crate::core::GenericResult;
 
@@ -72,12 +72,17 @@ pub struct TableColumn {
     name: &'static str,
     regex: bool,
     aliases: &'static [&'static str],
+    case_insensitive: bool,
+    space_insensitive: bool,
     optional: bool,
 }
 
 impl TableColumn {
-    pub fn new(name: &'static str, regex: bool, aliases: &'static [&'static str], optional: bool) -> TableColumn {
-        TableColumn {name, regex, aliases, optional}
+    pub fn new(
+        name: &'static str, regex: bool, aliases: &'static [&'static str],
+        case_insensitive: bool, space_insensitive: bool, optional: bool
+    ) -> TableColumn {
+        TableColumn {name, regex, aliases, case_insensitive, space_insensitive, optional}
     }
 
     fn find(&self, row: &[Cell], trim_title: fn(&str) -> Cow<str>) -> GenericResult<Option<usize>> {
@@ -110,29 +115,59 @@ impl TableColumn {
             static ref EXTRA_SPACES_REGEX: Regex = Regex::new(r" {2,}").unwrap();
         }
 
-        let value = EXTRA_SPACES_REGEX.replace_all(value.trim(), " ");
+        let value = self.transform_for_matching(EXTRA_SPACES_REGEX.replace_all(value.trim(), " "));
         let mut names = Vec::from(self.aliases);
 
         if self.regex {
-            if Regex::new(self.name).map_err(|_| format!(
-                "Invalid column name regex: {:?}", self.name,
-            ))?.is_match(&value) {
+            let regex = RegexBuilder::new(self.name)
+                .case_insensitive(self.case_insensitive)
+                .ignore_whitespace(self.space_insensitive)
+                .build().map_err(|_| format!("Invalid column name regex: {:?}", self.name))?;
+
+            if regex.is_match(&value) {
                 return Ok(true);
             }
         } else {
             names.push(self.name);
         }
 
-        let value_regex = Regex::new(&format!(
-            "^{}$", regex::escape(&value).replace('\r', "").replace('\n', " ?"))).unwrap();
+        if self.space_insensitive {
+            for name in names {
+                if value == self.transform_for_matching(name) {
+                    return Ok(true);
+                }
+            }
+        } else {
+            let value_regex = RegexBuilder::new(
+                &format!("^{}$", regex::escape(&value).replace('\r', "").replace('\n', " ?")))
+                .case_insensitive(self.case_insensitive)
+                .build().unwrap();
 
-        for name in names {
-            if value_regex.is_match(name) {
-                return Ok(true);
+            for name in names {
+                if value_regex.is_match(name) {
+                    return Ok(true);
+                }
             }
         }
 
         Ok(false)
+    }
+
+    fn transform_for_matching<'a, V: Into<Cow<'a, str>>>(&self, value: V) -> Cow<'a, str> {
+        let mut value = value.into();
+
+        if self.space_insensitive {
+            lazy_static! {
+                static ref SPACE_REGEX: Regex = Regex::new(r"\s+").unwrap();
+            }
+            value = SPACE_REGEX.replace_all(&value, "").into_owned().into();
+        }
+
+        if self.case_insensitive {
+            value = value.to_lowercase().into();
+        }
+
+        value
     }
 }
 
