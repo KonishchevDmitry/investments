@@ -1324,7 +1324,7 @@ checksum = "1e186cfbae8084e513daff4240b4797e342f988cecda4fb6c939150f96315fd8"
 
 [[package]]
 name = "investments"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "ansi_term",
  "bitflags 2.4.2",
