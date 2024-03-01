@@ -5,7 +5,7 @@ use num_traits::cast::FromPrimitive;
 use crate::core::GenericResult;
 use crate::types::Decimal;
 
-pub use calamine::DataType as Cell;
+pub use calamine::Data as Cell;
 
 pub fn get_string_cell(cell: &Cell) -> GenericResult<&str> {
     match cell {
