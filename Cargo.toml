@@ -77,7 +77,7 @@ strum = { version = "0.26", features = ["derive"] }
 textwrap = "0.16.0"
 tokio = "1.36.0"
 tonic = { version = "0.10", features = ["tls", "tls-roots"] }
-uuid = { version = "1.7.0", features = ["v4"] }
+uuid = { version = "1.7.0", features = ["v4", "serde"] }
 validator = { version = "0.16.1", features = ["derive"] }
 xml-rs = "0.8.19"
 yaml-merge-keys = { version = "0.6.0", features = ["serde_yaml"] }

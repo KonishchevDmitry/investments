@@ -98,6 +98,9 @@ impl TelemetryRecordBuilder {
 #[serde(deny_unknown_fields)]
 pub struct TelemetryConfig {
     #[serde(default)]
+    pub user_id: Option<Uuid>,
+
+    #[serde(default)]
     pub disable: bool,
 }
 
@@ -109,15 +112,18 @@ struct TelemetryRequest {
 
 pub struct Telemetry {
     db: db::Connection,
+    user_id: Option<String>,
     sender: Option<TelemetrySender>,
 }
 
 impl Telemetry {
     pub fn new(
-        connection: db::Connection, url: &str, flush_thresholds: BTreeMap<usize, Duration>, max_records: usize,
+        connection: db::Connection, user_id: Option<String>,
+        url: &str, flush_thresholds: BTreeMap<usize, Duration>, max_records: usize,
     ) -> GenericResult<Telemetry> {
         let mut telemetry = Telemetry {
             db: connection,
+            user_id,
             sender: None,
         };
 
@@ -189,12 +195,13 @@ impl Telemetry {
                 .filter(settings::name.eq(name))
                 .get_result::<String>(db).optional()?;
 
-            Ok(match user_id {
-                Some(user_id) => user_id,
-                None => {
-                    let user_id = Uuid::new_v4().to_string();
+            Ok(match (user_id, self.user_id.clone()) {
+                (Some(user_id), None) => user_id,
+                (Some(user_id), Some(configured_user_id)) if user_id == configured_user_id => user_id,
+                (_, configured_user_id) => {
+                    let user_id = configured_user_id.unwrap_or_else(|| Uuid::new_v4().to_string());
 
-                    diesel::insert_into(settings::table)
+                    diesel::replace_into(settings::table)
                         .values(&models::NewSetting {name, value: &user_id})
                         .execute(db)?;
 
@@ -325,7 +332,7 @@ mod tests {
         let (_database, connection) = db::new_temporary();
 
         let new_telemetry = || {
-            Telemetry::new(connection.clone(), &url, btreemap!{
+            Telemetry::new(connection.clone(), None, &url, btreemap!{
                 1 => Duration::from_millis(10),
             }, 5).unwrap()
         };

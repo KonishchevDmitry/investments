@@ -16,7 +16,7 @@ use log::error;
 use investments::analysis;
 use investments::cash_flow;
 use investments::config::Config;
-use investments::core::EmptyResult;
+use investments::core::{EmptyResult, GenericResult};
 use investments::db;
 use investments::deposits;
 use investments::metrics;
@@ -59,19 +59,18 @@ fn main_inner(global: GlobalOptions, parser: Parser) -> EmptyResult {
 }
 
 fn run(config: Config, command: &str, action: Action) -> EmptyResult {
-    let telemetry = if config.telemetry.disable {
-        None
-    } else {
+    let telemetry = (!config.telemetry.disable).then(|| -> GenericResult<Telemetry> {
         let connection = db::connect(&config.db_path)?;
-        Some(Telemetry::new(connection, "https://investments.konishchev.ru", btreemap! {
+        let user_id = config.telemetry.user_id.map(|user_id| user_id.to_string());
+        Telemetry::new(connection, user_id, "https://investments.konishchev.ru", btreemap! {
             // Dummy HTTPS request averages to Moscow:
             // * Paris    - 243 ms
             // * London   - 257 ms
             // * New York - 553 ms
              5 => Duration::from_millis(500),
             20 => Duration::from_millis(750),
-        }, 100)?)
-    };
+        }, 100)
+    }).transpose()?;
 
     let record: TelemetryRecordBuilder = match action {
         Action::Analyse {name, method, show_closed_positions} => {
