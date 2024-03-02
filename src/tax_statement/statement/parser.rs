@@ -352,7 +352,6 @@ mod tests {
         compare_to(&statement, &data);
     }
 
-    // FIXME(konishchev): Update
     #[test]
     fn parse_real() {
         test_parsing(&get_path("statement"));
