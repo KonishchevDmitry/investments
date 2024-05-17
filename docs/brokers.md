@@ -99,7 +99,6 @@ Please note that Russian brokers process stock splits in a way which resets FIFO
 * [Инвесторам в фонды (БПИФ и ETF) на Мосбирже. Сплит](https://smart-lab.ru/blog/730297.php)
 * [3 февраля 2022 года состоится сплит FXGD, FXTB и FXRU](https://smart-lab.ru/blog/756705.php)
 * [Крестовый поход против Открытия и Финекса](https://smart-lab.ru/blog/757057.php)
-* [Ответ БКС](https://www.banki.ru/forum/?PAGE_NAME=message&FID=21&TID=346272&MID=9017268#message9017268)
 
 Taking this into account, investments processes stock splits in a similar way for all Russian brokers, but you [can try to return the tax](https://journal.tinkoff.ru/broker-obnulil-lgotu/) and include the returned amount into the calclucations by adding it to `tax_deductions` configuration option.
 
