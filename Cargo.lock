@@ -2819,6 +2819,8 @@ dependencies = [
 [[package]]
 name = "static_table_derive"
 version = "0.1.66"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "414144230db57dc72aad0da5a4a2f70e860ccfa113ac60df6618c49f8a36fad4"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -3791,6 +3793,8 @@ dependencies = [
 [[package]]
 name = "xls_table_derive"
 version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b1a3268e6c55e4d4a6ad90e8bbc031e973d0db604504c929b64d19b3c394fa1"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -3851,3 +3855,11 @@ checksum = "73ab332fe2f6680068f3582b16a24f90ad7096d5d39b974d1c0aff0125116f02"
 dependencies = [
  "simd-adler32",
 ]
+
+[[patch.unused]]
+name = "static_table_derive"
+version = "0.1.67"
+
+[[patch.unused]]
+name = "xls_table_derive"
+version = "0.7.2"
