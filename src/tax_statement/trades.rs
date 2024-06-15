@@ -55,7 +55,7 @@ pub fn process_income(
 
     processor.process_trades(tax_calculator, tax_statement)?;
 
-    let totals = processor.process_totals()?;
+    let totals = processor.process_totals(tax_calculator)?;
     let has_income = processor.has_income;
     let has_income_to_declare = processor.has_income_to_declare;
 
@@ -191,7 +191,7 @@ impl<'a> TradesProcessor<'a> {
             }
 
             let instrument = self.broker_statement.instrument_info.get_or_empty(&trade.symbol);
-            let details = trade.calculate(self.country, &instrument, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
+            let details = trade.calculate(self.country, &instrument, &self.portfolio.tax_exemptions, self.converter)?;
             let dry_run_tax = details.tax_dry_run(tax_calculator, tax_year);
             self.process_trade(trade_id, trade, &details, &dry_run_tax)?;
             trade_id += 1;
@@ -428,7 +428,7 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_totals(&mut self) -> GenericResult<Totals> {
+    fn process_totals(&mut self, tax_calculator: &mut TaxCalculator) -> GenericResult<Totals> {
         let local_currency = self.country.currency;
         let tax_payment_day = self.portfolio.tax_payment_day();
 
@@ -469,12 +469,11 @@ impl<'a> TradesProcessor<'a> {
             total_local_profit += stat.local_profit;
             total_taxable_local_profit += stat.taxable_local_profit;
 
-            total_tax_without_deduction += self.country.tax_to_pay(
-                IncomeType::Trading, year, stat.local_profit, None);
+            let tax = tax_calculator.tax_deductible_income(
+                IncomeType::Trading, year, stat.local_profit, stat.taxable_local_profit);
 
-            let tax_to_pay = self.country.tax_to_pay(
-                IncomeType::Trading, year, stat.taxable_local_profit, None);
-            total_tax_to_pay += tax_to_pay;
+            total_tax_without_deduction += tax.expected;
+            total_tax_to_pay += tax.to_pay;
 
             if single_tax_year {
                 let tax_payment_date = tax_payment_day.get_for(year, true);
@@ -482,7 +481,7 @@ impl<'a> TradesProcessor<'a> {
                 let real_profit = trades::calculate_real_profit(
                     std::cmp::min(time::today(), tax_payment_date),
                     stat.purchase_cost.clone(), stat.purchase_local_cost,
-                    stat.profit.clone(), stat.local_profit, tax_to_pay, self.converter)?;
+                    stat.profit.clone(), stat.local_profit, tax.to_pay, self.converter)?;
 
                 assert!(real.replace(real_profit).is_none());
             }

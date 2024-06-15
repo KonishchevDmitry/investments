@@ -20,6 +20,6 @@ impl IdleCashInterest {
 
     pub fn tax(&self, country: &Country, converter: &CurrencyConverter, calculator: &mut TaxCalculator) -> GenericResult<Cash> {
         let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
-        Ok(calculator.add_income(IncomeType::Interest, self.date.year(), amount, None).expected)
+        Ok(calculator.tax_income(IncomeType::Interest, self.date.year(), amount, None).expected)
     }
 }

@@ -12,7 +12,7 @@ use crate::currency::converter::CurrencyConverterRc;
 use crate::instruments::Instrument;
 use crate::localities::Country;
 use crate::quotes::QuotesRc;
-use crate::taxes::{IncomeType, LtoDeductionCalculator};
+use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 
 use super::config::{AssetGroupConfig, PerformanceMergingConfig};
 use super::portfolio_performance::PortfolioPerformanceAnalyser;
@@ -110,25 +110,19 @@ impl<'a> PortfolioAnalyser<'a> {
             _ => unreachable!(),
         };
 
-        let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-        let details = trade.calculate(&self.country, instrument, tax_year, &portfolio.tax_exemptions, &self.converter)?;
+        let mut details = trade.calculate(&self.country, instrument, &portfolio.tax_exemptions, &self.converter)?;
 
-        let mut taxable_local_profit = details.taxable_local_profit;
-        for source in &details.fifo {
-            if let Some(deductible) = source.long_term_ownership_deductible {
+        for source in &mut details.fifo {
+            if let Some(deductible) = source.long_term_ownership_deductible.take() {
                 self.lto_calc.add(deductible.profit, deductible.years, false);
-                taxable_local_profit.amount -= deductible.profit;
+                details.taxable_local_profit.amount -= deductible.profit;
             }
         }
 
-        let tax_without_deduction = self.country.tax_to_pay(
-            IncomeType::Trading, tax_year, details.local_profit, None);
-
-        let tax_to_pay = self.country.tax_to_pay(
-            IncomeType::Trading, tax_year, taxable_local_profit, None);
-
-        let tax_deduction = tax_without_deduction - tax_to_pay;
-        assert!(!tax_deduction.is_negative());
+        // FIXME(konishchev): Do we need to share it between assets?
+        let tax_calculator = TaxCalculator::new(self.country.clone());
+        let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
+        let tax = details.tax_dry_run(&tax_calculator, tax_year);
 
         for (name, group) in self.asset_groups {
             if let Some(portfolios) = group.portfolios.as_ref() {
@@ -144,7 +138,7 @@ impl<'a> PortfolioAnalyser<'a> {
             for total in statistics.asset_groups.get_mut(name).unwrap().iter_mut() {
                 total.amount += self.converter.real_time_convert_to(volume, total.currency)?;
                 total.amount -= self.converter.real_time_convert_to(commission, total.currency)?;
-                total.amount -= self.converter.real_time_convert_to(tax_to_pay, total.currency)?;
+                total.amount -= self.converter.real_time_convert_to(tax.to_pay, total.currency)?;
             }
         }
 
@@ -154,8 +148,8 @@ impl<'a> PortfolioAnalyser<'a> {
             let volume = self.converter.real_time_convert_to(volume, currency)?;
             let commission = self.converter.real_time_convert_to(commission, currency)?;
 
-            let tax_to_pay = self.converter.real_time_convert_to(tax_to_pay, currency)?;
-            let tax_deduction = self.converter.real_time_convert_to(tax_deduction, currency)?;
+            let tax_to_pay = self.converter.real_time_convert_to(tax.to_pay, currency)?;
+            let tax_deduction = self.converter.real_time_convert_to(tax.deduction, currency)?;
 
             statistics.add_assets(portfolio.broker, &trade.symbol, volume, volume - commission - tax_to_pay);
             statistics.projected_commissions += commission;

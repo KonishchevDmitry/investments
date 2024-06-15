@@ -206,16 +206,16 @@ impl StockSell {
     }
 
     pub fn calculate(
-        &self, country: &Country, instrument: &Instrument, tax_year: i32, tax_exemptions: &[TaxExemption],
+        &self, country: &Country, instrument: &Instrument, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
-        Ok(self.calculate_impl(country, instrument, tax_year, tax_exemptions, converter).map_err(|e| format!(
+        Ok(self.calculate_impl(country, instrument, tax_exemptions, converter).map_err(|e| format!(
             "Failed to calculate results of {} selling order from {}: {}",
             self.original_symbol, formatting::format_date(self.conclusion_time), e))?)
     }
 
     fn calculate_impl(
-        &self, country: &Country, instrument: &Instrument, tax_year: i32, tax_exemptions: &[TaxExemption],
+        &self, country: &Country, instrument: &Instrument, tax_exemptions: &[TaxExemption],
         converter: &CurrencyConverter,
     ) -> GenericResult<SellDetails> {
         let (price, volume, commission) = match self.type_ {
@@ -362,10 +362,10 @@ pub struct SellDetails {
 impl SellDetails {
      // FIXME(konishchev): Different meaning with dividends
     pub fn tax_dry_run(&self, calculator: &TaxCalculator, tax_year: i32) -> Tax {
-        let tax_without_deduction = calculator.add_income_dry_run(
+        let tax_without_deduction = calculator.tax_income_dry_run(
             IncomeType::Trading, tax_year, self.local_profit, None).expected;
 
-        let tax_to_pay = calculator.add_income_dry_run(
+        let tax_to_pay = calculator.tax_income_dry_run(
             IncomeType::Trading, tax_year, self.taxable_local_profit, None).expected;
 
         let tax_deduction = tax_without_deduction - tax_to_pay;
@@ -373,7 +373,7 @@ impl SellDetails {
 
         Tax {
             expected: tax_without_deduction,
-            paid: Cash::zero(&calculator.country.currency),
+            paid: Cash::zero(calculator.country.currency),
             deduction: tax_deduction, // FIXME(konishchev): Different meaning with dividends
             to_pay: tax_to_pay,
         }

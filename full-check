@@ -6,8 +6,7 @@
 set -eu
 
 echo "Running clippy checks..."
-# XXX(konishchev): Enable
-# ./check
+./check
 
 echo -e "\nRunning tests..."
 cargo test

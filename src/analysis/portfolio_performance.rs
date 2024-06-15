@@ -311,7 +311,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     if let Some(taxes) = taxes.as_mut() {
                         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
                         let instrument = statement.instrument_info.get_or_empty(&trade.symbol);
-                        let details = trade.calculate(self.country, &instrument, tax_year, &portfolio.tax_exemptions, self.converter)?;
+                        let details = trade.calculate(self.country, &instrument, &portfolio.tax_exemptions, self.converter)?;
 
                         let mut lto_deductibles = Vec::new();
 
@@ -344,7 +344,9 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         if let Some(taxes) = taxes {
             for (symbol, symbol_taxes) in taxes.stocks.into_iter() {
-                for (_, NetTax{tax_payment_date, tax_to_pay, ..}) in symbol_taxes.calculate().into_iter() {
+                let mut tax_calculator = self.tax_calculator.clone(); // FIXME(konishchev): Think about it
+
+                for (_, NetTax{tax_payment_date, tax_to_pay, ..}) in symbol_taxes.calculate(&mut tax_calculator).into_iter() {
                     if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                         trace!("* {} selling {} tax: {}",
                             symbol, formatting::format_date(tax_payment_date), amount);
@@ -357,7 +359,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             for (tax_year, NetTax {
                 tax_payment_date, tax_to_pay, tax_deduction,
                 lto_deduction, lto_loss,
-            }) in taxes.portfolio.calculate().into_iter() {
+            }) in taxes.portfolio.calculate(&mut self.tax_calculator).into_iter() {
                 if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
                     trace!("* Stock selling {} tax: {}", formatting::format_date(tax_payment_date), amount);
                     self.transaction(tax_payment_date, amount);
