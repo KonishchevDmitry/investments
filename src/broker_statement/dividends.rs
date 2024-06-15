@@ -8,7 +8,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::instruments::{InstrumentId, IssuerTaxationType};
 use crate::localities::Country;
-use crate::taxes::IncomeType;
+use crate::taxes::{IncomeType, TaxCalculator, Tax};
 use crate::time::Date;
 
 use super::cash_flows::{CashFlow, CashFlowType};
@@ -27,23 +27,23 @@ pub struct Dividend {
 }
 
 impl Dividend {
-    pub fn tax(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
+    pub fn tax(&self, country: &Country, converter: &CurrencyConverter, calculator: &mut TaxCalculator) -> GenericResult<Tax> {
+        // FIXME(konishchev): Move it to calculator?
+        let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
+
         Ok(match self.taxation_type {
             IssuerTaxationType::Manual(_) => {
-                let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
-                country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, None)
+                let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
+                calculator.add_income(IncomeType::Dividends, self.date, amount, Some(paid_tax))
             },
             IssuerTaxationType::TaxAgent => {
-                if self.paid_tax.currency != country.currency {
-                    return Err!(
-                        "Got withheld tax for {} in an unexpected currency: {}",
-                        self.description(), self.paid_tax.currency)
-                }
-                self.paid_tax
+                calculator.add_tax_agent_income(IncomeType::Dividends, self.date, amount, self.paid_tax).map_err(|e| format!(
+                    "{}: {}", self.description(), e))?
             },
         })
     }
 
+    // XXX(konishchev): Deprecate
     pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
         Ok(match self.taxation_type {
             IssuerTaxationType::Manual(_) => {

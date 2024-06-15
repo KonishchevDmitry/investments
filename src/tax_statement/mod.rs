@@ -14,6 +14,7 @@ use crate::core::GenericResult;
 use crate::currency::converter::CurrencyConverter;
 use crate::db;
 use crate::localities::Jurisdiction;
+use crate::taxes::TaxCalculator;
 use crate::telemetry::TelemetryRecordBuilder;
 
 pub use self::statement::TaxStatement;
@@ -52,13 +53,14 @@ pub fn generate_tax_statement(
 
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, None, true);
+    let mut tax_calculator = TaxCalculator::new(country.clone());
 
     let (trades_tax, has_trading_income, has_trading_income_to_declare) = trades::process_income(
         &country, portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
 
     let (dividends_tax, has_dividend_income, has_dividend_income_to_declare) = dividends::process_income(
-        &country, &broker_statement, year, tax_statement.as_mut(), &converter,
+        &country, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
     let (interest_tax, has_interest_income) = interest::process_income(

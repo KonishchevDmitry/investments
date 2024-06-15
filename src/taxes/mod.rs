@@ -1,3 +1,4 @@
+mod calculator;
 pub mod long_term_ownership;
 mod net_calculator;
 mod payment_day;
@@ -10,6 +11,7 @@ use crate::brokers::Broker;
 use crate::core::EmptyResult;
 use crate::localities::Jurisdiction;
 
+pub use self::calculator::{TaxCalculator, Tax};
 pub use self::long_term_ownership::{
     LtoDeductibleProfit, LtoDeductionCalculator, LtoDeduction,
     NetLtoDeduction, NetLtoDeductionCalculator};

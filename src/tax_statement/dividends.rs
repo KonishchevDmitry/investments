@@ -14,16 +14,19 @@ use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::instruments::IssuerTaxationType;
 use crate::localities::{Country, Jurisdiction};
+use crate::taxes::TaxCalculator;
 use crate::types::{Date, Decimal};
 
 use super::statement::{TaxStatement, CountryCode};
 
 pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
-    tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
+    tax_calculator: &mut TaxCalculator, tax_statement: Option<&mut TaxStatement>,
+    converter: &CurrencyConverter,
 ) -> GenericResult<(Cash, bool, bool)> {
     let mut processor = Processor {
-        broker_statement, tax_statement, tax_year: year,
+        broker_statement, tax_calculator, tax_statement,
+        tax_year: year,
         country, converter,
 
         table: Table::new(),
@@ -90,6 +93,7 @@ struct Row {
 
 struct Processor<'a> {
     broker_statement: &'a BrokerStatement,
+    tax_calculator: &'a mut TaxCalculator,
     tax_statement: Option<&'a mut TaxStatement>,
     tax_year: Option<i32>,
 
@@ -153,32 +157,16 @@ impl<'a> Processor<'a> {
             dividend.date, foreign_amount, self.country.currency)?;
         self.total_amount += amount;
 
-        let tax = dividend.tax(self.country, self.converter)?;
-
         let foreign_paid_tax = dividend.paid_tax.round();
         self.total_foreign_paid_tax.deposit(foreign_paid_tax);
         self.same_currency &= foreign_paid_tax.currency == self.country.currency;
 
-        let paid_tax = self.converter.convert_to_cash_rounding(
-            dividend.date, foreign_paid_tax, self.country.currency)?;
-        self.total_paid_tax += paid_tax;
+        let tax = dividend.tax(self.country, self.converter, self.tax_calculator)?;
+        self.total_paid_tax += tax.paid;
+        self.total_tax_deduction += tax.deduction;
+        self.total_tax_to_pay += tax.to_pay;
 
-        let tax_to_pay = dividend.tax_to_pay(self.country, self.converter)?;
-        self.total_tax_to_pay += tax_to_pay;
-
-        let tax_deduction = self.country.round_tax(paid_tax);
-        if dividend.taxation_type == IssuerTaxationType::TaxAgent && tax_deduction != paid_tax {
-            return Err!(
-                "Got an unexpected withheld tax for {}: {} vs {}",
-                dividend.description(), paid_tax, tax_deduction);
-        }
-
-        if !tax_to_pay.is_zero() {
-            assert_eq!(tax_deduction, tax - tax_to_pay);
-        }
-        self.total_tax_deduction += tax_deduction;
-
-        let income = amount - paid_tax - tax_to_pay;
+        let income = amount - tax.paid - tax.to_pay;
         self.total_income += income;
 
         self.has_income = true;
@@ -195,7 +183,12 @@ impl<'a> Processor<'a> {
             },
             amount,
 
-            tax, foreign_paid_tax, paid_tax, tax_deduction, tax_to_pay, income,
+            tax: tax.expected,
+            foreign_paid_tax,
+            paid_tax: tax.paid,
+            tax_deduction: tax.deduction,
+            tax_to_pay: tax.to_pay,
+            income,
         });
 
         match dividend.taxation_type {
@@ -203,7 +196,7 @@ impl<'a> Processor<'a> {
                 self.add_income(
                     dividend, &issuer, income_country.as_deref(),
                     foreign_amount, precise_currency_rate, foreign_paid_tax,
-                    amount, paid_tax,
+                    amount, tax.paid,
                 )?;
             },
             IssuerTaxationType::TaxAgent => {
