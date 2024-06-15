@@ -88,8 +88,8 @@ impl StatementReader {
             if let Ok(isin) = parse_isin(&trade.symbol) {
                 let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
                     "Failed to remap {} trade from ISIN to stock symbol: {}", trade.symbol, e))?;
-                trade.original_symbol = instrument.symbol.clone();
-                trade.symbol = instrument.symbol.clone();
+                trade.original_symbol.clone_from(&instrument.symbol);
+                trade.symbol.clone_from(&instrument.symbol);
             }
         }
 
@@ -97,8 +97,8 @@ impl StatementReader {
             if let Ok(isin) = parse_isin(&trade.symbol) {
                 let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
                     "Failed to remap {} trade from ISIN to stock symbol: {}", trade.symbol, e))?;
-                trade.original_symbol = instrument.symbol.clone();
-                trade.symbol = instrument.symbol.clone();
+                trade.original_symbol.clone_from(&instrument.symbol);
+                trade.symbol.clone_from(&instrument.symbol);
             }
         }
 
@@ -108,7 +108,7 @@ impl StatementReader {
                     if let Ok(isin) = parse_isin(symbol) {
                         let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
                             "Failed to remap {} trade from ISIN to stock symbol: {}", symbol, e))?;
-                        *symbol = instrument.symbol.clone();
+                        symbol.clone_from(&instrument.symbol);
                     }
                 },
                 CashFlowType::Dividend {..} | CashFlowType::Tax {..} => {

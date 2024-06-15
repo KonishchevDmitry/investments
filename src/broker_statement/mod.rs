@@ -506,13 +506,13 @@ impl BrokerStatement {
             }
 
             if *operation_symbol == symbol {
-                *operation_symbol = new_symbol.to_owned();
+                new_symbol.clone_into(operation_symbol);
                 found = true;
             }
 
             if remapping {
                 if *operation_original_symbol == symbol {
-                    *operation_original_symbol = new_symbol.to_owned();
+                    new_symbol.clone_into(operation_original_symbol);
                     found = true;
                 }
             }
@@ -552,7 +552,7 @@ impl BrokerStatement {
             for cash_flow in &mut self.cash_flows {
                 if let Some(original_symbol) = cash_flow.mut_symbol() {
                     if *original_symbol == symbol {
-                        *original_symbol = new_symbol.to_owned();
+                        new_symbol.clone_into(original_symbol);
                     }
                 }
             }

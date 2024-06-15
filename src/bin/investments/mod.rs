@@ -52,7 +52,9 @@ fn main_inner(global: GlobalOptions, parser: Parser) -> EmptyResult {
 
     let mut config = Config::load(config_path.to_str().unwrap()).map_err(|e| format!(
         "Error while reading {:?} configuration file: {}", config_path, e))?;
-    config.db_path = config_dir_path.join("db.sqlite").to_str().unwrap().to_owned();
+
+    config_dir_path.join("db.sqlite").to_str().unwrap()
+        .clone_into(&mut config.db_path);
 
     let (command, action) = parser.parse(&mut config)?;
     run(config, &command, action)

@@ -225,7 +225,7 @@ impl Test {
     }
 
     fn config(&mut self, name: &str) -> &mut Test {
-        self.config = name.to_owned();
+        name.clone_into(&mut self.config);
         self
     }
 

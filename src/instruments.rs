@@ -244,7 +244,7 @@ impl InstrumentInfo {
                 }
             },
             Entry::Vacant(entry) => {
-                old_info.symbol = new_symbol.to_owned();
+                new_symbol.clone_into(&mut old_info.symbol);
                 entry.insert(old_info);
             },
         }
