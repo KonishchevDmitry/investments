@@ -325,7 +325,7 @@ impl PortfolioConfig {
         }
 
         for (symbol, mapping) in &self.symbol_remapping {
-            if self.symbol_remapping.get(mapping).is_some() {
+            if self.symbol_remapping.contains_key(mapping) {
                 return Err!("Invalid symbol remapping configuration: Recursive {} symbol", symbol);
             }
         }

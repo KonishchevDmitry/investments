@@ -123,7 +123,7 @@ impl CumulativeCommissionSpecBuilder {
     }
 
     fn tiers(mut self, _type: CumulativeTierType, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
-        if tiers.is_empty() || tiers.get(&0).is_none() {
+        if tiers.is_empty() || !tiers.contains_key(&0) {
             return Err!("Invalid tiered commission specification: There is no tier with zero value");
         } else if self.0.percent.is_some() {
             return Err!("An attempt to redefine commission tiers")
@@ -159,7 +159,7 @@ impl CumulativeCommissionSpecBuilder {
     }
 
     pub fn monthly_depositary_tiered(mut self, tiers: BTreeMap<u64, Decimal>) -> GenericResult<CumulativeCommissionSpecBuilder> {
-        if tiers.is_empty() || tiers.get(&0).is_none() {
+        if tiers.is_empty() || !tiers.contains_key(&0) {
             return Err!(concat!(
                 "Invalid tiered depositary commission specification: ",
                 "There is no tier for zero portfolio net value",

@@ -45,7 +45,7 @@ pub fn buy(
         let asset_allocation_symbols = portfolio.get_stock_symbols();
 
         for (symbol, quantity) in positions {
-            if asset_allocation_symbols.get(symbol).is_none() {
+            if !asset_allocation_symbols.contains(symbol) {
                 return Err!(
                     "Unable to buy {}: it's not specified in asset allocation configuration",
                     symbol);

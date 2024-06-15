@@ -54,7 +54,7 @@ impl PerformanceMergingConfig {
 
         for (master_symbol, slave_symbols) in &mapping {
             for slave_symbol in slave_symbols {
-                if mapping.get(slave_symbol).is_some() {
+                if mapping.contains_key(slave_symbol) {
                     return Err!("Cycle mapping on {:?} symbol", slave_symbol);
                 }
                 if reverse.insert(slave_symbol.clone(), master_symbol.clone()).is_some() {

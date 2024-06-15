@@ -122,7 +122,7 @@ impl<'a> Calculator<'a> {
         if self.starting_assets.is_none() && self.starting_assets_date < date {
             self.starting_assets.replace(self.assets.clone());
 
-            if self.statement.historical_assets.get(&self.starting_assets_date).is_none() {
+            if !self.statement.historical_assets.contains_key(&self.starting_assets_date) {
                 if self.statement.period.first_date() <= self.starting_assets_date {
                     warn!(
                         "There is no information about starting cash assets for {} in the broker statement.",
@@ -135,7 +135,7 @@ impl<'a> Calculator<'a> {
         if self.ending_assets.is_none() && self.ending_assets_date < date {
             self.ending_assets.replace(self.assets.clone());
 
-            if self.statement.historical_assets.get(&self.ending_assets_date).is_none() {
+            if !self.statement.historical_assets.contains_key(&self.ending_assets_date) {
                 warn!(
                     "There is no information about ending cash assets for {} in the broker statement.",
                     format_date(self.ending_assets_date)

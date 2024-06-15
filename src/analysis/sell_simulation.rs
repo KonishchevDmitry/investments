@@ -42,7 +42,7 @@ pub fn simulate_sell(
 
     for (symbol, _quantity) in &positions {
         if !all_positions {
-            if statement.open_positions.get(symbol).is_none() {
+            if !statement.open_positions.contains_key(symbol) {
                 return Err!("The portfolio has no open {:?} positions", symbol);
             }
         }

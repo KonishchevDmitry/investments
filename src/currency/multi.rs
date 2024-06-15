@@ -21,7 +21,7 @@ impl MultiCurrencyCashAccount {
     }
 
     pub fn has_assets(&self, currency: &str) -> bool {
-        self.assets.get(currency).is_some()
+        self.assets.contains_key(currency)
     }
 
     pub fn get(&self, currency: &str) -> Option<Cash> {
