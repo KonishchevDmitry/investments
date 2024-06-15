@@ -13,7 +13,7 @@ pub struct Country {
     pub currency: &'static str,
     default_tax_rate: Decimal,
     tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>,
-    tax_precision: u32,
+    tax_precision: u32, // FIXME(konishchev): Deprecate it?
 }
 
 impl Country {
@@ -36,6 +36,7 @@ impl Country {
         Cash::new(self.currency, amount)
     }
 
+    // FIXME(konishchev): Deprecated
     pub fn round_tax(&self, tax: Cash) -> Cash {
         assert_eq!(tax.currency, self.currency);
         tax.round().round_to(self.tax_precision)
@@ -104,21 +105,15 @@ impl Jurisdiction {
             Jurisdiction::Usa    => "US",
         }
     }
+
+    pub fn tax_precision(self) -> u32 {
+        match self {
+            Jurisdiction::Russia => 0,
+            Jurisdiction::Usa    => 2,
+        }
+    }
 }
 
-// When we work with taxes in Russia, the following rounding rules are applied:
-// 1. Result of all calculations must be with kopecks precision
-// 2. If we have income in foreign currency then:
-//    2.1. Round it to cents
-//    2.2. Convert to rubles using precise currency rate (65.4244 for example)
-//    2.3. Round to kopecks
-// 3. Taxes are calculated with rouble precision. But we should use double rounding here:
-//    calculate them with kopecks precision first and then round to roubles.
-//
-// Декларация program allows to enter income only with kopecks precision - not bigger.
-// It calculates tax for $10.64 income with 65.4244 currency rate as following:
-// 1. income = round(10.64 * 65.4244, 2) = 696.12 (696.115616 without rounding)
-// 2. tax = round(round(696.12 * 0.13, 2), 0) = 91 (90.4956 without rounding)
 pub fn russia(
     trading_tax_rates: &BTreeMap<i32, Decimal>, dividends_tax_rates: &BTreeMap<i32, Decimal>,
     interest_tax_rates: &BTreeMap<i32, Decimal>,
@@ -127,13 +122,13 @@ pub fn russia(
         IncomeType::Trading => trading_tax_rates.clone(),
         IncomeType::Dividends => dividends_tax_rates.clone(),
         IncomeType::Interest => interest_tax_rates.clone(),
-    }, 0)
+    }, Jurisdiction::Russia.tax_precision())
 }
 
 pub fn us() -> Country {
     Country::new("USD", dec!(0), hashmap!{
         IncomeType::Dividends => btreemap!{0 => dec!(10)},
-    }, 2)
+    }, Jurisdiction::Usa.tax_precision())
 }
 
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {

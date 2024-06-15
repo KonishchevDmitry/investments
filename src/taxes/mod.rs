@@ -2,6 +2,7 @@ mod calculator;
 pub mod long_term_ownership;
 mod net_calculator;
 mod payment_day;
+mod rates;
 mod remapping;
 
 use serde::Deserialize;
