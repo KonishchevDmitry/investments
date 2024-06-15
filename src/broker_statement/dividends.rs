@@ -34,25 +34,11 @@ impl Dividend {
         Ok(match self.taxation_type {
             IssuerTaxationType::Manual(_) => {
                 let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
-                calculator.add_income(IncomeType::Dividends, self.date, amount, Some(paid_tax))
+                calculator.add_income(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax))
             },
             IssuerTaxationType::TaxAgent => {
-                calculator.add_tax_agent_income(IncomeType::Dividends, self.date, amount, self.paid_tax).map_err(|e| format!(
+                calculator.add_tax_agent_income(IncomeType::Dividends, self.date.year(), amount, self.paid_tax).map_err(|e| format!(
                     "{}: {}", self.description(), e))?
-            },
-        })
-    }
-
-    // XXX(konishchev): Deprecate
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
-        Ok(match self.taxation_type {
-            IssuerTaxationType::Manual(_) => {
-                let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
-                let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
-                country.tax_to_pay(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax))
-            },
-            IssuerTaxationType::TaxAgent => {
-                Cash::zero(country.currency)
             },
         })
     }

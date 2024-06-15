@@ -1,10 +1,7 @@
-use chrono::Datelike;
-
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::localities::Country;
 use crate::taxes::IncomeType;
-use crate::time::Date;
 
 pub struct Tax {
     pub expected: Cash,
@@ -25,10 +22,10 @@ impl TaxCalculator {
         }
     }
 
-    pub fn add_income(&mut self, income_type: IncomeType, date: Date, income: Cash, paid_tax: Option<Cash>) -> Tax {
-        let expected = self.country.tax_to_pay(income_type, date.year(), income, None);
+    pub fn add_income(&mut self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>) -> Tax {
+        let expected = self.country.tax_to_pay(income_type, year, income, None);
         let paid = paid_tax.unwrap_or_else(|| Cash::zero(&self.country.currency));
-        let to_pay = self.country.tax_to_pay(income_type, date.year(), income, paid_tax);
+        let to_pay = self.country.tax_to_pay(income_type, year, income, paid_tax);
 
         Tax {
             expected: expected,
@@ -38,7 +35,7 @@ impl TaxCalculator {
         }
     }
 
-    pub fn add_tax_agent_income(&mut self, _income_type: IncomeType, _date: Date, _income: Cash, paid_tax: Cash) -> GenericResult<Tax> {
+    pub fn add_tax_agent_income(&mut self, _income_type: IncomeType, _year: i32, _income: Cash, paid_tax: Cash) -> GenericResult<Tax> {
         if paid_tax.currency != self.country.currency {
             return Err!("Got withheld tax in an unexpected currency: {}", paid_tax.currency)
         }

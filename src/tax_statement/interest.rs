@@ -9,6 +9,7 @@ use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::{Country, Jurisdiction};
+use crate::taxes::TaxCalculator;
 use crate::tax_statement::statement::CountryCode;
 use crate::types::{Date, Decimal};
 
@@ -34,7 +35,7 @@ struct Row {
 
 pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
-    mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
+    tax_calculator: &mut TaxCalculator, mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> GenericResult<(Cash, bool)> {
     let broker_jurisdiction = broker_statement.broker.type_.jurisdiction();
 
@@ -68,7 +69,7 @@ pub fn process_income(
         let amount = converter.convert_to_cash_rounding(interest.date, foreign_amount, country.currency)?;
         total_amount += amount;
 
-        let tax_to_pay = interest.tax_to_pay(country, converter)?;
+        let tax_to_pay = interest.tax(country, converter, tax_calculator)?;
         total_tax_to_pay += tax_to_pay;
 
         let income = amount - tax_to_pay;

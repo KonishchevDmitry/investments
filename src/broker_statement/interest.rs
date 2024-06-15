@@ -2,7 +2,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::localities::Country;
-use crate::taxes::IncomeType;
+use crate::taxes::{IncomeType, TaxCalculator};
 use crate::time::Date;
 use chrono::Datelike;
 
@@ -18,8 +18,8 @@ impl IdleCashInterest {
         }
     }
 
-    pub fn tax_to_pay(&self, country: &Country, converter: &CurrencyConverter) -> GenericResult<Cash> {
+    pub fn tax(&self, country: &Country, converter: &CurrencyConverter, calculator: &mut TaxCalculator) -> GenericResult<Cash> {
         let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
-        Ok(country.tax_to_pay(IncomeType::Interest, self.date.year(), amount, None))
+        Ok(calculator.add_income(IncomeType::Interest, self.date.year(), amount, None).expected)
     }
 }

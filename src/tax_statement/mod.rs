@@ -53,7 +53,7 @@ pub fn generate_tax_statement(
 
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, None, true);
-    let mut tax_calculator = TaxCalculator::new(country.clone());
+    let mut tax_calculator = TaxCalculator::new(country.clone()); // FIXME(konishchev): Check its usage
 
     let (trades_tax, has_trading_income, has_trading_income_to_declare) = trades::process_income(
         &country, portfolio, &broker_statement, year, tax_statement.as_mut(), &converter,
@@ -64,7 +64,7 @@ pub fn generate_tax_statement(
     ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
     let (interest_tax, has_interest_income) = interest::process_income(
-        &country, &broker_statement, year, tax_statement.as_mut(), &converter,
+        &country, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
     let has_income = has_trading_income | has_dividend_income | has_interest_income;

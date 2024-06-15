@@ -10,7 +10,7 @@ use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::localities::Country;
-use crate::taxes::{NetTax, NetTaxCalculator, NetLtoDeduction, NetLtoDeductionCalculator};
+use crate::taxes::{NetTax, NetTaxCalculator, NetLtoDeduction, NetLtoDeductionCalculator, TaxCalculator};
 use crate::time::{self, Date, DateOptTime};
 use crate::types::Decimal;
 
@@ -36,6 +36,7 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     transactions: Vec<Transaction>,
     income_structure: IncomeStructure,
     instruments: Option<BTreeMap<String, InstrumentDepositView>>,
+    tax_calculator: TaxCalculator,
     net_lto_calc: NetLtoDeductionCalculator,
     current_assets: Decimal,
 }
@@ -57,6 +58,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             transactions: Vec::new(),
             income_structure: Default::default(),
             instruments: Some(BTreeMap::new()),
+            tax_calculator: TaxCalculator::new(country.clone()),
             net_lto_calc: NetLtoDeductionCalculator::new(),
             current_assets: dec!(0),
         }
@@ -390,10 +392,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             }
 
             if tax_aware {
-                let tax_to_pay = dividend.tax_to_pay(self.country, self.converter)?;
+                let tax = dividend.tax(self.country, self.converter, &mut self.tax_calculator)?;
                 let (_, tax_payment_date) = portfolio.tax_payment_day().get(dividend.date, false);
 
-                if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {
+                if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax.to_pay)? {
                     trace!("* {} {} dividend {} tax: {}",
                         dividend.original_issuer, formatting::format_date(dividend.date),
                         formatting::format_date(tax_payment_date), amount);
@@ -414,7 +416,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                 interest.date, interest.amount, self.currency)?;
 
             if self.method.tax_aware() {
-                let tax_to_pay = interest.tax_to_pay(self.country, self.converter)?;
+                let tax_to_pay = interest.tax(self.country, self.converter, &mut self.tax_calculator)?;
                 let (_, tax_payment_date) = portfolio.tax_payment_day().get(interest.date, false);
 
                 if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {

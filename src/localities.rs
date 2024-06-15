@@ -41,6 +41,7 @@ impl Country {
         tax.round().round_to(self.tax_precision)
     }
 
+    // XXX(konishchev): Deprecate it
     pub fn tax_to_pay(
         &self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>,
     ) -> Cash {

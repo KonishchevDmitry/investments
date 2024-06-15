@@ -13,7 +13,7 @@ use crate::formatting::table::Cell;
 use crate::instruments::InstrumentInfo;
 use crate::localities::Country;
 use crate::quotes::Quotes;
-use crate::taxes::{IncomeType, LtoDeduction, long_term_ownership::LtoDeductionCalculator};
+use crate::taxes::{IncomeType, LtoDeduction, long_term_ownership::LtoDeductionCalculator, TaxCalculator};
 use crate::trades;
 use crate::types::{Date, Decimal};
 use crate::util;
@@ -225,6 +225,8 @@ fn print_results(
     let mut total_tax_to_pay = Cash::zero(country.currency);
     let mut total_tax_deduction = Cash::zero(country.currency);
 
+    // FIXME(konishchev): Recheck its usage
+    let mut tax_calculator = TaxCalculator::new(country.clone());
     let mut lto_deductions: BTreeMap<i32, LtoDeduction> = BTreeMap::new();
 
     for (tax_year, mut totals) in tax_year_totals {
@@ -234,11 +236,11 @@ fn print_results(
             lto_deductions.insert(tax_year, lto);
         }
 
-        let tax_without_deduction = country.tax_to_pay(
-            IncomeType::Trading, tax_year, totals.local_profit, None);
+        let tax_without_deduction = tax_calculator.add_income(
+            IncomeType::Trading, tax_year, totals.local_profit, None).expected;
 
-        let tax_to_pay = country.tax_to_pay(
-            IncomeType::Trading, tax_year, totals.taxable_local_profit, None);
+        let tax_to_pay = tax_calculator.add_income(
+            IncomeType::Trading, tax_year, totals.taxable_local_profit, None).expected;
 
         let tax_deduction = tax_without_deduction - tax_to_pay;
         assert!(!tax_deduction.is_negative());
