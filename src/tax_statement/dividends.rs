@@ -166,7 +166,7 @@ impl<'a> Processor<'a> {
         let tax_to_pay = dividend.tax_to_pay(self.country, self.converter)?;
         self.total_tax_to_pay += tax_to_pay;
 
-        let tax_deduction = self.country.round_tax(paid_tax);
+        let tax_deduction = std::cmp::min(self.country.round_tax(paid_tax), tax);
         if dividend.taxation_type == IssuerTaxationType::TaxAgent && tax_deduction != paid_tax {
             return Err!(
                 "Got an unexpected withheld tax for {}: {} vs {}",
