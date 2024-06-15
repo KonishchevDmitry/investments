@@ -20,6 +20,9 @@ license = "GPL-3.0-or-later"
 [badges]
 maintenance = { status = "passively-maintained" }
 
+[lints.rust]
+dead-code = "allow"
+
 [dependencies]
 approx = "^0.5"
 chrono = "^0.4"
