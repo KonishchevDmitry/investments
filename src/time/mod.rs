@@ -26,6 +26,10 @@ pub fn utc_now() -> DateTime {
     tz_now().naive_utc()
 }
 
+pub fn timestamp() -> i64 {
+    utc_now().and_utc().timestamp()
+}
+
 fn tz_now() -> TzDateTime<Local> {
     #[cfg(debug_assertions)]
     {
@@ -68,6 +72,6 @@ impl FakeTime {
 
 impl TimeProvider for FakeTime {
     fn now(&self) -> TzDateTime<Local> {
-        Local.from_utc_datetime(&chrono::NaiveDateTime::from_timestamp_opt(self.0, 0).unwrap())
+        Local.from_utc_datetime(&chrono::DateTime::from_timestamp(self.0, 0).unwrap().naive_utc())
     }
 }

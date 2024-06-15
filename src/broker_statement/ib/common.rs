@@ -26,7 +26,10 @@ pub const OLD_SYMBOL_SUFFIX: &str = ".OLD";
 pub enum SecurityID {
     Isin(ISIN),
     Cusip(CUSIP),
-    Conid(u32),
+    Conid(
+        #[allow(dead_code)]
+        u32
+    ),
 }
 
 impl SecurityID {

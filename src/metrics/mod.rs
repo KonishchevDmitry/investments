@@ -77,7 +77,7 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         config, None, false, &config.metrics.asset_groups,
         Some(&config.metrics.merge_performance), false)?;
 
-    UPDATE_TIME.set(cast::f64(time::utc_now().timestamp()));
+    UPDATE_TIME.set(cast::f64(time::timestamp()));
 
     for statistics in &statistics.currencies {
         collect_portfolio_metrics(statistics);

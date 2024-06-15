@@ -42,13 +42,13 @@ pub fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>, now_provider: &dyn
 }
 
 pub fn is_outdated_unix_time(time: i64, test_outdated_time: i64) -> GenericResult<Option<DateTime<Local>>> {
-    let test_outdated_time = NaiveDateTime::from_timestamp_opt(test_outdated_time, 0).ok_or_else(|| format!(
+    let test_outdated_time = DateTime::from_timestamp(test_outdated_time, 0).ok_or_else(|| format!(
         "Got an invalid UNIX time: {}", test_outdated_time))?;
 
-    let naive_date_time = NaiveDateTime::from_timestamp_opt(time, 0).ok_or_else(|| format!(
+    let date_time = DateTime::from_timestamp(time, 0).ok_or_else(|| format!(
         "Got an invalid UNIX time: {}", time))?;
 
-    Ok(is_outdated_time::<Utc>(Utc.from_utc_datetime(&naive_date_time), test_outdated_time))
+    Ok(is_outdated_time::<Utc>(date_time, test_outdated_time.naive_utc()))
 }
 
 pub fn is_outdated_time<T: TimeZone>(date_time: DateTime<T>, test_outdated_time: NaiveDateTime) -> Option<DateTime<Local>> {
