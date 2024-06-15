@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 use std::str::FromStr;
@@ -159,6 +160,19 @@ impl<T> Div<T> for Cash where T: Into<Decimal> {
     fn div(mut self, rhs: T) -> Cash {
         self.amount /= rhs.into();
         self
+    }
+}
+
+impl PartialOrd for Cash {
+    fn partial_cmp(&self, other: &Cash) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Cash {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.ensure_same_currency(*other).unwrap();
+        self.amount.cmp(&other.amount)
     }
 }
 
