@@ -12,7 +12,8 @@ pub struct Tax {
 
 // FIXME(konishchev): A prototype/stub of progressive tax calculator
 pub struct TaxCalculator {
-    country: Country,
+    // FIXME(konishchev): Remove pub here
+    pub country: Country,
 }
 
 impl TaxCalculator {
@@ -23,6 +24,10 @@ impl TaxCalculator {
     }
 
     pub fn add_income(&mut self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>) -> Tax {
+        self.add_income_dry_run(income_type, year, income, paid_tax)
+    }
+
+    pub fn add_income_dry_run(&self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>) -> Tax {
         let expected = self.country.tax_to_pay(income_type, year, income, None);
         let paid = paid_tax.unwrap_or_else(|| Cash::zero(&self.country.currency));
         let to_pay = self.country.tax_to_pay(income_type, year, income, paid_tax);

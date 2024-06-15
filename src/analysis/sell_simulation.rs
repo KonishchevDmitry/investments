@@ -107,6 +107,9 @@ fn print_results(
     let mut trades_table = TradesTable::new();
     let mut fifo_table = FifoTable::new();
 
+    // FIXME(konishchev): Recheck its usage
+    let mut tax_calculator = TaxCalculator::new(country.clone());
+
     let mut total_purchase_cost = MultiCurrencyCashAccount::new();
     let mut total_purchase_local_cost = Cash::zero(country.currency);
 
@@ -146,7 +149,8 @@ fn print_results(
 
         let instrument = instrument_info.get_or_empty(&trade.symbol);
         let details = trade.calculate(country, &instrument, tax_year, &portfolio.tax_exemptions, converter)?;
-        let real = details.real_profit(converter)?;
+        let tax = details.tax_dry_run(&tax_calculator, tax_year);
+        let real = details.real_profit(converter, &tax)?;
         tax_exemptions |= details.tax_exemption_applied();
 
         total_purchase_cost.deposit(details.purchase_cost);
@@ -199,8 +203,8 @@ fn print_results(
             local_profit: details.local_profit,
             taxable_local_profit: details.taxable_local_profit,
 
-            tax_to_pay: details.tax_to_pay,
-            tax_deduction: details.tax_deduction,
+            tax_to_pay: tax.to_pay,
+            tax_deduction: tax.deduction,
 
             real_profit: real.profit_ratio.map(Cell::new_ratio),
             real_tax: real.tax_ratio.map(Cell::new_ratio),
@@ -225,8 +229,6 @@ fn print_results(
     let mut total_tax_to_pay = Cash::zero(country.currency);
     let mut total_tax_deduction = Cash::zero(country.currency);
 
-    // FIXME(konishchev): Recheck its usage
-    let mut tax_calculator = TaxCalculator::new(country.clone());
     let mut lto_deductions: BTreeMap<i32, LtoDeduction> = BTreeMap::new();
 
     for (tax_year, mut totals) in tax_year_totals {

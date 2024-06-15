@@ -4,7 +4,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::instruments::Instrument;
 use crate::localities::Country;
-use crate::taxes::{self, IncomeType, LtoDeductibleProfit, TaxExemption};
+use crate::taxes::{self, IncomeType, LtoDeductibleProfit, Tax, TaxCalculator, TaxExemption};
 use crate::time::DateOptTime;
 use crate::trades::{self, RealProfit};
 use crate::types::{Date, Decimal};
@@ -305,13 +305,6 @@ impl StockSell {
         let local_profit = local_revenue - total_local_cost;
         let taxable_local_profit = taxable_local_revenue - deductible_total_local_cost;
 
-        let tax_without_deduction = country.tax_to_pay(
-            IncomeType::Trading, tax_year, local_profit, None);
-        let tax_to_pay = country.tax_to_pay(
-            IncomeType::Trading, tax_year, taxable_local_profit, None);
-        let tax_deduction = tax_without_deduction - tax_to_pay;
-        assert!(!tax_deduction.is_negative());
-
         Ok(SellDetails {
             execution_date: self.execution_date,
 
@@ -326,9 +319,6 @@ impl StockSell {
             profit,
             local_profit,
             taxable_local_profit,
-
-            tax_to_pay,
-            tax_deduction,
 
             fifo,
         })
@@ -366,27 +356,42 @@ pub struct SellDetails {
     pub local_profit: Cash,
     pub taxable_local_profit: Cash,
 
-    pub tax_to_pay: Cash,
-    pub tax_deduction: Cash,
-
     pub fifo: Vec<FifoDetails>,
 }
 
 impl SellDetails {
+     // FIXME(konishchev): Different meaning with dividends
+    pub fn tax_dry_run(&self, calculator: &TaxCalculator, tax_year: i32) -> Tax {
+        let tax_without_deduction = calculator.add_income_dry_run(
+            IncomeType::Trading, tax_year, self.local_profit, None).expected;
+
+        let tax_to_pay = calculator.add_income_dry_run(
+            IncomeType::Trading, tax_year, self.taxable_local_profit, None).expected;
+
+        let tax_deduction = tax_without_deduction - tax_to_pay;
+        assert!(!tax_deduction.is_negative());
+
+        Tax {
+            expected: tax_without_deduction,
+            paid: Cash::zero(&calculator.country.currency),
+            deduction: tax_deduction, // FIXME(konishchev): Different meaning with dividends
+            to_pay: tax_to_pay,
+        }
+    }
+
     pub fn tax_exemption_applied(&self) -> bool {
         if self.fifo.iter().any(|trade| trade.tax_exemption_applied) {
             return true;
         }
 
         assert_eq!(self.taxable_local_profit, self.local_profit);
-        assert!(self.tax_deduction.is_zero());
         false
     }
 
-    pub fn real_profit(&self, converter: &CurrencyConverter) -> GenericResult<RealProfit> {
+    pub fn real_profit(&self, converter: &CurrencyConverter, tax: &Tax) -> GenericResult<RealProfit> {
         trades::calculate_real_profit(
             self.execution_date, self.purchase_cost, self.purchase_local_cost,
-            self.profit, self.local_profit, self.tax_to_pay, converter)
+            self.profit, self.local_profit, tax.to_pay, converter)
     }
 }
 

@@ -16,7 +16,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting::{self, table::Cell};
 use crate::localities::{Country, Jurisdiction};
 use crate::tax_statement::statement::CountryCode;
-use crate::taxes::{IncomeType, TaxPaymentDaySpec};
+use crate::taxes::{IncomeType, Tax, TaxCalculator, TaxPaymentDaySpec};
 use crate::taxes::long_term_ownership::LtoDeductionCalculator;
 use crate::time::{self, Date};
 use crate::trades::{self, RealProfit};
@@ -25,8 +25,8 @@ use crate::types::Decimal;
 use super::statement::TaxStatement;
 
 pub fn process_income(
-    country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement,
-    year: Option<i32>, tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
+    country: &Country, portfolio: &PortfolioConfig, broker_statement: &BrokerStatement, year: Option<i32>,
+    tax_calculator: &mut TaxCalculator, tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
 ) -> GenericResult<(Cash, bool, bool)> {
     let mut processor = TradesProcessor {
         portfolio,
@@ -53,7 +53,7 @@ pub fn process_income(
         tax_year_stat: BTreeMap::new(),
     };
 
-    processor.process_trades(tax_statement)?;
+    processor.process_trades(tax_calculator, tax_statement)?;
 
     let totals = processor.process_totals()?;
     let has_income = processor.has_income;
@@ -166,7 +166,7 @@ impl<'a> TradesProcessor<'a> {
         row.set_taxable_local_profit(-fee.local_amount);
     }
 
-    fn process_trades(&mut self, mut tax_statement: Option<&'a mut TaxStatement>) -> EmptyResult {
+    fn process_trades(&mut self, tax_calculator: &TaxCalculator, mut tax_statement: Option<&'a mut TaxStatement>) -> EmptyResult {
         let mut fees = self.pre_process_fees()?;
         let broker_jurisdiction = self.broker_statement.broker.type_.jurisdiction();
 
@@ -192,7 +192,8 @@ impl<'a> TradesProcessor<'a> {
 
             let instrument = self.broker_statement.instrument_info.get_or_empty(&trade.symbol);
             let details = trade.calculate(self.country, &instrument, tax_year, &self.portfolio.tax_exemptions, self.converter)?;
-            self.process_trade(trade_id, trade, &details)?;
+            let dry_run_tax = details.tax_dry_run(tax_calculator, tax_year);
+            self.process_trade(trade_id, trade, &details, &dry_run_tax)?;
             trade_id += 1;
 
             match broker_jurisdiction {
@@ -225,7 +226,7 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails) -> EmptyResult {
+    fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails, dry_run_tax: &Tax) -> EmptyResult {
         let security = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         let (price, commission) = match trade.type_ {
             StockSellType::Trade {price, commission, ..} => (price, commission),
@@ -251,7 +252,7 @@ impl<'a> TradesProcessor<'a> {
             None
         };
 
-        let real = details.real_profit(self.converter)?;
+        let real = details.real_profit(self.converter, dry_run_tax)?;
 
         {
             let tax_year = self.tax_year_stat(trade.execution_date);
@@ -288,8 +289,8 @@ impl<'a> TradesProcessor<'a> {
             local_profit: details.local_profit,
             taxable_local_profit: details.taxable_local_profit,
 
-            tax_to_pay: details.tax_to_pay,
-            tax_deduction: details.tax_deduction,
+            tax_to_pay: dry_run_tax.to_pay,
+            tax_deduction: dry_run_tax.deduction,
             real_tax: real.tax_ratio.map(Cell::new_ratio),
 
             real_profit_ratio: real.profit_ratio.map(Cell::new_ratio),
