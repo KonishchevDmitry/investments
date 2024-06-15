@@ -63,7 +63,7 @@ impl QuoteQuery {
 pub struct QuotesConfig {
     pub fcsapi: Option<FcsApiConfig>,
     pub finnhub: Option<FinnhubConfig>,
-    #[validate]
+    #[validate(nested)]
     custom_provider: Option<CustomProviderConfig>,
     #[serde(rename="static")]
     static_provider: Option<StaticProviderConfig>,

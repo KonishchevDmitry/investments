@@ -60,7 +60,7 @@ impl QuotesProvider for CustomProvider {
 fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
     #[derive(Deserialize, Validate)]
     struct Response {
-        #[validate]
+        #[validate(nested)]
         quotes: Vec<Quote>,
     }
 

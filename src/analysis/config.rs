@@ -13,7 +13,7 @@ pub struct AssetGroupConfig {
     pub instruments: HashSet<String>,
 
     #[validate(length(min = 1))]
-    #[validate(custom = "crate::currency::validate_currency_list")]
+    #[validate(custom(function = "crate::currency::validate_currency_list"))]
     pub currencies: BTreeSet<String>,
 
     #[serde(default)]

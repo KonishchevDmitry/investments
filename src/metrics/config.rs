@@ -10,10 +10,10 @@ use crate::core::EmptyResult;
 #[serde(deny_unknown_fields)]
 pub struct MetricsConfig {
     #[serde(default)]
-    #[validate(custom = "crate::forex::validate_currency_pair_list")]
+    #[validate(custom(function = "crate::forex::validate_currency_pair_list"))]
     pub currency_rates: BTreeSet<String>,
 
-    #[validate]
+    #[validate(nested)]
     #[serde(default)]
     pub asset_groups: HashMap<String, AssetGroupConfig>,
 

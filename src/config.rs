@@ -46,10 +46,10 @@ pub struct Config {
     #[serde(default)]
     pub tax_rates: TaxRates,
 
-    #[validate]
+    #[validate(nested)]
     #[serde(default)]
     pub quotes: QuotesConfig,
-    #[validate]
+    #[validate(nested)]
     #[serde(default)]
     pub metrics: MetricsConfig,
     #[serde(default)]
