@@ -410,7 +410,7 @@ impl<'a> TradesProcessor<'a> {
 
         let name = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         let description = format!("{}: Продажа {}", self.broker_statement.broker.name, name);
-        let country_code = CountryCode::new(self.broker_statement.broker.type_.jurisdiction().code())?;
+        let country_code = CountryCode::new(self.broker_statement.broker.type_.jurisdiction().traits().code)?;
 
         let cost = details.total_local_cost.amount + additional_fees;
         let precise_currency_rate = self.converter.precise_currency_rate(

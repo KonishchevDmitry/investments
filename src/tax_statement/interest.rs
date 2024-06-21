@@ -90,7 +90,7 @@ pub fn process_income(
         if let Some(ref mut statement) = tax_statement {
             match broker_jurisdiction {
                 Jurisdiction::Usa => {
-                    let country_code = CountryCode::new(broker_jurisdiction.code())?;
+                    let country_code = CountryCode::new(broker_jurisdiction.traits().code)?;
                     let description = format!(
                         "{}: Проценты на остаток по брокерскому счету",
                         broker_statement.broker.name);

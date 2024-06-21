@@ -242,7 +242,7 @@ impl<'a> Processor<'a> {
                         "Unable to determine {} jurisdiction: there is no ISIN information for it in the broker statement",
                         dividend.original_issuer);
                 },
-            }.code()
+            }.traits().code
         };
 
         if foreign_paid_tax.currency != foreign_amount.currency {
@@ -255,7 +255,7 @@ impl<'a> Processor<'a> {
 
         if let Some(ref mut tax_statement) = self.tax_statement {
             let source_from = CountryCode::new(income_country)?;
-            let received_in = CountryCode::new(broker.type_.jurisdiction().code())?;
+            let received_in = CountryCode::new(broker.type_.jurisdiction().traits().code)?;
             let description = format!("{}: Дивиденд от {}", broker.name, issuer);
 
             tax_statement.add_dividend_income(

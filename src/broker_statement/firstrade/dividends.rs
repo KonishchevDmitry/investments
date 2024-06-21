@@ -1,4 +1,3 @@
-use chrono::Datelike;
 use lazy_static::lazy_static;
 use log::warn;
 use regex::Regex;
@@ -6,8 +5,8 @@ use regex::Regex;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::instruments::InstrumentId;
-use crate::localities;
-use crate::taxes::IncomeType;
+use crate::localities::{self, Jurisdiction};
+use crate::taxes::{FixedTaxRate, IncomeType, TaxRate};
 use crate::types::Date;
 use crate::util;
 
@@ -16,11 +15,6 @@ use super::StatementParser;
 pub fn parse_dividend(
     parser: &mut StatementParser, date: Date, issuer: &str, income: Cash, description: &str,
 ) -> EmptyResult {
-    let foreign_country = localities::us();
-    if income.currency != foreign_country.currency {
-        return Err!("Got a dividend from {} in an unexpected currency: {}", issuer, income.currency)
-    }
-
     if parser.reader.warn_on_missing_dividend_details {
         warn!(concat!(
             "Firstrade statements don't provide information about real dividend amount, so it ",
@@ -43,15 +37,22 @@ pub fn parse_dividend(
         return Err!("Unexpected dividend description: {:?}", description);
     }
 
+    let us = Jurisdiction::Usa.traits();
+    let mut tax_rate = FixedTaxRate::new(localities::us_dividend_tax_rate(date), us.tax_precision);
+
+    if income.currency != us.currency {
+        return Err!("Got a dividend from {} in an unexpected currency: {}", issuer, income.currency)
+    }
+
     let (amount, paid_tax) = if non_res_tax_withheld {
-        let amount = foreign_country.deduce_income(IncomeType::Dividends, date.year(), income);
+        let amount = localities::deduce_us_dividend_amount(date, income);
         let paid_tax = amount - income;
-        debug_assert_eq!(paid_tax, foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None));
+        debug_assert_eq!(paid_tax.amount, tax_rate.tax(IncomeType::Dividends, amount.amount));
         (amount, paid_tax)
     } else {
         let amount = income;
-        let paid_tax = foreign_country.tax_to_pay(IncomeType::Dividends, date.year(), amount, None);
-        (amount, paid_tax)
+        let paid_tax = tax_rate.tax(IncomeType::Dividends, amount.amount);
+        (amount, Cash::new(amount.currency, paid_tax))
     };
 
     let issuer_id = InstrumentId::Symbol(issuer.to_owned());

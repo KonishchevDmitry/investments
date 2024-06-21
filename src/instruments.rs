@@ -301,7 +301,7 @@ impl Instrument {
 
     pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
         let get_taxation_type = |issuer_jurisdiction: &str| -> IssuerTaxationType {
-            if broker_jurisdiction == Jurisdiction::Russia && issuer_jurisdiction == Jurisdiction::Russia.code() {
+            if broker_jurisdiction == Jurisdiction::Russia && issuer_jurisdiction == Jurisdiction::Russia.traits().code {
                 return IssuerTaxationType::TaxAgent;
             }
             IssuerTaxationType::Manual(Some(issuer_jurisdiction.to_owned()))
@@ -310,7 +310,7 @@ impl Instrument {
         let mut result_taxation_type = if self.cusip.is_empty() {
             None
         } else {
-            Some(get_taxation_type(Jurisdiction::Usa.code()))
+            Some(get_taxation_type(Jurisdiction::Usa.traits().code))
         };
 
         for isin in &self.isin {

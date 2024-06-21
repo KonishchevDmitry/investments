@@ -18,6 +18,7 @@ pub use self::long_term_ownership::{
     NetLtoDeduction, NetLtoDeductionCalculator};
 pub use self::net_calculator::{NetTax, NetTaxCalculator};
 pub use self::payment_day::{TaxPaymentDay, TaxPaymentDaySpec};
+pub use self::rates::{TaxRate, FixedTaxRate, NonUniformTaxRate};
 pub use self::remapping::TaxRemapping;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
