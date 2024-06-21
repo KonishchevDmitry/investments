@@ -1,26 +1,28 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
 use chrono::{Datelike, Duration};
 
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::taxes::IncomeType;
+use crate::taxes::{IncomeType, TaxRate, FixedTaxRate, NonUniformTaxRate};
 use crate::types::{Date, Decimal};
 
 #[derive(Clone)]
 pub struct Country {
+    pub jurisdiction: Jurisdiction,
     pub currency: &'static str,
-    default_tax_rate: Decimal,
-    tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>,
-    tax_precision: u32, // FIXME(konishchev): Deprecate it?
+    tax_rates: BTreeMap<i32, Box<dyn TaxRate>>,
 }
 
 impl Country {
+    // FIXME(konishchev): Rewrite
     fn new(
-        currency: &'static str, mut default_tax_rate: Decimal,
-        mut tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>, tax_precision: u32,
+        jurisdiction: Jurisdiction, mut default_tax_rate: Decimal,
+        mut tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>,
     ) -> Country {
+        let traits = jurisdiction.traits();
+
         default_tax_rate /= dec!(100);
 
         for tax_rates in tax_rates.values_mut() {
@@ -29,59 +31,29 @@ impl Country {
             }
         }
 
-        Country {currency, default_tax_rate, tax_rates, tax_precision}
+        let mut tax_rate_spec = BTreeMap::<i32, HashMap<IncomeType, Decimal>>::new();
+
+        for (&income_type, years) in &tax_rates {
+            for (&year, &rate) in years {
+                tax_rate_spec.entry(year).or_default().insert(income_type, rate);
+            }
+        }
+
+        let mut tax_rates_new: BTreeMap<i32, Box<dyn TaxRate>> = tax_rate_spec.into_iter().map(|(year, rates)| {
+            (year, Box::new(NonUniformTaxRate::new(rates, traits.tax_precision)) as Box<dyn TaxRate>)
+        }).collect();
+
+        tax_rates_new.insert(i32::MIN, Box::new(FixedTaxRate::new(default_tax_rate, traits.tax_precision)));
+
+        Country {currency: traits.currency, jurisdiction, tax_rates: tax_rates_new}
     }
 
     pub fn cash(&self, amount: Decimal) -> Cash {
         Cash::new(self.currency, amount)
     }
 
-    // FIXME(konishchev): Deprecated
-    pub fn round_tax(&self, tax: Cash) -> Cash {
-        assert_eq!(tax.currency, self.currency);
-        tax.round().round_to(self.tax_precision)
-    }
-
-    // FIXME(konishchev): Deprecate it
-    pub fn tax_to_pay(
-        &self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>,
-    ) -> Cash {
-        assert_eq!(income.currency, self.currency);
-
-        let income = income.round();
-        if income.is_negative() || income.is_zero() {
-            return Cash::zero(self.currency);
-        }
-
-        let tax_to_pay = self.round_tax(income * self.tax_rate(income_type, year));
-
-        if let Some(paid_tax) = paid_tax {
-            assert!(!paid_tax.is_negative());
-            assert_eq!(paid_tax.currency, tax_to_pay.currency);
-            let tax_deduction = self.round_tax(paid_tax);
-
-            if tax_deduction.amount < tax_to_pay.amount {
-                tax_to_pay - tax_deduction
-            } else {
-                Cash::zero(self.currency)
-            }
-        } else {
-            tax_to_pay
-        }
-    }
-
-    pub fn deduce_income(&self, income_type: IncomeType, year: i32, result_income: Cash) -> Cash {
-        assert_eq!(result_income.currency, self.currency);
-        (result_income / (dec!(1) - self.tax_rate(income_type, year))).round()
-    }
-
-    fn tax_rate(&self, income_type: IncomeType, year: i32) -> Decimal {
-        self.tax_rates.get(&income_type).and_then(|tax_rates| {
-            tax_rates
-                .range((Bound::Unbounded, Bound::Included(year)))
-                .map(|entry| *entry.1)
-                .last()
-        }).unwrap_or(self.default_tax_rate)
+    pub fn tax_rate(&self, year: i32) -> Box<dyn TaxRate> {
+        self.tax_rates.range((Bound::Unbounded, Bound::Included(year))).last().unwrap().1.clone()
     }
 }
 
@@ -91,25 +63,28 @@ pub enum Jurisdiction {
     Usa,
 }
 
+pub struct JurisdictionTraits {
+    pub name: &'static str,
+    pub code: &'static str,
+    pub currency: &'static str,
+    pub tax_precision: u32,
+}
+
 impl Jurisdiction {
-    pub fn name(self) -> &'static str {
+    pub fn traits(self) -> JurisdictionTraits {
         match self {
-            Jurisdiction::Russia => "Russia",
-            Jurisdiction::Usa    => "USA",
-        }
-    }
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Jurisdiction::Russia => "RU",
-            Jurisdiction::Usa    => "US",
-        }
-    }
-
-    pub fn tax_precision(self) -> u32 {
-        match self {
-            Jurisdiction::Russia => 0,
-            Jurisdiction::Usa    => 2,
+            Jurisdiction::Russia => JurisdictionTraits{
+                name: "Russia",
+                code: "RU",
+                currency: "RUB",
+                tax_precision: 0,
+            },
+            Jurisdiction::Usa => JurisdictionTraits{
+                name: "USA",
+                code: "US",
+                currency: "USD",
+                tax_precision: 2,
+            },
         }
     }
 }
@@ -118,17 +93,11 @@ pub fn russia(
     trading_tax_rates: &BTreeMap<i32, Decimal>, dividends_tax_rates: &BTreeMap<i32, Decimal>,
     interest_tax_rates: &BTreeMap<i32, Decimal>,
 ) -> Country {
-    Country::new("RUB", dec!(13), hashmap!{
+    Country::new(Jurisdiction::Russia, dec!(13), hashmap!{
         IncomeType::Trading => trading_tax_rates.clone(),
         IncomeType::Dividends => dividends_tax_rates.clone(),
         IncomeType::Interest => interest_tax_rates.clone(),
-    }, Jurisdiction::Russia.tax_precision())
-}
-
-pub fn us() -> Country {
-    Country::new("USD", dec!(0), hashmap!{
-        IncomeType::Dividends => btreemap!{0 => dec!(10)},
-    }, Jurisdiction::Usa.tax_precision())
+    })
 }
 
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
@@ -158,4 +127,17 @@ pub fn get_nearest_possible_russian_account_close_date() -> Date {
 
         close_date
     }).max().unwrap()
+}
+
+pub fn us_dividend_tax_rate(date: Date) -> Decimal {
+    if date >= date!(2024, 08, 16) && false { // FIXME(konishchev): Enable it
+        dec!(0.3)
+    } else {
+        dec!(0.1)
+    }
+}
+
+pub fn deduce_us_dividend_amount(date: Date, result_income: Cash) -> Cash {
+    let tax_rate = us_dividend_tax_rate(date);
+    (result_income / (dec!(1) - tax_rate)).round()
 }
