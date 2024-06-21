@@ -1,16 +1,24 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
 
 #[cfg(test)] use itertools::Itertools;
 
 use crate::currency;
 #[cfg(test)] use crate::localities::Jurisdiction;
+use crate::taxes::{self, IncomeType};
 use crate::types::Decimal;
 
-pub trait TaxRate {
-    fn tax(&mut self, income: Decimal) -> Decimal;
+// FIXME(konishchev): Check it
+use dyn_clone::DynClone;
+
+pub trait TaxRate: DynClone {
+    fn tax(&mut self, income_type: IncomeType, income: Decimal) -> Decimal;
 }
 
+// FIXME(konishchev): Check it
+dyn_clone::clone_trait_object!(TaxRate);
+
+#[derive(Clone)]
 pub struct FixedTaxRate {
     rate: Decimal,
     precision: u32,
@@ -23,14 +31,38 @@ impl FixedTaxRate {
 }
 
 impl TaxRate for FixedTaxRate {
-    fn tax(&mut self, income: Decimal) -> Decimal {
+    fn tax(&mut self, _income_type: IncomeType, income: Decimal) -> Decimal {
         if income.is_sign_negative() {
             return dec!(0);
         }
-        round_tax(currency::round(income) * self.rate, self.precision)
+        taxes::round_tax(currency::round(income) * self.rate, self.precision)
     }
 }
 
+#[derive(Clone)]
+pub struct NonUniformTaxRate {
+    rates: HashMap<IncomeType, FixedTaxRate>
+}
+
+impl NonUniformTaxRate {
+    pub fn new(rates: HashMap<IncomeType, Decimal>, precision: u32) -> NonUniformTaxRate {
+        NonUniformTaxRate {
+            rates: rates.into_iter().map(|(income_type, rate)| {
+                (income_type, FixedTaxRate::new(rate, precision))
+            }).collect()
+        }
+    }
+}
+
+impl TaxRate for NonUniformTaxRate {
+    fn tax(&mut self, income_type: IncomeType, income: Decimal) -> Decimal {
+        self.rates.get_mut(&income_type)
+            .map(|rate| rate.tax(income_type, income))
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Clone)] // FIXME(konishchev): Rewrite?
 pub struct ProgressiveTaxRate {
     rates: BTreeMap<Decimal, Decimal>,
     precision: u32,
@@ -59,7 +91,7 @@ impl ProgressiveTaxRate {
 
             income -= current_income;
             tax_base += current_income;
-            tax += round_tax(current_income * current_rate, self.precision);
+            tax += taxes::round_tax(current_income * current_rate, self.precision);
         }
 
         (tax, tax_base)
@@ -67,48 +99,17 @@ impl ProgressiveTaxRate {
 }
 
 impl TaxRate for ProgressiveTaxRate {
-    fn tax(&mut self, income: Decimal) -> Decimal {
+    fn tax(&mut self, _income_type: IncomeType, income: Decimal) -> Decimal {
         let (tax, tax_base) = self.calculate(income);
         self.tax_base = tax_base;
         tax
     }
 }
 
-// When we work with taxes in Russia, the following rounding rules are applied:
-// 1. Result of all calculations must be with kopecks precision
-// 2. If we have income in foreign currency then:
-//    2.1. Round it to cents
-//    2.2. Convert to rubles using precise currency rate (65.4244 for example)
-//    2.3. Round to kopecks
-// 3. Taxes are calculated with rouble precision. But we should use double rounding here:
-//    calculate them with kopecks precision first and then round to roubles.
-//
-// Декларация program allows to enter income only with kopecks precision - not bigger.
-// It calculates tax for $10.64 income with 65.4244 currency rate as following:
-// 1. income = round(10.64 * 65.4244, 2) = 696.12 (696.115616 without rounding)
-// 2. tax = round(round(696.12 * 0.13, 2), 0) = 91 (90.4956 without rounding)
-fn round_tax(tax: Decimal, precision: u32) -> Decimal {
-    currency::round_to(currency::round(tax), precision)
-}
-
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
     use super::*;
-
-    #[rstest(tax, expected,
-        case("13",      "13"),
-        case("13.0000", "13"),
-        case("13.1111", "13"),
-        case("13.4949", "13"),
-        case("13.4950", "14"),
-        case("13.9999", "14"),
-    )]
-    fn tax_rounding(tax: &str, expected: &str) {
-        let tax = tax.parse().unwrap();
-        let result = round_tax(tax, Jurisdiction::Russia.tax_precision());
-        assert_eq!(result, expected.parse().unwrap());
-    }
 
     #[rstest(income, expected,
         case("0", "0"),
@@ -125,8 +126,8 @@ mod tests {
         case("-10_000_000", "0"),
     )]
     fn fixed_tax_rate(income: &str, expected: &str) {
-        let mut calc = FixedTaxRate::new(dec!(0.13), Jurisdiction::Russia.tax_precision());
-        let tax = calc.tax(income.parse().unwrap());
+        let mut calc = FixedTaxRate::new(dec!(0.13), Jurisdiction::Russia.traits().tax_precision);
+        let tax = calc.tax(IncomeType::Trading, income.parse().unwrap());
         assert_eq!(tax, expected.parse().unwrap());
     }
 
@@ -150,10 +151,10 @@ mod tests {
         let mut calc = ProgressiveTaxRate::new(initial_income, btreemap!{
                     dec!(0) => dec!(0.13),
             dec!(5_000_000) => dec!(0.15),
-        }, Jurisdiction::Russia.tax_precision());
+        }, Jurisdiction::Russia.traits().tax_precision);
 
         for (income, expected) in incomes.iter().zip_eq(expected) {
-            let tax = calc.tax(income.parse().unwrap());
+            let tax = calc.tax(IncomeType::Trading, income.parse().unwrap());
             assert_eq!(tax, expected.parse().unwrap());
         }
     }
