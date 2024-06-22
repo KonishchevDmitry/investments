@@ -22,7 +22,7 @@ use crate::quotes::fcsapi::FcsApiConfig;
 use crate::quotes::finnhub::FinnhubConfig;
 use crate::quotes::tinkoff::TinkoffApiConfig;
 use crate::quotes::twelvedata::TwelveDataConfig;
-use crate::taxes::{self, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
+use crate::taxes::{self, TaxConfig, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::telemetry::TelemetryConfig;
 use crate::time::{self, deserialize_date};
 use crate::types::{Date, Decimal};
@@ -44,7 +44,9 @@ pub struct Config {
     pub portfolios: Vec<PortfolioConfig>,
     pub brokers: Option<BrokersConfig>,
     #[serde(default)]
-    pub tax_rates: TaxRates,
+    pub taxes: TaxConfig,
+    #[serde(default)]
+    pub tax_rates: TaxRates, // FIXME(konishchev): Deprecate it
 
     #[validate(nested)]
     #[serde(default)]
@@ -77,6 +79,7 @@ impl Config {
 
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
+            taxes: Default::default(),
             tax_rates: Default::default(),
 
             quotes: Default::default(),

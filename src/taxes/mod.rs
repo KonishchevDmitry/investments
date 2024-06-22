@@ -3,12 +3,15 @@ mod net_calculator;
 mod payment_day;
 mod remapping;
 
+use std::collections::BTreeMap;
+
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 
 use crate::brokers::Broker;
 use crate::core::EmptyResult;
 use crate::localities::Jurisdiction;
+use crate::types::Decimal;
 
 pub use self::long_term_ownership::{
     LtoDeductibleProfit, LtoDeductionCalculator, LtoDeduction,
@@ -16,6 +19,13 @@ pub use self::long_term_ownership::{
 pub use self::net_calculator::{NetTax, NetTaxCalculator};
 pub use self::payment_day::{TaxPaymentDay, TaxPaymentDaySpec};
 pub use self::remapping::TaxRemapping;
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaxConfig {
+    #[allow(dead_code)] // FIXME(konishchev): Remove
+    income: BTreeMap<i32, Decimal>
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IncomeType {
