@@ -192,8 +192,8 @@ impl<'a> TradesProcessor<'a> {
 
             let instrument = self.broker_statement.instrument_info.get_or_empty(&trade.symbol);
             let details = trade.calculate(self.country, &instrument, &self.portfolio.tax_exemptions, self.converter)?;
-            let dry_run_tax = details.tax_dry_run(tax_calculator, tax_year);
-            self.process_trade(trade_id, trade, &details, &dry_run_tax)?;
+            let estimated_tax = details.estimate_tax(tax_calculator, tax_year);
+            self.process_trade(trade_id, trade, &details, &estimated_tax)?;
             trade_id += 1;
 
             match broker_jurisdiction {
@@ -226,7 +226,7 @@ impl<'a> TradesProcessor<'a> {
         Ok(())
     }
 
-    fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails, dry_run_tax: &Tax) -> EmptyResult {
+    fn process_trade(&mut self, trade_id: usize, trade: &StockSell, details: &SellDetails, estimated_tax: &Tax) -> EmptyResult {
         let security = self.broker_statement.instrument_info.get_name(&trade.original_symbol);
         let (price, commission) = match trade.type_ {
             StockSellType::Trade {price, commission, ..} => (price, commission),
@@ -252,7 +252,7 @@ impl<'a> TradesProcessor<'a> {
             None
         };
 
-        let real = details.real_profit(self.converter, dry_run_tax)?;
+        let real = details.real_profit(self.converter, estimated_tax)?;
 
         {
             let tax_year = self.tax_year_stat(trade.execution_date);
@@ -289,8 +289,8 @@ impl<'a> TradesProcessor<'a> {
             local_profit: details.local_profit,
             taxable_local_profit: details.taxable_local_profit,
 
-            tax_to_pay: dry_run_tax.to_pay,
-            tax_deduction: dry_run_tax.deduction,
+            tax_to_pay: estimated_tax.to_pay,
+            tax_deduction: estimated_tax.deduction,
             real_tax: real.tax_ratio.map(Cell::new_ratio),
 
             real_profit_ratio: real.profit_ratio.map(Cell::new_ratio),

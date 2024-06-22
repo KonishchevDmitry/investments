@@ -77,7 +77,10 @@ impl ProgressiveTaxRate {
         }
     }
 
+    // FIXME(konishchev): Drop it?
     fn calculate(&self, mut income: Decimal) -> (Decimal, Decimal) {
+        income = currency::round(income);
+
         let mut tax = dec!(0);
         let mut tax_base = self.tax_base;
 

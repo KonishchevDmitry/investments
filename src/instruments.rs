@@ -365,7 +365,8 @@ pub enum IssuerTaxationType {
     // Withheld tax may be less than 13%. It may be even zero if company distributes dividends from
     // other companies for which tax has been already withheld.
     //
-    // See https://smart-lab.ru/company/tinkoff_invest/blog/631922.php for details.
+    // See https://web.archive.org/web/20240622133328/https://smart-lab.ru/company/tinkoff_invest/blog/631922.php
+    // for details.
     TaxAgent,
 }
 

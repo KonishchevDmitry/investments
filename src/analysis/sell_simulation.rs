@@ -149,7 +149,7 @@ fn print_results(
 
         let instrument = instrument_info.get_or_empty(&trade.symbol);
         let details = trade.calculate(country, &instrument, &portfolio.tax_exemptions, converter)?;
-        let tax = details.tax_dry_run(&tax_calculator, tax_year);
+        let tax = details.estimate_tax(&tax_calculator, tax_year);
         let real = details.real_profit(converter, &tax)?;
         tax_exemptions |= details.tax_exemption_applied();
 
@@ -238,20 +238,14 @@ fn print_results(
             lto_deductions.insert(tax_year, lto);
         }
 
-        let tax_without_deduction = tax_calculator.tax_income(
-            IncomeType::Trading, tax_year, totals.local_profit, None).expected;
-
-        let tax_to_pay = tax_calculator.tax_income(
-            IncomeType::Trading, tax_year, totals.taxable_local_profit, None).expected;
-
-        let tax_deduction = tax_without_deduction - tax_to_pay;
-        assert!(!tax_deduction.is_negative());
+        let tax = tax_calculator.tax_deductible_income(
+            IncomeType::Trading, tax_year, totals.local_profit, totals.taxable_local_profit);
 
         total_local_profit += totals.local_profit;
         total_taxable_local_profit += totals.taxable_local_profit;
 
-        total_tax_to_pay += tax_to_pay;
-        total_tax_deduction += tax_deduction;
+        total_tax_to_pay += tax.to_pay;
+        total_tax_deduction += tax.deduction;
     }
 
     let total_real = trades::calculate_real_profit(

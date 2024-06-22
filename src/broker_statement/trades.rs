@@ -360,23 +360,9 @@ pub struct SellDetails {
 }
 
 impl SellDetails {
-     // FIXME(konishchev): Different meaning with dividends
-    pub fn tax_dry_run(&self, calculator: &TaxCalculator, tax_year: i32) -> Tax {
-        let tax_without_deduction = calculator.tax_income_dry_run(
-            IncomeType::Trading, tax_year, self.local_profit, None).expected;
-
-        let tax_to_pay = calculator.tax_income_dry_run(
-            IncomeType::Trading, tax_year, self.taxable_local_profit, None).expected;
-
-        let tax_deduction = tax_without_deduction - tax_to_pay;
-        assert!(!tax_deduction.is_negative());
-
-        Tax {
-            expected: tax_without_deduction,
-            paid: Cash::zero(calculator.country.currency),
-            deduction: tax_deduction, // FIXME(konishchev): Different meaning with dividends
-            to_pay: tax_to_pay,
-        }
+    pub fn estimate_tax(&self, calculator: &TaxCalculator, tax_year: i32) -> Tax {
+        calculator.tax_deductible_income_dry_run(
+            IncomeType::Trading, tax_year, self.local_profit, self.taxable_local_profit)
     }
 
     pub fn tax_exemption_applied(&self) -> bool {
