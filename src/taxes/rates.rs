@@ -8,14 +8,14 @@ use crate::currency;
 use crate::taxes::{self, IncomeType};
 use crate::types::Decimal;
 
-// FIXME(konishchev): Check it
+// XXX(konishchev): Check it
 use dyn_clone::DynClone;
 
 pub trait TaxRate: DynClone {
     fn tax(&mut self, income_type: IncomeType, income: Decimal) -> Decimal;
 }
 
-// FIXME(konishchev): Check it
+// XXX(konishchev): Check it
 dyn_clone::clone_trait_object!(TaxRate);
 
 #[derive(Clone)]
@@ -76,35 +76,27 @@ impl ProgressiveTaxRate {
             tax_base: std::cmp::max(dec!(0), income),
         }
     }
+}
 
-    // FIXME(konishchev): Drop it?
-    fn calculate(&self, mut income: Decimal) -> (Decimal, Decimal) {
+impl TaxRate for ProgressiveTaxRate {
+    fn tax(&mut self, _income_type: IncomeType, mut income: Decimal) -> Decimal {
         income = currency::round(income);
 
         let mut tax = dec!(0);
-        let mut tax_base = self.tax_base;
 
         while !income.is_zero() && income.is_sign_positive() {
-            let (_, &current_rate) = self.rates.range((Bound::Unbounded, Bound::Included(tax_base))).last().unwrap();
+            let (_, &current_rate) = self.rates.range((Bound::Unbounded, Bound::Included(self.tax_base))).last().unwrap();
 
-            let current_income = match self.rates.range((Bound::Excluded(tax_base), Bound::Unbounded)).next() {
-                Some((&next_rate_tax_base, _)) => std::cmp::min(next_rate_tax_base - tax_base, income),
+            let current_income = match self.rates.range((Bound::Excluded(self.tax_base), Bound::Unbounded)).next() {
+                Some((&next_rate_tax_base, _)) => std::cmp::min(next_rate_tax_base - self.tax_base, income),
                 None => income,
             };
 
             income -= current_income;
-            tax_base += current_income;
+            self.tax_base += current_income;
             tax += taxes::round_tax(current_income * current_rate, self.precision);
         }
 
-        (tax, tax_base)
-    }
-}
-
-impl TaxRate for ProgressiveTaxRate {
-    fn tax(&mut self, _income_type: IncomeType, income: Decimal) -> Decimal {
-        let (tax, tax_base) = self.calculate(income);
-        self.tax_base = tax_base;
         tax
     }
 }

@@ -119,7 +119,8 @@ impl<'a> PortfolioAnalyser<'a> {
             }
         }
 
-        // FIXME(konishchev): Do we need to share it between assets?
+        // XXX(konishchev): Check its usage
+        // XXX(konishchev): Do we need to share it between assets?
         let tax_calculator = TaxCalculator::new(self.country.clone());
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
         let tax = details.estimate_tax(&tax_calculator, tax_year);

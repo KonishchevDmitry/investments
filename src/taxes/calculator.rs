@@ -8,8 +8,12 @@ use crate::taxes::{self, IncomeType, TaxRate};
 pub struct Tax {
     pub expected: Cash,
     pub paid: Cash,
-    pub deduction: Cash,
     pub to_pay: Cash,
+
+    // The amount by which the tax was reduced due to:
+    // * Trading: various tax deductions
+    // * Dividends: taking into account already withheld tax
+    pub deduction: Cash,
 }
 
 #[derive(Clone)] // FIXME(konishchev): Forbid it
@@ -84,7 +88,7 @@ impl TaxCalculator {
         Tax {
             expected: full.expected,
             paid: real.paid,
-            deduction: full.expected - real.to_pay, // FIXME(konishchev): Different meaning with dividends
+            deduction: full.expected - real.to_pay,
             to_pay: real.to_pay,
         }
     }
@@ -107,7 +111,7 @@ impl TaxCalculator {
         Tax {
             expected: full.expected,
             paid: real.paid,
-            deduction: full.expected - real.to_pay, // FIXME(konishchev): Different meaning with dividends
+            deduction: full.expected - real.to_pay,
             to_pay: real.to_pay,
         }
     }
@@ -141,7 +145,7 @@ fn calculate(
     Tax {
         expected: Cash::new(country.currency, expected),
         paid: Cash::new(country.currency, paid),
-        deduction: Cash::new(country.currency, expected - to_pay),  // FIXME(konishchev): Different meaning with dividends
+        deduction: Cash::new(country.currency, expected - to_pay),
         to_pay: Cash::new(country.currency, to_pay),
     }
 }

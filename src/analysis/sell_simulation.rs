@@ -107,7 +107,6 @@ fn print_results(
     let mut trades_table = TradesTable::new();
     let mut fifo_table = FifoTable::new();
 
-    // FIXME(konishchev): Recheck its usage
     let mut tax_calculator = TaxCalculator::new(country.clone());
 
     let mut total_purchase_cost = MultiCurrencyCashAccount::new();
