@@ -130,7 +130,8 @@ pub fn get_nearest_possible_russian_account_close_date() -> Date {
 }
 
 pub fn us_dividend_tax_rate(date: Date) -> Decimal {
-    if date >= date!(2024, 08, 16) && false { // FIXME(konishchev): Enable it
+    #[allow(clippy::overly_complex_bool_expr)]
+    if date >= date!(2024, 8, 16) && false { // FIXME(konishchev): Enable it
         dec!(0.3)
     } else {
         dec!(0.1)

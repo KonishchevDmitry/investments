@@ -6,7 +6,7 @@ use crate::brokers::Broker;
 use crate::core::EmptyResult;
 use crate::currency::Cash;
 use crate::localities::Country;
-use crate::taxes::{LtoDeduction, NetLtoDeduction};
+use crate::taxes::{LtoDeduction, NetLtoDeduction, TaxCalculator};
 use crate::types::Decimal;
 
 use super::portfolio_performance_types::{PerformanceAnalysisMethod, PortfolioPerformanceAnalysis};
@@ -14,8 +14,13 @@ use super::portfolio_performance_types::{PerformanceAnalysisMethod, PortfolioPer
 pub struct PortfolioStatistics {
     country: Country,
     pub currencies: Vec<PortfolioCurrencyStatistics>,
-    pub asset_groups: BTreeMap<String, Vec<Cash>>,
+    pub asset_groups: BTreeMap<String, AssetGroup>,
     pub lto: Option<LtoStatistics>,
+}
+
+pub struct AssetGroup {
+    pub taxes: TaxCalculator,
+    pub net_value: Vec<Cash>,
 }
 
 pub struct LtoStatistics {
@@ -26,7 +31,7 @@ pub struct LtoStatistics {
 impl PortfolioStatistics {
     pub fn new(country: Country) -> PortfolioStatistics {
         PortfolioStatistics {
-            country,
+            country: country.clone(),
             currencies: ["USD", "RUB"].iter().map(|&currency| (
                 PortfolioCurrencyStatistics {
                     currency: currency.to_owned(),

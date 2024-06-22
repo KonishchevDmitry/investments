@@ -36,8 +36,8 @@ pub struct PortfolioPerformanceAnalyser<'a> {
     transactions: Vec<Transaction>,
     income_structure: IncomeStructure,
     instruments: Option<BTreeMap<String, InstrumentDepositView>>,
-    tax_calculator: TaxCalculator,
     net_lto_calc: NetLtoDeductionCalculator,
+    tax_calculator: TaxCalculator,
     current_assets: Decimal,
 }
 
@@ -58,8 +58,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             transactions: Vec::new(),
             income_structure: Default::default(),
             instruments: Some(BTreeMap::new()),
-            tax_calculator: TaxCalculator::new(country.clone()),
             net_lto_calc: NetLtoDeductionCalculator::new(),
+            tax_calculator: TaxCalculator::new(country.clone()),
             current_assets: dec!(0),
         }
     }
@@ -344,7 +344,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         if let Some(taxes) = taxes {
             for (symbol, symbol_taxes) in taxes.stocks.into_iter() {
-                let mut tax_calculator = self.tax_calculator.clone(); // FIXME(konishchev): Think about it
+                let mut tax_calculator = TaxCalculator::new(self.country.clone());
 
                 for (_, NetTax{tax_payment_date, tax_to_pay, ..}) in symbol_taxes.calculate(&mut tax_calculator).into_iter() {
                     if let Some(amount) = self.map_tax_to_deposit_amount(tax_payment_date, tax_to_pay)? {

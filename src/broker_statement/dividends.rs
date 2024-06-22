@@ -28,7 +28,6 @@ pub struct Dividend {
 
 impl Dividend {
     pub fn tax(&self, country: &Country, converter: &CurrencyConverter, calculator: &mut TaxCalculator) -> GenericResult<Tax> {
-        // FIXME(konishchev): Move it to calculator?
         let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
 
         Ok(match self.taxation_type {

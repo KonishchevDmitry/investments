@@ -360,6 +360,13 @@ pub struct SellDetails {
 }
 
 impl SellDetails {
+    // Attention: Modifies calculator state. Must be used only for trades which taxable income won't be decreased later
+    // via deductions or looses balancing. For general trades use `estimate_tax()`.
+    pub fn tax(&self, calculator: &mut TaxCalculator, tax_year: i32) -> Tax {
+        calculator.tax_deductible_income(
+            IncomeType::Trading, tax_year, self.local_profit, self.taxable_local_profit)
+    }
+
     pub fn estimate_tax(&self, calculator: &TaxCalculator, tax_year: i32) -> Tax {
         calculator.tax_deductible_income_dry_run(
             IncomeType::Trading, tax_year, self.local_profit, self.taxable_local_profit)

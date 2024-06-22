@@ -11,10 +11,9 @@ use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, re
 use strum::IntoEnumIterator;
 
 use crate::analysis::{self, PerformanceAnalysisMethod};
-use crate::analysis::portfolio_statistics::{PortfolioCurrencyStatistics, LtoStatistics};
+use crate::analysis::portfolio_statistics::{AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
-use crate::currency::Cash;
 use crate::forex;
 use crate::quotes::{QuoteQuery, QuotesRc};
 use crate::telemetry::TelemetryRecordBuilder;
@@ -136,9 +135,9 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     set_portfolio_metric(&PROJECTED_COMMISSIONS, currency, statistics.projected_commissions);
 }
 
-fn collect_asset_groups(groups: &BTreeMap<String, Vec<Cash>>) {
-    for (name, values) in groups {
-        for value in values {
+fn collect_asset_groups(groups: &BTreeMap<String, AssetGroup>) {
+    for (name, group) in groups {
+        for value in &group.net_value {
             set_metric(&ASSET_GROUPS, &[name, value.currency], value.amount)
         }
     }

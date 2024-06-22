@@ -17,7 +17,7 @@ use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use super::config::{AssetGroupConfig, PerformanceMergingConfig};
 use super::portfolio_performance::PortfolioPerformanceAnalyser;
 use super::portfolio_performance_types::PerformanceAnalysisMethod;
-use super::portfolio_statistics::{PortfolioStatistics, LtoStatistics};
+use super::portfolio_statistics::{AssetGroup, PortfolioStatistics, LtoStatistics};
 
 pub struct PortfolioAnalyser<'a> {
     pub country: Country,
@@ -31,6 +31,7 @@ pub struct PortfolioAnalyser<'a> {
     pub converter: CurrencyConverterRc,
 
     pub lto_calc: LtoDeductionCalculator,
+    pub taxes: TaxCalculator,
 }
 
 impl<'a> PortfolioAnalyser<'a> {
@@ -48,9 +49,12 @@ impl<'a> PortfolioAnalyser<'a> {
             self.quotes.execute()?; // To write shared logs without context
         }
 
-        for (name, group) in self.asset_groups {
-            let results = group.currencies.iter().map(|currency| Cash::zero(currency)).collect();
-            assert!(statistics.asset_groups.insert(name.clone(), results).is_none());
+        for (name, config) in self.asset_groups {
+            let group = AssetGroup {
+                taxes: TaxCalculator::new(self.country.clone()),
+                net_value: config.currencies.iter().map(|currency| Cash::zero(currency)).collect(),
+            };
+            assert!(statistics.asset_groups.insert(name.clone(), group).is_none());
         }
 
         for (portfolio, statement) in &mut portfolios {
@@ -119,27 +123,27 @@ impl<'a> PortfolioAnalyser<'a> {
             }
         }
 
-        // XXX(konishchev): Check its usage
-        // XXX(konishchev): Do we need to share it between assets?
-        let tax_calculator = TaxCalculator::new(self.country.clone());
         let (tax_year, _) = portfolio.tax_payment_day().get(trade.execution_date, true);
-        let tax = details.estimate_tax(&tax_calculator, tax_year);
+        let totals_tax = details.tax(&mut self.taxes, tax_year);
 
-        for (name, group) in self.asset_groups {
-            if let Some(portfolios) = group.portfolios.as_ref() {
+        for (name, config) in self.asset_groups {
+            if let Some(portfolios) = config.portfolios.as_ref() {
                 if !portfolios.contains(&portfolio.name) {
                     continue;
                 }
             }
 
-            if !group.instruments.contains(&trade.symbol) {
+            if !config.instruments.contains(&trade.symbol) {
                 continue;
             }
 
-            for total in statistics.asset_groups.get_mut(name).unwrap().iter_mut() {
-                total.amount += self.converter.real_time_convert_to(volume, total.currency)?;
-                total.amount -= self.converter.real_time_convert_to(commission, total.currency)?;
-                total.amount -= self.converter.real_time_convert_to(tax.to_pay, total.currency)?;
+            let group = statistics.asset_groups.get_mut(name).unwrap();
+            let group_tax = details.tax(&mut group.taxes, tax_year);
+
+            for net_value in group.net_value.iter_mut() {
+                net_value.amount += self.converter.real_time_convert_to(volume, net_value.currency)?;
+                net_value.amount -= self.converter.real_time_convert_to(commission, net_value.currency)?;
+                net_value.amount -= self.converter.real_time_convert_to(group_tax.to_pay, net_value.currency)?;
             }
         }
 
@@ -149,8 +153,8 @@ impl<'a> PortfolioAnalyser<'a> {
             let volume = self.converter.real_time_convert_to(volume, currency)?;
             let commission = self.converter.real_time_convert_to(commission, currency)?;
 
-            let tax_to_pay = self.converter.real_time_convert_to(tax.to_pay, currency)?;
-            let tax_deduction = self.converter.real_time_convert_to(tax.deduction, currency)?;
+            let tax_to_pay = self.converter.real_time_convert_to(totals_tax.to_pay, currency)?;
+            let tax_deduction = self.converter.real_time_convert_to(totals_tax.deduction, currency)?;
 
             statistics.add_assets(portfolio.broker, &trade.symbol, volume, volume - commission - tax_to_pay);
             statistics.projected_commissions += commission;

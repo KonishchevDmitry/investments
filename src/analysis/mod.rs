@@ -20,7 +20,7 @@ use crate::core::GenericResult;
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
 use crate::quotes::{Quotes, QuotesRc};
-use crate::taxes::LtoDeductionCalculator;
+use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
@@ -48,12 +48,14 @@ pub fn analyse(
     let mut statistics = PortfolioStatistics::new(country.clone());
 
     let analyser = PortfolioAnalyser {
-        country, interactive, include_closed_positions,
+        country: country.clone(),
+        interactive, include_closed_positions,
 
         asset_groups, merge_performance,
         quotes: quotes.clone(), converter,
 
         lto_calc: LtoDeductionCalculator::new(),
+        taxes: TaxCalculator::new(country),
     };
     analyser.process(portfolios, &mut statistics)?;
 

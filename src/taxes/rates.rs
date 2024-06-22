@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound;
+use std::rc::Rc;
 
+use dyn_clone::DynClone;
 #[cfg(test)] use itertools::Itertools;
 
 use crate::currency;
@@ -8,14 +10,11 @@ use crate::currency;
 use crate::taxes::{self, IncomeType};
 use crate::types::Decimal;
 
-// XXX(konishchev): Check it
-use dyn_clone::DynClone;
 
 pub trait TaxRate: DynClone {
     fn tax(&mut self, income_type: IncomeType, income: Decimal) -> Decimal;
 }
 
-// XXX(konishchev): Check it
 dyn_clone::clone_trait_object!(TaxRate);
 
 #[derive(Clone)]
@@ -39,7 +38,7 @@ impl TaxRate for FixedTaxRate {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone)] // FIXME(konishchev): Rewrite?
 pub struct NonUniformTaxRate {
     rates: HashMap<IncomeType, FixedTaxRate>
 }
@@ -62,17 +61,19 @@ impl TaxRate for NonUniformTaxRate {
     }
 }
 
-#[derive(Clone)] // FIXME(konishchev): Rewrite?
+#[derive(Clone)]
 pub struct ProgressiveTaxRate {
-    rates: BTreeMap<Decimal, Decimal>,
+    rates: Rc<BTreeMap<Decimal, Decimal>>,
     precision: u32,
     tax_base: Decimal,
 }
 
 impl ProgressiveTaxRate {
+    #[allow(dead_code)] // FIXME(konishchev): Remove
     pub fn new(income: Decimal, rates: BTreeMap<Decimal, Decimal>, precision: u32) -> ProgressiveTaxRate {
         ProgressiveTaxRate {
-            rates, precision,
+            rates: Rc::new(rates),
+            precision,
             tax_base: std::cmp::max(dec!(0), income),
         }
     }

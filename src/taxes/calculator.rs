@@ -16,7 +16,6 @@ pub struct Tax {
     pub deduction: Cash,
 }
 
-#[derive(Clone)] // FIXME(konishchev): Forbid it
 pub struct TaxCalculator {
     pub country: Country,
     years: HashMap<i32, Box<dyn TaxRate>>,

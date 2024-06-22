@@ -59,7 +59,6 @@ impl NetTaxCalculator {
         }
     }
 
-    // XXX(konishchev): Consume calculator?
     pub fn calculate(self, calculator: &mut TaxCalculator) -> BTreeMap<i32, NetTax> {
         let mut taxes = BTreeMap::new();
 
