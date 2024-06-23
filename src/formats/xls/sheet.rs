@@ -98,6 +98,8 @@ impl SheetReader {
 pub trait SheetParser {
     fn sheet_name(&self) -> &str;
 
+    // In the beginning of 2024 year Tinkoff statements became broken: empty tables started to lose random columns.
+    // This property can help to workaround such temporary problems.
     fn parse_empty_tables(&self) -> bool {
         true
     }

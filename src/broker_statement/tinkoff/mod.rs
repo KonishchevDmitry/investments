@@ -242,12 +242,6 @@ impl SheetParser for StatementSheetParser {
         "broker_rep"
     }
 
-    // FIXME(konishchev): In the beginning of 2024 Tinkoff statements became broken: empty tables started to lose random
-    // columns. This is a temporary workaround for the issue.
-    fn parse_empty_tables(&self) -> bool {
-        false
-    }
-
     fn repeatable_table_column_titles(&self) -> bool {
         true
     }
