@@ -22,14 +22,13 @@ pub use self::long_term_ownership::{
     NetLtoDeduction, NetLtoDeductionCalculator};
 pub use self::net_calculator::{NetTax, NetTaxCalculator};
 pub use self::payment_day::{TaxPaymentDay, TaxPaymentDaySpec};
-pub use self::rates::{TaxRate, FixedTaxRate, NonUniformTaxRate};
+pub use self::rates::{TaxRate, FixedTaxRate, ProgressiveTaxRate};
 pub use self::remapping::TaxRemapping;
 
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TaxConfig {
-    #[allow(dead_code)] // FIXME(konishchev): Remove
-    income: BTreeMap<i32, Decimal>
+    pub income: BTreeMap<i32, Decimal>
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

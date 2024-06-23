@@ -1,51 +1,27 @@
-use std::collections::{BTreeMap, HashMap};
-use std::ops::Bound;
+use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use chrono::{Datelike, Duration};
 
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::taxes::{IncomeType, TaxRate, FixedTaxRate, NonUniformTaxRate};
+use crate::taxes::{FixedTaxRate, ProgressiveTaxRate, TaxConfig, TaxRate};
 use crate::types::{Date, Decimal};
 
 #[derive(Clone)]
 pub struct Country {
     pub jurisdiction: Jurisdiction,
     pub currency: &'static str,
-    tax_rates: BTreeMap<i32, Box<dyn TaxRate>>,
+    tax_rates: Rc<BTreeMap<i32, Box<dyn TaxRate>>>,
 }
 
 impl Country {
-    // FIXME(konishchev): Rewrite
-    fn new(
-        jurisdiction: Jurisdiction, mut default_tax_rate: Decimal,
-        mut tax_rates: HashMap<IncomeType, BTreeMap<i32, Decimal>>,
-    ) -> Country {
-        let traits = jurisdiction.traits();
-
-        default_tax_rate /= dec!(100);
-
-        for tax_rates in tax_rates.values_mut() {
-            for tax_rate in tax_rates.values_mut() {
-                *tax_rate /= dec!(100);
-            }
+    fn new(jurisdiction: Jurisdiction, tax_rates: BTreeMap<i32, Box<dyn TaxRate>>) -> Country {
+        Country {
+            jurisdiction,
+            currency: jurisdiction.traits().currency,
+            tax_rates: Rc::new(tax_rates),
         }
-
-        let mut tax_rate_spec = BTreeMap::<i32, HashMap<IncomeType, Decimal>>::new();
-
-        for (&income_type, years) in &tax_rates {
-            for (&year, &rate) in years {
-                tax_rate_spec.entry(year).or_default().insert(income_type, rate);
-            }
-        }
-
-        let mut tax_rates_new: BTreeMap<i32, Box<dyn TaxRate>> = tax_rate_spec.into_iter().map(|(year, rates)| {
-            (year, Box::new(NonUniformTaxRate::new(rates, traits.tax_precision)) as Box<dyn TaxRate>)
-        }).collect();
-
-        tax_rates_new.insert(i32::MIN, Box::new(FixedTaxRate::new(default_tax_rate, traits.tax_precision)));
-
-        Country {currency: traits.currency, jurisdiction, tax_rates: tax_rates_new}
     }
 
     pub fn cash(&self, amount: Decimal) -> Cash {
@@ -53,7 +29,7 @@ impl Country {
     }
 
     pub fn tax_rate(&self, year: i32) -> Box<dyn TaxRate> {
-        self.tax_rates.range((Bound::Unbounded, Bound::Included(year))).last().unwrap().1.clone()
+        self.tax_rates.range(..=year).last().unwrap().1.clone()
     }
 }
 
@@ -89,15 +65,27 @@ impl Jurisdiction {
     }
 }
 
-pub fn russia(
-    trading_tax_rates: &BTreeMap<i32, Decimal>, dividends_tax_rates: &BTreeMap<i32, Decimal>,
-    interest_tax_rates: &BTreeMap<i32, Decimal>,
-) -> Country {
-    Country::new(Jurisdiction::Russia, dec!(13), hashmap!{
-        IncomeType::Trading => trading_tax_rates.clone(),
-        IncomeType::Dividends => dividends_tax_rates.clone(),
-        IncomeType::Interest => interest_tax_rates.clone(),
-    })
+pub fn russia(config: &TaxConfig) -> Country {
+    let jurisdiction = Jurisdiction::Russia;
+    let tax_precision = jurisdiction.traits().tax_precision;
+
+    let rates_2021 = Rc::new(btreemap!{
+        dec!(0) => dec!(0.13),
+        dec!(5_000_000) => dec!(0.15),
+    });
+    let income_2021 = config.income.range(..=2021).last().map(|(_, &income)| income).unwrap_or_default();
+
+    let mut calculators: BTreeMap<i32, Box<dyn TaxRate>> = btreemap! {
+        i32::MIN => Box::new(FixedTaxRate::new(dec!(0.13), tax_precision)) as Box<dyn TaxRate>,
+        2021 => Box::new(ProgressiveTaxRate::new(income_2021, rates_2021.clone(), tax_precision)) as Box<dyn TaxRate>,
+    };
+
+    for (&year, &income) in config.income.range(2022..) {
+        let calc = Box::new(ProgressiveTaxRate::new(income, rates_2021.clone(), tax_precision));
+        assert!(calculators.insert(year, calc).is_none());
+    }
+
+    Country::new(Jurisdiction::Russia, calculators)
 }
 
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {

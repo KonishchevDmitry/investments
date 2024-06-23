@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::ops::Bound;
 use std::rc::Rc;
 
@@ -38,29 +38,6 @@ impl TaxRate for FixedTaxRate {
     }
 }
 
-#[derive(Clone)] // FIXME(konishchev): Rewrite?
-pub struct NonUniformTaxRate {
-    rates: HashMap<IncomeType, FixedTaxRate>
-}
-
-impl NonUniformTaxRate {
-    pub fn new(rates: HashMap<IncomeType, Decimal>, precision: u32) -> NonUniformTaxRate {
-        NonUniformTaxRate {
-            rates: rates.into_iter().map(|(income_type, rate)| {
-                (income_type, FixedTaxRate::new(rate, precision))
-            }).collect()
-        }
-    }
-}
-
-impl TaxRate for NonUniformTaxRate {
-    fn tax(&mut self, income_type: IncomeType, income: Decimal) -> Decimal {
-        self.rates.get_mut(&income_type)
-            .map(|rate| rate.tax(income_type, income))
-            .unwrap_or_default()
-    }
-}
-
 #[derive(Clone)]
 pub struct ProgressiveTaxRate {
     rates: Rc<BTreeMap<Decimal, Decimal>>,
@@ -69,11 +46,9 @@ pub struct ProgressiveTaxRate {
 }
 
 impl ProgressiveTaxRate {
-    #[allow(dead_code)] // FIXME(konishchev): Remove
-    pub fn new(income: Decimal, rates: BTreeMap<Decimal, Decimal>, precision: u32) -> ProgressiveTaxRate {
+    pub fn new(income: Decimal, rates: Rc<BTreeMap<Decimal, Decimal>>, precision: u32) -> ProgressiveTaxRate {
         ProgressiveTaxRate {
-            rates: Rc::new(rates),
-            precision,
+            rates, precision,
             tax_base: std::cmp::max(dec!(0), income),
         }
     }
@@ -144,10 +119,10 @@ mod tests {
     fn progressive_tax_rate(initial_income: &str, incomes: &[&str], expected: &[&str]) {
         let initial_income = initial_income.parse().unwrap();
 
-        let mut calc = ProgressiveTaxRate::new(initial_income, btreemap!{
+        let mut calc = ProgressiveTaxRate::new(initial_income, Rc::new(btreemap!{
                     dec!(0) => dec!(0.13),
             dec!(5_000_000) => dec!(0.15),
-        }, Jurisdiction::Russia.traits().tax_precision);
+        }), Jurisdiction::Russia.traits().tax_precision);
 
         for (income, expected) in incomes.iter().zip_eq(expected) {
             let tax = calc.tax(IncomeType::Trading, income.parse().unwrap());

@@ -45,8 +45,6 @@ pub struct Config {
     pub brokers: Option<BrokersConfig>,
     #[serde(default)]
     pub taxes: TaxConfig,
-    #[serde(default)]
-    pub tax_rates: TaxRates, // FIXME(konishchev): Deprecate it
 
     #[validate(nested)]
     #[serde(default)]
@@ -80,7 +78,6 @@ impl Config {
             portfolios: Vec::new(),
             brokers: Some(BrokersConfig::mock()),
             taxes: Default::default(),
-            tax_rates: Default::default(),
 
             quotes: Default::default(),
             metrics: Default::default(),
@@ -121,25 +118,11 @@ impl Config {
 
         config.metrics.validate_inner(&portfolio_names)?;
 
-        for &tax_rates in &[
-            &config.tax_rates.trading,
-            &config.tax_rates.dividends,
-            &config.tax_rates.interest,
-        ] {
-            for (&year, &tax_rate) in tax_rates {
-                if year < 0 {
-                    return Err!("Invalid tax rate year: {}", year);
-                } else if tax_rate < dec!(0) || tax_rate > dec!(100) {
-                    return Err!("Invalid tax rate: {}", tax_rate);
-                }
-            }
-        }
-
         Ok(config)
     }
 
     pub fn get_tax_country(&self) -> Country {
-        localities::russia(&self.tax_rates.trading, &self.tax_rates.dividends, &self.tax_rates.interest)
+        localities::russia(&self.taxes)
     }
 
     pub fn get_portfolio(&self, name: &str) -> GenericResult<&PortfolioConfig> {
