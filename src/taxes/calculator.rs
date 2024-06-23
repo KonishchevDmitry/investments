@@ -48,25 +48,33 @@ impl TaxCalculator {
             return Err!("Got an unexpected withheld tax: {} vs {}", orig_paid_tax, paid_tax);
         }
 
-        // Increase total tax base, but trust the provided withheld tax amount
-        self.tax_income(income_type, year, income, None);
-
-        // FIXME(konishchev): Try to differentiate these situations
-        // Please note that "to pay" amount we'll return here will be less than actual tax will be paid in case of
-        // progressive tax rates:
+        // Please note that paid tax amount may be less than actual tax will be paid in case of progressive tax rate:
         //
         // Withheld tax may be less than 13%. It may be even zero if company distributes dividends from other companies
-        // for which tax has been already withheld, so we should trust the provided amount. But, in case of progressive
-        // tax rates the withheld tax will be taken using lower rate, as broken doesn't know actual client's income.
+        // for which tax has been already withheld, so we should trust the provided amount.
         //
         // See https://web.archive.org/web/20240622133328/https://smart-lab.ru/company/tinkoff_invest/blog/631922.php
         // for details.
-        Ok(Tax {
-            expected: paid_tax,
-            paid: paid_tax,
-            deduction: paid_tax,
-            to_pay: Cash::zero(self.country.currency),
-        })
+        //
+        // But, in case of progressive tax rates the withheld tax may be calculated using lower tax rate, as broker
+        // doesn't know actual client's income. We try to workaround the case: tax the income using lowest tax rate and
+        // if the result is equal to or less then the paid tax, assume that there is no special case here, so we can tax
+        // the dividend using our calculator which are aware of actual total tax base.
+
+        // This call increases total tax base which we should do in both cases
+        let tax = self.tax_income(income_type, year, income, Some(paid_tax));
+
+        let lowest_tax = Cash::new(income.currency, self.country.tax_agent_rate(year).tax(income_type, income.amount));
+        if paid_tax < lowest_tax || paid_tax > tax.expected {
+            return Ok(Tax {
+                expected: paid_tax,
+                paid: paid_tax,
+                deduction: paid_tax,
+                to_pay: Cash::zero(self.country.currency),
+            });
+        }
+
+        Ok(tax)
     }
 
     // Attention: Modifies calculator state. Must be called only for income that won't be decreased later via deductions

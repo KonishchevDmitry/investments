@@ -13,14 +13,16 @@ pub struct Country {
     pub jurisdiction: Jurisdiction,
     pub currency: &'static str,
     tax_rates: Rc<BTreeMap<i32, Box<dyn TaxRate>>>,
+    tax_agent_rates: Rc<BTreeMap<i32, Box<dyn TaxRate>>>,
 }
 
 impl Country {
-    fn new(jurisdiction: Jurisdiction, tax_rates: BTreeMap<i32, Box<dyn TaxRate>>) -> Country {
+    fn new(jurisdiction: Jurisdiction, tax_rates: BTreeMap<i32, Box<dyn TaxRate>>, tax_agent_rates: BTreeMap<i32, Box<dyn TaxRate>>) -> Country {
         Country {
             jurisdiction,
             currency: jurisdiction.traits().currency,
             tax_rates: Rc::new(tax_rates),
+            tax_agent_rates: Rc::new(tax_agent_rates),
         }
     }
 
@@ -30,6 +32,10 @@ impl Country {
 
     pub fn tax_rate(&self, year: i32) -> Box<dyn TaxRate> {
         self.tax_rates.range(..=year).last().unwrap().1.clone()
+    }
+
+    pub fn tax_agent_rate(&self, year: i32) -> Box<dyn TaxRate> {
+        self.tax_agent_rates.range(..=year).last().unwrap().1.clone()
     }
 }
 
@@ -73,19 +79,20 @@ pub fn russia(config: &TaxConfig) -> Country {
         dec!(0) => dec!(0.13),
         dec!(5_000_000) => dec!(0.15),
     });
-    let income_2021 = config.income.range(..=2021).last().map(|(_, &income)| income).unwrap_or_default();
 
-    let mut calculators: BTreeMap<i32, Box<dyn TaxRate>> = btreemap! {
+    let tax_agent_calculators = btreemap! {
         i32::MIN => Box::new(FixedTaxRate::new(dec!(0.13), tax_precision)) as Box<dyn TaxRate>,
-        2021 => Box::new(ProgressiveTaxRate::new(income_2021, rates_2021.clone(), tax_precision)) as Box<dyn TaxRate>,
+        2021 => Box::new(ProgressiveTaxRate::new(dec!(0), rates_2021.clone(), tax_precision)) as Box<dyn TaxRate>,
     };
 
-    for (&year, &income) in config.income.range(2022..) {
+    let mut tax_calculators = tax_agent_calculators.clone();
+
+    for (&year, &income) in config.income.range(2021..) {
         let calc = Box::new(ProgressiveTaxRate::new(income, rates_2021.clone(), tax_precision));
-        assert!(calculators.insert(year, calc).is_none());
+        tax_calculators.insert(year, calc);
     }
 
-    Country::new(Jurisdiction::Russia, calculators)
+    Country::new(Jurisdiction::Russia, tax_calculators, tax_agent_calculators)
 }
 
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
