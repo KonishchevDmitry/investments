@@ -166,26 +166,28 @@ impl LtoDeduction {
     }
 }
 
-// FIXME(konishchev): Support the changes in long-term ownership tax exemption rules (https://sozd.duma.gov.ru/bill/462670-8)
-pub fn is_applicable(_isin: &HashSet<ISIN>, _sell_date: Date) -> Option<bool> {
-    Some(true)
-
-    // if sell_date.year() < 2024 {
+pub fn is_applicable(isin: &HashSet<ISIN>, sell_date: Date) -> Option<bool> {
+    // FIXME(konishchev): It's actually 2025, but since all foreign stocks are actually blocked from trading, set it to
+    // 2024 to make sell simulation more realistic.
+    // if sell_date.year() < 2025 {
     //     return Some(true)
     // }
+    if sell_date.year() < 2024 {
+        return Some(true)
+    }
 
-    // let mut result = None;
+    let mut result = None;
 
-    // for isin in isin {
-    //     let applicable = isin.prefix() == "RU";
-    //     if let Some(prev) = result.replace(applicable) {
-    //         if prev != applicable {
-    //             return None;
-    //         }
-    //     }
-    // }
+    for isin in isin {
+        let applicable = isin.prefix() == "RU";
+        if let Some(prev) = result.replace(applicable) {
+            if prev != applicable {
+                return None;
+            }
+        }
+    }
 
-    // result
+    result
 }
 
 pub fn is_deductible(isin: &HashSet<ISIN>, buy_date: Date, sell_date: Date) -> Option<u32> {
