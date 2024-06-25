@@ -1,5 +1,6 @@
 pub mod alphavantage;
 mod cache;
+pub mod cbr;
 mod common;
 mod custom_provider;
 pub mod fcsapi;
@@ -28,6 +29,8 @@ use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::{Exchange, Exchanges};
 use crate::forex;
+use crate::time::Date;
+use crate::types::Decimal;
 
 use self::cache::Cache;
 use self::custom_provider::{CustomProvider, CustomProviderConfig};
@@ -56,6 +59,13 @@ impl QuoteQuery {
             QuoteQuery::Stock(ref symbol, ..) => symbol,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct CurrencyRate {
+    pub date: Date,
+    pub price: Decimal,
 }
 
 #[derive(Deserialize, Default, Validate)]

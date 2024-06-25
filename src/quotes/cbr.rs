@@ -10,8 +10,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
 use crate::core::GenericResult;
-use crate::currency::CurrencyRate;
 use crate::formats::xml;
+use crate::quotes::CurrencyRate;
 use crate::time;
 use crate::types::{Date, Decimal};
 

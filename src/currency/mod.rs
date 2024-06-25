@@ -4,12 +4,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use validator::ValidationError;
 
-use crate::time::Date;
 use crate::types::Decimal;
 use crate::util;
 
 mod cash;
-mod cbr;
 mod multi;
 mod name_cache;
 mod rate_cache;
@@ -18,13 +16,6 @@ pub mod converter;
 
 pub use self::cash::{Cash, CashAssets};
 pub use self::multi::MultiCurrencyCashAccount;
-
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct CurrencyRate {
-    date: Date,
-    price: Decimal,
-}
 
 pub fn round(amount: Decimal) -> Decimal {
     util::round(amount, 2)

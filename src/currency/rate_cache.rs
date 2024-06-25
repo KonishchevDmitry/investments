@@ -8,9 +8,9 @@ use diesel::{self, prelude::*};
 #[cfg(test)] use tempfile::NamedTempFile;
 
 use crate::core::{GenericResult, GenericError, EmptyResult};
-use crate::currency::CurrencyRate;
 use crate::db::{self, schema::currency_rates, models};
 use crate::formatting;
+use crate::quotes::CurrencyRate;
 use crate::time::{self, Date};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};

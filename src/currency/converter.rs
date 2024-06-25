@@ -5,13 +5,13 @@ use chrono::Duration;
 #[cfg(test)] use matches::assert_matches;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{self, Cash, CurrencyRate, cbr};
+use crate::currency::{self, Cash};
 use crate::currency::rate_cache::{CurrencyRateCache, CurrencyRateCacheResult};
 use crate::db;
 use crate::forex::get_currency_pair;
 use crate::formatting;
 use crate::localities;
-use crate::quotes::{Quotes, QuoteQuery};
+use crate::quotes::{cbr, CurrencyRate, Quotes, QuoteQuery};
 #[cfg(test)] use crate::time;
 use crate::types::{Date, Decimal};
 #[cfg(test)] use crate::util;
