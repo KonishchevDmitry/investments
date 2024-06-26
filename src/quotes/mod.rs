@@ -33,6 +33,7 @@ use crate::time::Date;
 use crate::types::Decimal;
 
 use self::cache::Cache;
+use self::cbr::Cbr;
 use self::custom_provider::{CustomProvider, CustomProviderConfig};
 use self::fcsapi::{FcsApi, FcsApiConfig};
 use self::finex::Finex;
@@ -112,6 +113,13 @@ impl Quotes {
         if let Some(config) = tinkoff {
             providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Currency)));
         }
+
+        // After NCC sanctions we have no decent forex quotes provider:
+        // * Tinkoff provides rates only from exchanges
+        // * FCS API is too restrictive
+        //
+        // So use CBR API here and fallback to FCS API only for unknown currencies.
+        providers.push(Arc::new(Cbr::new("https://www.cbr.ru")));
 
         // Use FCS API for forex
         if let Some(config) = config.quotes.fcsapi.as_ref() {

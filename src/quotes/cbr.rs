@@ -1,26 +1,35 @@
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::OnceLock;
 
 #[cfg(test)] use indoc::indoc;
-use log::trace;
+use log::warn;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use serde::de::DeserializeOwned;
+use serde::de::{DeserializeOwned, Deserializer, Error};
+use validator::{Validate, ValidationError};
 
 use crate::core::GenericResult;
+use crate::currency::Cash;
 use crate::formats::xml;
-use crate::quotes::CurrencyRate;
+use crate::formatting;
+use crate::forex;
+use crate::localities;
+use crate::quotes::{CurrencyRate, QuotesMap, QuotesProvider};
 use crate::time;
 use crate::types::{Date, Decimal};
+use crate::util::{self, DecimalRestrictions};
+
+use super::common::send_request;
 
 pub const BASE_CURRENCY: &str = "RUB";
 
 pub struct Cbr {
     url: String,
     client: Client,
-    codes: Mutex<Option<HashMap<String, String>>>,
+    codes: OnceLock<GenericResult<HashMap<String, String>>>,
+    rates: OnceLock<GenericResult<HashMap<String, Decimal>>>,
 }
 
 impl Cbr {
@@ -28,33 +37,66 @@ impl Cbr {
         Cbr {
             url: url.to_owned(),
             client: Client::new(),
-            codes: Mutex::new(None),
+            codes: OnceLock::new(),
+            rates: OnceLock::new(),
         }
     }
 
-    pub fn get_currency_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
-        #[derive(Deserialize)]
-        struct Rate {
-            #[serde(rename = "Date")]
-            date: String,
+    fn get_currency_rates(&self) -> GenericResult<HashMap<String, Decimal>> {
+        #[derive(Deserialize, Validate)]
+        struct Rates {
+            #[serde(rename = "Date", deserialize_with = "deserialize_date")]
+            date: Date,
 
+            #[validate(nested)]
+            #[serde(rename = "Valute")]
+            rates: Vec<Rate>
+        }
+
+        #[derive(Deserialize, Validate)]
+        struct Rate {
+            #[serde(rename = "CharCode")]
+            symbol: String,
+
+            #[validate(custom(function = "validate_price"))]
+            #[serde(rename = "VunitRate", deserialize_with = "deserialize_price")]
+            price: Decimal,
+        }
+
+        let result: Rates = self.query("currency rates", "XML_daily.asp", &[])?;
+        if result.date < localities::get_russian_central_bank_min_last_working_day(time::today()) {
+            warn!("Got outdated ({}) currency rates from CBR.", formatting::format_date(result.date));
+        }
+
+        Ok(result.rates.into_iter().map(|rate| (rate.symbol, rate.price)).collect())
+    }
+
+    pub fn get_historical_currency_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
+        #[derive(Deserialize, Validate)]
+        struct Rates {
+            #[serde(rename = "DateRange1", deserialize_with = "deserialize_date")]
+            start_date: Date,
+
+            #[serde(rename = "DateRange2", deserialize_with = "deserialize_date")]
+            end_date: Date,
+
+            #[validate(nested)]
+            #[serde(rename = "Record", default)]
+            rates: Vec<Rate>
+        }
+
+        #[derive(Deserialize, Validate)]
+        struct Rate {
+            #[serde(rename = "Date", deserialize_with = "deserialize_date")]
+            date: Date,
+
+            #[validate(range(min = 1))]
             #[serde(rename = "Nominal")]
             lot: i32,
 
-            #[serde(rename = "Value")]
-            price: String,
-        }
-
-        #[derive(Deserialize)]
-        struct Rates {
-            #[serde(rename = "DateRange1")]
-            start_date: String,
-
-            #[serde(rename = "DateRange2")]
-            end_date: String,
-
-            #[serde(rename = "Record", default)]
-            rates: Vec<Rate>
+            #[validate(custom(function = "validate_price"))]
+            #[serde(rename = "Value", deserialize_with = "deserialize_price")]
+            price: Decimal,
         }
 
         let request_date_format = "%d/%m/%Y";
@@ -67,34 +109,25 @@ impl Cbr {
             ("VAL_NM_RQ", &self.get_currency_code(currency)?),
         ])?;
 
-        let response_date_format = "%d.%m.%Y";
-        if time::parse_date(&result.start_date, response_date_format)? != start_date ||
-            time::parse_date(&result.end_date, response_date_format)? != end_date {
+        if result.start_date != start_date || result.end_date != end_date {
             return Err!("The server returned currency rates info for an invalid period");
         }
 
-        let mut rates = Vec::with_capacity(result.rates.len());
-
-        for rate in result.rates {
-            let lot = rate.lot;
-            if lot <= 0 {
-                return Err!("Invalid lot: {}", lot);
+        Ok(result.rates.into_iter().map(|rate| {
+            CurrencyRate {
+                date: rate.date,
+                price: rate.price / Decimal::from(rate.lot),
             }
-
-            let price = rate.price.replace(',', ".");
-            let price = Decimal::from_str(&price).map_err(|_| format!(
-                "Invalid price: {:?}", rate.price))?;
-
-            rates.push(CurrencyRate {
-                date: time::parse_date(&rate.date, response_date_format)?,
-                price: price / Decimal::from(lot),
-            })
-        }
-
-        Ok(rates)
+        }).collect())
     }
 
     fn get_currency_code(&self, currency: &str) -> GenericResult<String> {
+        #[derive(Deserialize, Validate)]
+        struct Result {
+            #[serde(rename = "Item")]
+            currencies: Vec<Currency>,
+        }
+
         #[derive(Deserialize)]
         struct Currency {
             #[serde(rename = "ID")]
@@ -104,54 +137,176 @@ impl Cbr {
             name: String,
         }
 
-        #[derive(Deserialize)]
-        struct Result {
-            #[serde(rename = "Item")]
-            currencies: Vec<Currency>,
-        }
-
-        let mut codes = self.codes.lock().unwrap();
-
-        if codes.is_none() {
+        let codes = self.codes.get_or_init(|| {
             let result: Result = self.query("currency codes", "XML_valFull.asp", &[("d", "0")])?;
 
             // Note: There may be several codes with the same name but different lot size
-            codes.replace(result.currencies.into_iter().map(|Currency {code, name}| {
+            Ok(result.currencies.into_iter().map(|Currency {code, name}| {
                 (name, code)
-            }).collect());
-        }
+            }).collect())
+        }).as_ref().map_err(|e| e.to_string())?;
 
-        let code = codes.as_ref().unwrap().get(currency).ok_or_else(|| format!(
+        let code = codes.get(currency).ok_or_else(|| format!(
             "Invalid currency: {:?}", currency))?;
 
         Ok(code.clone())
     }
 
-    fn query<T: DeserializeOwned>(&self, name: &str, method: &str, params: &[(&str, &str)]) -> GenericResult<T> {
-        let url = Url::parse_with_params(&format!("{}/scripts/{}", self.url, method), params)?;
+    fn query<T: DeserializeOwned + Validate>(&self, name: &str, method: &str, params: &[(&str, &str)]) -> GenericResult<T> {
+        let url = format!("{}/scripts/{}", self.url, method);
+
+        let url = if params.is_empty() {
+            Url::parse(&url)? // parse_with_params() adds trailing '?' to the end of the URL
+        } else {
+            Url::parse_with_params(&url, params)?
+        };
+
         let get = |url| -> GenericResult<T> {
-            trace!("Sending request to {}...", url);
-            let response = self.client.get(url).send()?;
-            trace!("Got response from {}.", url);
+            let response = send_request(&self.client, url,  None)?;
 
-            if !response.status().is_success() {
-                return Err!("The server returned an error: {}", response.status());
-            }
+            let result: T = xml::deserialize(response)?;
+            result.validate()?;
 
-            xml::deserialize(response)
+            Ok(result)
         };
 
         Ok(get(url.as_str()).map_err(|e| format!("Failed to get {} from {}: {}", name, url, e))?)
     }
 }
 
+impl QuotesProvider for Cbr {
+    fn name(&self) -> &'static str {
+        "CBR"
+    }
+
+    fn supports_forex(&self) -> bool {
+        true
+    }
+
+    fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
+        let rates = self.rates.get_or_init(|| {
+            self.get_currency_rates()
+        }).as_ref().map_err(|e| e.to_string())?;
+
+        let mut quotes = QuotesMap::new();
+
+        for &symbol in symbols {
+            let (base, quote) = forex::parse_currency_pair(symbol)?;
+            if let Some(quote) = get_quote(base, quote, rates) {
+                quotes.insert(symbol.to_owned(), quote);
+            }
+        }
+
+        Ok(quotes)
+    }
+}
+
+fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+    where D: Deserializer<'de>
+{
+    let date: String = Deserialize::deserialize(deserializer)?;
+    time::parse_date(&date, "%d.%m.%Y").map_err(D::Error::custom)
+}
+
+fn deserialize_price<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
+    where D: Deserializer<'de>
+{
+    let price: String = Deserialize::deserialize(deserializer)?;
+    Decimal::from_str(&price.replace(',', ".")).ok()
+        .and_then(|price| if price > dec!(0) {
+            Some(price)
+        } else {
+            None
+        })
+        .ok_or_else(|| D::Error::custom(format!("Invalid price: {:?}", price)))
+}
+
+fn validate_price(&price: &Decimal) -> Result<(), ValidationError> {
+    if util::validate_decimal(price, DecimalRestrictions::StrictlyPositive).is_err() {
+        return Err(ValidationError::new("price").with_message(format!("Invalid price: {}", price).into()));
+    }
+    Ok(())
+}
+
+fn get_quote(base: &str, quote: &str, rates: &HashMap<String, Decimal>) -> Option<Cash> {
+    let base_rate = match base {
+        BASE_CURRENCY => dec!(1),
+        _ => *rates.get(base)?,
+    };
+
+    let quote_rate = match quote {
+        BASE_CURRENCY => dec!(1),
+        _ => *rates.get(quote)?,
+    };
+
+    Some(Cash::new(quote, base_rate / quote_rate))
+}
+
 #[cfg(test)]
 mod tests {
     use mockito::{Server, ServerGuard, Mock};
+
     use super::*;
 
     #[test]
-    fn empty_rates() {
+    fn rates() {
+        let (mut server, client) = create_server();
+
+        let _rates_mock = mock_response(
+            &mut server, "/scripts/XML_daily.asp",
+            indoc!(r#"
+                <?xml version="1.0" encoding="windows-1251"?>
+                <ValCurs Date="27.06.2024" name="Foreign Currency Market">
+                    <Valute ID="R01235">
+                        <NumCode>840</NumCode>
+                        <CharCode>USD</CharCode>
+                        <Nominal>1</Nominal>
+                        <Name>Доллар США</Name>
+                        <Value>87,8064</Value>
+                        <VunitRate>87,8064</VunitRate>
+                    </Valute>
+                    <Valute ID="R01375">
+                        <NumCode>156</NumCode>
+                        <CharCode>CNY</CharCode>
+                        <Nominal>1</Nominal>
+                        <Name>Китайский юань</Name>
+                        <Value>11,8748</Value>
+                        <VunitRate>11,8748</VunitRate>
+                    </Valute>
+                    <Valute ID="R01150">
+                        <NumCode>704</NumCode>
+                        <CharCode>VND</CharCode>
+                        <Nominal>10000</Nominal>
+                        <Name>Вьетнамских донгов</Name>
+                        <Value>36,1969</Value>
+                        <VunitRate>0,00361969</VunitRate>
+                    </Valute>
+                </ValCurs>
+            "#)
+        );
+
+        let mut quotes = client.get_quotes(&["RUB/RUB", "USD/RUB", "RUB/USD", "VND/RUB", "RUB/VND", "USD/VND", "VND/USD", "XXX/YYY"]).unwrap();
+        quotes = quotes.into_iter().map(|(symbol, quote)| (symbol, quote.round_to(6))).collect();
+
+        assert_eq!(
+            quotes,
+            hashmap!{
+                s!("RUB/RUB") => Cash::new("RUB", dec!(1)),
+
+                s!("USD/RUB") => Cash::new("RUB", dec!(87.8064)),
+                s!("RUB/USD") => Cash::new("USD", dec!(0.011389)),
+
+                s!("VND/RUB") => Cash::new("RUB", dec!(0.00362)),
+                s!("RUB/VND") => Cash::new("VND", dec!(276.266752)),
+
+                s!("USD/VND") => Cash::new("VND", dec!(24257.988944)),
+                s!("VND/USD") => Cash::new("USD", dec!(0.000041)),
+            },
+        );
+    }
+
+    #[test]
+    fn empty_historical_rates() {
         let (mut server, client) = create_server();
 
         let _currencies_mock = mock_currencies(&mut server);
@@ -164,11 +319,11 @@ mod tests {
             "#)
         );
 
-        assert_eq!(client.get_currency_rates("USD", date!(2018, 9, 2), date!(2018, 9, 3)).unwrap(), vec![]);
+        assert_eq!(client.get_historical_currency_rates("USD", date!(2018, 9, 2), date!(2018, 9, 3)).unwrap(), vec![]);
     }
 
     #[test]
-    fn rates() {
+    fn historical_rates() {
         let (mut server, client) = create_server();
 
         let _currencies_mock = mock_currencies(&mut server);
@@ -190,7 +345,7 @@ mod tests {
         );
 
         assert_eq!(
-            client.get_currency_rates("USD", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
+            client.get_historical_currency_rates("USD", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
             vec![CurrencyRate {
                 date: date!(2018, 9, 1),
                 price: dec!(68.0447),
@@ -218,7 +373,7 @@ mod tests {
         );
 
         assert_eq!(
-            client.get_currency_rates("JPY", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
+            client.get_historical_currency_rates("JPY", date!(2018, 9, 1), date!(2018, 9, 4)).unwrap(),
             vec![CurrencyRate {
                 date: date!(2018, 9, 1),
                 price: dec!(0.614704),
