@@ -155,7 +155,7 @@ impl BrokerStatement {
             let mut hint = String::new();
             if statement.broker.type_ == Broker::InteractiveBrokers {
                 // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping
-                let url = "http://bit.ly/investments-ib-tax-remapping";
+                let url = "https://bit.ly/investments-ib-tax-remapping";
                 hint = format!("\n\nProbably manual tax remapping rules are required (see {})", url);
             }
 

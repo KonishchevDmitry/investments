@@ -37,7 +37,7 @@ impl RecordParser for AccountInformationParser {
                 "Margin" => {
                     if *parser.warn_on_margin_account {
                         // https://github.com/KonishchevDmitry/investments/issues/8
-                        let url = "http://bit.ly/investments-margin-accounts";
+                        let url = "https://bit.ly/investments-margin-accounts";
                         warn!(concat!(
                             "The program is not expected to work properly with margin accounts ",
                             "(see {}), so be critical to its calculation results."

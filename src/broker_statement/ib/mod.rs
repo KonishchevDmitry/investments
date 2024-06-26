@@ -234,7 +234,7 @@ impl<'a> StatementParser<'a> {
 
         if *self.warn_on_missing_execution_date {
             // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-trade-settle-date
-            let url = "http://bit.ly/investments-ib-trade-settle-date";
+            let url = "https://bit.ly/investments-ib-trade-settle-date";
             warn!(concat!(
                 "The broker statement misses trade settle date information (see {}). ",
                 "First occurred trade - {} at {}. ",
