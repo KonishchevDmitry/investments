@@ -1,0 +1,7 @@
+{
+    "search.exclude": {
+        "/src/quotes/tinkoff/api/src/docs": true,
+        "/testdata/bcs/*/*.sign": true,
+        "/testdata/rt_*": true,
+    },
+}
