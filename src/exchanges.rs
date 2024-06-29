@@ -15,10 +15,11 @@ pub enum Exchange {
 
 impl Exchange {
     pub fn trading_mode(self) -> TradingMode {
-        TradingMode(match self {
-            Exchange::Moex => 1,
-            _              => 2,
-        })
+        // History:
+        // * T+2 everywhere
+        // * 31.07.2023 MOEX and SPB switched to T+1
+        // * 28.05.2024 US switched to T+1
+        TradingMode(1)
     }
 
     pub fn min_last_working_day(self, today: Date) -> Date {
