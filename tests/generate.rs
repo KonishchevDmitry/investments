@@ -258,7 +258,7 @@ impl Test {
             .build();
 
         if stdout {
-            test.stdout(&name_to_id(&self.name));
+            test.stdout(name_to_id(&self.name));
         }
 
         if let Some(diff) = self.diff {
