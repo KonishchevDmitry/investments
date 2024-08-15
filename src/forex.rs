@@ -25,8 +25,9 @@ pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
 
 pub fn parse_forex_code(code: &str) -> GenericResult<(&str, &str, Option<Decimal>)> {
     lazy_static! {
+        // TDS/TMS are like TOD/TOM but their lot is hundred times less
         static ref CODE_REGEX: Regex = Regex::new(
-            r"^(?P<base>[A-Z]{3})(?P<quote>[A-Z]{3})_(?:TOD|TOM)$").unwrap();
+            r"^(?P<base>[A-Z]{3})(?P<quote>[A-Z]{3})_(?:TOD|TOM|TDS|TMS)$").unwrap();
     }
 
     let (base, quote, lot_size) = match code {
@@ -64,13 +65,20 @@ pub fn validate_currency_pair_list<P, I>(pairs: P) -> Result<(), ValidationError
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use super::*;
 
-    #[test]
-    fn forex_code_parsing() {
+    #[rstest(code, base, quote,
+        case("HKDRUB_TOD", "HKD", "RUB"),
+        case("HKDRUB_TOM", "HKD", "RUB"),
+
+        case("HKDRUB_TDS", "HKD", "RUB"),
+        case("HKDRUB_TMS", "HKD", "RUB"),
+    )]
+    fn forex_code_parsing(code: &str, base: &str, quote: &str) {
         assert_eq!(
-            parse_forex_code("HKDRUB_TOM").unwrap(),
-            ("HKD", "RUB", None),
+            parse_forex_code(code).unwrap(),
+            (base, quote, None),
         );
     }
 }
