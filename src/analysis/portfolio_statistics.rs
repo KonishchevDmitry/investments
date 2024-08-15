@@ -95,7 +95,7 @@ pub struct PortfolioCurrencyStatistics {
     pub currency: String,
 
     // Use BTreeMap to get consistent metrics order
-    pub assets: BTreeMap<String, Asset>,
+    pub assets: BTreeMap<String, BTreeMap<String, Asset>>,
     pub brokers: BTreeMap<Broker, Decimal>,
 
     pub virtual_performance: Option<PortfolioPerformanceAnalysis>,
@@ -107,17 +107,14 @@ pub struct PortfolioCurrencyStatistics {
     pub projected_commissions: Decimal,
 }
 
-#[derive(Default)]
-pub struct Asset {
-    pub value: Decimal,
-    pub net_value: Decimal,
-}
-
 impl PortfolioCurrencyStatistics {
-    pub fn add_assets(&mut self, broker: Broker, instrument: &str, amount: Decimal, net_amount: Decimal) {
-        let asset = self.assets.entry(instrument.to_owned()).or_default();
-        asset.value += amount;
-        asset.net_value += net_amount;
+    pub fn add_assets(&mut self, portfolio: &str, broker: Broker, instrument: &str, amount: Decimal, net_amount: Decimal) {
+        let instrument = self.assets.entry(instrument.to_owned()).or_default();
+
+        instrument.entry(portfolio.to_owned()).or_default().add(&Asset {
+            value: amount,
+            net_value: net_amount,
+        });
 
         *self.brokers.entry(broker).or_default() += amount;
     }
@@ -137,5 +134,18 @@ impl PortfolioCurrencyStatistics {
             PerformanceAnalysisMethod::InflationAdjusted => &mut self.inflation_adjusted_performance,
         };
         assert!(container.replace(performance).is_none());
+    }
+}
+
+#[derive(Default)]
+pub struct Asset {
+    pub value: Decimal,
+    pub net_value: Decimal,
+}
+
+impl Asset {
+    pub fn add(&mut self, other: &Asset) {
+        self.value += other.value;
+        self.net_value += other.net_value;
     }
 }

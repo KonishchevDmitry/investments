@@ -69,7 +69,7 @@ impl<'a> PortfolioAnalyser<'a> {
                 let cash_assets = statement.assets.cash.total_assets_real_time(
                     &statistics.currency, &self.converter)?;
 
-                Ok(statistics.add_assets(broker, "Cash", cash_assets, cash_assets))
+                Ok(statistics.add_assets(&portfolio.name, broker, "Cash", cash_assets, cash_assets))
             })?;
 
             let net_value = statement.net_value(&self.converter, &self.quotes, portfolio.currency()?, true)?;
@@ -156,7 +156,7 @@ impl<'a> PortfolioAnalyser<'a> {
             let tax_to_pay = self.converter.real_time_convert_to(totals_tax.to_pay, currency)?;
             let tax_deduction = self.converter.real_time_convert_to(totals_tax.deduction, currency)?;
 
-            statistics.add_assets(portfolio.broker, &trade.symbol, volume, volume - commission - tax_to_pay);
+            statistics.add_assets(&portfolio.name, portfolio.broker, &trade.symbol, volume, volume - commission - tax_to_pay);
             statistics.projected_commissions += commission;
             statistics.projected_taxes += tax_to_pay;
             statistics.projected_tax_deductions += tax_deduction;

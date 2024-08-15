@@ -11,7 +11,7 @@ use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, re
 use strum::IntoEnumIterator;
 
 use crate::analysis::{self, PerformanceAnalysisMethod};
-use crate::analysis::portfolio_statistics::{AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
+use crate::analysis::portfolio_statistics::{Asset, AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::forex;
@@ -99,9 +99,16 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
         set_metric(&BROKERS, &[currency, broker.brief_name(), broker.jurisdiction().traits().name], value);
     }
 
-    for (instrument, asset) in &statistics.assets {
-        set_instrument_metric(&ASSETS, currency, instrument, asset.value);
-        set_instrument_metric(&NET_ASSETS, currency, instrument, asset.net_value);
+    for (instrument, portfolios) in &statistics.assets {
+        let mut total = Asset::default();
+
+        // TODO(konishchev): Split by portfolio
+        for asset in portfolios.values() {
+            total.add(asset);
+        }
+
+        set_instrument_metric(&ASSETS, currency, instrument, total.value);
+        set_instrument_metric(&NET_ASSETS, currency, instrument, total.net_value);
     }
 
     for method in PerformanceAnalysisMethod::iter() {
