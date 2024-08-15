@@ -13,7 +13,7 @@ fi
 target="$1"
 [ "$(uname)" = Linux ] || exit 0
 
-dependencies="$(ldd "target/${CARGO_BUILD_TARGET:-}/$target/binup" | sed -r 's/^\s+//')"
+dependencies="$(ldd "target/${CARGO_BUILD_TARGET:-}/$target/investments" | sed -r 's/^\s+//')"
 if [ "$dependencies" != "statically linked" ]; then
     echo "The binary is not statically linked:" >&2
     echo "$dependencies" >&2
