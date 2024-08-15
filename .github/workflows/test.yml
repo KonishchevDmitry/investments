@@ -22,13 +22,19 @@ jobs:
         os: [ubuntu, macos, windows]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
+    - name: Configure build target
+      run: .github/configure-build-target
 
     - name: Drop caches
       run: rm Cargo.lock
 
     - name: Build
       run: cargo build
+
+    - name: Check the binary
+      run: .github/check-binary debug
 
     - name: Test
       run: cargo test --

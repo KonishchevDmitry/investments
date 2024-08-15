@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# Configures build target
+#
+
+set -eu
+
+if [ "$(uname)" != Linux ]; then
+    echo "Use default build target"
+    exit 0
+fi
+
+target="$(uname --machine)-unknown-linux-musl"
+echo CARGO_BUILD_TARGET="$target" | tee -a "$GITHUB_ENV"
+
+set -x
+rustup target add "$target"
+sudo apt install musl-tools
