@@ -5,7 +5,6 @@ use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
 use log::debug;
-use num_traits::FromPrimitive;
 
 use xls_table_derive::XlsTableRow;
 
@@ -23,8 +22,8 @@ use crate::util;
 use crate::util::DecimalRestrictions;
 
 use super::common::{
-    read_next_table_row, parse_date_cell, parse_planned_actual_date_cell, parse_decimal_cell, parse_quantity_cell,
-    parse_time_cell, save_instrument_exchange_info, trim_column_title};
+    read_next_table_row, parse_date_cell, parse_planned_actual_date_cell, parse_decimal_cell,
+    parse_fractional_quantity_cell, parse_time_cell, save_instrument_exchange_info, trim_column_title};
 
 pub type TradesRegistryRc = Rc<RefCell<HashMap<TradeId, bool>>>;
 
@@ -129,8 +128,8 @@ struct TradeRow {
     price: Decimal,
     #[column(name="Валюта цены")]
     price_currency: String,
-    #[column(name="Количество", parse_with="parse_quantity_cell")]
-    quantity: u32,
+    #[column(name="Количество", parse_with="parse_fractional_quantity_cell")]
+    quantity: Decimal,
     #[column(name="Сумма (без НКД)")]
     _13: SkipCell,
     #[column(name="НКД", parse_with="parse_decimal_cell")]
@@ -192,9 +191,12 @@ impl TradeRow {
             return Err!("Bonds aren't supported yet");
         }
 
+        let forex = parse_forex_code(&self.symbol).ok();
+        let operation = self.operation.as_str();
+
         let conclusion_time = DateTime::new(self.date, self.time);
-        if self.quantity == 0 {
-            return Err!("Invalid {} trade quantity: {:?}", self.symbol, self.quantity);
+        if self.quantity.is_zero() {
+            return Err!("Invalid {} trade quantity: {}", self.symbol, self.quantity);
         }
 
         let price = util::validate_named_cash(
@@ -235,37 +237,34 @@ impl TradeRow {
             )?).unwrap();
         }
 
-        let forex = parse_forex_code(&self.symbol);
-        let operation = self.operation.as_str();
-
         let repo_trade = match operation {
             "Покупка" => {
-                if let Ok((base, _quote, _lot_size)) = forex {
+                if let Some((base, _quote, _lot_size)) = forex {
                     let from = volume;
-                    let to = Cash::new(base, Decimal::from_u32(self.quantity).unwrap());
+                    let to = Cash::new(base, self.quantity);
                     statement.forex_trades.push(ForexTrade::new(
                         conclusion_time.into(), from, to, commission));
                 } else {
                     statement.stock_buys.push(StockBuy::new_trade(
-                        &self.symbol, self.quantity.into(), price, volume, commission,
+                        &self.symbol, self.quantity, price, volume, commission,
                         conclusion_time.into(), self.execution_date));
                 }
                 false
             },
             "Продажа" => {
-                if let Ok((base, _quote, _lot_size)) = forex {
-                    let from = Cash::new(base, Decimal::from_u32(self.quantity).unwrap());
+                if let Some((base, _quote, _lot_size)) = forex {
+                    let from = Cash::new(base, self.quantity);
                     let to = volume;
                     statement.forex_trades.push(ForexTrade::new(
                         conclusion_time.into(), from, to, commission));
                 } else {
                     statement.stock_sells.push(StockSell::new_trade(
-                        &self.symbol, self.quantity.into(), price, volume,
-                        commission, conclusion_time.into(), self.execution_date, false));
+                        &self.symbol, self.quantity, price, volume, commission,
+                        conclusion_time.into(), self.execution_date, false));
                 }
                 false
             },
-            "РЕПО 1 Продажа" | "РЕПО 2 Покупка" if forex.is_err() => {
+            "РЕПО 1 Продажа" | "РЕПО 2 Покупка" if forex.is_none() => {
                 let amount = if operation == "РЕПО 2 Покупка" {
                     -volume
                 } else {
@@ -283,7 +282,7 @@ impl TradeRow {
         };
 
         // Old statements contain a valid exchange, but later the column has been broken and now always contains the same value "Б"
-        if forex.is_err() && !repo_trade && self.exchange != "Б" {
+        if forex.is_none() && !repo_trade && self.exchange != "Б" {
             save_instrument_exchange_info(
                 &mut statement.instrument_info, &self.symbol, &self.exchange)?;
         }

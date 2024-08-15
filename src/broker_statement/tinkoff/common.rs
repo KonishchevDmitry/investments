@@ -71,6 +71,12 @@ pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
     xls::get_integer_cell(cell, true)
 }
 
+pub fn parse_fractional_quantity_cell(cell: &Cell) -> GenericResult<Decimal> {
+    parse_decimal_cell(cell).and_then(|quantity| {
+        util::validate_decimal(quantity, DecimalRestrictions::PositiveOrZero)
+    })
+}
+
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
     match cell {
         Cell::String(value) => {
