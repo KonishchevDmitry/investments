@@ -211,7 +211,9 @@ impl CashFlowRow {
 
             "Покупка/продажа"
                 | "DVP/RVP" // Trade from non-brokerage account (https://github.com/KonishchevDmitry/investments/issues/83)
-                | "РЕПО" => {
+                | "РЕПО"
+                | "Иные операции" // Broker-initiated currency sell
+            => {
                 // All trade-related cash flows are calculated during trades processing
             },
 
