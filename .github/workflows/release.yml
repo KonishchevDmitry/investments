@@ -11,24 +11,39 @@ jobs:
     uses: KonishchevDmitry/investments/.github/workflows/test.yml@master
 
   build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ format('{0}-latest', matrix.os) }}
+    name: Build for ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
         include:
-          - os: ubuntu
+          # See https://bit.ly/github-runners for actual runners
+
+          - name: Linux
+            os: ubuntu-latest
             binary_name: investments
             archive_ext: tar.bz2
-          - os: macos
+
+          - name: Intel MacOS
+            os: macos-13
             binary_name: investments
             archive_ext: tar.bz2
-          - os: windows
+
+          - name: ARM MacOS
+            os: macos-14
+            binary_name: investments
+            archive_ext: tar.bz2
+
+          - name: Windows
+            os: windows-latest
             binary_name: investments.exe
             archive_ext: zip
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
+    - name: Configure build target
+      run: .github/configure-build-target
 
     - name: Build
       env:
@@ -36,27 +51,22 @@ jobs:
         INVESTMENTS_PRECOMPILED_BINARY: yes
       run: cargo build --release --locked
 
-    - name: Construct archive name
-      id: archive_name
-      uses: ASzc/change-string-case-action@v5
-      with:
-        string: ${{ format('investments-{0}-{1}-{2}.{3}', runner.os, runner.arch, github.ref_name, matrix.archive_ext) }}
+    - name: Check the binary
+      run: .github/check-binary release
 
     - name: Create archive
-      shell: bash
+      id: archive
+      shell: bash # Required for Windows
       run: |
-        set -eu
-
-        # A workaround for https://github.com/actions/virtual-environments/issues/2619
-        if [ "$(uname)" = Darwin ]; then
-          sudo purge
-          alias tar=gtar
-        fi
+        set -eux
 
         binary_name="${{ matrix.binary_name }}"
-        archive_name="${{ steps.archive_name.outputs.lowercase }}"
+        mv "target/${CARGO_BUILD_TARGET:-}/release/$binary_name" .
+        [[ "$(uname)" = MINGW* ]] || sudo chown 0:0 "$binary_name"
 
-        mv "target/release/$binary_name" .
+        archive_name="investments-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}.${{ matrix.archive_ext }}"
+        archive_name="$(tr '[:upper:]' '[:lower:]' <<< "$archive_name")"
+        echo "name=$archive_name" >> "$GITHUB_OUTPUT"
 
         case "$archive_name" in
           *.tar.bz2) tar -cjf "$archive_name" "$binary_name";;
@@ -65,10 +75,12 @@ jobs:
         esac
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        path: ${{ steps.archive_name.outputs.lowercase }}
+        name: ${{ matrix.os }}
+        path: ${{ steps.archive.outputs.name }}
         if-no-files-found: error
+        compression-level: 0
         retention-days: 1
 
   publish:
@@ -79,14 +91,16 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
+        pattern: "*"
+        merge-multiple: true
 
     - name: Create release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
-        file: artifacts/*/*
+        file: artifacts/*
         file_glob: true

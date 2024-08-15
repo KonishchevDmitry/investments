@@ -34,6 +34,10 @@ too-many-arguments = "allow"
 type-complexity = "allow"
 unit-arg = "allow"
 
+[profile.release]
+codegen-units = 1
+lto = true
+
 [dependencies]
 ansi_term = "0.12.1"
 bitflags = "2.6.0"
