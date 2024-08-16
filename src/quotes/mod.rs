@@ -111,7 +111,7 @@ impl Quotes {
 
         // Prefer Tinkoff for forex (FCS API has too restrictive rate limits)
         if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Currency)));
+            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Currency)?));
         }
 
         // After NCC sanctions we have no decent forex quotes provider:
@@ -130,7 +130,7 @@ impl Quotes {
 
         // Use Tinkoff for SPB stocks
         if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Spb)));
+            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Spb)?));
         }
 
         // Use Finnhub for US stocks
@@ -147,7 +147,7 @@ impl Quotes {
 
         // As a best effort for unsupported exchanges provide a fallback to Tinkoff SPB/OTC stocks
         if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Unknown)));
+            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Unknown)?));
         }
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), providers))

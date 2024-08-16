@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use tonic::{Request, Status};
 use tonic::service::{Interceptor, interceptor::InterceptedService};
-use tonic::transport::Channel;
+use tonic::transport::{Channel, ClientTlsConfig};
 
 #[allow(clippy::all)]
 mod api {
@@ -54,7 +54,7 @@ pub struct Tinkoff {
 }
 
 impl Tinkoff {
-    pub fn new(config: &TinkoffApiConfig, exchange: TinkoffExchange) -> Tinkoff {
+    pub fn new(config: &TinkoffApiConfig, exchange: TinkoffExchange) -> GenericResult<Tinkoff> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all().build().unwrap();
 
@@ -62,10 +62,11 @@ impl Tinkoff {
             Channel::from_static("https://sandbox-invest-public-api.tinkoff.ru")
                 .connect_timeout(CONNECT_TIMEOUT)
                 .timeout(REQUEST_TIMEOUT)
-                .connect_lazy()
-        });
+                .tls_config(ClientTlsConfig::new().with_native_roots())
+                .map(|endpoint| endpoint.connect_lazy())
+        }).map_err(|e| format!("Tinkoff client: {e}"))?;
 
-        Tinkoff {
+        Ok(Tinkoff {
             token: config.token.clone(),
             exchange: exchange,
 
@@ -74,7 +75,7 @@ impl Tinkoff {
 
             stocks: Mutex::new(HashMap::new()),
             currencies: Mutex::new(HashMap::new()),
-        }
+        })
     }
 
     fn instruments_client(&self) -> InstrumentsServiceClient<InterceptedService<Channel, ClientInterceptor>> {
