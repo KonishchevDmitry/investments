@@ -315,8 +315,8 @@ mod tests {
 
     fn parse(namespace: &str, name: &str) -> BrokerStatement {
         let portfolio_name = match (namespace, name) {
-            ("main", "my") => s!("tinkoff"),
-            ("other", name) => format!("tinkoff-{}", name),
+            ("main", "my") => s!("tbank"),
+            ("other", name) => format!("tbank-{}", name),
             _ => name.to_owned(),
         };
 
@@ -325,7 +325,7 @@ mod tests {
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(
-            broker, &format!("testdata/tinkoff/{}", name),
+            broker, &format!("testdata/tbank/{}", name),
             &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()

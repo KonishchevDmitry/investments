@@ -8,6 +8,7 @@ use investments::core::EmptyResult;
 #[test]
 fn generate_regression_tests() {
     let mut t = Tests::new();
+    let last_tax_year = 2024;
 
     // cli
     t.with_args("No command", &[]).exit_code(2);
@@ -36,19 +37,17 @@ fn generate_regression_tests() {
     t.add("Analyse", "analyse --all");
     t.add("Analyse virtual", "analyse --all --method virtual");
     t.add("Analyse inflation-adjusted", "analyse --all --method inflation-adjusted");
-    t.add("Analyse delisted", "analyse tinkoff-delisting --all").config("other");
-    t.add("Analyse IIA type A", "analyse open-first-iia-a --all").config("other");
+    t.add("Analyse delisted", "analyse tbank-delisting --all").config("other");
 
     // simulate-sell
     t.add("Simulate sell partial", "simulate-sell ib all VTI 50 BND 50 BND");
-    t.add("Simulate sell OTC trade", "simulate-sell tinkoff-delisting").config("other");
-    t.add("Simulate sell IIA type A", "simulate-sell open-first-iia-a").config("other");
-    t.add("Simulate sell in other currency", "simulate-sell tinkoff --base-currency USD");
+    t.add("Simulate sell OTC trade", "simulate-sell tbank-delisting").config("other");
+    t.add("Simulate sell in other currency", "simulate-sell tbank --base-currency USD");
     t.add("Simulate sell after stock split", "simulate-sell ib-stock-split all AAPL").config("other");
     t.add("Simulate sell after reverse stock split", "simulate-sell ib-reverse-stock-split all AAPL all VISL").config("other");
     t.add("Simulate sell stock grant", "simulate-sell ib-external-exchanges all IBKR").config("other");
     t.add("Simulate sell zero cost position", "simulate-sell ib-complex 5 VTRS 125 VTRS").config("other");
-    t.add("Simulate sell with mixed currency", "simulate-sell tinkoff-mixed-currency-trade all EQMX all RSHA").config("other");
+    t.add("Simulate sell with mixed currency", "simulate-sell tbank-mixed-currency-trade all EQMX all RSHA").config("other");
 
     // tax-statement
     t.add("IB complex tax statement", "tax-statement ib-complex").config("other");
@@ -65,9 +64,9 @@ fn generate_regression_tests() {
     t.add("IB with enabled Stock Yield Enhancement Program (not received yet) tax statement", "tax-statement ib-stock-yield-enhancement-program-not-received-yet").config("other");
     t.add("Open MOEX dividends tax statement", "tax-statement open-dividends-moex").config("other");
     t.add("Open SPB dividends tax statement", "tax-statement open-dividends-spb").config("other");
-    t.add("Tinkoff complex tax statement", "tax-statement tinkoff-complex").config("other");
-    t.add("Tinkoff delisting tax statement", "tax-statement tinkoff-delisting").config("other");
-    t.add("Tinkoff complex full tax statement", "tax-statement tinkoff-complex-full").config("other");
+    t.add("TBank complex tax statement", "tax-statement tbank-complex").config("other");
+    t.add("TBank delisting tax statement", "tax-statement tbank-delisting").config("other");
+    t.add("TBank complex full tax statement", "tax-statement tbank-complex-full").config("other");
 
     // Not all calculations are seen in tax-statement output. For example, dividend jurisdiction
     // appear only in the tax statement, so it worth to test also third party statements here.
@@ -75,7 +74,7 @@ fn generate_regression_tests() {
     t.tax_statement("IB external exchanges", 2021).config("other");
     t.tax_statement("Open dividends MOEX", 2021).config("other");
     t.tax_statement("Open dividends SPB", 2021).config("other");
-    t.tax_statement("Tinkoff complex full", 2020).config("other");
+    t.tax_statement("TBank complex full", 2020).config("other");
 
     // cash-flow
     t.add("IB margin RUB cash flow", "cash-flow ib-margin-rub").config("other");
@@ -87,30 +86,49 @@ fn generate_regression_tests() {
     t.add("IB tax remapping cash flow", "cash-flow ib-tax-remapping").config("other");
     t.add("IB trading cash flow", "cash-flow ib-trading").config("other");
     t.add("IB with enabled Stock Yield Enhancement Program (not received yet) cash flow", "cash-flow ib-stock-yield-enhancement-program-not-received-yet").config("other");
-    t.add("Open non-unified account cash-flow", "cash-flow open-first-iia-a").config("other");
+    t.add("Open non-unified account cash-flow", "cash-flow open-iia-a").config("other");
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
     t.add("Open MOEX dividends cash flow", "cash-flow open-dividends-moex").config("other");
     t.add("Open SPB dividends cash flow", "cash-flow open-dividends-spb").config("other");
-    t.add("Tinkoff complex cash flow", "cash-flow tinkoff-complex").config("other");
-    t.add("Tinkoff complex full cash flow", "cash-flow tinkoff-complex-full").config("other");
+    t.add("TBank complex cash flow", "cash-flow tbank-complex").config("other");
+    t.add("TBank complex full cash flow", "cash-flow tbank-complex-full").config("other");
 
     // other
     t.add("Metrics", "metrics $OUT_PATH/metrics.prom");
     t.add("Completion", "completion $OUT_PATH/completion.bash");
 
+    // IIA
+
+    for (account_type, open_year) in [("A", 2017), ("B", 2021)] {
+        let name = format!("IIA-{account_type}");
+        let id = format!("open-iia-{}", account_type.to_lowercase());
+
+        t.add(&format!("{name} analyse"), &format!("analyse {id} --all")).config("other");
+        t.add(&format!("{name} simulate sell"), &format!("simulate-sell {id}")).config("other");
+
+        t.add(&format!("{name} tax statement"), &format!("tax-statement {id}")).config("other");
+        for year in open_year..=last_tax_year {
+            t.with_args(
+                &format!("{name} tax statement {year}"),
+                &["tax-statement", &id, &year.to_string()],
+            ).config("other");
+        }
+    }
+
+    // Personal accounts
+
     let accounts = [
         ("Firstrade", Some((2020, Some(2022)))),
         ("IB",        Some((2018, None))),
-        ("Tinkoff",   Some((2019, None))),
+        ("TBank",     Some((2019, None))),
 
-        ("BCS",     None),
-        ("IIA",     None),
-        ("Open",    None),
+        ("BCS",          None),
+        ("Investpalata", None),
+        ("VTB",          None),
 
         ("Kate",     None),
         ("Kate IIA", None),
     ];
-    let last_tax_year = 2024;
 
     for (name, year_spec) in accounts {
         let id = &name_to_id(name);
@@ -139,14 +157,6 @@ fn generate_regression_tests() {
             t.with_args(&format!("{} tax statement", name), &["tax-statement", id]);
             t.with_args(&format!("{} cash flow", name), &["cash-flow", id]);
         }
-    }
-
-    t.add("IIA type A tax statement", "tax-statement open-first-iia-a").config("other");
-    for year in 2017..=last_tax_year {
-        t.with_args(
-            &format!("IIA type A tax statement {}", year),
-            &["tax-statement", "open-first-iia-a", &year.to_string()],
-        ).config("other");
     }
 
     t.write().unwrap()

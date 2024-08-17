@@ -369,7 +369,7 @@ mod tests {
 
     #[rstest(name => ["foreign-income/report.xlsx", "complex-full/foreign-income-report.xlsx"])]
     fn parse_real(name: &str) {
-        let path = format!("testdata/tinkoff/{}", name);
+        let path = format!("testdata/tbank/{}", name);
 
         let is_statement = ForeignIncomeStatementReader::is_statement(&path).unwrap();
         assert!(is_statement);
