@@ -374,6 +374,7 @@ pub struct BrokersConfig {
     pub firstrade: Option<BrokerConfig>,
     pub interactive_brokers: Option<BrokerConfig>,
     pub open_broker: Option<BrokerConfig>,
+    pub sber: Option<BrokerConfig>,
     pub tinkoff: Option<TinkoffConfig>,
 }
 
@@ -385,6 +386,7 @@ impl BrokersConfig {
             firstrade: Some(BrokerConfig::mock()),
             interactive_brokers: Some(BrokerConfig::mock()),
             open_broker: Some(BrokerConfig::mock()),
+            sber: Some(BrokerConfig::mock()),
             tinkoff: Some(TinkoffConfig {
                 broker: Some(BrokerConfig::mock()),
                 api: None,

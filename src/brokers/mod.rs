@@ -20,6 +20,7 @@ pub enum Broker {
     Firstrade,
     InteractiveBrokers,
     Open,
+    Sber,
     Tinkoff,
 }
 
@@ -57,6 +58,7 @@ impl Broker {
             Broker::Firstrade => "firstrade",
             Broker::InteractiveBrokers => "interactive-brokers",
             Broker::Open => "open",
+            Broker::Sber => "sber",
             Broker::Tinkoff => "tinkoff",
         }
     }
@@ -67,6 +69,7 @@ impl Broker {
             Broker::Firstrade => "Firstrade Securities Inc.",
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
             Broker::Open => "АО «Открытие Брокер»",
+            Broker::Sber => "ПАО «Сбербанк»",
             Broker::Tinkoff => "АО «Тинькофф Банк»",
         }
     }
@@ -77,13 +80,14 @@ impl Broker {
             Broker::Firstrade => "Firstrade",
             Broker::InteractiveBrokers => "Interactive Brokers",
             Broker::Open => "Открытие",
+            Broker::Sber => "Сбер",
             Broker::Tinkoff => "Тинькофф",
         }
     }
 
     pub fn jurisdiction(self) -> Jurisdiction {
         match self {
-            Broker::Bcs | Broker::Open | Broker::Tinkoff => Jurisdiction::Russia,
+            Broker::Bcs | Broker::Open | Broker::Sber | Broker::Tinkoff => Jurisdiction::Russia,
             Broker::Firstrade | Broker::InteractiveBrokers => Jurisdiction::Usa,
         }
     }
@@ -94,6 +98,7 @@ impl Broker {
             Broker::Firstrade => config.firstrade.as_ref(),
             Broker::InteractiveBrokers => config.interactive_brokers.as_ref(),
             Broker::Open => config.open_broker.as_ref(),
+            Broker::Sber => config.sber.as_ref(),
             Broker::Tinkoff => config.tinkoff.as_ref().and_then(|tinkoff| tinkoff.broker.as_ref()),
         }
     }
@@ -117,6 +122,12 @@ impl Broker {
             }),
 
             Broker::Open => (plans::open::all_inclusive, btreemap!{
+                "Всё включено" => plans::open::all_inclusive as PlanFn,
+                "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
+            }),
+
+            // FIXME(konishchev): Support
+            Broker::Sber => (plans::open::all_inclusive, btreemap!{
                 "Всё включено" => plans::open::all_inclusive as PlanFn,
                 "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
             }),
@@ -151,10 +162,11 @@ impl<'de> Deserialize<'de> for Broker {
             "firstrade" => Broker::Firstrade,
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::Open,
+            "sber" => Broker::Sber,
             "tinkoff" => Broker::Tinkoff,
 
             _ => return Err(D::Error::unknown_variant(&value, &[
-                "bcs", "firstrade", "interactive-brokers", "open-broker", "tinkoff",
+                "bcs", "firstrade", "interactive-brokers", "open-broker", "sber", "tinkoff",
             ])),
         })
     }
@@ -189,7 +201,7 @@ impl BrokerInfo {
 
     pub fn exchanges(&self) -> Vec<Exchange> {
         match self.type_ {
-            Broker::Bcs | Broker::Open => vec![Exchange::Moex, Exchange::Spb],
+            Broker::Bcs | Broker::Open | Broker::Sber => vec![Exchange::Moex, Exchange::Spb],
             Broker::Tinkoff => vec![Exchange::Moex, Exchange::Spb, Exchange::Otc],
             Broker::Firstrade => vec![Exchange::Us],
             Broker::InteractiveBrokers => vec![Exchange::Us, Exchange::Other],

@@ -38,9 +38,10 @@ pub fn read(
     let mut statement_reader = match broker {
         Broker::Bcs => bcs::StatementReader::new(),
         Broker::Firstrade => firstrade::StatementReader::new(),
-        Broker::InteractiveBrokers => ib::StatementReader::new(
-            tax_remapping.take().unwrap(), strictness),
+        Broker::InteractiveBrokers => ib::StatementReader::new(tax_remapping.take().unwrap(), strictness),
         Broker::Open => open::StatementReader::new(),
+        // FIXME(konishchev): Support
+        Broker::Sber => unimplemented!(),
         Broker::Tinkoff => tinkoff::StatementReader::new(),
     }?;
 
