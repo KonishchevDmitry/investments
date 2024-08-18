@@ -86,9 +86,9 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
 
 pub fn fold_spaces(string: &str) -> Cow<str> {
     lazy_static! {
-        static ref SPACES_REGEX: Regex = Regex::new(r"\s{2,}").unwrap();
+        static ref SPACES_REGEX: Regex = Regex::new(r"\s+").unwrap();
     }
-    SPACES_REGEX.replace_all(string, " ")
+    SPACES_REGEX.replace_all(string.trim(), " ")
 }
 
 pub fn is_default<T: Default + PartialEq>(value: &T) -> bool {

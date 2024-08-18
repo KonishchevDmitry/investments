@@ -104,11 +104,11 @@ impl PartialBrokerStatement {
     }
 
     pub fn set_has_starting_assets(&mut self, exists: bool) -> EmptyResult {
-        set_option("has starting assets", &mut self.has_starting_assets, exists)
+        set_option("has starting assets flag", &mut self.has_starting_assets, exists)
     }
 
     pub fn get_has_starting_assets(&self) -> GenericResult<bool> {
-        get_option("has starting assets", self.has_starting_assets)
+        get_option("has starting assets flag", self.has_starting_assets)
     }
 
     pub fn add_open_position(&mut self, symbol: &str, quantity: Decimal) -> EmptyResult {

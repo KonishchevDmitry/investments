@@ -1,4 +1,7 @@
 // XXX(konishchev): Rewrite
+mod common;
+mod period;
+
 use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
@@ -14,6 +17,8 @@ use crate::formats::html::{HtmlStatementParser, Section, SectionParser};
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
+
+use period::PeriodParser;
 
 pub struct StatementReader {
 }
@@ -101,27 +106,6 @@ impl BrokerStatementReader for StatementReader {
         // ])?;
 
         Rc::try_unwrap(statement).ok().unwrap().into_inner().validate()
-    }
-}
-
-use crate::broker_statement::partial::PartialBrokerStatementRc;
-
-pub struct PeriodParser {
-    statement: PartialBrokerStatementRc,
-}
-
-impl PeriodParser {
-    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
-        Box::new(PeriodParser {statement})
-    }
-}
-
-impl SectionParser for PeriodParser {
-    fn consume_title(&self) -> bool { false }
-
-    fn parse(&mut self, parser: &mut HtmlStatementParser) -> EmptyResult {
-        // unreachable!();
-        Ok(())
     }
 }
 

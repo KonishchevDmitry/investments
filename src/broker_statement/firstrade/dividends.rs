@@ -24,7 +24,7 @@ pub fn parse_dividend(
     }
 
     let mut non_res_tax_withheld = false;
-    let mut stripped_description = util::fold_spaces(description.trim()).to_string();
+    let mut stripped_description = util::fold_spaces(description).to_string();
 
     #[allow(clippy::assigning_clones)]
     if let Some(stripped) = stripped_description.strip_suffix(" NON-RES TAX WITHHELD") {

@@ -52,7 +52,7 @@ impl<'a> HtmlStatementParser<'a> {
                 //     self.sheet.step_back();
                 // }
 
-                parser.parse(self)?;
+                parser.parse(element)?;
             }
         }
 
@@ -108,7 +108,7 @@ impl Section {
 
 pub trait SectionParser {
     fn consume_title(&self) -> bool { true }
-    fn parse(&mut self, parser: &mut HtmlStatementParser) -> EmptyResult;
+    fn parse(&mut self, element: ElementRef) -> EmptyResult;
 }
 
 pub type SectionParserRc = Rc<RefCell<Box<dyn SectionParser>>>;
