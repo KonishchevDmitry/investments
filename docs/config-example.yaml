@@ -151,10 +151,6 @@ portfolios:
 # Your individual broker + bank account configuration. For now specifies your bank commissions for transferring funds
 # from your bank account to your broker account. Will be taken into account during portfolio performance analysis.
 brokers:
-  bcs:
-    deposit_commissions:
-      RUB: {fixed_amount: 0}
-
   firstrade:
     deposit_commissions:
       USD: {fixed_amount: 0}
@@ -164,15 +160,7 @@ brokers:
       RUB: {fixed_amount: 0}
       USD: {fixed_amount: 0}
 
-  open_broker:
-    deposit_commissions:
-      RUB: {fixed_amount: 0}
-
   tinkoff:
-    deposit_commissions:
-      RUB: {fixed_amount: 0}
-      USD: {fixed_amount: 0}
-
     # Sandbox token from https://tinkoff.github.io/investAPI/token/
     #api_token: secret
 

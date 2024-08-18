@@ -76,7 +76,7 @@ impl Config {
             notify_deposit_closing_days: None,
 
             portfolios: Vec::new(),
-            brokers: Some(BrokersConfig::mock()),
+            brokers: None,
             taxes: Default::default(),
 
             quotes: Default::default(),
@@ -379,22 +379,6 @@ pub struct BrokersConfig {
     pub tinkoff: Option<TinkoffConfig>,
 }
 
-impl BrokersConfig {
-    #[cfg(test)]
-    pub fn mock() -> BrokersConfig {
-        BrokersConfig {
-            bcs: Some(BrokerConfig::mock()),
-            firstrade: Some(BrokerConfig::mock()),
-            interactive_brokers: Some(BrokerConfig::mock()),
-            open_broker: Some(BrokerConfig::mock()),
-            tinkoff: Some(TinkoffConfig {
-                broker: Some(BrokerConfig::mock()),
-                api: None,
-            }),
-        }
-    }
-}
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TinkoffConfig {
@@ -404,19 +388,10 @@ pub struct TinkoffConfig {
     pub api: Option<TinkoffApiConfig>,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct BrokerConfig {
     pub deposit_commissions: HashMap<String, TransactionCommissionSpec>,
-}
-
-impl BrokerConfig {
-    #[cfg(test)]
-    pub fn mock() -> BrokerConfig {
-        BrokerConfig {
-            deposit_commissions: HashMap::new(),
-        }
-    }
 }
 
 #[derive(Deserialize, Default)]
