@@ -102,13 +102,14 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
     for (instrument, portfolios) in &statistics.assets {
         let mut total = Asset::default();
 
-        // TODO(konishchev): Split by portfolio
-        for asset in portfolios.values() {
+        for (portfolio, asset) in portfolios {
+            set_instrument_metric(&ASSETS, portfolio, currency, instrument, asset.value);
+            set_instrument_metric(&NET_ASSETS, portfolio, currency, instrument, asset.net_value);
             total.add(asset);
         }
 
-        set_instrument_metric(&ASSETS, currency, instrument, total.value);
-        set_instrument_metric(&NET_ASSETS, currency, instrument, total.net_value);
+        set_instrument_metric(&ASSETS, PORTFOLIO_LABEL_ALL, currency, instrument, total.value);
+        set_instrument_metric(&NET_ASSETS, PORTFOLIO_LABEL_ALL, currency, instrument, total.net_value);
     }
 
     for method in PerformanceAnalysisMethod::iter() {
@@ -201,7 +202,7 @@ fn save(path: &Path) -> EmptyResult {
 const NAMESPACE: &str = "investments";
 
 const PORTFOLIO_LABEL: &str = "portfolio";
-const PORTFOLIO_LABEL_ALL: &str = "all";
+pub const PORTFOLIO_LABEL_ALL: &str = "all";
 
 const CURRENCY_LABEL: &str = "currency";
 
@@ -233,8 +234,8 @@ fn set_portfolio_metric(collector: &GaugeVec, currency: &str, value: Decimal) {
     set_metric(collector, &[PORTFOLIO_LABEL_ALL, currency], value)
 }
 
-fn set_instrument_metric(collector: &GaugeVec, currency: &str, instrument: &str, value: Decimal) {
-    set_metric(collector, &[PORTFOLIO_LABEL_ALL, currency, instrument], value)
+fn set_instrument_metric(collector: &GaugeVec, portfolio: &str, currency: &str, instrument: &str, value: Decimal) {
+    set_metric(collector, &[portfolio, currency, instrument], value)
 }
 
 fn set_performance_metric(collector: &GaugeVec, currency: &str, instrument: &str, method: &str, value: Decimal) {

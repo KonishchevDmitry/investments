@@ -15,7 +15,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::instruments::InstrumentInternalIds;
 use crate::localities::{self, Country, Jurisdiction};
-use crate::metrics::config::MetricsConfig;
+use crate::metrics::{self, config::MetricsConfig};
 use crate::quotes::QuotesConfig;
 use crate::quotes::alphavantage::AlphaVantageConfig;
 use crate::quotes::fcsapi::FcsApiConfig;
@@ -101,7 +101,9 @@ impl Config {
         let mut portfolio_names = HashSet::new();
 
         for portfolio in &mut config.portfolios {
-            if !portfolio_names.insert(portfolio.name.clone()) {
+            if portfolio.name == metrics::PORTFOLIO_LABEL_ALL {
+                return Err!("Invalid portfolio name: {:?}. The name is reserved", portfolio.name);
+            } else if !portfolio_names.insert(portfolio.name.clone()) {
                 return Err!("Duplicate portfolio name: {:?}", portfolio.name);
             }
 
