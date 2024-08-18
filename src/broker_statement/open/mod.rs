@@ -86,7 +86,7 @@ mod tests {
 
     use super::*;
 
-    #[rstest(name => ["main/my", "main/iia", "other/first-iia-a", "other/inactive-with-forex"])]
+    #[rstest(name => ["main/my", "other/iia-a", "other/iia-b", "other/inactive-with-forex"])]
     fn parse_real(name: &str) {
         let (namespace, name) = name.split_once('/').unwrap();
         let statement = parse(namespace, name);
@@ -95,11 +95,11 @@ mod tests {
         assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
-        assert_eq!(statement.fees.is_empty(), name == "iia");
+        assert_eq!(statement.fees.is_empty(), name == "iia-b");
         assert!(statement.idle_cash_interest.is_empty());
         assert_eq!(statement.tax_agent_withholdings.is_empty(), name != "my");
 
-        assert_eq!(statement.forex_trades.is_empty(), matches!(name, "iia" | "first-iia-a"));
+        assert_eq!(statement.forex_trades.is_empty(), matches!(name, "iia-a" | "iia-b"));
         assert_eq!(statement.stock_buys.is_empty(), name == "inactive-with-forex");
         assert_eq!(statement.stock_sells.is_empty(), name == "inactive-with-forex");
         assert!(statement.dividends.is_empty());
@@ -116,7 +116,7 @@ mod tests {
 
     fn parse(namespace: &str, name: &str) -> BrokerStatement {
         let portfolio_name = match (namespace, name) {
-            ("main", "my") => s!("open"),
+            ("main", "my") => s!("investpalata"),
             ("other", name) => format!("open-{}", name.replace('/', "-")),
             _ => name.to_owned(),
         };
@@ -126,7 +126,7 @@ mod tests {
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(
-            broker, &format!("testdata/open-broker/{}", name),
+            broker, &format!("testdata/open/{}", name),
             &Default::default(), &portfolio.instrument_internal_ids, &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()

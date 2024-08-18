@@ -12,7 +12,7 @@ use crate::config::{Config, BrokersConfig, BrokerConfig};
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::exchanges::Exchange;
-use crate::localities::Jurisdiction;
+use crate::localities::{Country, Jurisdiction};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
 pub enum Broker {
@@ -27,10 +27,8 @@ pub enum Broker {
 impl Broker {
     pub fn get_info(self, config: &Config, plan: Option<&String>) -> GenericResult<BrokerInfo> {
         let config = config.brokers.as_ref()
-            .and_then(|brokers| self.get_config(brokers))
-            .ok_or_else(|| format!(
-                "{} broker configuration is not set in the configuration file", self.brief_name()))?
-            .clone();
+            .and_then(|brokers| self.get_config(brokers).cloned())
+            .unwrap_or_default();
 
         let statements_merging_strategy = match self {
             Broker::Bcs => StatementsMergingStrategy::SparseSingleDaysLastMonth(9),
@@ -186,17 +184,18 @@ pub struct BrokerInfo {
 }
 
 impl BrokerInfo {
-    pub fn get_deposit_commission(&self, assets: CashAssets) -> GenericResult<Cash> {
+    pub fn get_deposit_commission(&self, country: &Country, assets: CashAssets) -> GenericResult<Cash> {
         let currency = assets.cash.currency;
 
-        let commission_spec = match self.config.deposit_commissions.get(currency) {
-            Some(commission_spec) => commission_spec,
+        let commission = match self.config.deposit_commissions.get(currency) {
+            Some(commission_spec) => commission_spec.fixed_amount,
+            None if self.type_.jurisdiction() == country.jurisdiction => dec!(0),
             None => return Err!(concat!(
                 "Unable to calculate commission for {} deposit to {}: there is no commission ",
                 "specification in the configuration file"), currency, self.brief_name),
         };
 
-        Ok(Cash::new(currency, commission_spec.fixed_amount))
+        Ok(Cash::new(currency, commission))
     }
 
     pub fn exchanges(&self) -> Vec<Exchange> {

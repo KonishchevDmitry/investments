@@ -27,30 +27,30 @@ rate-limited-investments() {
 INVESTMENTS_NOW=$(< testdata/time)
 export INVESTMENTS_NOW
 
-for broker in bcs firstrade ib iia kate kate-iia open tinkoff; do
-    case "$broker" in
+for portfolio in bcs firstrade ib investpalata kate kate-iia tbank vtb; do
+    case "$portfolio" in
         firstrade|ib) cash=10000;;
         *) cash=100000;;
     esac
 
-    investments main sync "$broker"
-    investments main cash "$broker" "$cash"
+    investments main sync "$portfolio"
+    investments main cash "$portfolio" "$cash"
 
-    rate-limited-investments main analyse "$broker"
+    rate-limited-investments main analyse "$portfolio"
 done
 
 for portfolio in \
     ib-complex ib-external-exchanges ib-liquidation ib-stock-split ib-reverse-stock-split \
     ib-reverse-stock-split-reverse-order ib-simple-with-lse ib-symbol-with-space ib-tax-remapping \
-    ib-stock-yield-enhancement-program-not-received-yet tinkoff-complex; do
+    ib-stock-yield-enhancement-program-not-received-yet tbank-complex; do
     investments other tax-statement "$portfolio"
 done
 
 wait-api-rate-limits
-rate-limited-investments other analyse tinkoff-delisting
-rate-limited-investments other simulate-sell open-first-iia-a
+rate-limited-investments other analyse tbank-delisting
+rate-limited-investments other simulate-sell open-iia-a
 rate-limited-investments other simulate-sell ib-complex 1 VTRS
 rate-limited-investments other simulate-sell ib-stock-split all AAPL
 rate-limited-investments other simulate-sell ib-external-exchanges all IBKR
 rate-limited-investments other simulate-sell ib-reverse-stock-split all AAPL all VISL
-rate-limited-investments other simulate-sell tinkoff-mixed-currency-trade all EQMX all RSHA
+rate-limited-investments other simulate-sell tbank-mixed-currency-trade all EQMX all RSHA

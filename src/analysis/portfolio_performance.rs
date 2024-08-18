@@ -220,7 +220,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_deposits_and_withdrawals(&mut self, statement: &BrokerStatement) -> EmptyResult {
         for mut assets in statement.deposits_and_withdrawals.iter().cloned() {
             if assets.cash.is_positive() {
-                let commission = statement.broker.get_deposit_commission(assets)?;
+                let commission = statement.broker.get_deposit_commission(self.country, assets)?;
 
                 self.income_structure.commissions += self.converter.convert_to(
                     assets.date, commission, self.currency)?;
