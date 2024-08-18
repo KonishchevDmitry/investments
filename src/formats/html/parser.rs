@@ -36,8 +36,9 @@ impl<'a> HtmlStatementParser<'a> {
 
     fn parse(&mut self, sections: Vec<Section>) -> EmptyResult {
         let mut sections = SectionState::new(sections);
+        let mut elements = self.body.child_elements();
 
-        for element in self.body.child_elements() {
+        while let Some(mut element) = elements.next() {
             let section = match sections.match_section(element)? {
                 Some(section) => section,
                 None => continue,
@@ -51,6 +52,16 @@ impl<'a> HtmlStatementParser<'a> {
                 // if !parser.consume_title() {
                 //     self.sheet.step_back();
                 // }
+
+                match parser.section_type() {
+                    SectionType::Simple => {},
+                    SectionType::Table => {
+                        element = elements.next().expect("BOOM");
+                        if element.value().name() != "table" {
+                            return Err!("Unexpected: {}", element.html());
+                        }
+                    },
+                }
 
                 parser.parse(element)?;
             }
@@ -106,8 +117,13 @@ impl Section {
     }
 }
 
+pub enum SectionType {
+    Simple,
+    Table,
+}
+
 pub trait SectionParser {
-    fn consume_title(&self) -> bool { true }
+    fn section_type(&self) -> SectionType { SectionType::Table }
     fn parse(&mut self, element: ElementRef) -> EmptyResult;
 }
 
@@ -129,7 +145,7 @@ impl SectionState {
     pub fn match_section(&mut self, row: ElementRef) -> GenericResult<Option<&mut Section>> {
         let cell_value = row.text().fold(String::new(), |acc, x| acc + x);
         let cell_value = cell_value.trim();
-        trace!(">>> {cell_value:?}");
+        // trace!(">>> {cell_value:?}");
 
         let start_from = self.start_from();
         let current_id = match self.sections[start_from..].iter().position(|section| {

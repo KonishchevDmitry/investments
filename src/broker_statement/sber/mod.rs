@@ -1,4 +1,5 @@
 // XXX(konishchev): Rewrite
+mod cash_flow;
 mod common;
 mod period;
 
@@ -18,6 +19,7 @@ use crate::formats::html::{HtmlStatementParser, Section, SectionParser};
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
+use cash_flow::CashFlowParser;
 use period::PeriodParser;
 
 pub struct StatementReader {
@@ -42,6 +44,7 @@ impl BrokerStatementReader for StatementReader {
 
         HtmlStatementParser::read(path, vec![
             Section::new("Отчет брокера").parser(PeriodParser::new(statement.clone())).by_prefix().required(),
+            Section::new("Движение денежных средств за период").parser(CashFlowParser::new(statement.clone())).required(),
 
             // Section::new("1. Движение денежных средств").required(),
             // Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
