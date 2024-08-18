@@ -16,6 +16,7 @@ mod bcs;
 mod firstrade;
 mod ib;
 mod open;
+mod sber;
 mod tinkoff;
 
 use std::cmp::Ordering;

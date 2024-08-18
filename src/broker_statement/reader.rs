@@ -8,7 +8,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::brokers::Broker;
 use crate::taxes::TaxRemapping;
 
-use super::{bcs, firstrade, ib, open, tinkoff};
+use super::{bcs, firstrade, ib, open, sber, tinkoff};
 use super::PartialBrokerStatement;
 
 bitflags! {
@@ -40,8 +40,7 @@ pub fn read(
         Broker::Firstrade => firstrade::StatementReader::new(),
         Broker::InteractiveBrokers => ib::StatementReader::new(tax_remapping.take().unwrap(), strictness),
         Broker::Open => open::StatementReader::new(),
-        // FIXME(konishchev): Support
-        Broker::Sber => unimplemented!(),
+        Broker::Sber => sber::StatementReader::new(),
         Broker::Tinkoff => tinkoff::StatementReader::new(),
     }?;
 
