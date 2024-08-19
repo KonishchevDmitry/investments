@@ -82,7 +82,7 @@ pub fn parse_fractional_quantity_cell(cell: &Cell) -> GenericResult<Decimal> {
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
     match cell {
         Cell::String(value) => {
-            let value = value.replace(',', ".");
+            let value = value.replace(' ', "");
             util::parse_decimal(&value, DecimalRestrictions::No)
         },
         _ => Decimal::parse(cell),

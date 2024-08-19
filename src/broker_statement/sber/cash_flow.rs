@@ -6,6 +6,7 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::formats::html::{self, SectionParser};
+use crate::formats::xls::SkipCell;
 use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
@@ -39,7 +40,7 @@ struct CashFlowRow {
     #[column(name="Дата", parse_with="parse_date_cell")]
     date: Date,
     #[column(name="Торговая площадка")]
-    _1: String,
+    _1: SkipCell,
     #[column(name="Описание операции")]
     operation: String,
     #[column(name="Валюта")]
@@ -69,6 +70,12 @@ impl CashFlowRow {
 
             Ok(amount)
         };
+
+        for trading_operation in ["Сделка от ", "Комиссия Биржи от ", "Комиссия Брокера оборотная от "] {
+            if operation.starts_with(trading_operation) {
+                return Ok(());
+            }
+        }
 
         match operation.as_str() {
             "Зачисление д/с" => {
