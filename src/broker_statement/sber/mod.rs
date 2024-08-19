@@ -3,6 +3,7 @@ mod cash_assets;
 mod cash_flow;
 mod common;
 mod period;
+mod securities;
 
 use std::fs::File;
 use std::path::Path;
@@ -17,12 +18,14 @@ use crate::exchanges::Exchange;
 use crate::formats::html::{HtmlStatementParser, Section, SectionParser};
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
+use common::SecuritiesRegistryRc;
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
 use cash_assets::CashAssetsParser;
 use cash_flow::CashFlowParser;
 use period::PeriodParser;
+use securities::SecuritiesInfoParser;
 
 pub struct StatementReader {
 }
@@ -43,11 +46,13 @@ impl BrokerStatementReader for StatementReader {
         let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
         // println!("{}", body.html());
+        let securities = SecuritiesRegistryRc::default();
 
         HtmlStatementParser::read(path, vec![
             Section::new("Отчет брокера").parser(PeriodParser::new(statement.clone())).by_prefix().required(),
             Section::new("Денежные средства").parser(CashAssetsParser::new(statement.clone())).required(),
             Section::new("Движение денежных средств за период").parser(CashFlowParser::new(statement.clone())).required(),
+            Section::new("Справочник Ценных Бумаг").parser(SecuritiesInfoParser::new(statement.clone())),
 
             // Section::new("1. Движение денежных средств").required(),
             // Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
