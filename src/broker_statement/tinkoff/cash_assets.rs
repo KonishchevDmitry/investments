@@ -192,7 +192,7 @@ impl CashFlowRow {
         let check_amount = |amount: Cash| -> GenericResult<Cash> {
             if amount.is_zero() || !matches!((deposit.is_zero(), withdrawal.is_zero()), (true, false) | (false, true)) {
                 return Err!(
-                    "Got an unexpected deposit and withdrawal amounts for {} operation: {} and {}",
+                    "Got an unexpected deposit and withdrawal amounts for {:?} operation: {} and {}",
                     operation, deposit, withdrawal);
             }
 
