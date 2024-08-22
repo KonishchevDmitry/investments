@@ -4,8 +4,10 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::str::FromStr;
 
 use isin::ISIN;
+use num_traits::cast::FromPrimitive;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::exchanges::Exchange;
@@ -66,6 +68,11 @@ pub fn parse_time(time: &str) -> GenericResult<Time> {
 
 pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
     parse_time(xls::get_string_cell(cell)?)
+}
+
+pub fn parse_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell) -> GenericResult<I> {
+    // Old statements stored it as string, new - as float
+    xls::get_integer_cell(cell, true)
 }
 
 pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {

@@ -4,6 +4,7 @@ mod cash_flow;
 mod common;
 mod period;
 mod securities;
+mod trades;
 
 use std::fs::File;
 use std::path::Path;
@@ -26,6 +27,7 @@ use cash_assets::CashAssetsParser;
 use cash_flow::CashFlowParser;
 use period::PeriodParser;
 use securities::SecuritiesInfoParser;
+use trades::TradesParser;
 
 pub struct StatementReader {
 }
@@ -49,9 +51,11 @@ impl BrokerStatementReader for StatementReader {
         let securities = SecuritiesRegistryRc::default();
 
         HtmlStatementParser::read(path, vec![
+            // FIXME(konishchev): By prefix
             Section::new("Отчет брокера").parser(PeriodParser::new(statement.clone())).by_prefix().required(),
             Section::new("Денежные средства").parser(CashAssetsParser::new(statement.clone())).required(),
             Section::new("Движение денежных средств за период").parser(CashFlowParser::new(statement.clone())).required(),
+            Section::new("Сделки купли/продажи ценных бумаг").parser(TradesParser::new(statement.clone())),
             Section::new("Справочник Ценных Бумаг").parser(SecuritiesInfoParser::new(statement.clone())),
 
             // Section::new("1. Движение денежных средств").required(),

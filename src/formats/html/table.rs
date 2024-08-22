@@ -17,7 +17,9 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
 
     // XXX(konishchev): HERE
     let header = rows.next().unwrap();
-    let header: Vec<Cell> = util::select_multiple(header, "td")?.into_iter().map(|cell| Cell::String(util::textify(cell))).collect();
+    let header: Vec<Cell> = util::select_multiple(header, "td")?.into_iter().map(|cell| {
+        Cell::String(util::textify(cell).trim_matches(&['¹', '²', '³', '⁴', '⁵', '⁶', '⁸']).into())
+    }).collect();
     println!("header: {header:?}");
 
     let mut columns_mapping = match xls::map_columns(&header, &columns, T::trim_column_title) {
@@ -45,8 +47,13 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
         if row.value().has_class("rn", scraper::CaseSensitivity::CaseSensitive) {
             continue;
         }
+        if util::select_multiple(row, "td")?[0].value().has_class("l", scraper::CaseSensitivity::CaseSensitive) {
+            continue;
+        }
 
-        let row: Vec<Cell> = util::select_multiple(row, "td")?.into_iter().map(|cell| Cell::String(util::textify(cell))).collect();
+        let row: Vec<Cell> = util::select_multiple(row, "td")?.into_iter().map(|cell| {
+            Cell::String(util::textify(cell))
+        }).collect();
         println!("row: {row:?}");
 
         let mapped_row = columns_mapping.map(&row)?;
