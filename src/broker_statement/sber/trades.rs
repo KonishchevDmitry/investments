@@ -1,3 +1,4 @@
+use log::trace;
 use scraper::ElementRef;
 
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
@@ -39,7 +40,7 @@ impl SectionParser for TradesParser {
     }
 }
 
-#[derive(XlsTableRow)]
+#[derive(XlsTableRow, Debug)]
 struct TradeRow {
     #[column(name="Дата заключения", parse_with="parse_date_cell")]
     date: Date,
@@ -72,11 +73,17 @@ struct TradeRow {
     #[column(name="Комментарий")]
     _14: String,
     #[column(name="Статус сделки")]
-    _15: String,
+    status: String,
 }
 
 impl TradeRow {
     fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+        // Trade may appear in multiple statements, so select only the first occurrence
+        if !self.status.contains('З') {
+            trace!("Skip {self:?} trade due to its status.");
+            return Ok(());
+        }
+
         if !self.accumulated_coupon_income.is_zero() {
             return Err!("Bonds aren't supported yet");
         }
@@ -84,7 +91,7 @@ impl TradeRow {
         let time = DateTime::new(self.date, self.time);
 
         let price = util::validate_named_decimal("price", self.price, DecimalRestrictions::StrictlyPositive)
-        .map(|price| Cash::new(&self.currency, price))?;
+            .map(|price| Cash::new(&self.currency, price))?;
 
         let volume = util::validate_named_decimal("trade volume", self.volume, DecimalRestrictions::StrictlyPositive)
             .map(|volume| Cash::new(&self.currency, volume))?;
