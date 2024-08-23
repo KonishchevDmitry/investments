@@ -1,4 +1,5 @@
 // XXX(konishchev): Rewrite
+mod assets;
 mod cash_assets;
 mod cash_flow;
 mod common;
@@ -10,6 +11,7 @@ use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
 
+use itertools::Itertools;
 use scraper::{ElementRef, Html, Selector};
 
 #[cfg(test)] use crate::brokers::Broker;
@@ -17,12 +19,14 @@ use scraper::{ElementRef, Html, Selector};
 use crate::core::{EmptyResult, GenericResult};
 use crate::exchanges::Exchange;
 use crate::formats::html::{HtmlStatementParser, Section, SectionParser};
+use crate::instruments::{self, InstrumentId};
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
 use common::SecuritiesRegistryRc;
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
+use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
 use cash_flow::CashFlowParser;
 use period::PeriodParser;
@@ -53,6 +57,8 @@ impl BrokerStatementReader for StatementReader {
         HtmlStatementParser::read(path, vec![
             // FIXME(konishchev): By prefix
             Section::new("Отчет брокера").parser(PeriodParser::new(statement.clone())).by_prefix().required(),
+            // FIXME(konishchev): By prefix
+            Section::new("Портфель Ценных Бумаг").parser(AssetsParser::new(statement.clone())).by_prefix(),
             Section::new("Денежные средства").parser(CashAssetsParser::new(statement.clone())).required(),
             Section::new("Движение денежных средств за период").parser(CashFlowParser::new(statement.clone())).required(),
             Section::new("Сделки купли/продажи ценных бумаг").parser(TradesParser::new(statement.clone())),
@@ -83,44 +89,14 @@ impl BrokerStatementReader for StatementReader {
             // Section::new("4. Движение Ценных бумаг").parser(SecuritiesParser::new(statement.clone())),
         ])?;
 
+        let mut statement = Rc::try_unwrap(statement).ok().unwrap().into_inner();
 
-        // let sections = util::select_multiple(body, "p + table")?;
-        // for section in sections {
-        //     println!("{}", section.html());
-        //     section.parent().unwrap();
-        //     println!("{}", ElementRef::wrap(section.prev_sibling().unwrap()).unwrap().html());
-        //     println!();
-        // }
+        for (name, quantity) in statement.open_positions.drain().collect_vec() {
+            let symbol = statement.instrument_info.get_by_id(&InstrumentId::Name(name))?.symbol.clone();
+            statement.add_open_position(&symbol, quantity)?;
+        }
 
-        // XlsStatementParser::read(path, parser, vec![
-        //     Section::new("Период:").parser(PeriodParser::new(statement.clone())).required(),
-
-        //     Section::new("1. Движение денежных средств").required(),
-        //     Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
-        //     Section::new(concat!(
-        //         "1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ",
-        //         "ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой / драгоценными металлами:"
-        //     )).alias(concat!(
-        //         "1.1.1. Движение денежных средств по совершенным сделкам (иным операциям) с ",
-        //         "ценными бумагами, по срочным сделкам, а также сделкам с иностранной валютой:",
-        //     )).required(),
-        //     Section::new("Остаток денежных средств на начало периода (Рубль):")
-        //         .alias("Задолженность перед Компанией на начало периода (Рубль):").required(),
-        //     Section::new("Остаток денежных средств на конец периода (Рубль):")
-        //         .alias("Задолженность перед Компанией на конец периода (Рубль):").required(),
-        //     Section::new("Рубль").parser(CashFlowParser::new(statement.clone())),
-
-        //     Section::new("2.1. Сделки:"),
-        //     Section::new("Пай").parser(TradesParser::new(statement.clone())),
-        //     Section::new("2.3. Незавершенные сделки"),
-
-        //     Section::new("3. Активы:").required(),
-        //     Section::new("Вид актива").parser(AssetsParser::new(statement.clone())).required(),
-
-        //     Section::new("4. Движение Ценных бумаг").parser(SecuritiesParser::new(statement.clone())),
-        // ])?;
-
-        Rc::try_unwrap(statement).ok().unwrap().into_inner().validate()
+        statement.validate()
     }
 }
 

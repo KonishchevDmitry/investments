@@ -13,12 +13,18 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
     // trace!("Reading {} table starting from #{} row...", std::any::type_name::<T>(), sheet.next_human_row_id());
 
     let element = util::select_one(element, "tbody")?;
-    let mut rows = element.child_elements();
+    let mut rows = element.child_elements().peekable();
 
     // XXX(konishchev): HERE
-    let header = rows.next().unwrap();
+    let mut header = rows.next().unwrap();
+    if let Some(row) = rows.peek() {
+        if row.value().has_class("table-header", scraper::CaseSensitivity::CaseSensitive) {
+            header = rows.next().unwrap();
+        }
+    }
+
     let header: Vec<Cell> = util::select_multiple(header, "td")?.into_iter().map(|cell| {
-        Cell::String(util::textify(cell).trim_matches(&['¹', '²', '³', '⁴', '⁵', '⁶', '⁸']).into())
+        Cell::String(util::textify(cell).trim_end_matches(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']).into())
     }).collect();
     println!("header: {header:?}");
 
@@ -47,7 +53,7 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
         if row.value().has_class("rn", scraper::CaseSensitivity::CaseSensitive) {
             continue;
         }
-        if util::select_multiple(row, "td")?[0].value().has_class("l", scraper::CaseSensitivity::CaseSensitive) {
+        if util::select_multiple(row, "td")?.len() == 1 {
             continue;
         }
 

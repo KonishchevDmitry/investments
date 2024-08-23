@@ -145,7 +145,6 @@ impl SectionState {
     pub fn match_section(&mut self, row: ElementRef) -> GenericResult<Option<&mut Section>> {
         let cell_value = row.text().fold(String::new(), |acc, x| acc + x);
         let cell_value = cell_value.trim();
-        // trace!(">>> {cell_value:?}");
 
         let start_from = self.start_from();
         let current_id = match self.sections[start_from..].iter().position(|section| {
