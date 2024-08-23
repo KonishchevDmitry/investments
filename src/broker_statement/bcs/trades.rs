@@ -7,13 +7,13 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, TableRow, SkipCell, ColumnsMapping};
-use crate::time::{DateTime, DateOptTime};
+use crate::time::{Date, DateTime, DateOptTime};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_short_date, parse_time, parse_currency, parse_symbol, trim_column_title};
+use super::common::{parse_currency, parse_short_date_cell, parse_symbol, parse_time, trim_column_title};
 
 pub struct TradesParser {
     statement: PartialBrokerStatementRc,
@@ -76,8 +76,8 @@ impl SectionParser for TradesParser {
 #[derive(XlsTableRow)]
 #[table(trim_column_title_with="trim_column_title")]
 struct TradeRow {
-    #[column(name="Дата")]
-    date: String,
+    #[column(name="Дата", parse_with="parse_short_date_cell")]
+    date: Date,
     #[column(name="Номер")]
     id: String,
     #[column(name="Время")]
@@ -98,16 +98,16 @@ struct TradeRow {
     currency: String,
     #[column(name="Валюта платежа")]
     payment_currency: String,
-    #[column(name="Дата соверш.")]
-    conclusion_date: Option<String>,
+    #[column(name="Дата соверш.", parse_with="parse_short_date_cell")]
+    conclusion_date: Option<Date>,
     #[column(name="Время соверш.")]
     conclusion_time: Option<String>,
     #[column(name="Тип сделки")]
     trade_type: Option<String>,
-    #[column(name="Оплата (факт)")]
-    payment_date: String,
-    #[column(name="Поставка (факт)")]
-    execution_date: String,
+    #[column(name="Оплата (факт)", parse_with="parse_short_date_cell")]
+    payment_date: Date,
+    #[column(name="Поставка (факт)", parse_with="parse_short_date_cell")]
+    execution_date: Date,
     #[column(name="Место сделки")]
     exchange: String,
     #[column(name="Примечание", optional=true)]
@@ -120,10 +120,9 @@ impl TradeRow {
             self.trade_type.as_ref(),
             Some(trade_type) if trade_type == "Репо ч.1" || trade_type == "Репо ч.2");
 
-        let execution_date = parse_short_date(&self.execution_date)?;
-        let conclusion_time: DateOptTime = match (self.conclusion_date.as_ref(), self.conclusion_time.as_ref()) {
-            (Some(date), Some(time)) => DateTime::new(parse_short_date(date)?, parse_time(time)?).into(),
-            (None, None) if repo => execution_date.into(),
+        let conclusion_time: DateOptTime = match (self.conclusion_date, self.conclusion_time.as_ref()) {
+            (Some(date), Some(time)) => DateTime::new(date, parse_time(time)?).into(),
+            (None, None) if repo => self.execution_date.into(),
             _ => return Err!("The trade has no conclusion date/time"),
         };
 
@@ -198,11 +197,11 @@ impl TradeRow {
             if buy {
                 statement.stock_buys.push(StockBuy::new_trade(
                     symbol, quantity.into(), price, volume, commission,
-                    conclusion_time, execution_date));
+                    conclusion_time, self.execution_date));
             } else {
                 statement.stock_sells.push(StockSell::new_trade(
                     symbol, quantity.into(), price, volume, commission,
-                    conclusion_time, execution_date, false));
+                    conclusion_time, self.execution_date, false));
             }
         }
 

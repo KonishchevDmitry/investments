@@ -5,12 +5,13 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, TableReader, Cell, SkipCell};
 use crate::formatting;
+use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use xls_table_derive::XlsTableRow;
 
-use super::common::{parse_short_date, parse_currency, trim_column_title};
+use super::common::{parse_currency, parse_short_date_cell, trim_column_title};
 
 pub struct CashFlowParser {
     statement: PartialBrokerStatementRc,
@@ -44,8 +45,8 @@ impl SectionParser for CashFlowParser {
 #[derive(XlsTableRow)]
 #[table(trim_column_title_with="trim_column_title")]
 struct CashFlowRow {
-    #[column(name="Дата")]
-    date: String,
+    #[column(name="Дата", parse_with="parse_short_date_cell")]
+    date: Date,
     #[column(name="Операция")]
     operation: String,
     #[column(name="Сумма зачисления")]
@@ -79,7 +80,6 @@ impl TableReader for CashFlowRow {
 
 impl CashFlowRow {
     fn parse(&self, statement: &mut PartialBrokerStatement, currency: &str) -> EmptyResult {
-        let date = parse_short_date(&self.date)?;
         let operation = self.operation.as_str();
 
         let mut validator = CashFlowValidator {
@@ -94,7 +94,7 @@ impl CashFlowRow {
                 validator.validate()?;
 
                 statement.deposits_and_withdrawals.push(CashAssets::new(
-                    date, currency, self.deposit));
+                    self.date, currency, self.deposit));
             },
 
             "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
@@ -115,7 +115,7 @@ impl CashFlowRow {
                 let description = operation.strip_prefix("Комиссия ").unwrap_or(operation);
                 let description = format!("Комиссия брокера: {}", formatting::untitle(description));
 
-                statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
+                statement.fees.push(Fee::new(self.date, Withholding::new(amount), Some(description)));
             },
 
             "НДФЛ" => {
@@ -130,7 +130,7 @@ impl CashFlowRow {
                     operation, comment,
                 ))? as i32;
 
-                statement.tax_agent_withholdings.add(date, year, Withholding::new(withheld_tax))?;
+                statement.tax_agent_withholdings.add(self.date, year, Withholding::new(withheld_tax))?;
             },
 
             _ => return Err!("Unsupported cash flow operation: {:?}", self.operation),
