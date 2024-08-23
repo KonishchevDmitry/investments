@@ -22,7 +22,6 @@ use crate::formats::html::{HtmlStatementParser, Section, SectionParser};
 use crate::instruments::{self, InstrumentId};
 #[cfg(test)] use crate::taxes::TaxRemapping;
 
-use common::SecuritiesRegistryRc;
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
 
@@ -52,7 +51,6 @@ impl BrokerStatementReader for StatementReader {
         let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
         // println!("{}", body.html());
-        let securities = SecuritiesRegistryRc::default();
 
         HtmlStatementParser::read(path, vec![
             // FIXME(konishchev): By prefix
