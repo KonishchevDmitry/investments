@@ -268,8 +268,8 @@ pub struct PortfolioConfig {
 }
 
 impl PortfolioConfig {
-    pub fn currency(&self) -> GenericResult<&str> {
-        Ok(self.currency.as_ref().ok_or("The portfolio's currency is not specified in the config")?)
+    pub fn currency(&self) -> &str {
+        self.currency.as_deref().unwrap_or_else(|| self.broker.jurisdiction().traits().currency)
     }
 
     pub fn statements_path(&self) -> GenericResult<&str> {
@@ -305,11 +305,11 @@ impl PortfolioConfig {
     }
 
     fn validate(&self) -> EmptyResult {
-        if let Some(ref currency) = self.currency {
-            match currency.as_str() {
-                "RUB" | "USD" => (),
-                _ => return Err!("Unsupported portfolio currency: {}", currency),
-            };
+        let currency = self.currency();
+
+        match currency {
+            "RUB" | "USD" => (),
+            _ => return Err!("Unsupported portfolio currency: {currency}"),
         }
 
         for (symbol, mapping) in &self.symbol_remapping {

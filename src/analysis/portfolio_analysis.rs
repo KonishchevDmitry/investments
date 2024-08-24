@@ -72,7 +72,7 @@ impl<'a> PortfolioAnalyser<'a> {
                 Ok(statistics.add_assets(&portfolio.name, broker, "Cash", cash_assets, cash_assets))
             })?;
 
-            let net_value = statement.net_value(&self.converter, &self.quotes, portfolio.currency()?, true)?;
+            let net_value = statement.net_value(&self.converter, &self.quotes, portfolio.currency(), true)?;
             let mut commission_calc = CommissionCalc::new(
                 self.converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 

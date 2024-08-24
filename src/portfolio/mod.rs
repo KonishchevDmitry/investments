@@ -115,7 +115,7 @@ fn modify_assets<F>(config: &Config, portfolio_name: &str, modify: F) -> Generic
 
 fn set_cash_assets_impl(portfolio: &PortfolioConfig, assets: &mut Assets, cash_assets: Decimal) -> EmptyResult {
     assets.cash.clear();
-    assets.cash.deposit(Cash::new(portfolio.currency()?, cash_assets));
+    assets.cash.deposit(Cash::new(portfolio.currency(), cash_assets));
     Ok(())
 }
 

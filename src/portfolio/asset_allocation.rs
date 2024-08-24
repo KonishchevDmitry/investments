@@ -35,7 +35,7 @@ impl Portfolio {
         config: &PortfolioConfig, broker: BrokerInfo, assets: Assets,
         statement: Option<&BrokerStatement>, converter: &CurrencyConverter, quotes: &Quotes
     ) -> GenericResult<Portfolio> {
-        let currency = config.currency()?;
+        let currency = config.currency();
 
         let min_trade_volume = config.min_trade_volume.unwrap_or_else(|| dec!(0));
         if min_trade_volume.is_sign_negative() {

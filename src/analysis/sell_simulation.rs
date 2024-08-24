@@ -50,7 +50,7 @@ pub fn simulate_sell(
     }
 
     let net_value = statement.net_value(
-        &converter, quotes, portfolio.currency()?,
+        &converter, quotes, portfolio.currency(),
         all_positions // To be able to simulate sell for portfolio with symbols for which quotes aren't available
     )?;
 

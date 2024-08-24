@@ -41,7 +41,7 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::manual(), Cash::zero(currency)).unwrap();
 
-            // FIXME(konishchev): Add more tests
+        // FIXME(konishchev): Add more tests
         for &(date, shares, price) in &[
             (date!(2024, 8, 14),  3, dec!(  6.11)),
             (date!(2024, 8, 14), 20, dec!(280.21)),
