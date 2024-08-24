@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::core::GenericResult;
 use crate::formats::html::{self, Cell};
 use crate::time::{self, Date, Time};
@@ -19,4 +21,8 @@ pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
     let value = html::get_string_cell(cell)?.replace(' ', "");
     util::parse_decimal(&value, DecimalRestrictions::No)
+}
+
+pub fn trim_column_title(title: &str) -> Cow<str> {
+    Cow::from(title.trim_end_matches(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']))
 }

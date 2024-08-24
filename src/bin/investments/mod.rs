@@ -41,7 +41,14 @@ fn main() {
     }
 
     if let Err(e) = main_inner(global, parser) {
-        error!("{}.", e);
+        let message = e.to_string();
+
+        if message.contains('\n') {
+            error!("{}", e);
+        } else {
+            error!("{}.", e);
+        }
+
         process::exit(1);
     }
 }

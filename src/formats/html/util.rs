@@ -1,4 +1,3 @@
-use diesel::expression::is_aggregate::No;
 #[cfg(test)] use indoc::indoc;
 #[cfg(test)] use scraper::Html;
 use scraper::{ElementRef, Selector};

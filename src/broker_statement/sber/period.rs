@@ -21,7 +21,7 @@ impl PeriodParser {
 
 impl SectionParser for PeriodParser {
     fn section_type(&self) -> SectionType {
-        SectionType::Simple
+        SectionType::Generic
     }
 
     fn parse(&mut self, element: ElementRef) -> EmptyResult {

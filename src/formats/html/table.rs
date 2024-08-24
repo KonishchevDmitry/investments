@@ -1,4 +1,4 @@
-// XXX(konishchev): Rewrite
+use log::trace;
 use scraper::ElementRef;
 
 use crate::core::GenericResult;
@@ -7,49 +7,22 @@ use crate::formats::xls::{self, Cell, TableRow};
 use super::util;
 
 pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
-    let mut table = Vec::new();
+    let (header, mut rows) = get_table_boundaries(element).map_err(|e| format!(
+        "{e}:\n{}", element.html()))?;
+
     let columns = T::columns();
+    let header_cells = read_table_row(header)?;
 
-    // trace!("Reading {} table starting from #{} row...", std::any::type_name::<T>(), sheet.next_human_row_id());
+    let columns_mapping = xls::map_columns(&header_cells, &columns, T::trim_column_title).map_err(|e| format!(
+        "Unable to map {} on the following table header ({e}):\n{}", std::any::type_name::<T>(), header.html()))?;
 
-    let element = util::select_one(element, "tbody")?;
-    let mut rows = element.child_elements().peekable();
-
-    // XXX(konishchev): HERE
-    let mut header = rows.next().unwrap();
-    if let Some(row) = rows.peek() {
-        if row.value().has_class("table-header", scraper::CaseSensitivity::CaseSensitive) {
-            header = rows.next().unwrap();
-        }
-    }
-
-    let header: Vec<Cell> = util::select_multiple(header, "td")?.into_iter().map(|cell| {
-        Cell::String(util::textify(cell).trim_end_matches(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']).into())
-    }).collect();
-    println!("header: {header:?}");
-
-    let mut columns_mapping = match xls::map_columns(&header, &columns, T::trim_column_title) {
-        Ok(mapping) => mapping,
-        Err(err) => {
-            // if T::next_row(sheet).is_none() && !sheet.parse_empty_tables() {
-            //     trace!("Skip empty {} table.", std::any::type_name::<T>());
-            //     return Ok(table);
-            // }
-            return Err(err);
-        },
-    };
+    let mut table = Vec::new();
 
     while let Some(row) = rows.next() {
-        // if repeatable_table_column_titles {
-        //     if let Ok(new_mapping) = map_columns(row, &columns, T::trim_column_title) {
-        //         columns_mapping = new_mapping;
-        //         continue;
-        //     }
+        // XXX(konishchev): HERE
+        // if row.value().has_class("summary-row", scraper::CaseSensitivity::CaseSensitive) {
+        //     continue;
         // }
-
-        if row.value().has_class("summary-row", scraper::CaseSensitivity::CaseSensitive) {
-            continue;
-        }
         if row.value().has_class("rn", scraper::CaseSensitivity::CaseSensitive) {
             continue;
         }
@@ -57,12 +30,11 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
             continue;
         }
 
-        let row: Vec<Cell> = util::select_multiple(row, "td")?.into_iter().map(|cell| {
-            Cell::String(util::textify(cell))
-        }).collect();
-        println!("row: {row:?}");
+        let row_cells = read_table_row(row)?;
+        // println!("row: {row:?}");
 
-        let mapped_row = columns_mapping.map(&row)?;
+        let mapped_row = columns_mapping.map(&row_cells).map_err(|e| format!(
+            "Unable to map {} on the following row ({e}):\n{}", std::any::type_name::<T>(), row.html()))?;
         // if T::skip_row(&mapped_row)? {
         //     continue;
         // }
@@ -71,4 +43,27 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
     }
 
     Ok(table)
+}
+
+fn get_table_boundaries(element: ElementRef) -> GenericResult<(ElementRef, impl Iterator<Item=ElementRef>)> {
+    let element = util::select_one(element, "tbody")?;
+    let mut rows = element.child_elements();
+
+    loop {
+        let header = rows.next().ok_or_else(|| "Unable to find the table header")?;
+        let columns = util::select_multiple(header, "td")?;
+
+        if columns.iter().any(|column| column.attr("colspan").unwrap_or("1") != "1") {
+            trace!("Nested header detected. Ignoring it:\n{}", header.html());
+            continue;
+        }
+
+        return Ok((header, rows))
+    }
+}
+
+fn read_table_row(row: ElementRef) -> GenericResult<Vec<Cell>> {
+    Ok(util::select_multiple(row, "td")?.into_iter().map(|cell| {
+        Cell::String(util::textify(cell))
+    }).collect())
 }

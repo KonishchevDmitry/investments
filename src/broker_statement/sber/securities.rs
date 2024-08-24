@@ -5,6 +5,8 @@ use crate::core::EmptyResult;
 use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 use crate::instruments::parse_isin;
 
+use super::common::trim_column_title;
+
 pub struct SecuritiesInfoParser {
     statement: PartialBrokerStatementRc,
 }
@@ -28,6 +30,7 @@ impl SectionParser for SecuritiesInfoParser {
 }
 
 #[derive(HtmlTableRow)]
+#[table(trim_column_title_with="trim_column_title")]
 struct SecuritiesInfoRow {
     #[column(name="Наименование")]
     name: String,

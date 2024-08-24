@@ -1,12 +1,11 @@
-// XXX(konishchev): Rewrite
 use std::cell::RefCell;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::Read;
 use std::ops::Range;
 use std::rc::Rc;
 
 use log::trace;
-use scraper::{ElementRef, Html, Selector};
+use scraper::{ElementRef, Html};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formats::html::util;
@@ -23,50 +22,46 @@ impl<'a> HtmlStatementParser<'a> {
         let document = Html::parse_document(&data);
         let body = util::select_one(document.root_element(), "html body")?;
 
-
-        let mut parser = HtmlStatementParser {body};
-
+        let parser = HtmlStatementParser {body};
         parser.parse(sections)
-        // if let Err(e) = parser.parse(sections) {
-        //     return Err(parser.sheet.detalize_error(&e.to_string()).into());
-        // }
-
-        // Ok(())
     }
 
-    fn parse(&mut self, sections: Vec<Section>) -> EmptyResult {
+    fn parse(&self, sections: Vec<Section>) -> EmptyResult {
         let mut sections = SectionState::new(sections);
         let mut elements = self.body.child_elements();
 
-        while let Some(mut element) = elements.next() {
-            let section = match sections.match_section(element)? {
-                Some(section) => section,
-                None => continue,
+        while let Some(element) = elements.next() {
+            let Some(section) = sections.match_section(element)? else {
+                continue;
             };
 
-            trace!("Got {:?} section.", section.title);
+            trace!("Found {:?} section.", section.title);
 
-            if let Some(parser) = section.parser.as_ref() {
-                let mut parser = parser.as_ref().borrow_mut();
+            let Some(parser) = section.parser.as_ref() else {
+                continue;
+            };
 
-                // if !parser.consume_title() {
-                //     self.sheet.step_back();
-                // }
+            let mut parser = parser.as_ref().borrow_mut();
+            let wrap_parse_error = |e| format!("Error while reading {:?} section: {e}", section.title);
 
-                match parser.section_type() {
-                    SectionType::Simple => {},
-                    SectionType::Table => {
-                        element = elements.next().expect("BOOM");
-                        if element.value().name() != "table" {
-                            return Err!("Unexpected: {}", element.html());
-                        }
-                    },
-                }
+            let parser_input = match parser.section_type() {
+                SectionType::Generic => element,
+                SectionType::Table => {
+                    let table = elements.next()
+                        .ok_or_else(|| s!("Unexpected end of document"))
+                        .map_err(wrap_parse_error)?;
 
-                parser.parse(element)?;
-            }
+                    if table.value().name() != "table" {
+                        return Err(wrap_parse_error(format!(
+                            "Got an unexpected element where table is expected:\n{}", table.html())).into());
+                    }
+
+                    table
+                },
+            };
+
+            parser.parse(parser_input).map_err(|e| wrap_parse_error(e.to_string()))?;
         }
-
 
         sections.validate()
     }
@@ -74,7 +69,7 @@ impl<'a> HtmlStatementParser<'a> {
 
 pub struct Section {
     title: &'static str,
-    pub parser: Option<SectionParserRc>,
+    parser: Option<SectionParserRc>,
     matches: Vec<&'static str>,
     by_prefix: bool,
     required: bool,
@@ -96,6 +91,7 @@ impl Section {
         self
     }
 
+    #[allow(dead_code)]
     pub fn alias(mut self, title: &'static str) -> Section {
         self.matches.push(title);
         self
@@ -111,6 +107,7 @@ impl Section {
         self
     }
 
+    #[allow(dead_code)]
     pub fn parser_rc(mut self, parser: SectionParserRc) -> Section {
         self.parser = Some(parser);
         self
@@ -118,7 +115,7 @@ impl Section {
 }
 
 pub enum SectionType {
-    Simple,
+    Generic,
     Table,
 }
 
@@ -142,17 +139,16 @@ impl SectionState {
         }
     }
 
-    pub fn match_section(&mut self, row: ElementRef) -> GenericResult<Option<&mut Section>> {
-        let cell_value = row.text().fold(String::new(), |acc, x| acc + x);
-        let cell_value = cell_value.trim();
+    pub fn match_section(&mut self, element: ElementRef) -> GenericResult<Option<&mut Section>> {
+        let text = util::textify(element);
 
         let start_from = self.start_from();
         let current_id = match self.sections[start_from..].iter().position(|section| {
             section.matches.iter().any(|title| {
                 if section.by_prefix {
-                    cell_value.starts_with(title)
+                    text.starts_with(title)
                 } else {
-                    *title == cell_value
+                    *title == text
                 }
             })
         }) {

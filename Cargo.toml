@@ -100,8 +100,11 @@ rust_decimal_macros = "~1.35.0"
 unicode-width = "=0.1.12"
 
 # Force static linking
-libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
-openssl = { version = "0.10", features = ["vendored"] }
+# XXX(konishchev): Slowdown
+# libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
+# openssl = { version = "0.10", features = ["vendored"] }
+libsqlite3-sys = { version = ">=0.17.2, <0.28.0" }
+openssl = { version = "0.10" }
 
 # XXX(konishchev): Remove
 # static_table_derive = "0.1.69"

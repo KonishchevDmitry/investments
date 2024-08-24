@@ -4,6 +4,8 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::core::EmptyResult;
 use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 
+use super::common::trim_column_title;
+
 pub struct AssetsParser {
     statement: PartialBrokerStatementRc,
 }
@@ -27,6 +29,7 @@ impl SectionParser for AssetsParser {
 }
 
 #[derive(HtmlTableRow)]
+#[table(trim_column_title_with="trim_column_title")]
 struct AssetsRow {
     // Основной рынок
 

@@ -10,7 +10,7 @@ use crate::time::{Date, DateTime, Time};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::{parse_date_cell, parse_time_cell, parse_decimal_cell};
+use super::common::{parse_date_cell, parse_time_cell, parse_decimal_cell, trim_column_title};
 
 pub struct TradesParser {
     statement: PartialBrokerStatementRc,
@@ -38,6 +38,7 @@ impl SectionParser for TradesParser {
 }
 
 #[derive(HtmlTableRow, Debug)]
+#[table(trim_column_title_with="trim_column_title")]
 struct TradeRow {
     #[column(name="Дата заключения", parse_with="parse_date_cell")]
     date: Date,
