@@ -50,13 +50,14 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
         let field = Ident::new(&column.field, span);
         let name = &column.name;
+        let strict = column.strict.unwrap_or(true);
 
         let mut parse_code = match column.parse_with {
             Some(ref parse_func) => {
                 let parse_func = parse_func.parse::<proc_macro2::TokenStream>().unwrap();
                 quote!(#mod_ident::parse_with(cell, #parse_func))
             },
-            None => quote!(#mod_ident::CellType::parse(cell)),
+            None => quote!(#mod_ident::CellType::parse(cell, #strict)),
         };
         parse_code = quote! {
             #parse_code.map_err(|e| format!("Column {:?}: {}", #name, e))?
@@ -160,6 +161,7 @@ struct Column {
     name: String,
     regex: bool,
     aliases: Vec<String>,
+    strict: Option<bool>,
     parse_with: Option<String>,
     optional: bool,
 }
@@ -209,6 +211,7 @@ impl Column {
                 name: column_params.name,
                 regex: column_params.regex,
                 aliases: aliases,
+                strict: column_params.strict,
                 parse_with: column_params.parse_with,
                 optional: column_params.optional,
             })
@@ -227,6 +230,8 @@ struct ColumnParams {
     alias: Option<String>,
     #[darling(default, map="parse_string_array")]
     aliases: Vec<String>,
+    #[darling(default)]
+    strict: Option<bool>,
     #[darling(default)]
     parse_with: Option<String>,
     #[darling(default)]

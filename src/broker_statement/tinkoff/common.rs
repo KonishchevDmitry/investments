@@ -66,11 +66,6 @@ pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
     parse_time(xls::get_string_cell(cell)?)
 }
 
-pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
-    // Old statements stored it as string, new - as float
-    xls::get_integer_cell(cell, true)
-}
-
 pub fn parse_fractional_quantity_cell(cell: &Cell) -> GenericResult<Decimal> {
     parse_decimal_cell(cell).and_then(|quantity| {
         util::validate_decimal(quantity, DecimalRestrictions::PositiveOrZero)
@@ -83,7 +78,7 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
             let value = value.replace(',', ".");
             util::parse_decimal(&value, DecimalRestrictions::No)
         },
-        _ => Decimal::parse(cell),
+        _ => Decimal::parse(cell, true),
     }
 }
 

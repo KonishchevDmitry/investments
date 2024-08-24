@@ -7,7 +7,7 @@ use crate::core::EmptyResult;
 use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 use crate::instruments::parse_isin;
 
-use super::common::{SecuritiesRegistryRc, parse_quantity_cell, read_next_table_row, trim_column_title};
+use super::common::{SecuritiesRegistryRc, read_next_table_row, trim_column_title};
 
 pub struct AssetsParser {
     statement: PartialBrokerStatementRc,
@@ -61,7 +61,7 @@ struct AssetsRow {
     code: String,
     #[column(name="Место хранения")]
     _2: SkipCell,
-    #[column(name="Входящий остаток", parse_with="parse_quantity_cell")]
+    #[column(name="Входящий остаток", strict=false)] // Old statements stored it as string, new - as float
     starting: u32,
     #[column(name="Зачисление")]
     _4: SkipCell,
@@ -69,7 +69,7 @@ struct AssetsRow {
     _5: SkipCell,
     #[column(name="Исходящий остаток")]
     _6: SkipCell,
-    #[column(name="Плановый исходящий остаток", parse_with="parse_quantity_cell")]
+    #[column(name="Плановый исходящий остаток", strict=false)] // Old statements stored it as string, new - as float
     planned: u32,
 
     // Deprecated columns

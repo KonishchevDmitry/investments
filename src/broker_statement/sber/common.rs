@@ -27,12 +27,12 @@ pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
 
 pub fn parse_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell) -> GenericResult<I> {
     // Old statements stored it as string, new - as float
-    xls::get_integer_cell(cell, true)
+    xls::get_integer_cell(cell, false)
 }
 
 pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
     // Old statements stored it as string, new - as float
-    xls::get_integer_cell(cell, true)
+    xls::get_integer_cell(cell, false)
 }
 
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
@@ -41,6 +41,6 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
             let value = value.replace(' ', "");
             util::parse_decimal(&value, DecimalRestrictions::No)
         },
-        _ => Decimal::parse(cell),
+        _ => Decimal::parse(cell, true),
     }
 }

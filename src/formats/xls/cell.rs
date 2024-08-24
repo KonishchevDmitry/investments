@@ -14,7 +14,7 @@ pub fn get_string_cell(cell: &Cell) -> GenericResult<&str> {
     }
 }
 
-pub fn get_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell, allow_string: bool) -> GenericResult<I> {
+pub fn get_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell, strict: bool) -> GenericResult<I> {
     Ok(match cell {
         Cell::Int(value) => I::from_i64(*value),
         Cell::Float(value) => {
@@ -24,7 +24,7 @@ pub fn get_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell, allow_string: b
                 None
             }
         },
-        Cell::String(value) if allow_string => value.parse().ok(),
+        Cell::String(value) if !strict => value.parse().ok(),
         _ => None,
     }.ok_or_else(|| format!(
         "Got an unexpected cell value where {} is expected: {:?}", std::any::type_name::<I>(), cell
@@ -32,7 +32,7 @@ pub fn get_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell, allow_string: b
 }
 
 pub trait CellType: Sized {
-    fn parse(cell: &Cell) -> GenericResult<Self>;
+    fn parse(cell: &Cell, strict: bool) -> GenericResult<Self>;
 }
 
 #[derive(Debug)]
@@ -40,13 +40,13 @@ pub struct SkipCell {
 }
 
 impl CellType for SkipCell {
-    fn parse(_: &Cell) -> GenericResult<SkipCell> {
+    fn parse(_cell: &Cell, _strict: bool) -> GenericResult<SkipCell> {
         Ok(SkipCell {})
     }
 }
 
 impl CellType for String {
-    fn parse(cell: &Cell) -> GenericResult<String> {
+    fn parse(cell: &Cell, _strict: bool) -> GenericResult<String> {
         Ok(get_string_cell(cell)?.to_owned())
     }
 }
@@ -54,8 +54,8 @@ impl CellType for String {
 macro_rules! impl_integer_parser {
     ($name:ident) => {
         impl CellType for $name {
-            fn parse(cell: &Cell) -> GenericResult<$name> {
-                get_integer_cell(cell, false)
+            fn parse(cell: &Cell, strict: bool) -> GenericResult<$name> {
+                get_integer_cell(cell, strict)
             }
         }
     }
@@ -64,7 +64,7 @@ impl_integer_parser!(i32);
 impl_integer_parser!(u32);
 
 impl CellType for Decimal {
-    fn parse(cell: &Cell) -> GenericResult<Decimal> {
+    fn parse(cell: &Cell, _strict: bool) -> GenericResult<Decimal> {
         Ok(match cell {
             Cell::Float(value) => Decimal::from_f64(*value),
             Cell::Int(value) => Decimal::from_i64(*value),
@@ -76,10 +76,10 @@ impl CellType for Decimal {
 }
 
 impl<T: CellType> CellType for Option<T> {
-    fn parse(cell: &Cell) -> GenericResult<Option<T>> {
+    fn parse(cell: &Cell, strict: bool) -> GenericResult<Option<T>> {
         match cell {
             Cell::Empty => Ok(None),
-            _ => Ok(Some(CellType::parse(cell)?)),
+            _ => Ok(Some(CellType::parse(cell, strict)?)),
         }
     }
 }

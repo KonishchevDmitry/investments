@@ -18,7 +18,7 @@ use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions, RoundingMethod};
 
-use super::common::{parse_date_cell, parse_decimal_cell, parse_quantity_cell, trim_column_title};
+use super::common::{parse_date_cell, parse_decimal_cell, trim_column_title};
 
 const SHEET_NAME: &str = "Отчет";
 const TITLE_PREFIX: &str = "Отчет о выплате доходов по ценным бумагам иностранных эмитентов";
@@ -117,7 +117,7 @@ struct ForeignIncomeRow {
     isin: String,
     #[column(name="Страна эмитента")]
     _5: SkipCell,
-    #[column(name="Количество ценных бумаг", parse_with="parse_quantity_cell")]
+    #[column(name="Количество ценных бумаг", strict=false)] // Old statements stored it as string, new - as float
     quantity: u32,
     #[column(name="Выплата на одну бумагу", parse_with="parse_decimal_cell")]
     amount_per_stock: Decimal,
