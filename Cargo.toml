@@ -100,17 +100,13 @@ rust_decimal_macros = "~1.35.0"
 unicode-width = "=0.1.12"
 
 # Force static linking
-# XXX(konishchev): Slowdown
-# libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
-# openssl = { version = "0.10", features = ["vendored"] }
-libsqlite3-sys = { version = ">=0.17.2, <0.28.0" }
-openssl = { version = "0.10" }
+libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
+openssl = { version = "0.10", features = ["vendored"] }
 
-# XXX(konishchev): Remove
-# static_table_derive = "0.1.69"
-# xls_table_derive = "0.7.4"
+static_table_derive = "0.1.69"
+xls_table_derive = "0.8.0"
 
-# [patch.crates-io]
+[patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
 xls_table_derive = { path = "src/formats/xls/xls_table_derive" }
 

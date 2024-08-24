@@ -47,7 +47,7 @@ struct SecuritiesInfoRow {
 }
 
 impl SecuritiesInfoRow {
-    fn parse<'a>(&'a self, statement: &mut PartialBrokerStatement) -> EmptyResult {
+    fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
         let instrument = statement.instrument_info.add(&self.symbol)?;
         instrument.set_name(&self.name);
         instrument.add_isin(parse_isin(&self.isin)?);

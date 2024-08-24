@@ -70,7 +70,6 @@ impl TelemetryRecordBuilder {
     }
 
     pub fn build(self, command: &str) -> TelemetryRecord {
-        // FIXME(konishchev): Sber support
         let mut brokers: Vec<String> = self.brokers.iter()
             .map(|broker| broker.id().to_owned()).collect();
         brokers.sort();

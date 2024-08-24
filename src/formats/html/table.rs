@@ -18,7 +18,7 @@ pub trait TableRow: Sized {
 }
 
 pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
-    let (header, mut rows) = get_table_boundaries(element).map_err(|e| format!(
+    let (header, rows) = get_table_boundaries(element).map_err(|e| format!(
         "{e}:\n{}", element.html()))?;
 
     let columns = T::columns();
@@ -29,7 +29,7 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
 
     let mut table = Vec::new();
 
-    while let Some(row) = rows.next() {
+    for row in rows {
         if T::skip_row(row) {
             trace!("Skipping the following row:\n{}", row.html());
             continue;
@@ -55,7 +55,7 @@ fn get_table_boundaries(element: ElementRef) -> GenericResult<(ElementRef, impl 
     let mut rows = element.child_elements();
 
     loop {
-        let header = rows.next().ok_or_else(|| "Unable to find the table header")?;
+        let header = rows.next().ok_or("Unable to find the table header")?;
         let columns = util::select_multiple(header, "td")?;
 
         if columns.iter().any(|column| column.attr("colspan").unwrap_or("1") != "1") {
