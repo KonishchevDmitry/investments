@@ -60,8 +60,11 @@ macro_rules! impl_integer_parser {
         }
     }
 }
+
 impl_integer_parser!(i32);
 impl_integer_parser!(u32);
+impl_integer_parser!(i64);
+impl_integer_parser!(u64);
 
 impl CellType for Decimal {
     fn parse(cell: &Cell, _strict: bool) -> GenericResult<Decimal> {

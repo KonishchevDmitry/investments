@@ -1,11 +1,9 @@
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
-use crate::formats::xls::{self, XlsStatementParser, SectionParser, TableReader, Cell, SkipCell};
+use crate::formats::xls::{self, XlsTableRow, XlsStatementParser, SectionParser, TableReader, Cell, SkipCell};
 use crate::instruments;
 use crate::types::Decimal;
-
-use xls_table_derive::XlsTableRow;
 
 use super::common::{parse_currency, parse_symbol, trim_column_title};
 

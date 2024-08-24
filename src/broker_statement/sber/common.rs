@@ -1,7 +1,3 @@
-use std::str::FromStr;
-
-use num_traits::cast::FromPrimitive;
-
 use crate::core::GenericResult;
 use crate::formats::xls::{self, Cell, CellType};
 use crate::time;
@@ -23,16 +19,6 @@ pub fn parse_time(time: &str) -> GenericResult<Time> {
 
 pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
     parse_time(xls::get_string_cell(cell)?)
-}
-
-pub fn parse_integer_cell<I: FromPrimitive + FromStr>(cell: &Cell) -> GenericResult<I> {
-    // Old statements stored it as string, new - as float
-    xls::get_integer_cell(cell, false)
-}
-
-pub fn parse_quantity_cell(cell: &Cell) -> GenericResult<u32> {
-    // Old statements stored it as string, new - as float
-    xls::get_integer_cell(cell, false)
 }
 
 pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {

@@ -5,14 +5,12 @@ use chrono::Datelike;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use xls_table_derive::XlsTableRow;
-
 use crate::broker_statement::fees::Fee;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
-use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
+use crate::formats::xls::{self, XlsStatementParser, XlsTableRow, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 use crate::instruments::{InstrumentId, ISIN_REGEX};
 use crate::time::{Date, Time};
 use crate::types::Decimal;

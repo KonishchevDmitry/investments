@@ -12,15 +12,23 @@ macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
 }
 
-#[proc_macro_derive(XlsTableRow, attributes(table, column))]
-pub fn xls_table_row_derive(input: TokenStream) -> TokenStream {
-    match xls_table_row_derive_impl(input) {
+#[proc_macro_derive(HtmlTableRow, attributes(table, column))]
+pub fn html_table_row_derive(input: TokenStream) -> TokenStream {
+    match table_row_derive_impl(input, false) {
         Ok(output) => output,
         Err(err) => panic!("{}", err),
     }
 }
 
-fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
+#[proc_macro_derive(XlsTableRow, attributes(table, column))]
+pub fn xls_table_row_derive(input: TokenStream) -> TokenStream {
+    match table_row_derive_impl(input, true) {
+        Ok(output) => output,
+        Err(err) => panic!("{}", err),
+    }
+}
+
+fn table_row_derive_impl(input: TokenStream, strict_parsing: bool) -> GenericResult<TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
     let span = Span::call_site();
 
@@ -50,7 +58,7 @@ fn xls_table_row_derive_impl(input: TokenStream) -> GenericResult<TokenStream> {
     let columns_parse_code = columns.iter().enumerate().map(|(id, column)| {
         let field = Ident::new(&column.field, span);
         let name = &column.name;
-        let strict = column.strict.unwrap_or(true);
+        let strict = column.strict.unwrap_or(strict_parsing);
 
         let mut parse_code = match column.parse_with {
             Some(ref parse_func) => {

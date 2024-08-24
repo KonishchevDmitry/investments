@@ -6,12 +6,10 @@ use std::io::Cursor;
 use calamine::{Reader, Xlsx};
 use reqwest::blocking::{Client, Response};
 
-use xls_table_derive::XlsTableRow;
-
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::formats::xls::{self, SheetReader, SheetParser, TableReader, SkipCell};
+use crate::formats::xls::{self, XlsTableRow, SheetReader, SheetParser, TableReader, SkipCell};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 

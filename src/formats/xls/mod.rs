@@ -9,3 +9,5 @@ pub use self::parser::*;
 pub use self::sheet::*;
 pub use self::table::*;
 pub use self::util::*;
+
+pub use xls_table_derive::XlsTableRow;

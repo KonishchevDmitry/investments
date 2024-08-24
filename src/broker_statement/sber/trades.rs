@@ -5,15 +5,12 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::broker_statement::trades::{StockBuy, StockSell};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
-use crate::formats::html::{self, SectionParser};
-use crate::formats::xls::SkipCell;
+use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 use crate::time::{Date, DateTime, Time};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use xls_table_derive::XlsTableRow;
-
-use super::common::{parse_date_cell, parse_time_cell, parse_integer_cell, parse_quantity_cell, parse_decimal_cell};
+use super::common::{parse_date_cell, parse_time_cell, parse_decimal_cell};
 
 pub struct TradesParser {
     statement: PartialBrokerStatementRc,
@@ -40,7 +37,7 @@ impl SectionParser for TradesParser {
     }
 }
 
-#[derive(XlsTableRow, Debug)]
+#[derive(HtmlTableRow, Debug)]
 struct TradeRow {
     #[column(name="Дата заключения", parse_with="parse_date_cell")]
     date: Date,
@@ -56,7 +53,7 @@ struct TradeRow {
     currency: String,
     #[column(name="Вид")]
     operation: String,
-    #[column(name="Количество, шт.", parse_with="parse_quantity_cell")]
+    #[column(name="Количество, шт.")]
     quantity: u32,
     #[column(name="Цена", parse_with="parse_decimal_cell")]
     price: Decimal,
@@ -68,7 +65,7 @@ struct TradeRow {
     broker_commission: Decimal,
     #[column(name="Комиссия Биржи", parse_with="parse_decimal_cell")]
     exchange_commission: Decimal,
-    #[column(name="Номер сделки", parse_with="parse_integer_cell")]
+    #[column(name="Номер сделки")]
     id: u64,
     #[column(name="Комментарий")]
     _14: String,

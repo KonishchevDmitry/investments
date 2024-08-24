@@ -4,13 +4,12 @@ use std::rc::Rc;
 
 use log::warn;
 use matches::matches;
-use xls_table_derive::XlsTableRow;
 
 use crate::broker_statement::dividends::{DividendId, DividendAccruals};
 use crate::broker_statement::taxes::{TaxId, TaxAccruals};
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
-use crate::formats::xls::{self, XlsStatementParser, SheetParser, SheetReader, Section, SectionParser, TableReader, Cell, SkipCell};
+use crate::formats::xls::{self, XlsStatementParser, XlsTableRow, SheetParser, SheetReader, Section, SectionParser, TableReader, Cell, SkipCell};
 use crate::formatting;
 use crate::instruments::{InstrumentId, Instrument, IssuerTaxationType, parse_isin};
 use crate::localities::Jurisdiction;

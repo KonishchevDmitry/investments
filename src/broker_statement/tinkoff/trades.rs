@@ -6,15 +6,13 @@ use std::rc::Rc;
 
 use log::debug;
 
-use xls_table_derive::XlsTableRow;
-
 use crate::broker_statement::cash_flows::{CashFlow, CashFlowType};
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::trades::{ForexTrade, StockBuy, StockSell};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::forex::parse_forex_code;
-use crate::formats::xls::{self, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
+use crate::formats::xls::{self, XlsTableRow, XlsStatementParser, SectionParser, SheetReader, Cell, SkipCell, TableReader};
 use crate::formatting::format_date;
 use crate::time::{Date, Time, DateTime};
 use crate::types::Decimal;

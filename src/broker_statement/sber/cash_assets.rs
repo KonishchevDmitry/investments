@@ -1,12 +1,9 @@
 use scraper::ElementRef;
 
-use xls_table_derive::XlsTableRow;
-
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::EmptyResult;
 use crate::currency::Cash;
-use crate::formats::html::{self, SectionParser};
-use crate::formats::xls::SkipCell;
+use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 use crate::types::Decimal;
 
 use super::common::parse_decimal_cell;
@@ -34,7 +31,7 @@ impl SectionParser for CashAssetsParser {
     }
 }
 
-#[derive(XlsTableRow)]
+#[derive(HtmlTableRow)]
 struct CashAssetsRow {
     #[column(name="Торговая площадка")]
     _0: SkipCell,

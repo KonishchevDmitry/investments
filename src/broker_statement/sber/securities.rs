@@ -1,11 +1,8 @@
 use scraper::ElementRef;
 
-use xls_table_derive::XlsTableRow;
-
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::EmptyResult;
-use crate::formats::xls::SkipCell;
-use crate::formats::html::{self, SectionParser};
+use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 use crate::instruments::parse_isin;
 
 pub struct SecuritiesInfoParser {
@@ -30,7 +27,7 @@ impl SectionParser for SecuritiesInfoParser {
     }
 }
 
-#[derive(XlsTableRow)]
+#[derive(HtmlTableRow)]
 struct SecuritiesInfoRow {
     #[column(name="Наименование")]
     name: String,

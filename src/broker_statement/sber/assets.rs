@@ -1,13 +1,8 @@
 use scraper::ElementRef;
 
-use xls_table_derive::XlsTableRow;
-
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::EmptyResult;
-use crate::formats::html::{self, SectionParser};
-use crate::formats::xls::SkipCell;
-
-use super::common::parse_quantity_cell;
+use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 
 pub struct AssetsParser {
     statement: PartialBrokerStatementRc,
@@ -31,7 +26,7 @@ impl SectionParser for AssetsParser {
     }
 }
 
-#[derive(XlsTableRow, Debug)]
+#[derive(HtmlTableRow)]
 struct AssetsRow {
     // Основной рынок
 
@@ -44,7 +39,7 @@ struct AssetsRow {
 
     // Начало периода
 
-    #[column(name="Количество, шт", parse_with="parse_quantity_cell")]
+    #[column(name="Количество, шт")]
     starting: u32,
     #[column(name="Номинал")]
     _4: SkipCell,
@@ -81,7 +76,7 @@ struct AssetsRow {
     _15: SkipCell,
     #[column(name="Плановые списания по сделкам, шт")]
     _16: SkipCell,
-    #[column(name="Плановый исходящий остаток, шт", parse_with="parse_quantity_cell")]
+    #[column(name="Плановый исходящий остаток, шт")]
     planned: u32,
 }
 
