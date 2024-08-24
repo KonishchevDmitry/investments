@@ -1,4 +1,4 @@
-mod cell;
+pub mod cell;
 mod parser;
 mod sheet;
 mod table;
