@@ -41,7 +41,7 @@ impl SectionParser for CashFlowParser {
 }
 
 #[derive(XlsTableRow)]
-#[table(trim_column_title_with="trim_column_title")]
+#[table(trim_column_title="trim_column_title")]
 struct CashFlowRow {
     #[column(name="Дата", parse_with="parse_short_date_cell")]
     date: Date,

@@ -2,6 +2,8 @@ mod parser;
 mod table;
 mod util;
 
+// Reuse as much as we can from XLS parser
+pub use crate::formats::xls::TableColumn;
 pub use crate::formats::xls::cell::*;
 
 pub use self::parser::*;

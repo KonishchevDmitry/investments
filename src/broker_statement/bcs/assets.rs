@@ -39,7 +39,7 @@ impl SectionParser for AssetsParser {
 }
 
 #[derive(XlsTableRow)]
-#[table(trim_column_title_with="trim_column_title")]
+#[table(trim_column_title="trim_column_title")]
 struct AssetRow {
     #[column(name="Вид актива")]
     name: String,

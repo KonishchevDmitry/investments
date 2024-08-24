@@ -1,10 +1,21 @@
+use std::borrow::Cow;
+
 use log::trace;
 use scraper::ElementRef;
 
 use crate::core::GenericResult;
-use crate::formats::xls::{self, Cell, TableRow};
+use crate::formats::xls::{self, Cell, TableColumn};
 
 use super::util;
+
+pub type RawRowType<'a> = ElementRef<'a>;
+
+pub trait TableRow: Sized {
+    fn columns() -> Vec<TableColumn>;
+    fn skip_row(row: RawRowType) -> bool;
+    fn trim_column_title(title: &str) -> Cow<str>;
+    fn parse(row: &[Option<&Cell>]) -> GenericResult<Self>;
+}
 
 pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
     let (header, mut rows) = get_table_boundaries(element).map_err(|e| format!(
@@ -19,27 +30,21 @@ pub fn read_table<T: TableRow>(element: ElementRef) -> GenericResult<Vec<T>> {
     let mut table = Vec::new();
 
     while let Some(row) = rows.next() {
-        // XXX(konishchev): HERE
-        // if row.value().has_class("summary-row", scraper::CaseSensitivity::CaseSensitive) {
-        //     continue;
-        // }
-        if row.value().has_class("rn", scraper::CaseSensitivity::CaseSensitive) {
-            continue;
-        }
-        if util::select_multiple(row, "td")?.len() == 1 {
+        if T::skip_row(row) {
+            trace!("Skipping the following row:\n{}", row.html());
             continue;
         }
 
         let row_cells = read_table_row(row)?;
-        // println!("row: {row:?}");
+        let parsed_row = columns_mapping.map(&row_cells)
+            .and_then(|mapped_cells| TableRow::parse(&mapped_cells))
+            .map_err(|e| format!(
+                "Unable to map {} on the following row ({e}):\n{}",
+                std::any::type_name::<T>(), row.html(),
+            ))?;
 
-        let mapped_row = columns_mapping.map(&row_cells).map_err(|e| format!(
-            "Unable to map {} on the following row ({e}):\n{}", std::any::type_name::<T>(), row.html()))?;
-        // if T::skip_row(&mapped_row)? {
-        //     continue;
-        // }
 
-        table.push(TableRow::parse(&mapped_row)?);
+        table.push(parsed_row);
     }
 
     Ok(table)

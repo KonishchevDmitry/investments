@@ -6,7 +6,7 @@ use crate::currency::Cash;
 use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
 use crate::types::Decimal;
 
-use super::common::{parse_decimal_cell, trim_column_title};
+use super::common::{parse_decimal_cell, skip_row, trim_column_title};
 
 pub struct CashAssetsParser {
     statement: PartialBrokerStatementRc,
@@ -32,7 +32,7 @@ impl SectionParser for CashAssetsParser {
 }
 
 #[derive(HtmlTableRow)]
-#[table(trim_column_title_with="trim_column_title")]
+#[table(trim_column_title="trim_column_title", skip_row="skip_row")]
 struct CashAssetsRow {
     #[column(name="Торговая площадка")]
     _0: SkipCell,

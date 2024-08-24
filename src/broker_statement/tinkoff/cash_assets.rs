@@ -68,7 +68,7 @@ fn parse_current_assets(
 }
 
 #[derive(XlsTableRow)]
-#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
+#[table(trim_column_title="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct AssetsRow {
     #[column(name="Валюта")]
     currency: String,
@@ -153,7 +153,7 @@ fn parse_cash_flows(
 }
 
 #[derive(XlsTableRow)]
-#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
+#[table(trim_column_title="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct CashFlowRow {
     #[column(name="Дата", parse_with="parse_date_cell")]
     date: Option<Date>,

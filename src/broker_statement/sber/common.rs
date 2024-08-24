@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use scraper::{CaseSensitivity, ElementRef};
+
 use crate::core::GenericResult;
 use crate::formats::html::{self, Cell};
 use crate::time::{self, Date, Time};
@@ -25,4 +27,13 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
 
 pub fn trim_column_title(title: &str) -> Cow<str> {
     Cow::from(title.trim_end_matches(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']))
+}
+
+pub fn skip_row(row: ElementRef) -> bool {
+    // Row with column numbers
+    row.value().has_class("rn", CaseSensitivity::CaseSensitive) ||
+
+    // Various summaries
+    row.value().has_class("summary-row", CaseSensitivity::CaseSensitive) ||
+    html::select_multiple(row, "td").unwrap().iter().any(|column| column.attr("colspan").unwrap_or("1") != "1")
 }

@@ -9,9 +9,12 @@ use crate::core::GenericResult;
 
 use super::{SheetReader, Cell, is_empty_row};
 
+pub type RawRowType<'a> = &'a [Cell];
+
 pub trait TableRow: Sized {
     fn columns() -> Vec<TableColumn>;
     fn trim_column_title(title: &str) -> Cow<str>;
+    fn skip_row(row: RawRowType) -> bool;
     fn parse(row: &[Option<&Cell>]) -> GenericResult<Self>;
 }
 
@@ -57,8 +60,12 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
             }
         }
 
+        if <T as TableRow>::skip_row(row) {
+            continue;
+        }
+
         let mapped_row = columns_mapping.map(row)?;
-        if T::skip_row(&mapped_row)? {
+        if <T as TableReader>::skip_row(&mapped_row)? {
             continue;
         }
 

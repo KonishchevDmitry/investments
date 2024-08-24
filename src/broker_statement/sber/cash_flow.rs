@@ -8,7 +8,7 @@ use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::{parse_date_cell, parse_decimal_cell, trim_column_title};
+use super::common::{parse_date_cell, parse_decimal_cell, skip_row, trim_column_title};
 
 pub struct CashFlowParser {
     statement: PartialBrokerStatementRc,
@@ -33,7 +33,7 @@ impl SectionParser for CashFlowParser {
 }
 
 #[derive(HtmlTableRow)]
-#[table(trim_column_title_with="trim_column_title")]
+#[table(trim_column_title="trim_column_title", skip_row="skip_row")]
 struct CashFlowRow {
     #[column(name="Дата", parse_with="parse_date_cell")]
     date: Date,

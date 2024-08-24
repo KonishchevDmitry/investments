@@ -12,9 +12,14 @@ macro_rules! Err {
     ($($arg:tt)*) => (::std::result::Result::Err(format!($($arg)*).into()))
 }
 
+enum Format {
+    Html,
+    Xls,
+}
+
 #[proc_macro_derive(HtmlTableRow, attributes(table, column))]
 pub fn html_table_row_derive(input: TokenStream) -> TokenStream {
-    match table_row_derive_impl(input, false) {
+    match table_row_derive_impl(Format::Html, input) {
         Ok(output) => output,
         Err(err) => panic!("{}", err),
     }
@@ -22,27 +27,23 @@ pub fn html_table_row_derive(input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(XlsTableRow, attributes(table, column))]
 pub fn xls_table_row_derive(input: TokenStream) -> TokenStream {
-    match table_row_derive_impl(input, true) {
+    match table_row_derive_impl(Format::Xls, input) {
         Ok(output) => output,
         Err(err) => panic!("{}", err),
     }
 }
 
-fn table_row_derive_impl(input: TokenStream, strict_parsing: bool) -> GenericResult<TokenStream> {
-    let ast: DeriveInput = syn::parse(input)?;
+fn table_row_derive_impl(format: Format, input: TokenStream) -> GenericResult<TokenStream> {
     let span = Span::call_site();
+    let ast: DeriveInput = syn::parse(input)?;
 
-    let table = TableParams::parse(&ast)?;
-    let trim_title_func = match table.trim_column_title_with {
-        Some(name) => {
-            let ident = Ident::new(&name, span);
-            quote!(#ident)
-        },
-        None => quote!(::std::borrow::Cow::from),
+    let (mod_ident, strict_parsing) = match format {
+        Format::Html => (quote!(crate::formats::html), false),
+        Format::Xls => (quote!(crate::formats::xls), true),
     };
 
+    let table = TableParams::parse(&ast)?;
     let columns = Column::parse(&ast)?;
-    let mod_ident = quote!(crate::formats::xls);
     let row_ident = &ast.ident;
 
     let columns_code = columns.iter().map(|column| {
@@ -92,6 +93,22 @@ fn table_row_derive_impl(input: TokenStream, strict_parsing: bool) -> GenericRes
         }
     });
 
+    let trim_title_func = match table.trim_column_title {
+        Some(name) => {
+            let ident = Ident::new(&name, span);
+            quote!(#ident)
+        },
+        None => quote!(::std::borrow::Cow::from),
+    };
+
+    let skip_row_code = match table.skip_row {
+        Some(name) => {
+            let ident = Ident::new(&name, span);
+            quote!(#ident(row))
+        },
+        None => quote!(false),
+    };
+
     Ok(quote! {
         impl #mod_ident::TableRow for #row_ident {
             fn columns() -> Vec<#mod_ident::TableColumn> {
@@ -100,6 +117,10 @@ fn table_row_derive_impl(input: TokenStream, strict_parsing: bool) -> GenericRes
 
             fn trim_column_title(title: &str) -> ::std::borrow::Cow<str> {
                 #trim_title_func(title)
+            }
+
+            fn skip_row(row: #mod_ident::RawRowType) -> bool {
+                #skip_row_code
             }
 
             fn parse(row: &[Option<&#mod_ident::Cell>]) -> crate::core::GenericResult<#row_ident> {
@@ -120,7 +141,10 @@ struct TableParams {
     space_insensitive_match: bool,
 
     #[darling(default)]
-    trim_column_title_with: Option<String>,
+    trim_column_title: Option<String>,
+
+    #[darling(default)]
+    skip_row: Option<String>,
 }
 
 impl TableParams {

@@ -51,7 +51,7 @@ impl SectionParser for AssetsParser {
 }
 
 #[derive(XlsTableRow)]
-#[table(trim_column_title_with="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
+#[table(trim_column_title="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct AssetsRow {
     #[column(name="Сокращенное наименование актива")]
     name: String,

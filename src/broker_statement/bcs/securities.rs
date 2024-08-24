@@ -42,7 +42,7 @@ impl SectionParser for SecuritiesParser {
 }
 
 #[derive(XlsTableRow)]
-#[table(trim_column_title_with="trim_column_title")]
+#[table(trim_column_title="trim_column_title")]
 struct SecurityRow {
     #[column(name="ЦБ")]
     symbol: String,
