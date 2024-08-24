@@ -124,10 +124,9 @@ impl Broker {
                 "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
             }),
 
-            // FIXME(konishchev): Support
-            Broker::Sber => (plans::open::all_inclusive, btreemap!{
-                "Всё включено" => plans::open::all_inclusive as PlanFn,
-                "Самостоятельное управление (ИИС)" => plans::open::iia as PlanFn,
+            Broker::Sber => (plans::sber::investment, btreemap!{
+                "Инвестиционный" => plans::sber::investment as PlanFn,
+                "Самостоятельный" => plans::sber::manual as PlanFn,
             }),
 
             Broker::Tinkoff => (plans::tinkoff::investor, btreemap!{
