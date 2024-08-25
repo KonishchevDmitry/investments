@@ -123,11 +123,14 @@ fn generate_regression_tests() {
         ("TBank",     Some((2019, None))),
 
         ("BCS",          None),
+        ("BCS IIA",      None),
         ("Investpalata", None),
+        ("Kate",         None),
+        ("Kate IIA",     None),
+        ("Sber",         None),
+        ("Sber IIA",     None),
+        ("TBank IIA",    None),
         ("VTB",          None),
-
-        ("Kate",     None),
-        ("Kate IIA", None),
     ];
 
     for (name, year_spec) in accounts {

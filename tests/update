@@ -27,7 +27,7 @@ rate-limited-investments() {
 INVESTMENTS_NOW=$(< testdata/time)
 export INVESTMENTS_NOW
 
-for portfolio in bcs firstrade ib investpalata kate kate-iia tbank vtb; do
+for portfolio in bcs bcs-iia firstrade ib investpalata kate kate-iia sber sber-iia tbank tbank-iia vtb; do
     case "$portfolio" in
         firstrade|ib) cash=10000;;
         *) cash=100000;;
@@ -36,7 +36,8 @@ for portfolio in bcs firstrade ib investpalata kate kate-iia tbank vtb; do
     investments main sync "$portfolio"
     investments main cash "$portfolio" "$cash"
 
-    rate-limited-investments main analyse "$portfolio"
+    # FIXME(konishchev): A temporary stub for empty portfolios
+    rate-limited-investments main analyse "$portfolio" ||:
 done
 
 for portfolio in \

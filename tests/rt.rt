@@ -1376,6 +1376,38 @@ APP: tests/investments
      bcs
 
 [161]
+NAME: Rebalance BCS IIA
+STDOUT: rebalance-bcs-iia
+APP: tests/investments
+     main
+     rebalance
+     bcs-iia
+
+[162]
+NAME: Simulate sell BCS IIA
+STDOUT: simulate-sell-bcs-iia
+APP: tests/investments
+     main
+     simulate-sell
+     bcs-iia
+
+[163]
+NAME: BCS IIA tax statement
+STDOUT: bcs-iia-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     bcs-iia
+
+[164]
+NAME: BCS IIA cash flow
+STDOUT: bcs-iia-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     bcs-iia
+
+[165]
 NAME: Rebalance Investpalata
 STDOUT: rebalance-investpalata
 APP: tests/investments
@@ -1383,7 +1415,7 @@ APP: tests/investments
      rebalance
      investpalata
 
-[162]
+[166]
 NAME: Simulate sell Investpalata
 STDOUT: simulate-sell-investpalata
 APP: tests/investments
@@ -1391,7 +1423,7 @@ APP: tests/investments
      simulate-sell
      investpalata
 
-[163]
+[167]
 NAME: Investpalata tax statement
 STDOUT: investpalata-tax-statement
 APP: tests/investments
@@ -1399,45 +1431,13 @@ APP: tests/investments
      tax-statement
      investpalata
 
-[164]
+[168]
 NAME: Investpalata cash flow
 STDOUT: investpalata-cash-flow
 APP: tests/investments
      main
      cash-flow
      investpalata
-
-[165]
-NAME: Rebalance VTB
-STDOUT: rebalance-vtb
-APP: tests/investments
-     main
-     rebalance
-     vtb
-
-[166]
-NAME: Simulate sell VTB
-STDOUT: simulate-sell-vtb
-APP: tests/investments
-     main
-     simulate-sell
-     vtb
-
-[167]
-NAME: VTB tax statement
-STDOUT: vtb-tax-statement
-APP: tests/investments
-     main
-     tax-statement
-     vtb
-
-[168]
-NAME: VTB cash flow
-STDOUT: vtb-cash-flow
-APP: tests/investments
-     main
-     cash-flow
-     vtb
 
 [169]
 NAME: Rebalance Kate
@@ -1502,4 +1502,132 @@ APP: tests/investments
      main
      cash-flow
      kate-iia
+
+[177]
+NAME: Rebalance Sber
+STDOUT: rebalance-sber
+APP: tests/investments
+     main
+     rebalance
+     sber
+
+[178]
+NAME: Simulate sell Sber
+STDOUT: simulate-sell-sber
+APP: tests/investments
+     main
+     simulate-sell
+     sber
+
+[179]
+NAME: Sber tax statement
+STDOUT: sber-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     sber
+
+[180]
+NAME: Sber cash flow
+STDOUT: sber-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     sber
+
+[181]
+NAME: Rebalance Sber IIA
+STDOUT: rebalance-sber-iia
+APP: tests/investments
+     main
+     rebalance
+     sber-iia
+
+[182]
+NAME: Simulate sell Sber IIA
+STDOUT: simulate-sell-sber-iia
+APP: tests/investments
+     main
+     simulate-sell
+     sber-iia
+
+[183]
+NAME: Sber IIA tax statement
+STDOUT: sber-iia-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     sber-iia
+
+[184]
+NAME: Sber IIA cash flow
+STDOUT: sber-iia-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     sber-iia
+
+[185]
+NAME: Rebalance TBank IIA
+STDOUT: rebalance-tbank-iia
+APP: tests/investments
+     main
+     rebalance
+     tbank-iia
+
+[186]
+NAME: Simulate sell TBank IIA
+STDOUT: simulate-sell-tbank-iia
+APP: tests/investments
+     main
+     simulate-sell
+     tbank-iia
+
+[187]
+NAME: TBank IIA tax statement
+STDOUT: tbank-iia-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     tbank-iia
+
+[188]
+NAME: TBank IIA cash flow
+STDOUT: tbank-iia-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     tbank-iia
+
+[189]
+NAME: Rebalance VTB
+STDOUT: rebalance-vtb
+APP: tests/investments
+     main
+     rebalance
+     vtb
+
+[190]
+NAME: Simulate sell VTB
+STDOUT: simulate-sell-vtb
+APP: tests/investments
+     main
+     simulate-sell
+     vtb
+
+[191]
+NAME: VTB tax statement
+STDOUT: vtb-tax-statement
+APP: tests/investments
+     main
+     tax-statement
+     vtb
+
+[192]
+NAME: VTB cash flow
+STDOUT: vtb-cash-flow
+APP: tests/investments
+     main
+     cash-flow
+     vtb
 
