@@ -44,7 +44,7 @@ impl BrokerStatementReader for StatementReader {
         let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
         XlsStatementParser::read(path, parser, vec![
-            Section::new("Период:").parser(PeriodParser::new(statement.clone())).required(),
+            Section::new("Период:").required().parser(PeriodParser::new(statement.clone())),
 
             Section::new("1. Движение денежных средств").required(),
             Section::new("1.1. Движение денежных средств по совершенным сделкам:").required(),
@@ -66,12 +66,15 @@ impl BrokerStatementReader for StatementReader {
             Section::new("2.3. Незавершенные сделки"),
 
             Section::new("3. Активы:").required(),
-            Section::new("Вид актива").parser(AssetsParser::new(statement.clone())).required(),
+            Section::new("Вид актива").parser(AssetsParser::new(statement.clone())),
 
             Section::new("4. Движение Ценных бумаг").parser(SecuritiesParser::new(statement.clone())),
         ])?;
 
-        Rc::try_unwrap(statement).ok().unwrap().into_inner().validate()
+        let mut statement = Rc::try_unwrap(statement).ok().unwrap().into_inner();
+        statement.has_starting_assets.get_or_insert(false); // To support empty statements
+
+        statement.validate()
     }
 }
 
