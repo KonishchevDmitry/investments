@@ -1,11 +1,14 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 use crate::broker_statement::corporate_actions::{CorporateAction, CorporateActionType, StockSplitRatio};
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
-use crate::core::EmptyResult;
-use crate::formats::xls::{self, XlsTableRow, XlsStatementParser, SheetReader, SectionParser, TableReader, Cell, SkipCell};
+use crate::core::{EmptyResult, GenericResult};
+use crate::formats::xls::{self, XlsTableRow, XlsStatementParser, SheetReader, SectionParser, TableReader, Cell};
 use crate::formatting;
 use crate::time::Date;
+use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
 use super::common::{parse_symbol, parse_short_date_cell, trim_column_title};
 
@@ -24,16 +27,24 @@ impl SectionParser for SecuritiesParser {
         let mut statement = self.statement.borrow_mut();
         parser.sheet.skip_empty_rows();
 
-        for asset in &xls::read_table::<SecurityRow>(&mut parser.sheet)? {
-            let comment = asset.comment.as_deref().unwrap_or_default().trim();
+        let securities = xls::read_table::<SecurityRow>(&mut parser.sheet)?;
+        let blocked: HashSet<String> = securities.iter()
+            .filter(|security| security.depositary.contains("Блокированный раздел"))
+            .map(|security| security.symbol.clone())
+            .collect();
+
+        for security in &securities {
+            let comment = security.comment.as_deref().unwrap_or_default().trim();
             if comment.is_empty() {
                 continue;
             }
 
             if comment.starts_with("Конвертация паи") {
-                asset.parse_split(&mut statement)?;
+                security.parse_split(&mut statement)?;
+            } else if comment == "Прочее" && blocked.contains(&security.symbol) {
+                // Assume operations on blocked securities at OTC market
             } else {
-                return Err!("Unsupported corporate action: {:?}", asset.comment);
+                return Err!("Unsupported corporate action: {:?}", security.comment);
             }
         }
 
@@ -50,16 +61,16 @@ struct SecurityRow {
     date: Date,
 
     #[column(name="Остаток на начало дня / начало операции", optional=true)]
-    start_quantity: Option<u32>,
+    start_quantity: Option<Decimal>,
     #[column(name="Приход", optional=true)]
-    credit: Option<u32>,
+    credit: Option<Decimal>,
     #[column(name="Расход", optional=true)]
-    debit: Option<u32>,
+    debit: Option<Decimal>,
     #[column(name="Остаток на конец дня / конец операции", optional=true)]
-    end_quantity: Option<u32>,
+    end_quantity: Option<Decimal>,
 
     #[column(name="Место хранения")]
-    _6: SkipCell,
+    depositary: String,
     #[column(name="Примечание", optional=true)]
     comment: Option<String>,
 }
@@ -96,7 +107,7 @@ impl TableReader for SecurityRow {
 
 impl SecurityRow {
     fn parse_split(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
-        let action = self.get_stock_split().ok_or_else(|| format!(
+        let action = self.get_stock_split()?.ok_or_else(|| format!(
             "Unsupported stock split: {} at {}", self.symbol, formatting::format_date(self.date)))?;
 
         let symbol = parse_symbol(self.symbol.trim_end())?;
@@ -109,34 +120,44 @@ impl SecurityRow {
         Ok(())
     }
 
-    fn get_stock_split(&self) -> Option<CorporateActionType> {
+    fn get_stock_split(&self) -> GenericResult<Option<CorporateActionType>> {
         let (debit, credit) = match (self.start_quantity, self.debit, self.credit, self.end_quantity) {
-            (Some(start), Some(debit), Some(credit), Some(end)) if debit == start && credit == end => (debit, credit),
-            _ => return None,
+            (Some(start), Some(debit), Some(credit), Some(end)) if debit == start && credit == end => (
+                util::validate_named_decimal("debit value", debit, DecimalRestrictions::StrictlyPositive)?,
+                util::validate_named_decimal("credit value", credit, DecimalRestrictions::StrictlyPositive)?,
+            ),
+            _ => return Ok(None),
+        };
+
+        let calc_ratio = |bigger: Decimal, smaller: Decimal| -> Option<u32> {
+            if bigger % smaller != dec!(0) {
+                return None;
+            }
+            u32::try_from(bigger / smaller).ok()
         };
 
         let ratio = match debit.cmp(&credit) {
-            Ordering::Equal => return None,
+            Ordering::Equal => return Ok(None),
 
             Ordering::Less => {
-                if credit % debit != 0 {
-                    return None;
-                }
-                StockSplitRatio::new(1, credit / debit)
+                let Some(to) = calc_ratio(credit, debit) else {
+                    return Ok(None);
+                };
+                StockSplitRatio::new(1, to)
             },
 
             Ordering::Greater => {
-                if debit % credit != 0 {
-                    return None;
-                }
-                StockSplitRatio::new(debit / credit, 1)
+                let Some(from) = calc_ratio(debit, credit) else {
+                    return Ok(None);
+                };
+                StockSplitRatio::new(from, 1)
             },
         };
 
-        Some(CorporateActionType::StockSplit{
+        Ok(Some(CorporateActionType::StockSplit{
             ratio,
-            from_change: Some(debit.into()),
-            to_change: Some(credit.into()),
-        })
+            from_change: Some(debit),
+            to_change: Some(credit),
+        }))
     }
 }
