@@ -46,7 +46,7 @@ chrono = "0.4.38"
 chrono-tz = "0.9.0"
 cast = "0.3.0"
 clap = "4.5.16"
-clap_complete = "4.5.23"
+clap_complete = "4.5.24"
 csv = "1.3.0"
 cusip = "0.3.0"
 dyn-clone = "1.0.17"
@@ -81,7 +81,7 @@ serde-xml-rs = "0.6.0"
 shellexpand = "3.1.0"
 strum = { version = "0.26", features = ["derive"] }
 textwrap = "0.16.1"
-tokio = "1.39.3"
+tokio = "1.40.0"
 tonic = { version = "0.12", features = ["tls", "tls-roots"] }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 validator = { version = "0.18.1", features = ["derive"] }
@@ -103,8 +103,8 @@ unicode-width = "=0.1.12"
 libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
 openssl = { version = "0.10", features = ["vendored"] }
 
-static_table_derive = "0.1.70"
-xls_table_derive = "0.8.0"
+static_table_derive = "0.1.71"
+xls_table_derive = "0.8.1"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
