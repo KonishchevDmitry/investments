@@ -54,8 +54,8 @@ struct TradeRow {
     currency: String,
     #[column(name="Вид")]
     operation: String,
-    #[column(name="Количество, шт.")]
-    quantity: u32,
+    #[column(name="Количество, шт.", parse_with="parse_decimal_cell")]
+    quantity: Decimal,
     #[column(name="Цена", parse_with="parse_decimal_cell")]
     price: Decimal,
     #[column(name="Сумма", parse_with="parse_decimal_cell")]
@@ -88,12 +88,14 @@ impl TradeRow {
 
         let time = DateTime::new(self.date, self.time);
 
+        let quantity = util::validate_named_decimal("quantity", self.quantity, DecimalRestrictions::StrictlyPositive)?;
+
         let price = util::validate_named_decimal("price", self.price, DecimalRestrictions::StrictlyPositive)
             .map(|price| Cash::new(&self.currency, price))?;
 
         let volume = util::validate_named_decimal("trade volume", self.volume, DecimalRestrictions::StrictlyPositive)
             .map(|volume| Cash::new(&self.currency, volume))?;
-        debug_assert_eq!(volume, (price * self.quantity).round());
+        debug_assert_eq!(volume, (price * quantity).round());
 
         let broker_commission = util::validate_named_decimal(
             "broker commission", self.broker_commission, DecimalRestrictions::PositiveOrZero)?;
@@ -106,12 +108,12 @@ impl TradeRow {
         match self.operation.as_str() {
             "Покупка" => {
                 statement.stock_buys.push(StockBuy::new_trade(
-                    &self.symbol, self.quantity.into(), price, volume, commission,
+                    &self.symbol, quantity, price, volume, commission,
                     time.into(), self.settlement_date));
             },
             "Продажа" => {
                 statement.stock_sells.push(StockSell::new_trade(
-                    &self.symbol, self.quantity.into(), price, volume, commission,
+                    &self.symbol, quantity, price, volume, commission,
                     time.into(), self.settlement_date, false));
             },
             _ => return Err!("Unsupported trade operation: {:?}", self.operation),

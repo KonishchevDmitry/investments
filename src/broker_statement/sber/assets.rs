@@ -3,8 +3,10 @@ use scraper::ElementRef;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::EmptyResult;
 use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
+use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
-use super::common::{skip_row, trim_column_title};
+use super::common::{parse_decimal_cell, skip_row, trim_column_title};
 
 pub struct AssetsParser {
     statement: PartialBrokerStatementRc,
@@ -42,8 +44,8 @@ struct AssetsRow {
 
     // Начало периода
 
-    #[column(name="Количество, шт")]
-    starting: u32,
+    #[column(name="Количество, шт", parse_with="parse_decimal_cell")]
+    starting: Decimal,
     #[column(name="Номинал")]
     _4: SkipCell,
     #[column(name="Рыночная цена")]
@@ -79,18 +81,19 @@ struct AssetsRow {
     _15: SkipCell,
     #[column(name="Плановые списания по сделкам, шт")]
     _16: SkipCell,
-    #[column(name="Плановый исходящий остаток, шт")]
-    planned: u32,
+    #[column(name="Плановый исходящий остаток, шт", parse_with="parse_decimal_cell")]
+    planned: Decimal,
 }
 
 impl AssetsRow {
     fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
-        if self.starting != 0 {
+        if !self.starting.is_zero() {
             statement.has_starting_assets.replace(true);
         }
 
-        if self.planned != 0 {
-            statement.add_open_position(&self.name, self.planned.into())?;
+        let quantity = util::validate_named_decimal("quantity", self.planned, DecimalRestrictions::PositiveOrZero)?;
+        if !quantity.is_zero() {
+            statement.add_open_position(&self.name, quantity)?;
         }
 
         Ok(())
