@@ -19,8 +19,12 @@ pub fn parse_short_date_cell(cell: &Cell) -> GenericResult<Date> {
     parse_short_date(xls::get_string_cell(cell)?)
 }
 
-pub fn parse_time(time: &str) -> GenericResult<Time> {
+fn parse_time(time: &str) -> GenericResult<Time> {
     time::parse_time(time, "%H:%M:%S")
+}
+
+pub fn parse_time_cell(cell: &Cell) -> GenericResult<Time> {
+    parse_time(xls::get_string_cell(cell)?)
 }
 
 pub fn map_currency(name: &str) -> Option<&'static str> {

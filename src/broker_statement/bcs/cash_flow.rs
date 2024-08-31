@@ -95,7 +95,7 @@ impl CashFlowRow {
                     self.date, currency, self.deposit));
             },
 
-            "Покупка/Продажа" | "Покупка/Продажа (репо)" => {
+            "Покупка/Продажа" | "Покупка/Продажа (репо)" | "Внебиржевая сделка ОТС" => {
                 validator.deposit = DecimalRestrictions::PositiveOrZero;
                 validator.withdrawal = DecimalRestrictions::PositiveOrZero;
                 validator.validate()?;

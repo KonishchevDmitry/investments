@@ -7,11 +7,11 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formats::xls::{self, XlsTableRow, XlsStatementParser, SectionParser, SheetReader, TableRow, SkipCell, ColumnsMapping};
-use crate::time::{Date, DateTime, DateOptTime};
+use crate::time::{Date, DateTime, DateOptTime, Time};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::common::{parse_currency, parse_short_date_cell, parse_symbol, parse_time, trim_column_title};
+use super::common::{parse_currency, parse_short_date_cell, parse_symbol, parse_time_cell, trim_column_title};
 
 pub struct TradesParser {
     statement: PartialBrokerStatementRc,
@@ -60,7 +60,7 @@ impl SectionParser for TradesParser {
 
             let trade: TradeRow = TableRow::parse(&row)?;
             trade.parse(&mut statement, symbol).map_err(|e| format!(
-                "Failed to parse {:?} trade: {}", trade.id, e))?;
+                "Failed to parse {:?} trade: {}", trade.id.trim(), e))?;
         }
 
         if current_instrument.is_some() {
@@ -78,8 +78,8 @@ struct TradeRow {
     date: Date,
     #[column(name="Номер")]
     id: String,
-    #[column(name="Время")]
-    _2: SkipCell,
+    #[column(name="Время", parse_with="parse_time_cell")]
+    time: Option<Time>,
     #[column(name="Куплено, шт")]
     buy_quantity: Option<Decimal>,
     #[column(name="Цена")]
@@ -98,8 +98,8 @@ struct TradeRow {
     payment_currency: String,
     #[column(name="Дата соверш.", parse_with="parse_short_date_cell")]
     conclusion_date: Option<Date>,
-    #[column(name="Время соверш.")]
-    conclusion_time: Option<String>,
+    #[column(name="Время соверш.", parse_with="parse_time_cell")]
+    conclusion_time: Option<Time>,
     #[column(name="Тип сделки")]
     trade_type: Option<String>,
     #[column(name="Оплата (факт)", parse_with="parse_short_date_cell")]
@@ -118,11 +118,18 @@ impl TradeRow {
             self.trade_type.as_ref(),
             Some(trade_type) if trade_type == "Репо ч.1" || trade_type == "Репо ч.2");
 
-        let conclusion_time: DateOptTime = match (self.conclusion_date, self.conclusion_time.as_ref()) {
-            (Some(date), Some(time)) => DateTime::new(date, parse_time(time)?).into(),
-            (None, None) if repo => self.execution_date.into(),
-            _ => return Err!("The trade has no conclusion date/time"),
+        let exchange = match self.exchange.as_str() {
+            "ММВБ" => Exchange::Moex,
+            "СПБ" => Exchange::Spb, // Haven't seen it yet actually, just guessing
+            "Внебирж." => Exchange::Otc,
+            _ => return Err!("Unknown exchange: {:?}", self.exchange),
         };
+
+        let conclusion_time: DateOptTime = match (self.time, self.conclusion_date, self.conclusion_time, exchange) {
+            (_, Some(date), Some(time), _) => DateTime::new(date, time),
+            (Some(time), None, None, Exchange::Otc) => DateTime::new(self.date, time),
+            _ => return Err!("The trade has no conclusion date/time"),
+        }.into();
 
         if self.date != self.execution_date {
             return Err!(
@@ -185,11 +192,6 @@ impl TradeRow {
                 commission
             }));
         } else {
-            let exchange = match self.exchange.as_str() {
-                "ММВБ" => Exchange::Moex,
-                "СПБ" => Exchange::Spb, // Haven't seen it yet actually, just guessing
-                _ => return Err!("Unknown exchange: {:?}", self.exchange),
-            };
             statement.instrument_info.get_or_add(symbol).exchanges.add_prioritized(exchange);
 
             if buy {
