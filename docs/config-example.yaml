@@ -76,6 +76,21 @@ portfolios:
       IAGG: iShares Core International Aggregate Bond ETF
       REET: iShares Global REIT ETF
 
+  - name: bcs
+    broker: bcs
+    plan: Инвестор
+    statements: ~/Brokerage/БКС/Отчеты Брокера
+
+    # For some instruments BCS shows ISIN or symbol with some exchange-specific suffixes instead of actual symbol name.
+    # This mapping allows you to manually remap BCS names to actual symbol names.
+    symbol_remapping:
+      RU000A101X76: TMOS
+      RU000A100HQ5: VTBE
+
+    # Configuration for Individual Investment Account (Type 2)
+    tax_exemptions: [tax-free]
+    tax_payment_day: on-close
+
   - name: open
     broker: open-broker
     plan: Всё включено
@@ -87,12 +102,8 @@ portfolios:
       ROS AGRO PLC-GDR: AGRO
       ГАЗПРОМ-ао-2: GAZP
 
-    # Specifies the day when tax is paid. Used in portfolio performance analysis. Accepted values:
-    # * Date in DD.MM format
-    # * on-close - for accounts that are taxable on their close. Suitable for Individual Investment Account (type A).
+    # Configuration for Individual Investment Account (Type 1)
     tax_payment_day: on-close
-
-    # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
     tax_deductions:
       2018.09.25: 52000
 
@@ -113,19 +124,17 @@ portfolios:
               - {name: FinEx MSCI China UCITS ETF, symbol: FXCN, weight: 31%}
       - {name: FinEx Tradable Russian Corporate Bonds UCITS ETF, symbol: FXRU, weight: 20%}
 
-  - name: bcs
-    broker: bcs
-    plan: Инвестор
-    statements: ~/Brokerage/БКС/Отчеты Брокера
+  - name: sber
+    broker: sber
+    plan: Самостоятельный
+    statements: ~/Brokerage/Сбер/Отчеты Брокера
 
-    # For some instruments BCS shows ISIN or symbol with some exchange-specific suffixes instead of actual symbol name.
-    # This mapping allows you to manually remap BCS names to actual symbol names.
-    symbol_remapping:
-      RU000A101X76: TMOS
-      RU000A100HQ5: VTBE
-
-    # Configures the account as tax free. Suitable for Individual Investment Account (type B).
+    # Configuration for Individual Investment Account (Type 3):
     tax_exemptions: [tax-free]
+    tax_payment_day: on-close
+    tax_deductions:
+      # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
+      2024.08.25: 52000
 
   - name: tinkoff
     broker: tinkoff

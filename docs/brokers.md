@@ -1,5 +1,21 @@
 # Foreign brokers
 
+<a name="firstrade"></a>
+## Firstrade
+
+The program expects broker statements in `*.ofx` format (`Accounts -> History -> Download Account History -> Microsoft Money`).
+
+Please take into account the following issues with Firstrade statements:
+1. Firstrade doesn't provide information about real dividend amount, so it will be deduced from received amount and expected tax rate.
+2. When you generate broker statements, current cash assets and open positions information will always be got for yesterday date. So you effectively aren't able to generate a valid statement with ending date different from yesterday. But you should split the statements for the following reasons:
+
+   2.1. Firstrade allows to generate the statement for past three years only.
+
+   2.2. You should have your statements split by years for [cash-flow](taxes.md#cash-flow) command.
+
+   So, considering this, I recommend to generate new statement for the previous year on each January 1.
+
+
 <a name="interactive-brokers"></a>
 ## Interactive Brokers
 
@@ -68,22 +84,6 @@ To generate Custom Activity Statement:
 <img src="/docs/images/ib-custom-activity-statement-parameters.png?raw=true" width="685" height="407" alt="Custom Activity Statement Parameters" title="Custom Activity Statement Parameters">
 
 
-<a name="firstrade"></a>
-## Firstrade
-
-The program expects broker statements in `*.ofx` format (`Accounts -> History -> Download Account History -> Microsoft Money`).
-
-Please take into account the following issues with Firstrade statements:
-1. Firstrade doesn't provide information about real dividend amount, so it will be deduced from received amount and expected tax rate.
-2. When you generate broker statements, current cash assets and open positions information will always be got for yesterday date. So you effectively aren't able to generate a valid statement with ending date different from yesterday. But you should split the statements for the following reasons:
-
-   2.1. Firstrade allows to generate the statement for past three years only.
-
-   2.2. You should have your statements split by years for [cash-flow](taxes.md#cash-flow) command.
-
-   So, considering this, I recommend to generate new statement for the previous year on each January 1.
-
-
 # Russian Brokers
 
 When you configure your portfolio as backed by a Russian broker, the following configuration options should be specified depending on your account type:
@@ -103,12 +103,24 @@ Please note that Russian brokers process stock splits in a way which resets FIFO
 Taking this into account, investments processes stock splits in a similar way for all Russian brokers, but you [can try to return the tax](https://journal.tinkoff.ru/broker-obnulil-lgotu/) and include the returned amount into the calclucations by adding it to `tax_deductions` configuration option.
 
 
+<a name="bcs"></a>
+## БКС
+
+The program expects broker statements in `*.xls` format. Stock splits are supported, but dividends aren't yet (I don't have an example of how they look like in the broker statements).
+
+
 <a name="open-broker"></a>
-## Открытие Брокер
+## Открытие Брокер (deprecated – acquired by ВТБ)
 
 The program expects broker statements in `*.xml` format.
 
 Dividend records in the statement are identified by some broker-specific instrument ID and there is no any mapping of it to instrument symbol in the statement, so the program will ask you to specify this mapping manually via `instrument_internal_ids` configuration option.
+
+
+<a name="sber"></a>
+## Сбер
+
+The program expects broker statements in `*.html` format. For now only basic statements are supported since I don't have more examples of how various situations look like in them.
 
 
 <a name="tinkoff"></a>
@@ -121,11 +133,3 @@ Tinkoff broker statements don't contain dividend and tax withheld amounts for di
 can ask support for *.xlsx version of it and place it to the broker statements directory. The program will find it and merge its information with broker statement.
 
 Tinkoff broker statements don't contain any information about corporate actions, so stock splits must be specified manually via `corporate_actions` configuration option.
-
-
-<a name="bcs"></a>
-## БКС
-
-The program expects broker statements in `*.xls` format.
-
-Dividends aren't parsed out from broker statements yet. I use ETFs which don't pay dividends, so I don't have an example of how they are look like in the broker statements.
