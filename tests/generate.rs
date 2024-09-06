@@ -90,6 +90,7 @@ fn generate_regression_tests() {
     t.add("Open inactive with forex trades cash flow", "cash-flow open-inactive-with-forex").config("other");
     t.add("Open MOEX dividends cash flow", "cash-flow open-dividends-moex").config("other");
     t.add("Open SPB dividends cash flow", "cash-flow open-dividends-spb").config("other");
+    t.add("Sber daily cash flow", "cash-flow sber-daily").config("other");
     t.add("TBank complex cash flow", "cash-flow tbank-complex").config("other");
     t.add("TBank complex full cash flow", "cash-flow tbank-complex-full").config("other");
 
