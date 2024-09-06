@@ -1,3 +1,7 @@
+use std::cell::RefCell;
+use std::collections::HashSet;
+use std::rc::Rc;
+
 use log::trace;
 use scraper::ElementRef;
 
@@ -14,22 +18,32 @@ use super::common::{parse_date_cell, parse_time_cell, parse_decimal_cell, skip_r
 
 pub struct TradesParser {
     statement: PartialBrokerStatementRc,
+    processed_trades: Rc<RefCell<HashSet<u64>>>,
 }
 
 impl TradesParser {
-    pub fn new(statement: PartialBrokerStatementRc) -> Box<dyn SectionParser> {
-        Box::new(TradesParser {statement})
+    pub fn new(statement: PartialBrokerStatementRc, trades: Rc<RefCell<HashSet<u64>>>) -> Box<dyn SectionParser> {
+        Box::new(TradesParser {
+            statement,
+            processed_trades: trades,
+        })
     }
 }
 
 impl SectionParser for TradesParser {
     fn parse(&mut self, table: ElementRef) -> EmptyResult {
         let mut statement = self.statement.borrow_mut();
+        let mut processed_trades = self.processed_trades.borrow_mut();
 
         let mut trade = html::read_table::<TradeRow>(table)?;
         trade.sort_by_key(|trade| trade.id);
 
         for trade in trade {
+            // A single trade may appear in multiple statements due to T+N mode, so select only the first occurrence
+            if !processed_trades.insert(trade.id) {
+                trace!("Skip {trade:?} trade which we've already processed earlier.");
+                continue;
+            }
             trade.parse(&mut statement)?;
         }
 
@@ -71,23 +85,16 @@ struct TradeRow {
     #[column(name="Комментарий")]
     _14: String,
     #[column(name="Статус сделки")]
-    status: String,
+    _15: SkipCell,
 }
 
 impl TradeRow {
     fn parse(&self, statement: &mut PartialBrokerStatement) -> EmptyResult {
-        // Trade may appear in multiple statements, so select only the first occurrence
-        if !self.status.contains('З') {
-            trace!("Skip {self:?} trade due to its status.");
-            return Ok(());
-        }
-
         if !self.accumulated_coupon_income.is_zero() {
             return Err!("Bonds aren't supported yet");
         }
 
         let time = DateTime::new(self.date, self.time);
-
         let quantity = util::validate_named_decimal("quantity", self.quantity, DecimalRestrictions::StrictlyPositive)?;
 
         let price = util::validate_named_decimal("price", self.price, DecimalRestrictions::StrictlyPositive)

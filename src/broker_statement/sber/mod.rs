@@ -6,6 +6,8 @@ mod period;
 mod securities;
 mod trades;
 
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -28,11 +30,14 @@ use securities::SecuritiesInfoParser;
 use trades::TradesParser;
 
 pub struct StatementReader {
+    trades: Rc<RefCell<HashSet<u64>>>,
 }
 
 impl StatementReader {
     pub fn new() -> GenericResult<Box<dyn BrokerStatementReader>> {
-        Ok(Box::new(StatementReader{}))
+        Ok(Box::new(StatementReader {
+            trades: Default::default(),
+        }))
     }
 }
 
@@ -49,7 +54,7 @@ impl BrokerStatementReader for StatementReader {
             Section::new("Портфель Ценных Бумаг").by_prefix().parser(AssetsParser::new(statement.clone())),
             Section::new("Денежные средства").required().parser(CashAssetsParser::new(statement.clone())),
             Section::new("Движение денежных средств за период").required().parser(CashFlowParser::new(statement.clone())),
-            Section::new("Сделки купли/продажи ценных бумаг").parser(TradesParser::new(statement.clone())),
+            Section::new("Сделки купли/продажи ценных бумаг").parser(TradesParser::new(statement.clone(), self.trades.clone())),
             Section::new("Справочник Ценных Бумаг").parser(SecuritiesInfoParser::new(statement.clone())),
         ])?;
 
