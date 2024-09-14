@@ -60,7 +60,7 @@ fn read_statement(path: &str) -> GenericResult<Ofx> {
             return Err!("Got an unexpected end of OFX file");
         }
 
-        if header.trim_end_matches(|c| c == '\r' || c == '\n').is_empty() {
+        if header.trim_end_matches(['\r', '\n']).is_empty() {
             break;
         }
     }
