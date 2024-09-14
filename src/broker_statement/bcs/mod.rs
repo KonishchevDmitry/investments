@@ -92,10 +92,11 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    #[rstest(name => ["my", "kate", "kate-iia"])]
+    #[rstest(name => ["my", "iia", "kate", "kate-iia"])]
     fn parse_real(name: &str) {
         let portfolio_name = match name {
             "my" => "bcs",
+            "iia" => "bcs-iia",
             _ => name,
         };
 
@@ -112,13 +113,13 @@ mod tests {
         assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
-        assert!(!statement.fees.is_empty());
-        assert!(statement.idle_cash_interest.is_empty());
-        assert_eq!(statement.tax_agent_withholdings.is_empty(), name == "kate-iia");
+        assert_eq!(statement.fees.is_empty(), name == "iia");
+        assert_eq!(statement.idle_cash_interest.is_empty(), name != "iia");
+        assert_eq!(statement.tax_agent_withholdings.is_empty(), name == "iia" || name == "kate-iia");
 
         assert!(statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
-        assert!(!statement.stock_sells.is_empty());
+        assert_eq!(statement.stock_sells.is_empty(), name == "iia");
         assert!(statement.dividends.is_empty());
 
         assert!(!statement.open_positions.is_empty());

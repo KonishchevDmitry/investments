@@ -75,11 +75,11 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
-    #[ignore] // FIXME(konishchev): Enable and add IIA
-    #[rstest(name => ["my"])]
+    #[rstest(name => ["my", "iia"])]
     fn parse_real(name: &str) {
         let portfolio_name = match name {
             "my" => "sber",
+            "iia" => "sber-iia",
             _ => name,
         };
 
