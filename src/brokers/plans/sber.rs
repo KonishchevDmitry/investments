@@ -10,7 +10,7 @@ pub fn investment() -> CommissionSpec {
             .percent(dec!(0.3))
             .percent_fee(dec!(0.03)) // Estimated exchange fee
             .build())
-        .rounding_method(RoundingMethod::ToBigger)
+        .rounding_method(RoundingMethod::Round)
         .build()
 }
 
@@ -24,7 +24,7 @@ pub fn manual() -> CommissionSpec {
             }).unwrap()
             .percent_fee(dec!(0.03)) // Estimated exchange fee
             .build())
-        .rounding_method(RoundingMethod::ToBigger)
+        .rounding_method(RoundingMethod::Round)
         .build()
 }
 
@@ -41,10 +41,13 @@ mod tests {
         let mut calc = CommissionCalc::new(
             converter, super::manual(), Cash::zero(currency)).unwrap();
 
-        // FIXME(konishchev): Add more tests
         for &(date, shares, price) in &[
             (date!(2024, 8, 14),  3, dec!(  6.11)),
             (date!(2024, 8, 14), 20, dec!(280.21)),
+
+            (date!(2024, 9, 5), 49159, dec!(5.57)),
+            (date!(2024, 9, 5),   160, dec!(5.57)),
+            (date!(2024, 9, 5),     3, dec!(5.57)),
         ] {
             assert_eq!(
                 calc.add_trade(date, trade_type, shares.into(), Cash::new(currency, price)).unwrap(),
@@ -53,7 +56,12 @@ mod tests {
         }
 
         assert_eq!(calc.calculate().unwrap(), hashmap!{
-            date!(2024, 8, 14) => Cash::new(currency, dec!(3.37) + dec!(1.70)).into(),
+            date!(2024, 8, 14) => Cash::new(currency, dec!(3.37) + dec!(1.70)
+                // The MOEX commission is actually minimum 0.02 kopecks per trade, so our calculator returns a slightly
+                // different values here.
+                - dec!(0.01)
+            ).into(),
+            date!(2024, 9,  5) => Cash::new(currency, dec!(164.83) + dec!(82.42)).into(),
         });
     }
 }
