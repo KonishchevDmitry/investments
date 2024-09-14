@@ -36,8 +36,7 @@ for portfolio in bcs bcs-iia firstrade ib investpalata kate kate-iia sber sber-i
     investments main sync "$portfolio"
     investments main cash "$portfolio" "$cash"
 
-    # FIXME(konishchev): A temporary stub for empty portfolios
-    rate-limited-investments main analyse "$portfolio" ||:
+    rate-limited-investments main analyse "$portfolio"
 done
 
 for portfolio in \
