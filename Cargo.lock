@@ -3237,7 +3237,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "static_table_derive"
-version = "0.1.71"
+version = "0.1.72"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -4268,7 +4268,7 @@ dependencies = [
 
 [[package]]
 name = "xls_table_derive"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "darling",
  "proc-macro2",
