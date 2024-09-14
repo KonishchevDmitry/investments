@@ -1,4 +1,5 @@
 use crate::broker_statement::fees::Fee;
+use crate::broker_statement::interest::IdleCashInterest;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
@@ -93,6 +94,15 @@ impl CashFlowRow {
 
                 statement.deposits_and_withdrawals.push(CashAssets::new(
                     self.date, currency, self.deposit));
+            },
+
+            r#"Займы "овернайт""# => {},
+            r#"Проценты по займам "овернайт""# => {
+                validator.deposit = DecimalRestrictions::StrictlyPositive;
+                validator.validate()?;
+
+                let amount = Cash::new(currency, self.deposit);
+                statement.idle_cash_interest.push(IdleCashInterest::new(self.date, amount));
             },
 
             "Покупка/Продажа" | "Покупка/Продажа (репо)" | "Внебиржевая сделка ОТС" => {
