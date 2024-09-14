@@ -36,11 +36,12 @@ struct Row {
 pub fn process_income(
     country: &Country, broker_statement: &BrokerStatement, year: Option<i32>,
     tax_calculator: &mut TaxCalculator, mut tax_statement: Option<&mut TaxStatement>, converter: &CurrencyConverter,
-) -> GenericResult<(Cash, bool)> {
+) -> GenericResult<(Cash, bool, bool)> {
     let broker_jurisdiction = broker_statement.broker.type_.jurisdiction();
 
     let mut table = Table::new();
     let mut has_income = false;
+    let mut has_income_to_declare = false;
 
     let mut total_foreign_amount = MultiCurrencyCashAccount::new();
     let mut total_amount = Cash::zero(country.currency);
@@ -87,9 +88,11 @@ pub fn process_income(
             amount, tax_to_pay, income,
         });
 
-        if let Some(ref mut statement) = tax_statement {
-            match broker_jurisdiction {
-                Jurisdiction::Usa => {
+        match broker_jurisdiction {
+            Jurisdiction::Usa => {
+                has_income_to_declare = true;
+
+                if let Some(ref mut statement) = tax_statement {
                     let country_code = CountryCode::new(broker_jurisdiction.traits().code)?;
                     let description = format!(
                         "{}: Проценты на остаток по брокерскому счету",
@@ -103,9 +106,11 @@ pub fn process_income(
                         "Unable to add interest income from {} to the tax statement: {}",
                         formatting::format_date(interest.date), e
                     ))?;
-                },
+                }
+            },
 
-                Jurisdiction::Russia => {
+            Jurisdiction::Russia => {
+                if tax_statement.is_some() {
                     warn!(concat!(
                         "Don't declare interest income in the tax statement ",
                         "assuming that it will be declared by broker's tax agent.",
@@ -128,5 +133,5 @@ pub fn process_income(
             broker_statement.broker.name));
     }
 
-    Ok((total_tax_to_pay, has_income))
+    Ok((total_tax_to_pay, has_income, has_income_to_declare))
 }

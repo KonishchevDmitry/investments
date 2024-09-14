@@ -63,12 +63,12 @@ pub fn generate_tax_statement(
         &country, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
 
-    let (interest_tax, has_interest_income) = interest::process_income(
+    let (interest_tax, has_interest_income, has_interest_income_to_declare) = interest::process_income(
         &country, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
     ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
 
     let has_income = has_trading_income | has_dividend_income | has_interest_income;
-    let has_income_to_declare = has_trading_income_to_declare | has_dividend_income_to_declare | has_interest_income;
+    let has_income_to_declare = has_trading_income_to_declare | has_dividend_income_to_declare | has_interest_income_to_declare;
 
     if broker_statement.broker.type_.jurisdiction() == Jurisdiction::Russia {
         let total_tax = trades_tax + dividends_tax + interest_tax;
