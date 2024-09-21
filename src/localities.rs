@@ -75,19 +75,29 @@ pub fn russia(config: &TaxConfig) -> Country {
     let jurisdiction = Jurisdiction::Russia;
     let tax_precision = jurisdiction.traits().tax_precision;
 
+    // Starting from 2021 we had progressive tax rate with single tax base
     let rates_2021 = Rc::new(btreemap!{
         dec!(0) => dec!(0.13),
         dec!(5_000_000) => dec!(0.15),
     });
 
+    // Starting from 2025 we've got progressive tax rate with two tax bases:
+    // 1. Income from employment
+    // 2. Dividends, interest, trading, property
+    let rates_2025 = Rc::new(btreemap!{
+        dec!(0) => dec!(0.13),
+        dec!(2_400_000) => dec!(0.15),
+    });
+
     let tax_agent_calculators = btreemap! {
         i32::MIN => Box::new(FixedTaxRate::new(dec!(0.13), tax_precision)) as Box<dyn TaxRate>,
         2021 => Box::new(ProgressiveTaxRate::new(dec!(0), rates_2021.clone(), tax_precision)) as Box<dyn TaxRate>,
+        2025 => Box::new(ProgressiveTaxRate::new(dec!(0), rates_2025.clone(), tax_precision)) as Box<dyn TaxRate>,
     };
 
     let mut tax_calculators = tax_agent_calculators.clone();
 
-    for (&year, &income) in config.income.range(2021..) {
+    for (&year, &income) in config.income.range(2021..2025) {
         let calc = Box::new(ProgressiveTaxRate::new(income, rates_2021.clone(), tax_precision));
         tax_calculators.insert(year, calc);
     }

@@ -152,6 +152,9 @@ portfolios:
 
 # Starting from 2021 progressive tax rate has replaced the fixed one in Russia. Here you can specify your non-investment
 # income by year to make investments calculate tax rate taking into account this tax base.
+#
+# Starting from 2025 we've got progressive tax rate with two separate tax bases for income from employment and
+# investments, so for years starting from 2025 this configuration setting is ignored, since it's different tax base.
 #taxes:
 #  income:
 #    2021: 4_321_012
