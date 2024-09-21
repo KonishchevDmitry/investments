@@ -31,11 +31,11 @@ impl Dividend {
         let amount = converter.convert_to_cash_rounding(self.date, self.amount, country.currency)?;
 
         Ok(match self.taxation_type {
-            IssuerTaxationType::Manual(_) => {
+            IssuerTaxationType::Manual{..} => {
                 let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
                 calculator.tax_income(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax))
             },
-            IssuerTaxationType::TaxAgent => {
+            IssuerTaxationType::TaxAgent{..} => {
                 calculator.tax_agent_income(IncomeType::Dividends, self.date.year(), amount, self.paid_tax).map_err(|e| format!(
                     "{}: {}", self.description(), e))?
             },

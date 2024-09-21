@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::default::Default;
 use std::fmt::{self, Display};
 
+use chrono::Datelike;
 use cusip::CUSIP;
 use itertools::Itertools;
 use isin::ISIN;
@@ -13,6 +14,7 @@ use serde::de::Deserializer;
 use crate::core::{GenericResult, EmptyResult};
 use crate::exchanges::Exchanges;
 use crate::localities::Jurisdiction;
+use crate::time::Date;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum InstrumentId {
@@ -299,12 +301,23 @@ impl Instrument {
         self.cusip.insert(cusip);
     }
 
-    pub fn get_taxation_type(&self, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
-        let get_taxation_type = |issuer_jurisdiction: &str| -> IssuerTaxationType {
-            if broker_jurisdiction == Jurisdiction::Russia && issuer_jurisdiction == Jurisdiction::Russia.traits().code {
-                return IssuerTaxationType::TaxAgent;
+    pub fn get_taxation_type(&self, date: Date, broker_jurisdiction: Jurisdiction) -> GenericResult<IssuerTaxationType> {
+        let russian_country_code = Jurisdiction::Russia.traits().code;
+        let russian_brokers_are_full_tax_agents = date.year() >= 2024;
+
+        let get_taxation_type = |issuer_country_code: &str| -> IssuerTaxationType {
+            if broker_jurisdiction == Jurisdiction::Russia && (
+                russian_brokers_are_full_tax_agents || issuer_country_code == russian_country_code
+            ) {
+                return IssuerTaxationType::TaxAgent {
+                    auto_detected: !russian_brokers_are_full_tax_agents,
+                    foreign: issuer_country_code != russian_country_code,
+                };
             }
-            IssuerTaxationType::Manual(Some(issuer_jurisdiction.to_owned()))
+
+            IssuerTaxationType::Manual {
+                country_code: Some(issuer_country_code.to_owned()),
+            }
         };
 
         let mut result_taxation_type = if self.cusip.is_empty() {
@@ -338,7 +351,9 @@ impl Instrument {
                 "Unable to determine {} taxation type: there is no ISIN information for it in the broker statement",
                 self.symbol);
         } else {
-            IssuerTaxationType::Manual(None)
+            IssuerTaxationType::Manual {
+                country_code: None,
+            }
         })
     }
 
@@ -357,17 +372,22 @@ impl Instrument {
 
 #[derive(Clone, PartialEq)]
 pub enum IssuerTaxationType {
-    Manual(Option<String>),
+    Manual {country_code: Option<String>},
 
-    // Russian brokers withhold tax for dividends issued by companies with Russian jurisdiction and
-    // don't withhold for other jurisdictions or Russian companies traded through ADR/GDR.
+    // Since 2024 Russian brokers became tax agents for any dividend income.
     //
-    // Withheld tax may be less than 13%. It may be even zero if company distributes dividends from
-    // other companies for which tax has been already withheld.
+    // Before 2024 Russian brokers withheld tax for dividends issued by companies with Russian jurisdiction and didn't
+    // withhold for other jurisdictions or Russian companies traded through ADR/GDR.
+    //
+    // Withheld tax may be less than 13%. It may be even zero if company distributes dividends from other companies for
+    // which tax has been already withheld.
     //
     // See https://web.archive.org/web/20240622133328/https://smart-lab.ru/company/tinkoff_invest/blog/631922.php
     // for details.
-    TaxAgent,
+    TaxAgent {
+        foreign: bool,
+        auto_detected: bool,
+    },
 }
 
 pub const ISIN_REGEX: &str = r"[A-Z]{2}[A-Z0-9]{9}[0-9]";

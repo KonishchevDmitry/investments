@@ -133,7 +133,7 @@ impl BrokerStatement {
 
         for (dividend_id, accruals) in dividend_accruals {
             let instrument = statement.instrument_info.get_or_add_by_id(&dividend_id.issuer)?;
-            let taxation_type = instrument.get_taxation_type(broker_jurisdiction)?;
+            let taxation_type = instrument.get_taxation_type(dividend_id.date, broker_jurisdiction)?;
 
             let (dividend, cash_flows) = process_dividend_accruals(
                 dividend_id, &instrument.symbol, taxation_type, accruals, &mut tax_accruals, true)?;

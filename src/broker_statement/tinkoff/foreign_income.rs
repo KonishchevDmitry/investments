@@ -287,21 +287,12 @@ pub fn match_statement_dividends_to_foreign_income(
         }
     }
 
-    let is_foreign = match instrument.get_taxation_type(Jurisdiction::Russia)? {
-        IssuerTaxationType::Manual(_) => true,
-        IssuerTaxationType::TaxAgent => false,
+    let is_foreign = match instrument.get_taxation_type(dividend_id.date, Jurisdiction::Russia)? {
+        IssuerTaxationType::Manual{..} => true,
+        IssuerTaxationType::TaxAgent{foreign, ..} => foreign,
     };
 
-    let (
-        foreign_dividend_id, foreign_dividend_accruals, foreign_tax_accruals,
-    ) = if let Some(details) = foreign_income_details {
-        if !is_foreign {
-            return Err!(
-                "Got foreign dividend income from {} which is not expected to be foreign",
-                instrument.symbol);
-        }
-        details
-    } else {
+    let Some((foreign_dividend_id, foreign_dividend_accruals, foreign_tax_accruals)) = foreign_income_details else {
         if is_foreign && *show_missing_foreign_income_info_warning {
             // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff-foreign-income
             let url = "https://bit.ly/investments-tinkoff-foreign-income";
@@ -317,6 +308,15 @@ pub fn match_statement_dividends_to_foreign_income(
         }
         return Ok((dividend_accruals, tax_accruals))
     };
+
+    if !is_foreign {
+        return Err!(
+            "Got foreign dividend income from {} which is not expected to be foreign",
+            instrument.symbol);
+    }
+
+    // FIXME(konishchev): Don't actually know what to do here since Tinkoff became tax agent for this income in 2024.
+    // Need some real statement to find out.
 
     let tax_id = TaxId::new(dividend_id.date, dividend_id.issuer.clone());
     let foreign_tax_id = TaxId::new(foreign_dividend_id.date, foreign_dividend_id.issuer.clone());

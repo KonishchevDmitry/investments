@@ -58,12 +58,12 @@ impl TaxCalculator {
         //
         // But, in case of progressive tax rates the withheld tax may be calculated using lower tax rate, as broker
         // doesn't know actual client's income. We try to workaround the case: tax the income using lowest tax rate and
-        // if the result is equal to or less then the paid tax, assume that there is no special case here, so we can tax
+        // if the result is equal to or less than the paid tax, assume that there is no special case here, so we can tax
         // the dividend using our calculator which are aware of actual total tax base.
 
-        // This call increases total tax base which we should do in both cases
         let tax = self.tax_income(income_type, year, income, Some(paid_tax));
 
+        // This call increases total tax base which we should do in both cases
         let lowest_tax = Cash::new(income.currency, self.country.tax_agent_rate(year).tax(income_type, income.amount));
         if paid_tax < lowest_tax || paid_tax > tax.expected {
             return Ok(Tax {

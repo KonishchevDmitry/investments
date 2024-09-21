@@ -34,7 +34,7 @@ pub fn process_income(
         warning_firstrade_income_jurisdiction: false,
 
         same_currency: true,
-        tax_agent_issuers: BTreeSet::new(),
+        detected_tax_agent_issuers: BTreeSet::new(),
 
         has_income: false,
         has_income_to_declare: false,
@@ -105,7 +105,7 @@ struct Processor<'a> {
     warning_firstrade_income_jurisdiction: bool,
 
     same_currency: bool,
-    tax_agent_issuers: BTreeSet<String>,
+    detected_tax_agent_issuers: BTreeSet<String>,
 
     has_income: bool,
     has_income_to_declare: bool,
@@ -132,12 +132,12 @@ impl<'a> Processor<'a> {
             self.process_dividend(dividend)?;
         }
 
-        if !self.tax_agent_issuers.is_empty() {
+        if !self.detected_tax_agent_issuers.is_empty() {
             // https://github.com/KonishchevDmitry/investments/blob/master/docs/taxes.md#russian-brokers
             let url = "https://bit.ly/investments-russian-brokers-taxes";
             self.warn(format_args!(
                 "The following dividend issuers are identified as taxed by broker's tax agent: {} (see {}).",
-                self.tax_agent_issuers.iter().join(", "), url));
+                self.detected_tax_agent_issuers.iter().join(", "), url));
         }
 
         Ok(())
@@ -192,15 +192,17 @@ impl<'a> Processor<'a> {
         });
 
         match dividend.taxation_type {
-            IssuerTaxationType::Manual(ref income_country) => {
+            IssuerTaxationType::Manual {ref country_code} => {
                 self.add_income(
-                    dividend, &issuer, income_country.as_deref(),
+                    dividend, &issuer, country_code.as_deref(),
                     foreign_amount, precise_currency_rate, foreign_paid_tax,
                     amount, tax.paid,
                 )?;
             },
-            IssuerTaxationType::TaxAgent => {
-                self.tax_agent_issuers.insert(dividend.original_issuer.clone());
+            IssuerTaxationType::TaxAgent {auto_detected, ..} => {
+                if auto_detected {
+                    self.detected_tax_agent_issuers.insert(dividend.original_issuer.clone());
+                }
             },
         }
 
