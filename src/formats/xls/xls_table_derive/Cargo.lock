@@ -92,7 +92,7 @@ checksum = "e91b56cd4cadaeb79bbf1a5645f6b4f8dc5bde8834ad5894a8db35fda9efa1fe"
 
 [[package]]
 name = "xls_table_derive"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "darling",
  "proc-macro2",
