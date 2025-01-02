@@ -112,7 +112,7 @@ pub struct StatementParser<'a> {
     warn_on_missing_cash_flow_info: &'a mut bool,
 }
 
-impl<'a> StatementParser<'a> {
+impl StatementParser<'_> {
     fn parse(mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)

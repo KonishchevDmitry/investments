@@ -131,7 +131,7 @@ struct AssetGroupRebalancer<'a> {
     balance: Decimal,
 }
 
-impl<'a> AssetGroupRebalancer<'a> {
+impl AssetGroupRebalancer<'_> {
     fn rebalance(
         name: &str, assets: &mut Vec<AssetAllocation>, target_total_value: Decimal,
         min_trade_volume: Decimal

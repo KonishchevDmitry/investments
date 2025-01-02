@@ -26,7 +26,7 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
 }
 
 pub fn trim_column_title(title: &str) -> Cow<str> {
-    Cow::from(title.trim_end_matches(&['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']))
+    Cow::from(title.trim_end_matches(['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']))
 }
 
 pub fn skip_row(row: ElementRef) -> bool {

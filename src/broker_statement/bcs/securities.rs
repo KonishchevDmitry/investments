@@ -76,7 +76,7 @@ struct SecurityRow {
 }
 
 impl TableReader for SecurityRow {
-    fn next_row<'a>(sheet: &'a mut SheetReader) -> Option<&[Cell]> {
+    fn next_row<'a>(sheet: &'a mut SheetReader) -> Option<&'a [Cell]> {
         let (first_sheet, second_sheet) = unsafe {
             // Fighting with borrow checker
             let sheet = sheet as *mut SheetReader;

@@ -60,7 +60,7 @@ struct Calculator<'a> {
     assets: MultiCurrencyCashAccount,
 }
 
-impl<'a> Calculator<'a> {
+impl Calculator<'_> {
     fn process(mut self) -> (BTreeMap<&'static str, CashFlowSummary>, Vec<CashFlow>) {
         let mut cash_flows = map_broker_statement_to_cash_flow(self.statement);
         let mut begin_index = None;

@@ -154,7 +154,7 @@ struct CashFlowValidator<'a> {
     withdrawal: DecimalRestrictions,
 }
 
-impl<'a> CashFlowValidator<'a> {
+impl CashFlowValidator<'_> {
     fn validate(&self) -> EmptyResult {
         for (name, value, restrictions) in [
             ("deposit", self.row.deposit, self.deposit),

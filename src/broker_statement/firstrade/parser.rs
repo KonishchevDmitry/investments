@@ -18,7 +18,7 @@ pub struct StatementParser<'a> {
     is_last: bool,
 }
 
-impl<'a> StatementParser<'a> {
+impl StatementParser<'_> {
     pub fn parse(reader: &mut StatementReader, statement: Ofx, is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let mut parser = StatementParser {
             reader,

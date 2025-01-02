@@ -14,7 +14,7 @@ pub struct HtmlStatementParser<'a> {
     body: ElementRef<'a>,
 }
 
-impl<'a> HtmlStatementParser<'a> {
+impl HtmlStatementParser<'_> {
     pub fn read(path: &str, sections: Vec<Section>) -> EmptyResult {
         let mut data = String::new();
         File::open(path)?.read_to_string(&mut data)?;

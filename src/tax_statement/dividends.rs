@@ -121,7 +121,7 @@ struct Processor<'a> {
     total_income: Cash,
 }
 
-impl<'a> Processor<'a> {
+impl Processor<'_> {
     fn process_dividends(&mut self) -> EmptyResult {
         for dividend in &self.broker_statement.dividends {
             if let Some(year) = self.tax_year {
