@@ -24,7 +24,7 @@ use super::record::{Record, UnknownRecord, is_record_name};
 use super::encoding::{TaxStatementType, TaxStatementPrimitiveType};
 use super::foreign_income::ForeignIncome;
 
-const SUPPORTED_YEAR: i32 = 2023;
+const SUPPORTED_YEAR: i32 = 2024;
 
 pub struct TaxStatementReader {
     file: BufReader<File>,
@@ -295,7 +295,7 @@ mod tests {
 
         {
             let currency = "USD"; // 840 - Доллар США
-            let currency_rate = dec!(70.3375);
+            let currency_rate = dec!(89.6883);
 
             let local_amount = amount * currency_rate;
             let local_paid_tax = util::round(paid_tax * currency_rate, 2);
@@ -322,16 +322,16 @@ mod tests {
 
         for currency in [CurrencyTestCase {
             name: "AUD", // 036 - Австралийский доллар
-            rate: dec!(47.6537),
+            rate: dec!(61.3468),
         }, CurrencyTestCase {
             name: "EUR", // 978 - Евро
-            rate: dec!(75.6553),
+            rate: dec!(99.1919),
         }, CurrencyTestCase {
             name: "GBP", // 826 - Фунт стерлингов
-            rate: dec!(84.7919),
+            rate: dec!(114.5320),
         }, CurrencyTestCase {
             name: "HKD", // 344 - Гонконгский доллар
-            rate: dec!(9.03965),
+            rate: dec!(11.5014),
         }, CurrencyTestCase {
             name: "RUB", // 643 - Российский рубль
             rate: dec!(1),
@@ -352,6 +352,7 @@ mod tests {
         compare_to(&statement, &data);
     }
 
+    // FIXME(konishchev): Update
     #[test]
     fn parse_real() {
         test_parsing(&get_path("statement"));

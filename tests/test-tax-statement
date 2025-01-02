@@ -15,7 +15,7 @@ broker="$2"
 year="$3"
 statement_path="$4"
 
-reference_year=2023
+reference_year=2024
 reference_short_year=$((reference_year - 2020))
 
 cp "src/tax_statement/statement/testdata/filled.dc$reference_short_year" "$statement_path"
