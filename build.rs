@@ -26,7 +26,7 @@ fn generate() -> Result<(), Box<dyn Error + Send + Sync>> {
         .build_server(false)
         .out_dir(out_dir);
 
-    Ok(builder.compile(&protos, &includes)?)
+    Ok(builder.compile_protos(&protos, &includes)?)
 }
 
 fn main() {

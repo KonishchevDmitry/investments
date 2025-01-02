@@ -58,15 +58,15 @@ impl InstrumentType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            InstrumentType::Unspecified => "INSTRUMENT_TYPE_UNSPECIFIED",
-            InstrumentType::Bond => "INSTRUMENT_TYPE_BOND",
-            InstrumentType::Share => "INSTRUMENT_TYPE_SHARE",
-            InstrumentType::Currency => "INSTRUMENT_TYPE_CURRENCY",
-            InstrumentType::Etf => "INSTRUMENT_TYPE_ETF",
-            InstrumentType::Futures => "INSTRUMENT_TYPE_FUTURES",
-            InstrumentType::Sp => "INSTRUMENT_TYPE_SP",
-            InstrumentType::Option => "INSTRUMENT_TYPE_OPTION",
-            InstrumentType::ClearingCertificate => "INSTRUMENT_TYPE_CLEARING_CERTIFICATE",
+            Self::Unspecified => "INSTRUMENT_TYPE_UNSPECIFIED",
+            Self::Bond => "INSTRUMENT_TYPE_BOND",
+            Self::Share => "INSTRUMENT_TYPE_SHARE",
+            Self::Currency => "INSTRUMENT_TYPE_CURRENCY",
+            Self::Etf => "INSTRUMENT_TYPE_ETF",
+            Self::Futures => "INSTRUMENT_TYPE_FUTURES",
+            Self::Sp => "INSTRUMENT_TYPE_SP",
+            Self::Option => "INSTRUMENT_TYPE_OPTION",
+            Self::ClearingCertificate => "INSTRUMENT_TYPE_CLEARING_CERTIFICATE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -131,51 +131,31 @@ impl SecurityTradingStatus {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SecurityTradingStatus::Unspecified => "SECURITY_TRADING_STATUS_UNSPECIFIED",
-            SecurityTradingStatus::NotAvailableForTrading => {
+            Self::Unspecified => "SECURITY_TRADING_STATUS_UNSPECIFIED",
+            Self::NotAvailableForTrading => {
                 "SECURITY_TRADING_STATUS_NOT_AVAILABLE_FOR_TRADING"
             }
-            SecurityTradingStatus::OpeningPeriod => {
-                "SECURITY_TRADING_STATUS_OPENING_PERIOD"
-            }
-            SecurityTradingStatus::ClosingPeriod => {
-                "SECURITY_TRADING_STATUS_CLOSING_PERIOD"
-            }
-            SecurityTradingStatus::BreakInTrading => {
-                "SECURITY_TRADING_STATUS_BREAK_IN_TRADING"
-            }
-            SecurityTradingStatus::NormalTrading => {
-                "SECURITY_TRADING_STATUS_NORMAL_TRADING"
-            }
-            SecurityTradingStatus::ClosingAuction => {
-                "SECURITY_TRADING_STATUS_CLOSING_AUCTION"
-            }
-            SecurityTradingStatus::DarkPoolAuction => {
-                "SECURITY_TRADING_STATUS_DARK_POOL_AUCTION"
-            }
-            SecurityTradingStatus::DiscreteAuction => {
-                "SECURITY_TRADING_STATUS_DISCRETE_AUCTION"
-            }
-            SecurityTradingStatus::OpeningAuctionPeriod => {
+            Self::OpeningPeriod => "SECURITY_TRADING_STATUS_OPENING_PERIOD",
+            Self::ClosingPeriod => "SECURITY_TRADING_STATUS_CLOSING_PERIOD",
+            Self::BreakInTrading => "SECURITY_TRADING_STATUS_BREAK_IN_TRADING",
+            Self::NormalTrading => "SECURITY_TRADING_STATUS_NORMAL_TRADING",
+            Self::ClosingAuction => "SECURITY_TRADING_STATUS_CLOSING_AUCTION",
+            Self::DarkPoolAuction => "SECURITY_TRADING_STATUS_DARK_POOL_AUCTION",
+            Self::DiscreteAuction => "SECURITY_TRADING_STATUS_DISCRETE_AUCTION",
+            Self::OpeningAuctionPeriod => {
                 "SECURITY_TRADING_STATUS_OPENING_AUCTION_PERIOD"
             }
-            SecurityTradingStatus::TradingAtClosingAuctionPrice => {
+            Self::TradingAtClosingAuctionPrice => {
                 "SECURITY_TRADING_STATUS_TRADING_AT_CLOSING_AUCTION_PRICE"
             }
-            SecurityTradingStatus::SessionAssigned => {
-                "SECURITY_TRADING_STATUS_SESSION_ASSIGNED"
-            }
-            SecurityTradingStatus::SessionClose => {
-                "SECURITY_TRADING_STATUS_SESSION_CLOSE"
-            }
-            SecurityTradingStatus::SessionOpen => "SECURITY_TRADING_STATUS_SESSION_OPEN",
-            SecurityTradingStatus::DealerNormalTrading => {
-                "SECURITY_TRADING_STATUS_DEALER_NORMAL_TRADING"
-            }
-            SecurityTradingStatus::DealerBreakInTrading => {
+            Self::SessionAssigned => "SECURITY_TRADING_STATUS_SESSION_ASSIGNED",
+            Self::SessionClose => "SECURITY_TRADING_STATUS_SESSION_CLOSE",
+            Self::SessionOpen => "SECURITY_TRADING_STATUS_SESSION_OPEN",
+            Self::DealerNormalTrading => "SECURITY_TRADING_STATUS_DEALER_NORMAL_TRADING",
+            Self::DealerBreakInTrading => {
                 "SECURITY_TRADING_STATUS_DEALER_BREAK_IN_TRADING"
             }
-            SecurityTradingStatus::DealerNotAvailableForTrading => {
+            Self::DealerNotAvailableForTrading => {
                 "SECURITY_TRADING_STATUS_DEALER_NOT_AVAILABLE_FOR_TRADING"
             }
         }
@@ -2139,14 +2119,14 @@ impl CouponType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            CouponType::Unspecified => "COUPON_TYPE_UNSPECIFIED",
-            CouponType::Constant => "COUPON_TYPE_CONSTANT",
-            CouponType::Floating => "COUPON_TYPE_FLOATING",
-            CouponType::Discount => "COUPON_TYPE_DISCOUNT",
-            CouponType::Mortgage => "COUPON_TYPE_MORTGAGE",
-            CouponType::Fix => "COUPON_TYPE_FIX",
-            CouponType::Variable => "COUPON_TYPE_VARIABLE",
-            CouponType::Other => "COUPON_TYPE_OTHER",
+            Self::Unspecified => "COUPON_TYPE_UNSPECIFIED",
+            Self::Constant => "COUPON_TYPE_CONSTANT",
+            Self::Floating => "COUPON_TYPE_FLOATING",
+            Self::Discount => "COUPON_TYPE_DISCOUNT",
+            Self::Mortgage => "COUPON_TYPE_MORTGAGE",
+            Self::Fix => "COUPON_TYPE_FIX",
+            Self::Variable => "COUPON_TYPE_VARIABLE",
+            Self::Other => "COUPON_TYPE_OTHER",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2182,9 +2162,9 @@ impl OptionDirection {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            OptionDirection::Unspecified => "OPTION_DIRECTION_UNSPECIFIED",
-            OptionDirection::Put => "OPTION_DIRECTION_PUT",
-            OptionDirection::Call => "OPTION_DIRECTION_CALL",
+            Self::Unspecified => "OPTION_DIRECTION_UNSPECIFIED",
+            Self::Put => "OPTION_DIRECTION_PUT",
+            Self::Call => "OPTION_DIRECTION_CALL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2215,9 +2195,9 @@ impl OptionPaymentType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            OptionPaymentType::Unspecified => "OPTION_PAYMENT_TYPE_UNSPECIFIED",
-            OptionPaymentType::Premium => "OPTION_PAYMENT_TYPE_PREMIUM",
-            OptionPaymentType::Marginal => "OPTION_PAYMENT_TYPE_MARGINAL",
+            Self::Unspecified => "OPTION_PAYMENT_TYPE_UNSPECIFIED",
+            Self::Premium => "OPTION_PAYMENT_TYPE_PREMIUM",
+            Self::Marginal => "OPTION_PAYMENT_TYPE_MARGINAL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2248,9 +2228,9 @@ impl OptionStyle {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            OptionStyle::Unspecified => "OPTION_STYLE_UNSPECIFIED",
-            OptionStyle::American => "OPTION_STYLE_AMERICAN",
-            OptionStyle::European => "OPTION_STYLE_EUROPEAN",
+            Self::Unspecified => "OPTION_STYLE_UNSPECIFIED",
+            Self::American => "OPTION_STYLE_AMERICAN",
+            Self::European => "OPTION_STYLE_EUROPEAN",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2281,13 +2261,11 @@ impl OptionSettlementType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            OptionSettlementType::OptionExecutionTypeUnspecified => {
-                "OPTION_EXECUTION_TYPE_UNSPECIFIED"
-            }
-            OptionSettlementType::OptionExecutionTypePhysicalDelivery => {
+            Self::OptionExecutionTypeUnspecified => "OPTION_EXECUTION_TYPE_UNSPECIFIED",
+            Self::OptionExecutionTypePhysicalDelivery => {
                 "OPTION_EXECUTION_TYPE_PHYSICAL_DELIVERY"
             }
-            OptionSettlementType::OptionExecutionTypeCashSettlement => {
+            Self::OptionExecutionTypeCashSettlement => {
                 "OPTION_EXECUTION_TYPE_CASH_SETTLEMENT"
             }
         }
@@ -2330,11 +2308,11 @@ impl InstrumentIdType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            InstrumentIdType::InstrumentIdUnspecified => "INSTRUMENT_ID_UNSPECIFIED",
-            InstrumentIdType::Figi => "INSTRUMENT_ID_TYPE_FIGI",
-            InstrumentIdType::Ticker => "INSTRUMENT_ID_TYPE_TICKER",
-            InstrumentIdType::Uid => "INSTRUMENT_ID_TYPE_UID",
-            InstrumentIdType::PositionUid => "INSTRUMENT_ID_TYPE_POSITION_UID",
+            Self::InstrumentIdUnspecified => "INSTRUMENT_ID_UNSPECIFIED",
+            Self::Figi => "INSTRUMENT_ID_TYPE_FIGI",
+            Self::Ticker => "INSTRUMENT_ID_TYPE_TICKER",
+            Self::Uid => "INSTRUMENT_ID_TYPE_UID",
+            Self::PositionUid => "INSTRUMENT_ID_TYPE_POSITION_UID",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2367,9 +2345,9 @@ impl InstrumentStatus {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            InstrumentStatus::Unspecified => "INSTRUMENT_STATUS_UNSPECIFIED",
-            InstrumentStatus::Base => "INSTRUMENT_STATUS_BASE",
-            InstrumentStatus::All => "INSTRUMENT_STATUS_ALL",
+            Self::Unspecified => "INSTRUMENT_STATUS_UNSPECIFIED",
+            Self::Base => "INSTRUMENT_STATUS_BASE",
+            Self::All => "INSTRUMENT_STATUS_ALL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2412,15 +2390,15 @@ impl ShareType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ShareType::Unspecified => "SHARE_TYPE_UNSPECIFIED",
-            ShareType::Common => "SHARE_TYPE_COMMON",
-            ShareType::Preferred => "SHARE_TYPE_PREFERRED",
-            ShareType::Adr => "SHARE_TYPE_ADR",
-            ShareType::Gdr => "SHARE_TYPE_GDR",
-            ShareType::Mlp => "SHARE_TYPE_MLP",
-            ShareType::NyRegShrs => "SHARE_TYPE_NY_REG_SHRS",
-            ShareType::ClosedEndFund => "SHARE_TYPE_CLOSED_END_FUND",
-            ShareType::Reit => "SHARE_TYPE_REIT",
+            Self::Unspecified => "SHARE_TYPE_UNSPECIFIED",
+            Self::Common => "SHARE_TYPE_COMMON",
+            Self::Preferred => "SHARE_TYPE_PREFERRED",
+            Self::Adr => "SHARE_TYPE_ADR",
+            Self::Gdr => "SHARE_TYPE_GDR",
+            Self::Mlp => "SHARE_TYPE_MLP",
+            Self::NyRegShrs => "SHARE_TYPE_NY_REG_SHRS",
+            Self::ClosedEndFund => "SHARE_TYPE_CLOSED_END_FUND",
+            Self::Reit => "SHARE_TYPE_REIT",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2461,11 +2439,11 @@ impl AssetType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            AssetType::Unspecified => "ASSET_TYPE_UNSPECIFIED",
-            AssetType::Currency => "ASSET_TYPE_CURRENCY",
-            AssetType::Commodity => "ASSET_TYPE_COMMODITY",
-            AssetType::Index => "ASSET_TYPE_INDEX",
-            AssetType::Security => "ASSET_TYPE_SECURITY",
+            Self::Unspecified => "ASSET_TYPE_UNSPECIFIED",
+            Self::Currency => "ASSET_TYPE_CURRENCY",
+            Self::Commodity => "ASSET_TYPE_COMMODITY",
+            Self::Index => "ASSET_TYPE_INDEX",
+            Self::Security => "ASSET_TYPE_SECURITY",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2498,9 +2476,9 @@ impl StructuredProductType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            StructuredProductType::SpTypeUnspecified => "SP_TYPE_UNSPECIFIED",
-            StructuredProductType::SpTypeDeliverable => "SP_TYPE_DELIVERABLE",
-            StructuredProductType::SpTypeNonDeliverable => "SP_TYPE_NON_DELIVERABLE",
+            Self::SpTypeUnspecified => "SP_TYPE_UNSPECIFIED",
+            Self::SpTypeDeliverable => "SP_TYPE_DELIVERABLE",
+            Self::SpTypeNonDeliverable => "SP_TYPE_NON_DELIVERABLE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2531,11 +2509,9 @@ impl EditFavoritesActionType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            EditFavoritesActionType::Unspecified => {
-                "EDIT_FAVORITES_ACTION_TYPE_UNSPECIFIED"
-            }
-            EditFavoritesActionType::Add => "EDIT_FAVORITES_ACTION_TYPE_ADD",
-            EditFavoritesActionType::Del => "EDIT_FAVORITES_ACTION_TYPE_DEL",
+            Self::Unspecified => "EDIT_FAVORITES_ACTION_TYPE_UNSPECIFIED",
+            Self::Add => "EDIT_FAVORITES_ACTION_TYPE_ADD",
+            Self::Del => "EDIT_FAVORITES_ACTION_TYPE_DEL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2568,10 +2544,10 @@ impl RealExchange {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            RealExchange::Unspecified => "REAL_EXCHANGE_UNSPECIFIED",
-            RealExchange::Moex => "REAL_EXCHANGE_MOEX",
-            RealExchange::Rts => "REAL_EXCHANGE_RTS",
-            RealExchange::Otc => "REAL_EXCHANGE_OTC",
+            Self::Unspecified => "REAL_EXCHANGE_UNSPECIFIED",
+            Self::Moex => "REAL_EXCHANGE_MOEX",
+            Self::Rts => "REAL_EXCHANGE_RTS",
+            Self::Otc => "REAL_EXCHANGE_OTC",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2603,9 +2579,9 @@ impl RiskLevel {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            RiskLevel::High => "RISK_LEVEL_HIGH",
-            RiskLevel::Moderate => "RISK_LEVEL_MODERATE",
-            RiskLevel::Low => "RISK_LEVEL_LOW",
+            Self::High => "RISK_LEVEL_HIGH",
+            Self::Moderate => "RISK_LEVEL_MODERATE",
+            Self::Low => "RISK_LEVEL_LOW",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2620,7 +2596,13 @@ impl RiskLevel {
 }
 /// Generated client implementations.
 pub mod instruments_service_client {
-    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
@@ -2715,8 +2697,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2743,8 +2724,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2771,8 +2751,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2802,8 +2781,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2833,8 +2811,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2864,8 +2841,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2892,8 +2868,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2920,8 +2895,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2948,8 +2922,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -2979,8 +2952,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3007,8 +2979,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3027,6 +2998,7 @@ pub mod instruments_service_client {
             self.inner.unary(req, path, codec).await
         }
         /// Deprecated Метод получения списка опционов.
+        #[deprecated]
         pub async fn options(
             &mut self,
             request: impl tonic::IntoRequest<super::InstrumentsRequest>,
@@ -3038,8 +3010,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3069,8 +3040,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3097,8 +3067,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3125,8 +3094,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3156,8 +3124,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3187,8 +3154,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3218,8 +3184,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3249,8 +3214,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3277,8 +3241,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3305,8 +3268,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3336,8 +3298,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3367,8 +3328,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3398,8 +3358,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3429,8 +3388,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3460,8 +3418,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -3488,8 +3445,7 @@ pub mod instruments_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4228,9 +4184,9 @@ impl SubscriptionAction {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SubscriptionAction::Unspecified => "SUBSCRIPTION_ACTION_UNSPECIFIED",
-            SubscriptionAction::Subscribe => "SUBSCRIPTION_ACTION_SUBSCRIBE",
-            SubscriptionAction::Unsubscribe => "SUBSCRIPTION_ACTION_UNSUBSCRIBE",
+            Self::Unspecified => "SUBSCRIPTION_ACTION_UNSPECIFIED",
+            Self::Subscribe => "SUBSCRIPTION_ACTION_SUBSCRIBE",
+            Self::Unsubscribe => "SUBSCRIPTION_ACTION_UNSUBSCRIBE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4261,9 +4217,9 @@ impl SubscriptionInterval {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SubscriptionInterval::Unspecified => "SUBSCRIPTION_INTERVAL_UNSPECIFIED",
-            SubscriptionInterval::OneMinute => "SUBSCRIPTION_INTERVAL_ONE_MINUTE",
-            SubscriptionInterval::FiveMinutes => "SUBSCRIPTION_INTERVAL_FIVE_MINUTES",
+            Self::Unspecified => "SUBSCRIPTION_INTERVAL_UNSPECIFIED",
+            Self::OneMinute => "SUBSCRIPTION_INTERVAL_ONE_MINUTE",
+            Self::FiveMinutes => "SUBSCRIPTION_INTERVAL_FIVE_MINUTES",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4308,28 +4264,18 @@ impl SubscriptionStatus {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SubscriptionStatus::Unspecified => "SUBSCRIPTION_STATUS_UNSPECIFIED",
-            SubscriptionStatus::Success => "SUBSCRIPTION_STATUS_SUCCESS",
-            SubscriptionStatus::InstrumentNotFound => {
-                "SUBSCRIPTION_STATUS_INSTRUMENT_NOT_FOUND"
-            }
-            SubscriptionStatus::SubscriptionActionIsInvalid => {
+            Self::Unspecified => "SUBSCRIPTION_STATUS_UNSPECIFIED",
+            Self::Success => "SUBSCRIPTION_STATUS_SUCCESS",
+            Self::InstrumentNotFound => "SUBSCRIPTION_STATUS_INSTRUMENT_NOT_FOUND",
+            Self::SubscriptionActionIsInvalid => {
                 "SUBSCRIPTION_STATUS_SUBSCRIPTION_ACTION_IS_INVALID"
             }
-            SubscriptionStatus::DepthIsInvalid => "SUBSCRIPTION_STATUS_DEPTH_IS_INVALID",
-            SubscriptionStatus::IntervalIsInvalid => {
-                "SUBSCRIPTION_STATUS_INTERVAL_IS_INVALID"
-            }
-            SubscriptionStatus::LimitIsExceeded => {
-                "SUBSCRIPTION_STATUS_LIMIT_IS_EXCEEDED"
-            }
-            SubscriptionStatus::InternalError => "SUBSCRIPTION_STATUS_INTERNAL_ERROR",
-            SubscriptionStatus::TooManyRequests => {
-                "SUBSCRIPTION_STATUS_TOO_MANY_REQUESTS"
-            }
-            SubscriptionStatus::SubscriptionNotFound => {
-                "SUBSCRIPTION_STATUS_SUBSCRIPTION_NOT_FOUND"
-            }
+            Self::DepthIsInvalid => "SUBSCRIPTION_STATUS_DEPTH_IS_INVALID",
+            Self::IntervalIsInvalid => "SUBSCRIPTION_STATUS_INTERVAL_IS_INVALID",
+            Self::LimitIsExceeded => "SUBSCRIPTION_STATUS_LIMIT_IS_EXCEEDED",
+            Self::InternalError => "SUBSCRIPTION_STATUS_INTERNAL_ERROR",
+            Self::TooManyRequests => "SUBSCRIPTION_STATUS_TOO_MANY_REQUESTS",
+            Self::SubscriptionNotFound => "SUBSCRIPTION_STATUS_SUBSCRIPTION_NOT_FOUND",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4371,9 +4317,9 @@ impl TradeDirection {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            TradeDirection::Unspecified => "TRADE_DIRECTION_UNSPECIFIED",
-            TradeDirection::Buy => "TRADE_DIRECTION_BUY",
-            TradeDirection::Sell => "TRADE_DIRECTION_SELL",
+            Self::Unspecified => "TRADE_DIRECTION_UNSPECIFIED",
+            Self::Buy => "TRADE_DIRECTION_BUY",
+            Self::Sell => "TRADE_DIRECTION_SELL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4426,20 +4372,20 @@ impl CandleInterval {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            CandleInterval::Unspecified => "CANDLE_INTERVAL_UNSPECIFIED",
-            CandleInterval::CandleInterval1Min => "CANDLE_INTERVAL_1_MIN",
-            CandleInterval::CandleInterval5Min => "CANDLE_INTERVAL_5_MIN",
-            CandleInterval::CandleInterval15Min => "CANDLE_INTERVAL_15_MIN",
-            CandleInterval::Hour => "CANDLE_INTERVAL_HOUR",
-            CandleInterval::Day => "CANDLE_INTERVAL_DAY",
-            CandleInterval::CandleInterval2Min => "CANDLE_INTERVAL_2_MIN",
-            CandleInterval::CandleInterval3Min => "CANDLE_INTERVAL_3_MIN",
-            CandleInterval::CandleInterval10Min => "CANDLE_INTERVAL_10_MIN",
-            CandleInterval::CandleInterval30Min => "CANDLE_INTERVAL_30_MIN",
-            CandleInterval::CandleInterval2Hour => "CANDLE_INTERVAL_2_HOUR",
-            CandleInterval::CandleInterval4Hour => "CANDLE_INTERVAL_4_HOUR",
-            CandleInterval::Week => "CANDLE_INTERVAL_WEEK",
-            CandleInterval::Month => "CANDLE_INTERVAL_MONTH",
+            Self::Unspecified => "CANDLE_INTERVAL_UNSPECIFIED",
+            Self::CandleInterval1Min => "CANDLE_INTERVAL_1_MIN",
+            Self::CandleInterval5Min => "CANDLE_INTERVAL_5_MIN",
+            Self::CandleInterval15Min => "CANDLE_INTERVAL_15_MIN",
+            Self::Hour => "CANDLE_INTERVAL_HOUR",
+            Self::Day => "CANDLE_INTERVAL_DAY",
+            Self::CandleInterval2Min => "CANDLE_INTERVAL_2_MIN",
+            Self::CandleInterval3Min => "CANDLE_INTERVAL_3_MIN",
+            Self::CandleInterval10Min => "CANDLE_INTERVAL_10_MIN",
+            Self::CandleInterval30Min => "CANDLE_INTERVAL_30_MIN",
+            Self::CandleInterval2Hour => "CANDLE_INTERVAL_2_HOUR",
+            Self::CandleInterval4Hour => "CANDLE_INTERVAL_4_HOUR",
+            Self::Week => "CANDLE_INTERVAL_WEEK",
+            Self::Month => "CANDLE_INTERVAL_MONTH",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4465,7 +4411,13 @@ impl CandleInterval {
 }
 /// Generated client implementations.
 pub mod market_data_service_client {
-    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
@@ -4560,8 +4512,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4591,8 +4542,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4622,8 +4572,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4653,8 +4602,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4684,8 +4632,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4715,8 +4662,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4746,8 +4692,7 @@ pub mod market_data_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4769,7 +4714,13 @@ pub mod market_data_service_client {
 }
 /// Generated client implementations.
 pub mod market_data_stream_service_client {
-    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
@@ -4866,8 +4817,7 @@ pub mod market_data_stream_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
@@ -4897,8 +4847,7 @@ pub mod market_data_stream_service_client {
                 .ready()
                 .await
                 .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
+                    tonic::Status::unknown(
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
