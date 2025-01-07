@@ -81,6 +81,11 @@ impl CashFlowRow {
                     self.date, check_amount(deposit)?));
             },
 
+            "Списание д/с" => {
+                statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
+                    self.date, -check_amount(withdrawal)?));
+            },
+
             _ => return Err!("Unsupported cash flow operation: {:?}", operation),
         };
 
