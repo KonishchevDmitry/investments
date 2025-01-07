@@ -6,6 +6,8 @@ use crate::time::{Date, Month, Period};
 #[derive(Clone, Copy)]
 pub enum StatementsMergingStrategy {
     ContinuousOnly,
+
+    Sparse,
     SparseOnHolidays(usize),
 
     // Some brokers allow to generate only daily statements for the current month. Monthly
@@ -27,7 +29,28 @@ impl StatementsMergingStrategy {
                     return error("Non-continuous periods");
                 }
                 Ok(())
-            },
+            }
+
+            StatementsMergingStrategy::Sparse => {
+                Ok(())
+            }
+
+            StatementsMergingStrategy::SparseOnHolidays(max_days) => {
+                let mut date = first.next_date();
+                let mut missing_days = 0;
+
+                while date < second.first_date() {
+                    if !matches!(date.weekday(), Weekday::Sat | Weekday::Sun) {
+                        if missing_days >= max_days {
+                            return error("Non-continuous periods");
+                        }
+                        missing_days += 1;
+                    }
+                    date = date.succ_opt().unwrap();
+                }
+
+                Ok(())
+            }
 
             StatementsMergingStrategy::SparseSingleDaysLastMonth(monthly_statement_availability_delay) => {
                 assert!(second.last_date() <= last_date);
@@ -52,23 +75,6 @@ impl StatementsMergingStrategy {
 
                 if !sparse_period.contains(first.next_date()) {
                     return error("Non-continuous periods");
-                }
-
-                Ok(())
-            }
-
-            StatementsMergingStrategy::SparseOnHolidays(max_days) => {
-                let mut date = first.next_date();
-                let mut missing_days = 0;
-
-                while date < second.first_date() {
-                    if !matches!(date.weekday(), Weekday::Sat | Weekday::Sun) {
-                        if missing_days >= max_days {
-                            return error("Non-continuous periods");
-                        }
-                        missing_days += 1;
-                    }
-                    date = date.succ_opt().unwrap();
                 }
 
                 Ok(())

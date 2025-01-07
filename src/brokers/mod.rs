@@ -33,7 +33,7 @@ impl Broker {
         let statements_merging_strategy = match self {
             Broker::InteractiveBrokers => StatementsMergingStrategy::SparseOnHolidays(1),
             Broker::Open => StatementsMergingStrategy::SparseSingleDaysLastMonth(0),
-            Broker::Sber => StatementsMergingStrategy::SparseSingleDaysLastMonth(0),
+            Broker::Sber => StatementsMergingStrategy::Sparse,
             _ => StatementsMergingStrategy::ContinuousOnly,
         };
 
