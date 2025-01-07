@@ -15,7 +15,7 @@ use super::cash_flows::CashFlow;
 use super::corporate_actions::CorporateAction;
 use super::dividends::{DividendId, DividendAccruals};
 use super::fees::Fee;
-use super::grants::StockGrant;
+use super::grants::{CashGrant, StockGrant};
 use super::interest::IdleCashInterest;
 use super::trades::{ForexTrade, StockBuy, StockSell};
 use super::taxes::{TaxId, TaxAccruals, TaxAgentWithholdings};
@@ -40,6 +40,7 @@ pub struct PartialBrokerStatement {
     pub dividend_accruals: HashMap<DividendId, DividendAccruals>,
     pub tax_accruals: HashMap<TaxId, TaxAccruals>,
 
+    pub cash_grants: Vec<CashGrant>,
     pub stock_grants: Vec<StockGrant>,
     pub corporate_actions: Vec<CorporateAction>,
 
@@ -75,6 +76,7 @@ impl PartialBrokerStatement {
             dividend_accruals: HashMap::new(),
             tax_accruals: HashMap::new(),
 
+            cash_grants: Vec::new(),
             stock_grants: Vec::new(),
             corporate_actions: Vec::new(),
 

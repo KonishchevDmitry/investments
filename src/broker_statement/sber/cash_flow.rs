@@ -1,5 +1,6 @@
 use scraper::ElementRef;
 
+use crate::broker_statement::CashGrant;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
@@ -84,6 +85,11 @@ impl CashFlowRow {
             "Списание д/с" => {
                 statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
                     self.date, -check_amount(withdrawal)?));
+            },
+
+            _ if operation.starts_with("Зачисление участнику акции ") => {
+                statement.cash_grants.push(CashGrant::new(
+                    self.date, check_amount(deposit)?, operation));
             },
 
             _ => return Err!("Unsupported cash flow operation: {:?}", operation),

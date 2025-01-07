@@ -49,7 +49,7 @@ pub use self::cash_flows::{CashFlow, CashFlowType};
 pub use self::corporate_actions::{CorporateAction, StockSplitController, process_corporate_actions};
 pub use self::dividends::Dividend;
 pub use self::fees::Fee;
-pub use self::grants::{StockGrant, process_grants};
+pub use self::grants::{CashGrant, StockGrant, process_grants};
 pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::payments::Withholding;
@@ -76,6 +76,7 @@ pub struct BrokerStatement {
     pub stock_sells: Vec<StockSell>,
     pub dividends: Vec<Dividend>,
 
+    pub cash_grants: Vec<CashGrant>,
     stock_grants: Vec<StockGrant>,
     corporate_actions: Vec<CorporateAction>,
     pub stock_splits: StockSplitController,
@@ -221,6 +222,7 @@ impl BrokerStatement {
             stock_sells: Vec::new(),
             dividends: Vec::new(),
 
+            cash_grants: Vec::new(),
             stock_grants: Vec::new(),
             corporate_actions: Vec::new(),
             stock_splits: StockSplitController::default(),
@@ -477,9 +479,11 @@ impl BrokerStatement {
         self.forex_trades.extend(statement.forex_trades);
         self.stock_buys.extend(statement.stock_buys);
         self.stock_sells.extend(statement.stock_sells);
-        self.stock_grants.extend(statement.stock_grants);
 
+        self.cash_grants.extend(statement.cash_grants);
+        self.stock_grants.extend(statement.stock_grants);
         self.corporate_actions.extend(statement.corporate_actions);
+
         self.open_positions = statement.open_positions;
         self.instrument_info.merge(statement.instrument_info);
 
@@ -599,10 +603,12 @@ impl BrokerStatement {
 
         self.sort_and_validate_stock_buys()?;
         self.sort_and_validate_stock_sells()?;
-        validator.sort_and_validate("a stock grant", &mut self.stock_grants, |grant| grant.date)?;
 
         self.dividends.sort_by(|a, b| (a.date, &a.issuer).cmp(&(b.date, &b.original_issuer)));
         validator.validate("a dividend", &self.dividends, |dividend| dividend.date)?;
+
+        validator.sort_and_validate("a cash grant", &mut self.cash_grants, |grant| grant.date)?;
+        validator.sort_and_validate("a stock grant", &mut self.stock_grants, |grant| grant.date)?;
 
         validator.sort_and_validate(
             "a corporate action", &mut self.corporate_actions, |action| action.time)?;

@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use crate::broker_statement::{
     BrokerStatement, ForexTrade, StockBuy, StockSource, StockSell, StockSellType, Dividend, Fee,
-    IdleCashInterest, TaxAgentWithholding, Withholding, CashFlow as CashFlowDetails, CashFlowType};
+    IdleCashInterest, CashGrant, TaxAgentWithholding, Withholding, CashFlow as CashFlowDetails, CashFlowType};
 use crate::currency::{Cash, CashAssets};
 use crate::formatting;
 use crate::time::DateOptTime;
@@ -36,6 +36,10 @@ impl CashFlowMapper {
 
         for dividend in &statement.dividends {
             self.dividend(statement, dividend);
+        }
+
+        for grant in &statement.cash_grants {
+            self.grant(grant);
         }
 
         for cash_flow in &statement.cash_flows {
@@ -196,6 +200,10 @@ impl CashFlowMapper {
         }
     }
 
+    fn grant(&mut self, grant: &CashGrant) {
+        self.add_static(grant.date.into(), Operation::Grant, grant.amount, &grant.description);
+    }
+
     fn tax_agent_withholding(&mut self, tax: &TaxAgentWithholding) {
         let operation = match tax.amount {
             Withholding::Withholding(_) => "Удержание",
@@ -223,6 +231,7 @@ pub enum Operation {
     Deposit,
     Interest,
     Dividend,
+    Grant,
 
     ForexTrade,
     SellTrade,

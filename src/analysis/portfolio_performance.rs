@@ -86,6 +86,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.process_positions(statement, portfolio)?;
         self.process_dividends(statement, portfolio)?;
         self.process_interest(statement, portfolio)?;
+        self.process_grants(statement)?;
         self.process_fees(statement)?;
         self.process_tax_agent_withholdings(statement)?;
         self.process_tax_deductions(portfolio)?;
@@ -430,6 +431,14 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                     self.income_structure.interest_taxes += amount;
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    fn process_grants(&mut self, statement: &BrokerStatement) -> EmptyResult {
+        for grant in &statement.cash_grants {
+            self.income_structure.grants += self.converter.convert_to(grant.date, grant.amount, self.currency)?;
         }
 
         Ok(())

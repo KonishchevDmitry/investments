@@ -62,6 +62,9 @@ pub struct IncomeStructure {
     pub additional_tax_deductions: Decimal,
 
     pub commissions: Decimal,
+
+    // For now process it as a part of trading income since its amount is too small to make a distinct category for it
+    pub grants: Decimal,
 }
 
 impl IncomeStructure {

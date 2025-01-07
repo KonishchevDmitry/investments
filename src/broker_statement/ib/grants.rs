@@ -16,7 +16,7 @@ impl RecordParser for GrantsParser {
         let symbol = record.parse_symbol("Symbol")?;
         let date = record.parse_date("Report Date")?;
         let quantity = record.parse_quantity("Quantity", DecimalRestrictions::StrictlyPositive)?;
-        parser.statement.stock_grants.push(StockGrant {date, symbol, quantity});
+        parser.statement.stock_grants.push(StockGrant::new(date, &symbol, quantity));
         Ok(())
     }
 }

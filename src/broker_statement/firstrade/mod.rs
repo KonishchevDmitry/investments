@@ -93,6 +93,7 @@ mod tests {
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(!statement.fees.is_empty());
+        assert!(statement.cash_grants.is_empty());
         assert!(!statement.idle_cash_interest.is_empty());
         assert!(statement.tax_agent_withholdings.is_empty());
 

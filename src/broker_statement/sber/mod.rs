@@ -97,6 +97,8 @@ mod tests {
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(statement.fees.is_empty());
+        // FIXME(konishchev): Update testdata
+        // assert_eq!(statement.cash_grants.is_empty(), name != "my");
         assert!(statement.idle_cash_interest.is_empty());
         assert!(statement.tax_agent_withholdings.is_empty());
 
