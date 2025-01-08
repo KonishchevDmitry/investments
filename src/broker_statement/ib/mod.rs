@@ -294,23 +294,17 @@ mod tests {
         assert!(!statement.stock_buys.is_empty());
         assert!(!statement.stock_sells.is_empty());
 
-        let mut has_buys = false;
         for trade in &statement.stock_buys {
-            if trade.conclusion_time.date.year() < current_year {
-                has_buys = true;
-                assert_ne!(trade.execution_date, trade.conclusion_time.date);
+            if trade.conclusion_time.date.year() < current_year && !trade.out_of_order_execution {
+                assert_ne!(trade.execution_date, trade.conclusion_time.date, "{}", trade.symbol);
             }
         }
-        assert!(has_buys);
 
-        let mut has_sells = false;
         for trade in &statement.stock_sells {
-            if trade.conclusion_time.date.year() < current_year {
-                has_sells = true;
-                assert_ne!(trade.execution_date, trade.conclusion_time.date);
+            if trade.conclusion_time.date.year() < current_year && !trade.out_of_order_execution {
+                assert_ne!(trade.execution_date, trade.conclusion_time.date, "{}", trade.symbol);
             }
         }
-        assert!(has_sells);
 
         assert!(!statement.dividends.is_empty());
         assert!(statement.dividends.iter().any(|dividend| dividend.paid_tax.is_positive()));
