@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use easy_logging::GlobalContext;
+use itertools::Itertools;
 use strum::IntoEnumIterator;
 
 use crate::broker_statement::{BrokerStatement, StockSell, StockSellType};
@@ -76,7 +77,7 @@ impl<'a> PortfolioAnalyser<'a> {
             let mut commission_calc = CommissionCalc::new(
                 self.converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
 
-            for (symbol, quantity) in statement.open_positions.clone() {
+            for (symbol, quantity) in statement.open_positions.clone().into_iter().sorted_unstable() {
                 let price = self.quotes.get(statement.get_quote_query(&symbol))?;
                 statement.emulate_sell(&symbol, quantity, price, &mut commission_calc)?;
             }
