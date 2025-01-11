@@ -8,7 +8,7 @@ use investments::core::EmptyResult;
 #[test]
 fn generate_regression_tests() {
     let mut t = Tests::new();
-    let last_tax_year = 2024;
+    let last_tax_year = 2025;
 
     // cli
     t.with_args("No command", &[]).exit_code(2);

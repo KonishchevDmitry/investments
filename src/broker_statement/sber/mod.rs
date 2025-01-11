@@ -92,14 +92,12 @@ mod tests {
             broker, &path, &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(), &[],
             corporate_actions, ReadingStrictness::all()).unwrap();
 
-        // FIXME(konishchev): Update testdata
-        // assert_eq!(statement.assets.cash.is_empty(), name == "my");
+        assert_eq!(statement.assets.cash.is_empty(), name == "my");
         assert!(statement.assets.other.is_none()); // TODO(konishchev): Get it from statements
         assert!(!statement.deposits_and_withdrawals.is_empty());
 
         assert!(statement.fees.is_empty());
-        // FIXME(konishchev): Update testdata
-        // assert_eq!(statement.cash_grants.is_empty(), name != "my");
+        assert_eq!(statement.cash_grants.is_empty(), name != "my");
         assert!(statement.idle_cash_interest.is_empty());
         assert!(statement.tax_agent_withholdings.is_empty());
 
