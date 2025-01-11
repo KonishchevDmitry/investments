@@ -167,11 +167,9 @@ impl LtoDeduction {
 }
 
 pub fn is_applicable(isin: &HashSet<ISIN>, sell_date: Date) -> Option<bool> {
-    // FIXME(konishchev): It's actually 2025, but since all foreign stocks are actually blocked from trading, set it to
-    // 2024 to make sell simulation more realistic.
-    // if sell_date.year() < 2025 {
-    //     return Some(true)
-    // }
+    // Please note: It's actually 2025, but since all foreign stocks were actually blocked from trading in 2024 and some
+    // limited amount of them were able to trade over OTC only (to which tax exemptions aren't apply), set it to 2024 to
+    // make calculations more correct.
     if sell_date.year() < 2024 {
         return Some(true)
     }
