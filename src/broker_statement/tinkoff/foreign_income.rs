@@ -260,6 +260,11 @@ impl ForeignIncomeRow {
     }
 }
 
+// Until 2024, in which Tinkoff became tax agent for foreign dividend income, the broker statements didn't contain
+// dividend and tax withheld amounts for dividends from non-Russian issuers - only result amount which has been paid.
+//
+// So until 2024 we had to parse foreign income statements to get this information from them. Starting from 2024 we
+// don't need this information and don't ask for these statements, but still parse them if they are provided.
 pub fn match_statement_dividends_to_foreign_income(
     dividend_id: &DividendId, instrument: &Instrument,
     dividend_accruals: DividendAccruals, tax_accruals: Option<TaxAccruals>,
@@ -287,13 +292,13 @@ pub fn match_statement_dividends_to_foreign_income(
         }
     }
 
-    let is_foreign = match instrument.get_taxation_type(dividend_id.date, Jurisdiction::Russia)? {
-        IssuerTaxationType::Manual{..} => true,
-        IssuerTaxationType::TaxAgent{foreign, ..} => foreign,
+    let (is_foreign, tax_agent) = match instrument.get_taxation_type(dividend_id.date, Jurisdiction::Russia)? {
+        IssuerTaxationType::Manual{..} => (true, false),
+        IssuerTaxationType::TaxAgent{foreign, ..} => (foreign, true),
     };
 
     let Some((foreign_dividend_id, foreign_dividend_accruals, foreign_tax_accruals)) = foreign_income_details else {
-        if is_foreign && *show_missing_foreign_income_info_warning {
+        if is_foreign && !tax_agent && *show_missing_foreign_income_info_warning {
             // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff-foreign-income
             let url = "https://bit.ly/investments-tinkoff-foreign-income";
 
@@ -314,9 +319,6 @@ pub fn match_statement_dividends_to_foreign_income(
             "Got foreign dividend income from {} which is not expected to be foreign",
             instrument.symbol);
     }
-
-    // FIXME(konishchev): Don't actually know what to do here since Tinkoff became tax agent for this income in 2024.
-    // Need some real statement to find out.
 
     let tax_id = TaxId::new(dividend_id.date, dividend_id.issuer.clone());
     let foreign_tax_id = TaxId::new(foreign_dividend_id.date, foreign_dividend_id.issuer.clone());
