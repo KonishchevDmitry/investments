@@ -36,15 +36,15 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TinkoffApiConfig {
+pub struct TbankApiConfig {
     #[serde(rename = "api_token")]
     token: String,
 }
 
-// Tinkoff Invest API (https://tinkoff.github.io/investAPI/)
-pub struct Tinkoff {
+// T-Bank Invest API (https://tinkoff.github.io/investAPI/)
+pub struct Tbank {
     token: String,
-    exchange: TinkoffExchange,
+    exchange: TbankExchange,
 
     channel: Channel,
     runtime: Runtime,
@@ -53,8 +53,8 @@ pub struct Tinkoff {
     currencies: Mutex<HashMap<(String, String), Currency>>,
 }
 
-impl Tinkoff {
-    pub fn new(config: &TinkoffApiConfig, exchange: TinkoffExchange) -> GenericResult<Tinkoff> {
+impl Tbank {
+    pub fn new(config: &TbankApiConfig, exchange: TbankExchange) -> GenericResult<Tbank> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all().build().unwrap();
 
@@ -64,9 +64,9 @@ impl Tinkoff {
                 .timeout(REQUEST_TIMEOUT)
                 .tls_config(ClientTlsConfig::new().with_native_roots())
                 .map(|endpoint| endpoint.connect_lazy())
-        }).map_err(|e| format!("Tinkoff client: {e}"))?;
+        }).map_err(|e| format!("T-Bank client: {e}"))?;
 
-        Ok(Tinkoff {
+        Ok(Tbank {
             token: config.token.clone(),
             exchange: exchange,
 
@@ -123,7 +123,7 @@ impl Tinkoff {
         }
 
         trace!(
-            "Getting quotes for the following symbols from Tinkoff: {}...",
+            "Getting quotes for the following symbols from T-Bank: {}...",
             instruments.values().map(|instrument| match instrument {
                 Instrument::Stock(stock) => stock.symbol.clone(),
                 Instrument::Currency(currency) => forex::get_currency_pair(&currency.base, &currency.quote),
@@ -188,7 +188,7 @@ impl Tinkoff {
                 return Err!("Got an empty list of available currencies");
             }
 
-            trace!("Got the following currencies from Tinkoff:");
+            trace!("Got the following currencies from T-Bank:");
             for currency in instruments {
                 trace!("* {name} ({symbol})", name=currency.name, symbol=currency.ticker);
 
@@ -247,9 +247,9 @@ impl Tinkoff {
 
     async fn get_all_shares(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
         let (name, status) = match self.exchange {
-            TinkoffExchange::Spb => ("SPB stocks", InstrumentStatus::Base),
-            TinkoffExchange::Unknown => ("other stocks", InstrumentStatus::All),
-            TinkoffExchange::Currency => unreachable!(),
+            TbankExchange::Spb => ("SPB stocks", InstrumentStatus::Base),
+            TbankExchange::Unknown => ("other stocks", InstrumentStatus::All),
+            TbankExchange::Currency => unreachable!(),
         };
 
         let mut trace = InstrumentTrace::new(name, false);
@@ -286,9 +286,9 @@ impl Tinkoff {
 
     async fn get_all_etfs(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
         let (name, status, may_be_empty) = match self.exchange {
-            TinkoffExchange::Spb => ("SPB ETF", InstrumentStatus::Base, true),
-            TinkoffExchange::Unknown => ("other ETF", InstrumentStatus::All, false),
-            TinkoffExchange::Currency => unreachable!(),
+            TbankExchange::Spb => ("SPB ETF", InstrumentStatus::Base, true),
+            TbankExchange::Unknown => ("other ETF", InstrumentStatus::All, false),
+            TbankExchange::Currency => unreachable!(),
         };
 
         // When SPB Exchange got under US sanctions, the list became empty, so we should allow it
@@ -331,7 +331,7 @@ impl Tinkoff {
         }
 
         match self.exchange {
-            TinkoffExchange::Spb => {
+            TbankExchange::Spb => {
                 real_exchange == RealExchange::Rts ||
 
                 // SPB Hong Kong ETF (iShares Core MSCI Asia ex Japan ETF / 83010 for example) have unspecified real
@@ -339,32 +339,32 @@ impl Tinkoff {
                 exchange == "SPB_HK"
             },
 
-            TinkoffExchange::Unknown => {
+            TbankExchange::Unknown => {
                 // Some stocks from other exchanges are available as OTC, some - as SPB, so use all real exchanges
                 // except MOEX
                 real_exchange != RealExchange::Moex
             },
 
-            TinkoffExchange::Currency => unreachable!(),
+            TbankExchange::Currency => unreachable!(),
         }
     }
 }
 
-impl QuotesProvider for Tinkoff {
+impl QuotesProvider for Tbank {
     fn name(&self) -> &'static str {
-        "Tinkoff"
+        "T-Bank"
     }
 
     fn supports_stocks(&self) -> SupportedExchange {
         match self.exchange {
-            TinkoffExchange::Currency => SupportedExchange::None,
-            TinkoffExchange::Spb => SupportedExchange::Some(Exchange::Spb),
-            TinkoffExchange::Unknown => SupportedExchange::Some(Exchange::Other),
+            TbankExchange::Currency => SupportedExchange::None,
+            TbankExchange::Spb => SupportedExchange::Some(Exchange::Spb),
+            TbankExchange::Unknown => SupportedExchange::Some(Exchange::Other),
         }
     }
 
     fn supports_forex(&self) -> bool {
-        matches!(self.exchange, TinkoffExchange::Currency)
+        matches!(self.exchange, TbankExchange::Currency)
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
@@ -373,7 +373,7 @@ impl QuotesProvider for Tinkoff {
 }
 
 #[derive(Clone, Copy)]
-pub enum TinkoffExchange {
+pub enum TbankExchange {
     Currency,
     Spb,
     Unknown, // Try to collect here instruments from exchanges that we don't support yet to use it as best effort fallback
@@ -440,7 +440,7 @@ struct InstrumentTrace {
 
 impl InstrumentTrace {
     fn new(name: &'static str, may_be_empty: bool) -> InstrumentTrace {
-        trace!("Getting a list of available {} from Tinkoff...", name);
+        trace!("Getting a list of available {} from T-Bank...", name);
 
         InstrumentTrace {
             name,
@@ -475,7 +475,7 @@ impl InstrumentTrace {
 
     fn finish(self) -> EmptyResult {
         if log_enabled!(Level::Trace) {
-            trace!("Got the following {} from Tinkoff:", self.name);
+            trace!("Got the following {} from T-Bank:", self.name);
             for (real_exchange, exchanges) in self.found_by_exchange {
                 trace!("* {}:", real_exchange.as_str_name());
                 for (exchange, symbols) in exchanges {
@@ -484,7 +484,7 @@ impl InstrumentTrace {
             }
 
             if !self.skipped_by_exchange.is_empty() {
-                trace!("Skipped non-{} from Tinkoff:", self.name);
+                trace!("Skipped non-{} from T-Bank:", self.name);
                 for (real_exchange, exchanges) in self.skipped_by_exchange {
                     trace!("* {}:", real_exchange.as_str_name());
                     for (exchange, symbols) in exchanges {
@@ -500,7 +500,7 @@ impl InstrumentTrace {
                 }
 
                 if !has_duplicates {
-                    trace!("Duplicated {} from Tinkoff:", self.name);
+                    trace!("Duplicated {} from T-Bank:", self.name);
                     has_duplicates = true;
                 }
 

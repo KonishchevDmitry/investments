@@ -8,7 +8,7 @@ mod finex;
 pub mod finnhub;
 mod moex;
 mod static_provider;
-pub mod tinkoff;
+pub mod tbank;
 pub mod twelvedata;
 
 use std::cell::RefCell;
@@ -40,7 +40,7 @@ use self::finex::Finex;
 use self::finnhub::{Finnhub, FinnhubConfig};
 use self::moex::Moex;
 use self::static_provider::{StaticProvider, StaticProviderConfig};
-use self::tinkoff::{Tinkoff, TinkoffExchange};
+use self::tbank::{Tbank, TbankExchange};
 
 #[derive(Clone)]
 pub enum QuoteQuery {
@@ -93,9 +93,9 @@ impl Quotes {
         let mut providers = Vec::<Arc<dyn QuotesProvider>>::new();
         let mut has_custom_provider = false;
 
-        let tinkoff = config.brokers.as_ref()
-            .and_then(|brokers| brokers.tinkoff.as_ref())
-            .and_then(|tinkoff| tinkoff.api.as_ref());
+        let tbank = config.brokers.as_ref()
+            .and_then(|brokers| brokers.tbank.as_ref())
+            .and_then(|tbank| tbank.api.as_ref());
 
         // Prefer custom provider over the others
         if let Some(config) = config.quotes.custom_provider.as_ref() {
@@ -109,13 +109,13 @@ impl Quotes {
             has_custom_provider = true;
         }
 
-        // Prefer Tinkoff for forex (FCS API has too restrictive rate limits)
-        if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Currency)?));
+        // Prefer T-Bank for forex (FCS API has too restrictive rate limits)
+        if let Some(config) = tbank {
+            providers.push(Arc::new(Tbank::new(config, TbankExchange::Currency)?));
         }
 
         // After NCC sanctions we have no decent forex quotes provider:
-        // * Tinkoff provides rates only from exchanges
+        // * T-Bank provides rates only from exchanges
         // * FCS API is too restrictive
         //
         // So use CBR API here and fallback to FCS API only for unknown currencies.
@@ -128,9 +128,9 @@ impl Quotes {
             return Err!("FCS API access key is not set in the configuration file");
         }
 
-        // Use Tinkoff for SPB stocks
-        if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Spb)?));
+        // Use T-Bank for SPB stocks
+        if let Some(config) = tbank {
+            providers.push(Arc::new(Tbank::new(config, TbankExchange::Spb)?));
         }
 
         // Use Finnhub for US stocks
@@ -145,9 +145,9 @@ impl Quotes {
         providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQTF")));
         providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQBR")));
 
-        // As a best effort for unsupported exchanges provide a fallback to Tinkoff SPB/OTC stocks
-        if let Some(config) = tinkoff {
-            providers.push(Arc::new(Tinkoff::new(config, TinkoffExchange::Unknown)?));
+        // As a best effort for unsupported exchanges provide a fallback to T-Bank SPB/OTC stocks
+        if let Some(config) = tbank {
+            providers.push(Arc::new(Tbank::new(config, TbankExchange::Unknown)?));
         }
 
         Ok(Quotes::new_with(Cache::new(database, config.cache_expire_time, true), providers))

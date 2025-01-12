@@ -20,7 +20,7 @@ use crate::quotes::QuotesConfig;
 use crate::quotes::alphavantage::AlphaVantageConfig;
 use crate::quotes::fcsapi::FcsApiConfig;
 use crate::quotes::finnhub::FinnhubConfig;
-use crate::quotes::tinkoff::TinkoffApiConfig;
+use crate::quotes::tbank::TbankApiConfig;
 use crate::quotes::twelvedata::TwelveDataConfig;
 use crate::taxes::{self, TaxConfig, TaxExemption, TaxPaymentDay, TaxPaymentDaySpec, TaxRemapping};
 use crate::telemetry::TelemetryConfig;
@@ -377,16 +377,17 @@ pub struct BrokersConfig {
     pub interactive_brokers: Option<BrokerConfig>,
     pub open_broker: Option<BrokerConfig>,
     pub sber: Option<BrokerConfig>,
-    pub tinkoff: Option<TinkoffConfig>,
+    #[serde(alias = "tinkoff")]
+    pub tbank: Option<TbankConfig>,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TinkoffConfig {
+pub struct TbankConfig {
     #[serde(flatten)]
     pub broker: Option<BrokerConfig>,
     #[serde(flatten)]
-    pub api: Option<TinkoffApiConfig>,
+    pub api: Option<TbankApiConfig>,
 }
 
 #[derive(Deserialize, Default, Clone)]

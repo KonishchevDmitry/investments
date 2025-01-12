@@ -1,6 +1,6 @@
 [submodule "testdata"]
 	path = testdata
 	url = git@konishchev.ru:investments-testdata.git
-[submodule "src/quotes/tinkoff/api"]
-	path = src/quotes/tinkoff/api
+[submodule "src/quotes/tbank/api"]
+	path = src/quotes/tbank/api
 	url = git@github.com:Tinkoff/investAPI.git

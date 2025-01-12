@@ -56,7 +56,7 @@ impl InstrumentInternalIds {
 
 // Please note that we don't guarantee that symbol will actually be symbol (ticker). Broker statement may have no symbol
 // information for an instrument. Some brokers just don't provide it (BCS) or it may be unavailable for some particular
-// instruments (OTC stocks in Tinkoff). In this case the symbol will be actually ISIN and we rely on symbol remapping in
+// instruments (OTC stocks in T-Bank). In this case the symbol will be actually ISIN and we rely on symbol remapping in
 // such cases.
 pub struct InstrumentInfo {
     instruments: HashMap<String, Instrument>,
@@ -193,7 +193,7 @@ impl InstrumentInfo {
         'symbol_loop: for symbol in self.instruments.keys() {
             // The case:
             //
-            // Finex ETF were bought on MOEX exchange, but then have been delisted due to sanctions. Old Tinkoff
+            // Finex ETF were bought on MOEX exchange, but then have been delisted due to sanctions. Old T-Bank
             // statements contain symbol <-> ISIN mapping, but new ones have only ISIN (since it's considered as
             // an OTC stock).
 

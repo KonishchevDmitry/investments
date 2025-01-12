@@ -44,7 +44,7 @@ jobs:
         --skip broker_statement::ib::tests::parse_real
         --skip broker_statement::open::tests::parse_real
         --skip broker_statement::sber::tests::parse_real
-        --skip broker_statement::tinkoff::tests::parse_real
-        --skip broker_statement::tinkoff::foreign_income::tests::parse_real
+        --skip broker_statement::tbank::tests::parse_real
+        --skip broker_statement::tbank::foreign_income::tests::parse_real
         --skip tax_statement::statement::parser::tests::parse_real
         --skip telemetry::tests::telemetry

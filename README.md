@@ -9,7 +9,7 @@ Helps you with managing your investments:
 * **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends, tax deductions and optionally inflation when calculates portfolio performance.
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 
-Targeted for Russian investors who use [Firstrade](https://www.firstrade.com/), [Interactive Brokers](https://interactivebrokers.com/), [БКС](https://broker.ru/), [Сбер](https://sberbank.ru/) or [Тинькофф](https://www.tinkoff.ru/).
+Targeted for Russian investors who use [Firstrade](https://www.firstrade.com/), [Interactive Brokers](https://interactivebrokers.com/), [БКС](https://broker.ru/), [Сбер](https://sberbank.ru/) or [Т-Банк](https://www.tbank.ru/).
 
 # Installation
 
@@ -30,7 +30,7 @@ For now the following brokers are supported:
 * Interactive Brokers ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#interactive-brokers))
 * БКС ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#bcs))
 * Сбер ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#sber))
-* Тинькофф ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tinkoff))
+* Т-Банк ([details](https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#tbank))
 
 Investments keeps some data in local database located at `~/.investments/db.sqlite` and supports a number of commands which can be grouped as:
 * Analyse commands ([analyse](#analyse), [cash-flow](docs/taxes.md#cash-flow), [metrics](#metrics),

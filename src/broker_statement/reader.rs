@@ -8,7 +8,7 @@ use crate::core::{GenericResult, EmptyResult};
 use crate::brokers::Broker;
 use crate::taxes::TaxRemapping;
 
-use super::{bcs, firstrade, ib, open, sber, tinkoff};
+use super::{bcs, firstrade, ib, open, sber, tbank};
 use super::PartialBrokerStatement;
 
 bitflags! {
@@ -41,7 +41,7 @@ pub fn read(
         Broker::InteractiveBrokers => ib::StatementReader::new(tax_remapping.take().unwrap(), strictness),
         Broker::Open => open::StatementReader::new(),
         Broker::Sber => sber::StatementReader::new(),
-        Broker::Tinkoff => tinkoff::StatementReader::new(),
+        Broker::Tbank => tbank::StatementReader::new(),
     }?;
 
     let mut file_names = preprocess_statement_directory(statement_dir_path, statement_reader.as_mut())

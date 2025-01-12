@@ -21,7 +21,7 @@ pub enum Broker {
     InteractiveBrokers,
     Open,
     Sber,
-    Tinkoff,
+    Tbank,
 }
 
 impl Broker {
@@ -44,7 +44,7 @@ impl Broker {
 
             config: config,
             commission_spec: self.get_commission_spec(plan)?,
-            allow_future_fees: matches!(self, Broker::Tinkoff),
+            allow_future_fees: matches!(self, Broker::Tbank),
             fractional_shares_trading: matches!(self, Broker::InteractiveBrokers),
             statements_merging_strategy: statements_merging_strategy,
         })
@@ -57,7 +57,7 @@ impl Broker {
             Broker::InteractiveBrokers => "interactive-brokers",
             Broker::Open => "open",
             Broker::Sber => "sber",
-            Broker::Tinkoff => "tinkoff",
+            Broker::Tbank => "tbank",
         }
     }
 
@@ -68,7 +68,7 @@ impl Broker {
             Broker::InteractiveBrokers => "Interactive Brokers LLC",
             Broker::Open => "АО «Открытие Брокер»",
             Broker::Sber => "ПАО «Сбербанк»",
-            Broker::Tinkoff => "АО «Тинькофф Банк»",
+            Broker::Tbank => "АО «ТБанк»",
         }
     }
 
@@ -79,13 +79,13 @@ impl Broker {
             Broker::InteractiveBrokers => "Interactive Brokers",
             Broker::Open => "Открытие",
             Broker::Sber => "Сбер",
-            Broker::Tinkoff => "Тинькофф",
+            Broker::Tbank => "Т‑Банк",
         }
     }
 
     pub fn jurisdiction(self) -> Jurisdiction {
         match self {
-            Broker::Bcs | Broker::Open | Broker::Sber | Broker::Tinkoff => Jurisdiction::Russia,
+            Broker::Bcs | Broker::Open | Broker::Sber | Broker::Tbank => Jurisdiction::Russia,
             Broker::Firstrade | Broker::InteractiveBrokers => Jurisdiction::Usa,
         }
     }
@@ -97,7 +97,7 @@ impl Broker {
             Broker::InteractiveBrokers => config.interactive_brokers.as_ref(),
             Broker::Open => config.open_broker.as_ref(),
             Broker::Sber => config.sber.as_ref(),
-            Broker::Tinkoff => config.tinkoff.as_ref().and_then(|tinkoff| tinkoff.broker.as_ref()),
+            Broker::Tbank => config.tbank.as_ref().and_then(|tbank| tbank.broker.as_ref()),
         }
     }
 
@@ -129,10 +129,10 @@ impl Broker {
                 "Самостоятельный" => plans::sber::manual as PlanFn,
             }),
 
-            Broker::Tinkoff => (plans::tinkoff::investor, btreemap!{
-                "Инвестор" => plans::tinkoff::investor as PlanFn,
-                "Трейдер" => plans::tinkoff::trader as PlanFn,
-                "Премиум" => plans::tinkoff::premium as PlanFn,
+            Broker::Tbank => (plans::tbank::investor, btreemap!{
+                "Инвестор" => plans::tbank::investor as PlanFn,
+                "Трейдер" => plans::tbank::trader as PlanFn,
+                "Премиум" => plans::tbank::premium as PlanFn,
             }),
         };
 
@@ -160,10 +160,11 @@ impl<'de> Deserialize<'de> for Broker {
             "interactive-brokers" => Broker::InteractiveBrokers,
             "open-broker" => Broker::Open,
             "sber" => Broker::Sber,
-            "tinkoff" => Broker::Tinkoff,
+            "tbank" => Broker::Tbank,
+            "tinkoff" => Broker::Tbank,
 
             _ => return Err(D::Error::unknown_variant(&value, &[
-                "bcs", "firstrade", "interactive-brokers", "open-broker", "sber", "tinkoff",
+                "bcs", "firstrade", "interactive-brokers", "open-broker", "sber", "tbank",
             ])),
         })
     }
@@ -200,7 +201,7 @@ impl BrokerInfo {
     pub fn exchanges(&self) -> Vec<Exchange> {
         match self.type_ {
             Broker::Bcs | Broker::Open | Broker::Sber => vec![Exchange::Moex, Exchange::Spb],
-            Broker::Tinkoff => vec![Exchange::Moex, Exchange::Spb, Exchange::Otc],
+            Broker::Tbank => vec![Exchange::Moex, Exchange::Spb, Exchange::Otc],
             Broker::Firstrade => vec![Exchange::Us],
             Broker::InteractiveBrokers => vec![Exchange::Us, Exchange::Other],
         }

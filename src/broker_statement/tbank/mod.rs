@@ -1,5 +1,5 @@
 /*
-Tinkoff statement T+N specific:
+T-Bank statement T+N specific:
 
 All trades are split into two categories: executed and not executed (yet). If trade is not executed
 yet, it's listed in not executed table in current statement and then will be listed in executed
@@ -322,7 +322,7 @@ mod tests {
             _ => name.to_owned(),
         };
 
-        let broker = Broker::Tinkoff.get_info(&Config::mock(), None).unwrap();
+        let broker = Broker::Tbank.get_info(&Config::mock(), None).unwrap();
         let config = Config::load(&format!("testdata/configs/{}/config.yaml", namespace)).unwrap();
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 

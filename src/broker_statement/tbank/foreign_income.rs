@@ -260,7 +260,7 @@ impl ForeignIncomeRow {
     }
 }
 
-// Until 2024, in which Tinkoff became tax agent for foreign dividend income, the broker statements didn't contain
+// Until 2024, in which T-Bank became tax agent for foreign dividend income, the broker statements didn't contain
 // dividend and tax withheld amounts for dividends from non-Russian issuers - only result amount which has been paid.
 //
 // So until 2024 we had to parse foreign income statements to get this information from them. Starting from 2024 we

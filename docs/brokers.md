@@ -123,14 +123,14 @@ Dividend records in the statement are identified by some broker-specific instrum
 The program expects broker statements in `*.html` format. For now only basic statements are supported since I don't have more examples of how various situations look like in them.
 
 
-<a name="tinkoff"></a>
-## Тинькофф
+<a name="tbank"></a>
+## Т-Банк
 
 The program expects broker statements in `*.xlsx` format.
 
-Tinkoff broker statements don't contain any information about corporate actions, so stock splits must be specified manually via `corporate_actions` configuration option.
+T-Bank broker statements don't contain any information about corporate actions, so stock splits must be specified manually via `corporate_actions` configuration option.
 
 <a name="tinkoff-foreign-income"></a>
 ### Foreign dividend income until 2024
 
-Until 2024, in which Tinkoff became tax agent for foreign dividend income, the broker statements didn't contain dividend and tax withheld amounts for dividends from non-Russian issuers - only result amount which has been paid. This information is provided in a separate foreign income statement (Справка о доходах за пределами РФ) which is only available as *.pdf (very unsuitable for parsing) from your account page. But you can ask support for *.xlsx version of it and place it to the broker statements directory. The program will find it and merge its information with broker statement.
+Until 2024, in which T-Bank became tax agent for foreign dividend income, the broker statements didn't contain dividend and tax withheld amounts for dividends from non-Russian issuers - only result amount which has been paid. This information is provided in a separate foreign income statement (Справка о доходах за пределами РФ) which is only available as *.pdf (very unsuitable for parsing) from your account page. But you can ask support for *.xlsx version of it and place it to the broker statements directory. The program will find it and merge its information with broker statement.

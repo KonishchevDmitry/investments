@@ -136,15 +136,15 @@ portfolios:
       # Received tax deductions can be specified here and will be taken into account during portfolio performance analysis
       2024.08.25: 52000
 
-  - name: tinkoff
-    broker: tinkoff
+  - name: tbank
+    broker: tbank
     plan: Инвестор
-    statements: ~/Brokerage/Тинькофф/Отчеты Брокера
+    statements: ~/Brokerage/Т-Банк/Отчеты Брокера
 
     # Configures the account as account to which long-term ownership tax exemption can be applied
     tax_exemptions: [long-term-ownership]
 
-    # Tinkoff doesn't provide any information about corporate actions, so we have to specify them manually
+    # T-Bank doesn't provide any information about corporate actions, so we have to specify them manually
     #corporate_actions:
     # - {date: 2020.10.27, symbol: NEE, type: stock-split, ratio: 4:1}
     # - {date: 2022.06.27, symbol: FXRB, type: delisting, quantity: 12460} # FinEx FXRB fund lost all its assets and has been closed
@@ -172,7 +172,7 @@ brokers:
       RUB: {fixed_amount: 0}
       USD: {fixed_amount: 0}
 
-  tinkoff:
+  tbank:
     # Sandbox token from https://tinkoff.github.io/investAPI/token/
     #api_token: secret
 

@@ -17,7 +17,7 @@ mod firstrade;
 mod ib;
 mod open;
 mod sber;
-mod tinkoff;
+mod tbank;
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap, BTreeSet, hash_map::Entry};

@@ -18,7 +18,7 @@ pub fn investor() -> CommissionSpec {
 }
 
 // Please note:
-// We don't support Tinkoff volume tiers: actual commission depends on the order of trades which is
+// We don't support T-Bank volume tiers: actual commission depends on the order of trades which is
 // inappropriate for our purposes.
 pub fn trader() -> CommissionSpec {
     CommissionSpecBuilder::new("RUB")
