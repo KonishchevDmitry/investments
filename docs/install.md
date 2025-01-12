@@ -1,6 +1,6 @@
 # Installation
 
-The most simple way to try it out is to download precompiled binary for your OS. The most convenient way (in terms of regular updates) is to use Cargo.
+The most simple way to try it out is to download precompiled binary for your OS.
 
 Shell completion rules can be generated using `investments completion` command.
 
@@ -9,6 +9,8 @@ Shell completion rules can be generated using `investments completion` command.
 ## Precompiled binaries
 
 You can find precompiled binaries on [Releases](https://github.com/KonishchevDmitry/investments/releases) page.
+
+[binup](https://github.com/KonishchevDmitry/binup) can be used to keep your installed version up-to-date.
 
 ## Cargo
 
