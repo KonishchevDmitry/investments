@@ -90,10 +90,7 @@ pub fn read_next_table_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
     let sheet_ptr = sheet as *mut SheetReader;
 
     {
-        let row = match sheet.next_row() {
-            Some(row) => row,
-            None => return None,
-        };
+        let row = sheet.next_row()?;
 
         let non_empty_cells = row.iter().filter(|cell| !matches!(cell, Cell::Empty)).count();
         if non_empty_cells > 1 {

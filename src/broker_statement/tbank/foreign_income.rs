@@ -135,11 +135,7 @@ struct ForeignIncomeRow {
 impl TableReader for ForeignIncomeRow {
     fn next_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
         loop {
-            let row = match sheet.next_row() {
-                Some(row) => row,
-                None => return None,
-            };
-
+            let row = sheet.next_row()?;
             let left_trimmed_row = xls::trim_row_left(row);
 
             if let Some(Cell::String(value)) = left_trimmed_row.iter().next() {

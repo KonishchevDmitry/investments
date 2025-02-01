@@ -83,20 +83,12 @@ impl TableReader for SecurityRow {
             (&mut *sheet as &'a mut SheetReader, &mut *sheet as &'a mut SheetReader)
         };
 
-        let first_row = match first_sheet.next_row() {
-            Some(row) => row,
-            None => return None,
-        };
-
+        let first_row = first_sheet.next_row()?;
         if !xls::is_empty_row(first_row) {
             return Some(first_row);
         }
 
-        let second_row = match second_sheet.next_row() {
-            Some(row) => row,
-            None => return None,
-        };
-
+        let second_row = second_sheet.next_row()?;
         if xls::is_empty_row(second_row) {
             return None;
         }
