@@ -83,6 +83,7 @@ fn russia_inflation(year: i32) -> Option<Decimal> {
         2021 => dec!(8.39),
         2022 => dec!(11.92),
         2023 => dec!(7.42),
+        2024 => dec!(9.51),
         _ => return None,
     })
 }
@@ -154,7 +155,8 @@ fn us_inflation(year: i32) -> Option<Decimal> {
         2020 => dec!(1.23358439630637),
         2021 => dec!(4.69785886363739),
         2022 => dec!(8.00279982052117),
-        2023 => dec!(4.1),
+        2023 => dec!(4.11633838374488),
+        2024 => dec!(2.9),
         _ => return None,
     })
 }
