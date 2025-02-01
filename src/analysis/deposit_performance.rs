@@ -62,17 +62,21 @@ pub fn compare_to_bank_deposit(
             continue;
         }
 
-        match decreasing_difference.cmp(&increasing_difference) {
+        let next_difference = match decreasing_difference.cmp(&increasing_difference) {
             Ordering::Less => {
-                assert!(decreasing_difference < difference);
                 step = -step;
+                decreasing_difference
             },
 
             Ordering::Greater => {
-                assert!(increasing_difference < difference);
+                increasing_difference
             },
 
-            Ordering::Equal => if index == 0 {
+            Ordering::Equal => decreasing_difference,
+        };
+
+        if next_difference == difference {
+            if index == 0 {
                 // Some assets can be acquired for free due to corporate actions or other non-trading operations. In
                 // this case we can't calculate their performance.
                 //
@@ -86,16 +90,17 @@ pub fn compare_to_bank_deposit(
                 // When we have a very big/small interest (huge profit / liquidation), it's OK that small changes in
                 // interest may not affect the calculation result.
                 break;
-            },
+            }
         }
 
         interest += step;
+        difference = next_difference;
 
         loop {
             let next_interest = interest + step;
             let next_difference = emulate(next_interest);
 
-            if next_difference > difference {
+            if next_difference >= difference {
                 break;
             }
 
