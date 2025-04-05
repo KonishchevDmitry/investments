@@ -27,8 +27,9 @@ jobs:
     - name: Configure build target
       run: .github/configure-build-target
 
-    - name: Drop caches
-      run: rm Cargo.lock
+    # FIXME(konishchev): A temporary workaround for broken CI
+    # - name: Drop caches
+    #   run: rm Cargo.lock
 
     - name: Build
       run: cargo build
