@@ -72,7 +72,10 @@ pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Optio
     }
 
     trace!("Sending request to {}...", url);
-    let response = request.send()?;
+    let response = request.send().inspect_err(|e| {
+        // FIXME(konishchev): decouple the reason to human error
+        trace!("Failed to send the request: {:?}.", e);
+    })?;
     trace!("Got response from {}.", url);
 
     if !response.status().is_success() {
