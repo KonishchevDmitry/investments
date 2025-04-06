@@ -48,7 +48,7 @@ impl Finnhub {
             client: Client::new(),
             rate_limiter: RateLimiter::new()
                 .with_limit(60 / 2, Duration::from_secs(60))
-                .with_limit(30 / 2, Duration::from_secs(1)),
+                .with_limit(5, Duration::from_secs(1)),
         }
     }
 
