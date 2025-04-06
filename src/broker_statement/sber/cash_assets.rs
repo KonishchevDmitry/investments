@@ -46,9 +46,9 @@ struct CashAssetsRow {
     _4: SkipCell,
     #[column(name="Конец периода")]
     _5: SkipCell,
-    #[column(name="Плановые зачисления по сделкам")]
+    #[column(name="Плановые зачисления по операциям", alias="Плановые зачисления по сделкам")]
     _6: SkipCell,
-    #[column(name="Плановые списания по сделкам")]
+    #[column(name="Плановые списания по операциям", alias="Плановые списания по сделкам")]
     _7: SkipCell,
     #[column(name="Плановый исходящий остаток", parse_with="parse_decimal_cell")]
     end_amount: Decimal,
