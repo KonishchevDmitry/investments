@@ -99,6 +99,9 @@ rust_decimal_macros = "~1.36.0"
 # FIXME(konishchev): A workaround for broken colored table rendering (https://github.com/phsym/prettytable-rs/issues/165)
 unicode-width = "=0.1.12"
 
+# FIXME(konishchev): A workaround for https://github.com/tafia/calamine/issues/492
+zip = "=2.5.0"
+
 # Force static linking
 libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
 openssl = { version = "0.10", features = ["vendored"] }
