@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::Mutex;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
@@ -72,9 +73,16 @@ pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Optio
     }
 
     trace!("Sending request to {}...", url);
-    let response = request.send().inspect_err(|e| {
-        // FIXME(konishchev): decouple the reason to human error
-        trace!("Failed to send the request: {:?}.", e);
+    let response = request.send().map_err(|err| -> String {
+        let err = err.without_url();
+
+        // reqwest/hyper errors hide all details, so extract the underlying error
+        let mut err: &dyn Error = &err;
+        while let Some(source) = err.source() {
+            err = source;
+        }
+
+        err.to_string()
     })?;
     trace!("Got response from {}.", url);
 
