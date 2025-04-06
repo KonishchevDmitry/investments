@@ -56,8 +56,8 @@ enum QuoteRequest {
 impl QuoteQuery {
     fn symbol(&self) -> &str {
         match self {
-            QuoteQuery::Forex(ref pair) => pair,
-            QuoteQuery::Stock(ref symbol, ..) => symbol,
+            QuoteQuery::Forex(pair) => pair,
+            QuoteQuery::Stock(symbol, ..) => symbol,
         }
     }
 }

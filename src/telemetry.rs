@@ -1,7 +1,7 @@
-/// Implements telemetry sending functionality.
-///
-/// Sends only basic anonymous usage statistics like program version, used commands and brokers.
-/// No personal information will ever be sent.
+//! Implements telemetry sending functionality.
+//!
+//! Sends only basic anonymous usage statistics like program version, used commands and brokers.
+//! No personal information will ever be sent.
 
 use std::collections::{BTreeMap, HashSet};
 use std::ops::DerefMut;

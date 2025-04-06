@@ -277,7 +277,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
             ))?;
         },
 
-        CorporateActionType::SubscribableRightsIssue {} => {},
+        CorporateActionType::SubscribableRightsIssue => {},
     };
 
     statement.corporate_actions.push(action);

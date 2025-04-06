@@ -24,10 +24,7 @@ pub fn parallelize_quotes<F>(symbols: &[&str], get_quote: F) -> GenericResult<Qu
             quotes.insert(symbol.to_owned(), price);
         }
         Ok(())
-    }).find_map_any(|result| match result {
-        Err(error) => Some(error),
-        Ok(()) => None,
-    }) {
+    }).find_map_any(Result::err) {
         return Err(error);
     }
 

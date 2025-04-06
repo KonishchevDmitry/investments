@@ -12,7 +12,7 @@ documentation = "https://github.com/KonishchevDmitry/investments"
 license = "GPL-3.0+"
 readme = "README.md"
 
-edition = "2021"
+edition = "2024"
 exclude = ["/src/quotes/tbank/api", "/testdata"]
 
 [[bin]]
