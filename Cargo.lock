@@ -1773,7 +1773,7 @@ dependencies = [
 
 [[package]]
 name = "investments"
-version = "7.2.3"
+version = "7.2.4"
 dependencies = [
  "ansi_term",
  "bitflags 2.9.0",
