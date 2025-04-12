@@ -383,6 +383,12 @@ fn calculate_stock_split(
     } else {
         let new_quantity = match (from_change, to_change) {
             (Some(from_change), Some(to_change)) if from_change == quantity => to_change,
+
+            // FIXME(konishchev): A temporary solution for https://github.com/KonishchevDmitry/investments/issues/89, need make it better
+            (None, Some(to_change)) if ratio.from == 1 && quantity * Decimal::from(ratio.to) == quantity + to_change => {
+                quantity * Decimal::from(ratio.to)
+            },
+
             _ => return Err!(
                 "Unsupported stock split: {} for {} when portfolio has {} shares",
                 ratio.to, ratio.from, quantity),
