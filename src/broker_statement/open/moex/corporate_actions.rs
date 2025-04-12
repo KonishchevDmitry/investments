@@ -96,8 +96,8 @@ fn parse_stock_split(
         symbol: symbol.to_owned(),
         action: CorporateActionType::StockSplit {
             ratio,
-            from_change: Some(withdrawal),
-            to_change: Some(deposit),
+            withdrawal: Some(withdrawal),
+            deposit: Some(deposit),
         },
     })
 }

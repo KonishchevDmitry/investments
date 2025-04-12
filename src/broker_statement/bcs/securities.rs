@@ -63,9 +63,9 @@ struct SecurityRow {
     #[column(name="Остаток на начало дня / начало операции", optional=true)]
     start_quantity: Option<Decimal>,
     #[column(name="Приход", optional=true)]
-    credit: Option<Decimal>,
+    deposit: Option<Decimal>,
     #[column(name="Расход", optional=true)]
-    debit: Option<Decimal>,
+    withdrawal: Option<Decimal>,
     #[column(name="Остаток на конец дня / конец операции", optional=true)]
     end_quantity: Option<Decimal>,
 
@@ -113,10 +113,10 @@ impl SecurityRow {
     }
 
     fn get_stock_split(&self) -> GenericResult<Option<CorporateActionType>> {
-        let (debit, credit) = match (self.start_quantity, self.debit, self.credit, self.end_quantity) {
-            (Some(start), Some(debit), Some(credit), Some(end)) if debit == start && credit == end => (
-                util::validate_named_decimal("debit value", debit, DecimalRestrictions::StrictlyPositive)?,
-                util::validate_named_decimal("credit value", credit, DecimalRestrictions::StrictlyPositive)?,
+        let (withdrawal, deposit) = match (self.start_quantity, self.withdrawal, self.deposit, self.end_quantity) {
+            (Some(start), Some(withdrawal), Some(deposit), Some(end)) if withdrawal == start && deposit == end => (
+                util::validate_named_decimal("withdrawal value", withdrawal, DecimalRestrictions::StrictlyPositive)?,
+                util::validate_named_decimal("deposit value", deposit, DecimalRestrictions::StrictlyPositive)?,
             ),
             _ => return Ok(None),
         };
@@ -128,18 +128,18 @@ impl SecurityRow {
             u32::try_from(bigger / smaller).ok()
         };
 
-        let ratio = match debit.cmp(&credit) {
+        let ratio = match withdrawal.cmp(&deposit) {
             Ordering::Equal => return Ok(None),
 
             Ordering::Less => {
-                let Some(to) = calc_ratio(credit, debit) else {
+                let Some(to) = calc_ratio(deposit, withdrawal) else {
                     return Ok(None);
                 };
                 StockSplitRatio::new(1, to)
             },
 
             Ordering::Greater => {
-                let Some(from) = calc_ratio(debit, credit) else {
+                let Some(from) = calc_ratio(withdrawal, deposit) else {
                     return Ok(None);
                 };
                 StockSplitRatio::new(from, 1)
@@ -148,8 +148,8 @@ impl SecurityRow {
 
         Ok(Some(CorporateActionType::StockSplit{
             ratio,
-            from_change: Some(debit),
-            to_change: Some(credit),
+            withdrawal: Some(withdrawal),
+            deposit: Some(deposit),
         }))
     }
 }

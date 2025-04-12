@@ -164,13 +164,13 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
             let ratio = StockSplitRatio::new(from, to);
 
             let change = record.parse_quantity("Quantity", DecimalRestrictions::NonZero)?;
-            let (from_change, to_change) = if change.is_sign_positive() {
+            let (withdrawal, deposit) = if change.is_sign_positive() {
                 (None, Some(change))
             } else {
                 (Some(-change), None)
             };
 
-            CorporateActionType::StockSplit{ratio, from_change, to_change}
+            CorporateActionType::StockSplit{ratio, withdrawal, deposit}
         },
 
         "Stock Dividend" => {
@@ -210,19 +210,19 @@ fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<Corpora
     let supplementary_action = actions.pop().unwrap();
     let mut action = actions.pop().unwrap();
 
-    let (ratio, from_change, to_change) = match (action.action, supplementary_action.action) {
+    let (ratio, withdrawal, deposit) = match (action.action, supplementary_action.action) {
         // It looks like the records may have an arbitrary order
         (
-            CorporateActionType::StockSplit {ratio: first_ratio, from_change: Some(from_change), to_change: None},
-            CorporateActionType::StockSplit {ratio: second_ratio, from_change: None, to_change: Some(to_change)},
+            CorporateActionType::StockSplit {ratio: first_ratio, withdrawal: Some(withdrawal), deposit: None},
+            CorporateActionType::StockSplit {ratio: second_ratio, withdrawal: None, deposit: Some(deposit)},
         ) if first_ratio == second_ratio => {
-            (first_ratio, from_change, to_change)
+            (first_ratio, withdrawal, deposit)
         },
         (
-            CorporateActionType::StockSplit {ratio: first_ratio, from_change: None, to_change: Some(to_change)},
-            CorporateActionType::StockSplit {ratio: second_ratio, from_change: Some(from_change), to_change: None},
+            CorporateActionType::StockSplit {ratio: first_ratio, withdrawal: None, deposit: Some(deposit)},
+            CorporateActionType::StockSplit {ratio: second_ratio, withdrawal: Some(withdrawal), deposit: None},
         ) if first_ratio == second_ratio => {
-            (first_ratio, from_change, to_change)
+            (first_ratio, withdrawal, deposit)
         },
         _ => {
             return Err!(
@@ -233,8 +233,8 @@ fn join_stock_splits(mut actions: Vec<CorporateAction>) -> GenericResult<Corpora
 
     action.action = CorporateActionType::StockSplit {
         ratio,
-        from_change: Some(from_change),
-        to_change: Some(to_change),
+        withdrawal: Some(withdrawal),
+        deposit: Some(deposit),
     };
     Ok(action)
 }
@@ -301,7 +301,7 @@ mod tests {
         });
     }
 
-    #[rstest(record, symbol, time, report_date, to, from, from_change, to_change,
+    #[rstest(record, symbol, time, report_date, to, from, withdrawal, deposit,
         case(&[
             "Stocks", "USD", "2020-08-31", "2020-08-28, 20:25:00",
             "AAPL(US0378331005) Split 4 for 1 (AAPL, APPLE INC, US0378331005)",
@@ -327,7 +327,7 @@ mod tests {
     )]
     fn stock_split(
         record: &[&str], symbol: &str, time: DateTime, report_date: Date, to: u32, from: u32,
-        from_change: Option<Decimal>, to_change: Option<Decimal>,
+        withdrawal: Option<Decimal>, deposit: Option<Decimal>,
     ) {
         test_parsing(record, CorporateAction {
             time: time.into(),
@@ -336,7 +336,7 @@ mod tests {
             symbol: symbol.to_owned(),
             action: CorporateActionType::StockSplit{
                 ratio: StockSplitRatio::new(from, to),
-                from_change, to_change,
+                withdrawal, deposit,
             },
         });
     }

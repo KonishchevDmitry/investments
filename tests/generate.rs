@@ -52,6 +52,7 @@ fn generate_regression_tests() {
     // tax-statement
     t.add("IB complex tax statement", "tax-statement ib-complex").config("other");
     t.add("IB external exchanges tax statement", "tax-statement ib-external-exchanges").config("other");
+    t.add("IB fractional shares split tax statement", "tax-statement ib-fractional-shares-split").config("other");
     t.add("IB liquidation tax statement", "tax-statement ib-liquidation").config("other");
     t.add("IB reverse stock split tax statement", "tax-statement ib-reverse-stock-split").config("other");
     t.add("IB reverse stock split with reverse order tax statement", "tax-statement ib-reverse-stock-split-reverse-order").config("other");

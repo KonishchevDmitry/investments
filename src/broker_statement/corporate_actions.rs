@@ -4,7 +4,7 @@ use std::ops::Bound;
 
 use lazy_static::lazy_static;
 use log::debug;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::ToPrimitive;
 use regex::{self, Regex};
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
@@ -15,7 +15,6 @@ use crate::formatting::format_date;
 use crate::localities::Jurisdiction;
 use crate::time::{Date, DateTime, DateOptTime, deserialize_date_opt_time};
 use crate::types::Decimal;
-use crate::util;
 
 use super::BrokerStatement;
 use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
@@ -91,14 +90,18 @@ pub enum CorporateActionType {
         quantity: Decimal,
     },
 
+    // Depending on the source we might have the following split info:
+    // 1. Only ratio is provided: use this value with no ability to check the result.
+    // 2. In addition to ratio, withdrawal and/or deposit amount is provided: use the ratio value and validate the
+    //    result against the processed deposits/withdrawals.
     StockSplit {
         ratio: StockSplitRatio,
 
         #[serde(skip)]
-        from_change: Option<Decimal>,
+        withdrawal: Option<Decimal>,
 
         #[serde(skip)]
-        to_change: Option<Decimal>,
+        deposit: Option<Decimal>,
     },
 
     // Allows existing shareholders to purchase shares of a secondary offering, usually at a
@@ -267,10 +270,10 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
             statement.sort_and_validate_stock_buys()?;
         },
 
-        CorporateActionType::StockSplit {ratio, from_change, to_change} => {
+        CorporateActionType::StockSplit {ratio, withdrawal, deposit} => {
             process_stock_split(
                 statement, action.time, &action.symbol,
-                ratio, from_change, to_change,
+                ratio, withdrawal, deposit,
             ).map_err(|e| format!(
                 "Failed to process {} stock split from {}: {}",
                 action.symbol, format_date(action.time), e,
@@ -287,7 +290,7 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
 fn process_stock_split(
     statement: &mut BrokerStatement,
     split_time: DateOptTime, symbol: &str, ratio: StockSplitRatio,
-    from_change: Option<Decimal>, to_change: Option<Decimal>,
+    withdrawal: Option<Decimal>, deposit: Option<Decimal>,
 ) -> EmptyResult {
     // We have two algorithms of handling stock split:
     // * The first one is most straightforward, but it can be applied only to simple splits
@@ -312,13 +315,13 @@ fn process_stock_split(
         };
     };
 
-    process_complex_stock_split(statement, split_time, symbol, ratio, from_change, to_change)
+    process_complex_stock_split(statement, split_time, symbol, ratio, withdrawal, deposit)
 }
 
 fn process_complex_stock_split(
     statement: &mut BrokerStatement,
     split_time: DateOptTime, symbol: &str, ratio: StockSplitRatio,
-    from_change: Option<Decimal>, to_change: Option<Decimal>,
+    withdrawal: Option<Decimal>, deposit: Option<Decimal>,
 ) -> EmptyResult {
     statement.process_trades(Some(split_time))?;
 
@@ -342,7 +345,7 @@ fn process_complex_stock_split(
         return Err!("The portfolio has no open {} position at {}", symbol, format_date(split_time));
     }
 
-    let new_quantity = calculate_stock_split(quantity, ratio, from_change, to_change)?;
+    let new_quantity = calculate_stock_split(quantity, ratio, withdrawal, deposit)?;
     debug!("{} stock split from {}: {} -> {}.",
         symbol, format_date(split_time.date), quantity, new_quantity);
 
@@ -361,62 +364,35 @@ fn process_complex_stock_split(
     Ok(())
 }
 
+
 fn calculate_stock_split(
-    quantity: Decimal, ratio: StockSplitRatio,
-    from_change: Option<Decimal>, to_change: Option<Decimal>,
+    quantity: Decimal, ratio: StockSplitRatio, withdrawal: Option<Decimal>, deposit: Option<Decimal>,
 ) -> GenericResult<Decimal> {
-    Ok(if let Some(lots) = get_stock_split_lots(quantity, ratio) {
-        let new_quantity = (ratio.to.to_u64().unwrap() * lots.to_u64().unwrap()).into();
-
-        if from_change.is_some() || to_change.is_some() {
-            let from_change = from_change.unwrap_or_else(Decimal::zero);
-            let to_change = to_change.unwrap_or_else(Decimal::zero);
-
-            if quantity - from_change + to_change != new_quantity {
-                return Err!(
-                    "Got an unexpected stock split parameters: {} - {} + {} != {}",
-                    quantity, from_change, to_change, new_quantity);
-            }
-        }
-
-        new_quantity
-    } else {
-        let new_quantity = match (from_change, to_change) {
-            (Some(from_change), Some(to_change)) if from_change == quantity => to_change,
-
-            // FIXME(konishchev): A temporary solution for https://github.com/KonishchevDmitry/investments/issues/89, need make it better
-            (None, Some(to_change)) if ratio.from == 1 && quantity * Decimal::from(ratio.to) == quantity + to_change => {
-                quantity * Decimal::from(ratio.to)
-            },
-
-            _ => return Err!(
-                "Unsupported stock split: {} for {} when portfolio has {} shares",
-                ratio.to, ratio.from, quantity),
-        };
-
+    // We know the result quantity, so are able to check the inputs
+    if withdrawal.is_some() || deposit.is_some() {
+        let new_quantity = quantity - withdrawal.unwrap_or_default() + deposit.unwrap_or_default();
         let expected_quantity = quantity / Decimal::from(ratio.from) * Decimal::from(ratio.to);
-        if util::round(expected_quantity, 2) != util::round(new_quantity, 2) {
+
+        // Brokers round the result to some finite value
+        let error = (new_quantity - expected_quantity).abs();
+        if new_quantity.is_zero() || expected_quantity.is_zero() ||
+            error / std::cmp::min(new_quantity, expected_quantity) > dec!(0.00001) {
             return Err!(
                 "Unexpected result of stock split: {} / {} * {} = {} when {} is expected",
                 quantity, ratio.from, ratio.to, new_quantity, expected_quantity);
         }
 
-        new_quantity
-    })
-}
-
-fn get_stock_split_lots(quantity: Decimal, ratio: StockSplitRatio) -> Option<u32> {
-    if !quantity.fract().is_zero() {
-        return None;
+        return Ok(new_quantity)
     }
 
-    quantity.to_u32().and_then(|quantity| {
-        if quantity % ratio.from == 0 {
-            Some(quantity / ratio.from)
-        } else {
-            None
-        }
-    })
+    if ratio.from == 1 || quantity.fract().is_zero() && quantity.to_u32().map(|quantity| {
+        quantity % ratio.from == 0
+    }).unwrap_or_default() {
+        return Ok(quantity / Decimal::from(ratio.from) * Decimal::from(ratio.to));
+    }
+
+    Err!("Unsupported stock split: {} for {} when portfolio has {} shares",
+         ratio.to, ratio.from, quantity)
 }
 
 fn convert_stocks(
