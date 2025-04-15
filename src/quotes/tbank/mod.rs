@@ -256,7 +256,7 @@ impl Tbank {
 
         #[allow(clippy::needless_update)]
         let instruments = self.instruments_client().shares(InstrumentsRequest {
-            instrument_status: status.into(),
+            instrument_status: Some(status.into()),
             ..Default::default()
         }).await.map_err(|e| format!(
             "Failed to get available {} list: {}", name, e,
@@ -296,7 +296,7 @@ impl Tbank {
 
         #[allow(clippy::needless_update)]
         let instruments = self.instruments_client().etfs(InstrumentsRequest {
-            instrument_status: status.into(),
+            instrument_status: Some(status.into()),
             ..Default::default()
         }).await.map_err(|e| format!(
             "Failed to get available {} list: {}", name, e,

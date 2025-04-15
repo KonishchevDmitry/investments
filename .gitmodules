@@ -3,4 +3,4 @@
 	url = git@konishchev.ru:investments-testdata.git
 [submodule "src/quotes/tbank/api"]
 	path = src/quotes/tbank/api
-	url = git@github.com:Tinkoff/investAPI.git
+	url = git@github.com:RussianInvestments/investAPI.git
