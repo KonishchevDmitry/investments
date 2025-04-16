@@ -1,7 +1,5 @@
-extern crate investments;
-
 use std::path::PathBuf;
-use std::process;
+use std::process::ExitCode;
 
 use clap::{Arg, ArgAction, Command, value_parser};
 
@@ -37,9 +35,11 @@ pub fn run() -> EmptyResult {
     Ok(())
 }
 
-fn main() {
-    if let Err(e) = run() {
-        eprintln!("Error: {}.", e);
-        process::exit(1);
+fn main() -> ExitCode {
+    if let Err(err) = run() {
+        eprintln!("Error: {err}.");
+        return ExitCode::FAILURE
     }
+
+    ExitCode::SUCCESS
 }

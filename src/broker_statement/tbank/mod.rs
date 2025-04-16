@@ -323,7 +323,7 @@ mod tests {
         };
 
         let broker = Broker::Tbank.get_info(&Config::mock(), None).unwrap();
-        let config = Config::load(&format!("testdata/configs/{}/config.yaml", namespace)).unwrap();
+        let config = Config::new(format!("testdata/configs/{}", namespace)).unwrap();
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(

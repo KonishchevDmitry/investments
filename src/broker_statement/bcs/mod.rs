@@ -102,7 +102,7 @@ mod tests {
 
         let path = format!("testdata/bcs/{}", name);
         let broker = Broker::Bcs.get_info(&Config::mock(), None).unwrap();
-        let config = Config::load("testdata/configs/main/config.yaml").unwrap();
+        let config = Config::new("testdata/configs/main").unwrap();
         let corporate_actions = &config.get_portfolio(portfolio_name).unwrap().corporate_actions;
 
         let statement = BrokerStatement::read(

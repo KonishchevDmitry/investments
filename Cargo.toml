@@ -19,6 +19,10 @@ exclude = ["/src/quotes/tbank/api", "/testdata"]
 name = "investments"
 path = "src/bin/investments/mod.rs"
 
+[[example]]
+name = "backtest"
+path = "examples/backtest.rs"
+
 # Used by regression tests
 [[example]]
 name = "tax-statement-parser"
@@ -50,7 +54,7 @@ clap_complete = "4.5.47"
 csv = "1.3.1"
 cusip = "0.3.0"
 dyn-clone = "1.0.19"
-easy-logging = "1.0.0"
+easy-logging = "1.1.0"
 encoding_rs = "0.8.35"
 governor = "0.10.0"
 indoc = "2.0.6"

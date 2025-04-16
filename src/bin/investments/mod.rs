@@ -2,13 +2,12 @@ mod action;
 mod parser;
 mod positions;
 
-#[macro_use] extern crate investments;
 #[macro_use] extern crate maplit;
 
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
-use std::process;
+use std::process::ExitCode;
 use std::time::Duration;
 
 use log::error;
@@ -27,47 +26,41 @@ use investments::telemetry::{Telemetry, TelemetryRecordBuilder};
 use self::action::Action;
 use self::parser::{Parser, GlobalOptions};
 
-fn main() {
+fn main() -> ExitCode {
     let mut parser = Parser::new();
 
-    let global = parser.parse_global().unwrap_or_else(|e| {
-        let _ = writeln!(io::stderr(), "{}.", e);
-        process::exit(1);
-    });
+    let global = match parser.parse_global() {
+        Ok(global) => global,
+        Err(err) => {
+            let _ = writeln!(io::stderr(), "{err}.");
+            return ExitCode::FAILURE;
+        },
+    };
 
-    if let Err(e) = easy_logging::init(module_path!().split("::").next().unwrap(), global.log_level) {
-        let _ = writeln!(io::stderr(), "Failed to initialize the logging: {}.", e);
-        process::exit(1);
+    if let Err(err) = easy_logging::init(module_path!(), global.log_level) {
+        let _ = writeln!(io::stderr(), "Failed to initialize the logging: {err}.");
+        return ExitCode::FAILURE;
     }
 
-    if let Err(e) = main_inner(global, parser) {
-        let message = e.to_string();
+    if let Err(err) = run(global, parser) {
+        let message = err.to_string();
 
         if message.contains('\n') {
-            error!("{}", e);
+            error!("{err}");
         } else {
-            error!("{}.", e);
+            error!("{err}.");
         }
 
-        process::exit(1);
+        return ExitCode::FAILURE;
     }
+
+    ExitCode::SUCCESS
 }
 
-fn main_inner(global: GlobalOptions, parser: Parser) -> EmptyResult {
-    let config_dir_path = Path::new(&global.config_dir);
-    let config_path = config_dir_path.join("config.yaml");
-
-    let mut config = Config::load(config_path.to_str().unwrap()).map_err(|e| format!(
-        "Error while reading {:?} configuration file: {}", config_path, e))?;
-
-    config_dir_path.join("db.sqlite").to_str().unwrap()
-        .clone_into(&mut config.db_path);
-
+fn run(global: GlobalOptions, parser: Parser) -> EmptyResult {
+    let mut config = Config::new(&global.config_dir)?;
     let (command, action) = parser.parse(&mut config)?;
-    run(config, &command, action)
-}
 
-fn run(config: Config, command: &str, action: Action) -> EmptyResult {
     let telemetry = (!config.telemetry.disable).then(|| -> GenericResult<Telemetry> {
         let connection = db::connect(&config.db_path)?;
         let user_id = config.telemetry.user_id.map(|user_id| user_id.to_string());
@@ -125,7 +118,7 @@ fn run(config: Config, command: &str, action: Action) -> EmptyResult {
     };
 
     if let Some(telemetry) = telemetry.as_ref() {
-        telemetry.add(record.build(command))?;
+        telemetry.add(record.build(&command))?;
     }
 
     Ok(())

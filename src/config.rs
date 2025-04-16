@@ -1,9 +1,12 @@
 use std::collections::{HashSet, HashMap, BTreeMap};
 use std::fs::File;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use chrono::Duration;
+use clap::{Arg, ArgAction, ArgMatches, value_parser};
+use log::Level;
 use serde::Deserialize;
 use serde::de::{Deserializer, IgnoredAny, Error};
 use validator::Validate;
@@ -66,6 +69,22 @@ pub struct Config {
 }
 
 impl Config {
+    const DEFAULT_CONFIG_DIR_PATH: &str = "~/.investments";
+
+    pub fn new<P: AsRef<Path>>(config_dir: P) -> GenericResult<Config> {
+        let config_dir = config_dir.as_ref();
+
+        let config_path = config_dir.join("config.yaml");
+        let mut config = Config::load(&config_path).map_err(|e| format!(
+            "Error while reading {config_path:?} configuration file: {e}"))?;
+
+        config_dir.join("db.sqlite").to_str()
+            .ok_or_else(|| format!("Invalid configuration directory path: {config_dir:?}"))?
+            .clone_into(&mut config.db_path);
+
+        Ok(config)
+    }
+
     #[cfg(test)]
     pub fn mock() -> Config {
         Config {
@@ -92,7 +111,46 @@ impl Config {
         }
     }
 
-    pub fn load(path: &str) -> GenericResult<Config> {
+    pub fn args() -> [Arg;2] {[
+        Arg::new("verbose").short('v').long("verbose")
+            .help("Set verbosity level")
+            .action(ArgAction::Count),
+
+        Arg::new("config").short('c').long("config")
+            .help(format!("Configuration directory path [default: {}]", Self::DEFAULT_CONFIG_DIR_PATH))
+            .value_name("PATH")
+            .value_parser(value_parser!(PathBuf)),
+    ]}
+
+    pub fn parse_args(matches: &ArgMatches) -> GenericResult<(Level, PathBuf)> {
+        let log_level = match matches.get_count("verbose") {
+            0 => log::Level::Info,
+            1 => log::Level::Debug,
+            2 => log::Level::Trace,
+            _ => return Err!("Invalid verbosity level"),
+        };
+
+        let config_dir = matches.get_one("config").cloned().unwrap_or_else(||
+            PathBuf::from(shellexpand::tilde(Self::DEFAULT_CONFIG_DIR_PATH).to_string()));
+
+        Ok((log_level, config_dir))
+    }
+
+    pub fn get_tax_country(&self) -> Country {
+        localities::russia(&self.taxes)
+    }
+
+    pub fn get_portfolio(&self, name: &str) -> GenericResult<&PortfolioConfig> {
+        for portfolio in &self.portfolios {
+            if portfolio.name == name {
+                return Ok(portfolio)
+            }
+        }
+
+        Err!("{:?} portfolio is not defined in the configuration file", name)
+    }
+
+    fn load(path: &Path) -> GenericResult<Config> {
         let mut config: Config = Config::read(path)?;
 
         config.validate()?;
@@ -123,21 +181,7 @@ impl Config {
         Ok(config)
     }
 
-    pub fn get_tax_country(&self) -> Country {
-        localities::russia(&self.taxes)
-    }
-
-    pub fn get_portfolio(&self, name: &str) -> GenericResult<&PortfolioConfig> {
-        for portfolio in &self.portfolios {
-            if portfolio.name == name {
-                return Ok(portfolio)
-            }
-        }
-
-        Err!("{:?} portfolio is not defined in the configuration file", name)
-    }
-
-    fn read(path: &str) -> GenericResult<Config> {
+    fn read(path: &Path) -> GenericResult<Config> {
         let mut data = Vec::new();
         File::open(path)?.read_to_end(&mut data)?;
 
@@ -184,6 +228,8 @@ impl Config {
         }
     }
 }
+
+// FIXME(konishchev): Refactor all below
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -57,7 +57,6 @@ impl Parser {
 
     pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
         let binary_name = "investments";
-        const DEFAULT_CONFIG_DIR_PATH: &str = "~/.investments";
 
         let mut app = Command::new(binary_name)
             .about("Helps you with managing your investments")
@@ -66,20 +65,12 @@ impl Parser {
             .disable_help_subcommand(true)
             .subcommand_required(true)
             .arg_required_else_help(true)
+            .args(Config::args())
             .args([
-                Arg::new("config").short('c').long("config")
-                    .help(format!("Configuration directory path [default: {}]", DEFAULT_CONFIG_DIR_PATH))
-                    .value_name("PATH")
-                    .value_parser(value_parser!(PathBuf)),
-
                 Arg::new("cache_expire_time").short('e').long("cache-expire-time")
                     .help("Quote cache expire time (in $number{m|h|d} format)")
                     .value_name("DURATION")
                     .value_parser(time::parse_duration),
-
-                Arg::new("verbose").short('v').long("verbose")
-                    .help("Set verbosity level")
-                    .action(ArgAction::Count)
             ])
 
             .subcommand(Command::new("analyse")
@@ -236,16 +227,7 @@ impl Parser {
                 ]));
 
         let matches = app.get_matches_mut();
-
-        let log_level = match matches.get_count("verbose") {
-            0 => log::Level::Info,
-            1 => log::Level::Debug,
-            2 => log::Level::Trace,
-            _ => return Err!("Invalid verbosity level"),
-        };
-
-        let config_dir = matches.get_one("config").cloned().unwrap_or_else(||
-            PathBuf::from(shellexpand::tilde(DEFAULT_CONFIG_DIR_PATH).to_string()));
+        let (log_level, config_dir) = Config::parse_args(&matches)?;
 
         {
             let mut app = app;

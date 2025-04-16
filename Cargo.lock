@@ -986,9 +986,9 @@ checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
 
 [[package]]
 name = "easy-logging"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4aa29c714c7c6a9051e2b4f59dd167c943be3c3dd6ceaa1d71c3017cf7e6add9"
+checksum = "8b7c9a9b824fe2764d990762781723bfed02aa472f661b9253cda5d59344980d"
 dependencies = [
  "ansi_term",
  "atty",
@@ -1073,9 +1073,9 @@ dependencies = [
 
 [[package]]
 name = "fern"
-version = "0.6.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9f0c14694cbd524c8720dd69b0e3179344f04ebb5f90f2e4a440c6ea3b2f1ee"
+checksum = "4316185f709b23713e41e3195f90edef7fb00c3ed4adc79769cf09cc762a3b29"
 dependencies = [
  "log",
 ]
