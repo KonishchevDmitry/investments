@@ -1,5 +1,6 @@
 mod calculator;
 mod comparator;
+pub mod config;
 mod mapper;
 
 use std::collections::BTreeMap;

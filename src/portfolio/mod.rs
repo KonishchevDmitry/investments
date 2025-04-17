@@ -1,3 +1,9 @@
+pub mod config;
+mod asset_allocation;
+mod assets;
+mod formatting;
+mod rebalancing;
+
 use std::collections::hash_map::Entry;
 use std::rc::Rc;
 
@@ -14,11 +20,6 @@ use crate::types::Decimal;
 use self::asset_allocation::Portfolio;
 use self::assets::Assets;
 use self::formatting::print_portfolio;
-
-mod asset_allocation;
-mod assets;
-mod formatting;
-mod rebalancing;
 
 pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;

@@ -1,13 +1,15 @@
-use chrono::Duration;
+pub mod config;
 
+use chrono::Duration;
 use static_table_derive::StaticTable;
 
 use crate::analysis::deposit_emulator::{DepositEmulator, Transaction};
-use crate::config::DepositConfig;
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::formatting::{self, table::Style};
 use crate::localities::Country;
 use crate::types::{Date, Decimal};
+
+use self::config::DepositConfig;
 
 pub fn list(country: &Country, deposits: Vec<DepositConfig>, today: Date, cron_mode: bool, notify_days: Option<u32>) {
     let mut deposits: Vec<DepositConfig> = deposits.into_iter().filter(|deposit| {

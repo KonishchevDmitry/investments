@@ -1,3 +1,4 @@
+pub mod config;
 mod plans;
 
 use std::collections::BTreeMap;
@@ -8,11 +9,13 @@ use serde::de::{Deserializer, Error as _};
 
 use crate::broker_statement::StatementsMergingStrategy;
 use crate::commissions::CommissionSpec;
-use crate::config::{Config, BrokersConfig, BrokerConfig};
+use crate::config::Config;
 use crate::core::GenericResult;
 use crate::currency::{Cash, CashAssets};
 use crate::exchanges::Exchange;
 use crate::localities::{Country, Jurisdiction};
+
+use self::config::{BrokersConfig, BrokerConfig};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
 pub enum Broker {

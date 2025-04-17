@@ -2,7 +2,7 @@ use std::collections::{HashSet, HashMap};
 
 use crate::broker_statement::BrokerStatement;
 use crate::brokers::BrokerInfo;
-use crate::config::{PortfolioConfig, AssetAllocationConfig};
+use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::currency::converter::CurrencyConverter;
@@ -12,6 +12,7 @@ use crate::types::{Decimal, TradeType};
 use crate::util;
 
 use super::Assets;
+use super::config::AssetAllocationConfig;
 
 pub struct Portfolio {
     pub name: String,

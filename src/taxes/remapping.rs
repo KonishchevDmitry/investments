@@ -1,8 +1,21 @@
 use std::collections::HashMap;
 
-use crate::core::EmptyResult;
+use serde::Deserialize;
+
+use crate::core::{EmptyResult, GenericResult};
 use crate::formatting::format_date;
+use crate::time::deserialize_date;
 use crate::types::Date;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaxRemappingConfig {
+    #[serde(deserialize_with = "deserialize_date")]
+    pub date: Date,
+    pub description: String,
+    #[serde(deserialize_with = "deserialize_date")]
+    pub to_date: Date,
+}
 
 pub struct TaxRemapping {
     remapping: HashMap<(Date, String), (Date, bool)>
@@ -13,6 +26,16 @@ impl TaxRemapping {
         TaxRemapping {
             remapping: HashMap::new(),
         }
+    }
+
+    pub fn from_config(configs: &[TaxRemappingConfig]) -> GenericResult<TaxRemapping> {
+        let mut remapping = TaxRemapping::new();
+
+        for config in configs {
+            remapping.add(config.date, &config.description, config.to_date)?;
+        }
+
+        Ok(remapping)
     }
 
     pub fn add(&mut self, date: Date, description: &str, to_date: Date) -> EmptyResult {
