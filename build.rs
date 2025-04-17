@@ -4,7 +4,7 @@ use std::process;
 
 fn generate() -> Result<(), Box<dyn Error + Send + Sync>> {
     let base_dir = Path::new("src/quotes/tbank");
-    let protos_dir = base_dir.join("api/src/docs/contracts");
+    let protos_dir = base_dir.join("specs/src/docs/contracts");
 
     let protos = [
         protos_dir.join("instruments.proto"),

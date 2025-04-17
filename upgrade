@@ -6,7 +6,7 @@
 set -eux
 
 (
-    cd src/quotes/tbank/api
+    cd src/quotes/tbank/specs
     git checkout main
     git pull
     rm -f ../tinkoff.public.invest.api.contract.v1.rs

@@ -13,7 +13,7 @@ license = "GPL-3.0+"
 readme = "README.md"
 
 edition = "2024"
-exclude = ["/src/quotes/tbank/api", "/testdata"]
+exclude = ["/src/quotes/tbank/specs", "/testdata"]
 
 [[bin]]
 name = "investments"

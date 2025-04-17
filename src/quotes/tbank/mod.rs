@@ -1,3 +1,5 @@
+mod api;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::time::Duration;
 
@@ -10,11 +12,6 @@ use tokio::sync::Mutex;
 use tonic::{Request, Status};
 use tonic::service::{Interceptor, interceptor::InterceptedService};
 use tonic::transport::{Channel, ClientTlsConfig};
-
-#[allow(clippy::all)]
-mod api {
-    include!("tinkoff.public.invest.api.contract.v1.rs");
-}
 
 use api::{
     instruments_service_client::InstrumentsServiceClient, InstrumentsRequest, InstrumentStatus, RealExchange,
