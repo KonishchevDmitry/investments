@@ -16,12 +16,14 @@ use easy_logging::GlobalContext;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
-use crate::core::GenericResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
 use crate::quotes::{Quotes, QuotesRc};
+use crate::quotes::tbank::{Tbank, TbankExchange};
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
+use crate::time;
 use crate::types::Decimal;
 
 use self::config::{AssetGroupConfig, PerformanceMergingConfig};
@@ -77,6 +79,18 @@ pub fn simulate_sell(
         converter, &quotes, positions, base_currency)?;
 
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
+}
+
+// FIXME(konishchev): A work in progress mockup
+pub fn backtest(config: &Config, symbol: &str) -> EmptyResult {
+    let client = Tbank::new(config.brokers.as_ref().unwrap().tbank.as_ref().unwrap().api.as_ref().unwrap(), TbankExchange::Moex)?;
+
+    let to = time::tz_now();
+    let from = to.checked_sub_months(chrono::Months::new(1)).unwrap();
+
+    client.get_historical_quotes(symbol, from, to)?;
+
+    Ok(())
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {

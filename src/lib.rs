@@ -28,6 +28,7 @@ mod formats;
 mod formatting;
 mod instruments;
 mod localities;
+mod proto;
 mod quotes;
 mod rate_limiter;
 mod taxes;

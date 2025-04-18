@@ -1,32 +1,38 @@
 mod api;
+mod auth;
+mod trace;
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::time::Duration;
 
-use chrono::{LocalResult, TimeZone, Utc};
 use itertools::Itertools;
-use log::{Level, debug, log_enabled, trace};
+use log::{debug, trace};
 use serde::Deserialize;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
-use tonic::{Request, Status};
-use tonic::service::{Interceptor, interceptor::InterceptedService};
+use tonic::service::interceptor::InterceptedService;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use api::{
-    instruments_service_client::InstrumentsServiceClient, InstrumentsRequest, InstrumentStatus, RealExchange,
-    market_data_service_client::MarketDataServiceClient, GetLastPricesRequest,
+    InstrumentsRequest, InstrumentStatus, RealExchange, GetLastPricesRequest, GetCandlesRequest, CandleInterval, Quotation,
+    instruments_service_client::InstrumentsServiceClient,
+    market_data_service_client::MarketDataServiceClient,
 };
 
 use crate::core::{GenericResult, EmptyResult};
+use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::forex;
-use crate::util::{self, DecimalRestrictions};
-use crate::time::SystemTime;
+use crate::proto;
+use crate::time::{SystemTime, TzDateTime, TimeZone};
 use crate::types::Decimal;
+use crate::util::{self, DecimalRestrictions};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::is_outdated_quote;
+
+use self::auth::ClientInterceptor;
+use self::trace::InstrumentTrace;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -38,7 +44,15 @@ pub struct TbankApiConfig {
     token: String,
 }
 
-// T-Bank Invest API (https://tinkoff.github.io/investAPI/)
+#[derive(Clone, Copy)]
+pub enum TbankExchange {
+    Currency,
+    Moex,
+    Spb,
+    Unknown, // Try to collect here instruments from exchanges that we don't support yet to use it as best effort fallback
+}
+
+// T-Bank Invest API (https://developer.tbank.ru/invest/api)
 pub struct Tbank {
     token: String,
     exchange: TbankExchange,
@@ -76,11 +90,13 @@ impl Tbank {
     }
 
     fn instruments_client(&self) -> InstrumentsServiceClient<InterceptedService<Channel, ClientInterceptor>> {
-        InstrumentsServiceClient::with_interceptor(self.channel.clone(), ClientInterceptor::new(&self.token))
+        let interceptor = ClientInterceptor::new(&self.token, REQUEST_TIMEOUT);
+        InstrumentsServiceClient::with_interceptor(self.channel.clone(), interceptor)
     }
 
     fn market_data_client(&self) -> MarketDataServiceClient<InterceptedService<Channel, ClientInterceptor>> {
-        MarketDataServiceClient::with_interceptor(self.channel.clone(), ClientInterceptor::new(&self.token))
+        let interceptor = ClientInterceptor::new(&self.token, REQUEST_TIMEOUT);
+        MarketDataServiceClient::with_interceptor(self.channel.clone(), interceptor)
     }
 
     async fn get_quotes_async(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
@@ -149,26 +165,60 @@ impl Tbank {
                 _ => continue,
             };
 
-            let time = match Utc.timestamp_opt(timestamp.seconds, timestamp.nanos as u32) {
-                LocalResult::Single(time) => time,
-                _ => return Err!("Got an invalid {} quote time: {:?}", symbol, timestamp)
-            };
+            let time = proto::parse_timestamp(timestamp).ok_or_else(|| format!(
+                "Got an invalid {symbol} quote time: {timestamp:?}"))?;
 
             if let Some(time) = is_outdated_quote(time, &SystemTime()) {
                 debug!("{}: Got outdated quotes: {}.", symbol, time);
                 continue;
             }
 
-            let price = (Decimal::from(price.units) + Decimal::new(price.nano.into(), 9)) / denomination;
+            let price = parse_price(&currency, price)?;
 
-            let price = util::validate_named_cash(
-                "price", &currency, price.normalize(),
-                DecimalRestrictions::StrictlyPositive)?;
-
-            quotes.insert(symbol, price);
+            quotes.insert(symbol, price / denomination);
         }
 
         Ok(quotes)
+    }
+
+    pub fn get_historical_quotes<F, T>(&self, symbol: &str, from: TzDateTime<F>, to: TzDateTime<T>) -> GenericResult<QuotesMap>
+        where F: TimeZone, T: TimeZone
+    {
+        self.runtime.block_on(self.get_historical_quotes_async(symbol, from, to))
+    }
+
+    // FIXME(konishchev): A work in progress mockup
+    async fn get_historical_quotes_async<F, T>(&self, symbol: &str, from: TzDateTime<F>, to: TzDateTime<T>) -> GenericResult<QuotesMap>
+        where F: TimeZone, T: TimeZone
+    {
+        let stock = self.get_stock(symbol).await?.unwrap();
+
+        trace!("Getting historical quotes for {symbol} from T-Bank...");
+
+        let candles = self.market_data_client().get_candles(GetCandlesRequest {
+            instrument_id: Some(stock.uid),
+            from: Some(proto::new_timestamp(from)),
+            to: Some(proto::new_timestamp(to)), // inclusive
+            interval: CandleInterval::Day.into(),
+            ..Default::default()
+        }).await?.into_inner().candles;
+
+        for candle in candles {
+            let (Some(time), Some(open), Some(close)) = (
+                candle.time.map(proto::parse_timestamp), candle.open, candle.close
+            ) else {
+                return Err!("Got an invalid candle: {candle:?}");
+            };
+
+            let open = parse_price(&stock.currency, open)?;
+            let close = parse_price(&stock.currency, close)?;
+
+            let price = (open + close) / 2;
+
+            dbg!((time, price.normalize()));
+        }
+
+        Ok(QuotesMap::new())
     }
 
     async fn get_currency(&self, base: &str, quote: &str) -> GenericResult<Option<Currency>> {
@@ -244,6 +294,7 @@ impl Tbank {
 
     async fn get_all_shares(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
         let (name, status) = match self.exchange {
+            TbankExchange::Moex => ("MOEX stocks", InstrumentStatus::Base),
             TbankExchange::Spb => ("SPB stocks", InstrumentStatus::Base),
             TbankExchange::Unknown => ("other stocks", InstrumentStatus::All),
             TbankExchange::Currency => unreachable!(),
@@ -283,6 +334,7 @@ impl Tbank {
 
     async fn get_all_etfs(&self, stocks: &mut HashMap<String, Vec<Stock>>) -> EmptyResult {
         let (name, status, may_be_empty) = match self.exchange {
+            TbankExchange::Moex => ("MOEX ETF", InstrumentStatus::Base, true),
             TbankExchange::Spb => ("SPB ETF", InstrumentStatus::Base, true),
             TbankExchange::Unknown => ("other ETF", InstrumentStatus::All, false),
             TbankExchange::Currency => unreachable!(),
@@ -328,6 +380,8 @@ impl Tbank {
         }
 
         match self.exchange {
+            TbankExchange::Moex => real_exchange == RealExchange::Moex,
+
             TbankExchange::Spb => {
                 real_exchange == RealExchange::Rts ||
 
@@ -355,6 +409,7 @@ impl QuotesProvider for Tbank {
     fn supports_stocks(&self) -> SupportedExchange {
         match self.exchange {
             TbankExchange::Currency => SupportedExchange::None,
+            TbankExchange::Moex => SupportedExchange::Some(Exchange::Moex),
             TbankExchange::Spb => SupportedExchange::Some(Exchange::Spb),
             TbankExchange::Unknown => SupportedExchange::Some(Exchange::Other),
         }
@@ -367,13 +422,6 @@ impl QuotesProvider for Tbank {
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         self.runtime.block_on(self.get_quotes_async(symbols))
     }
-}
-
-#[derive(Clone, Copy)]
-pub enum TbankExchange {
-    Currency,
-    Spb,
-    Unknown, // Try to collect here instruments from exchanges that we don't support yet to use it as best effort fallback
 }
 
 enum Instrument {
@@ -399,118 +447,9 @@ struct Currency {
     denomination: Decimal,
 }
 
-struct ClientInterceptor {
-    token: String,
-}
-
-impl ClientInterceptor {
-    fn new(token: &str) -> ClientInterceptor {
-        ClientInterceptor {
-            token: token.to_owned(),
-        }
-    }
-}
-
-impl Interceptor for ClientInterceptor {
-    fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
-        let metadata = request.metadata_mut();
-
-        metadata.insert("x-app-name", "KonishchevDmitry.investments".parse().map_err(|_|
-            Status::invalid_argument("Invalid application name"))?);
-
-        metadata.insert("authorization", format!("Bearer {}", self.token).parse().map_err(|_|
-            Status::invalid_argument("Invalid token value"))?);
-
-        request.set_timeout(REQUEST_TIMEOUT);
-        Ok(request)
-    }
-}
-
-struct InstrumentTrace {
-    name: &'static str,
-    count: usize,
-    may_be_empty: bool,
-    found_by_symbol: BTreeMap<String, Vec<(RealExchange, String)>>,
-    found_by_exchange: BTreeMap<RealExchange, BTreeMap<String, BTreeSet<String>>>,
-    skipped_by_exchange: BTreeMap<RealExchange, BTreeMap<String, BTreeSet<String>>>,
-}
-
-impl InstrumentTrace {
-    fn new(name: &'static str, may_be_empty: bool) -> InstrumentTrace {
-        trace!("Getting a list of available {} from T-Bank...", name);
-
-        InstrumentTrace {
-            name,
-            count: 0,
-            may_be_empty,
-            found_by_symbol: BTreeMap::new(),
-            found_by_exchange: BTreeMap::new(),
-            skipped_by_exchange: BTreeMap::new(),
-        }
-    }
-
-    fn found(&mut self, real_exchange: RealExchange, exchange: String, symbol: String) {
-        self.count += 1;
-
-        if log_enabled!(Level::Trace) {
-            self.found_by_symbol.entry(symbol.clone()).or_default()
-                .push((real_exchange, exchange.clone()));
-
-            self.found_by_exchange.entry(real_exchange).or_default()
-                .entry(exchange).or_default()
-                .insert(symbol);
-        }
-    }
-
-    fn skipped(&mut self, real_exchange: RealExchange, exchange: String, symbol: String) {
-        if log_enabled!(Level::Trace) {
-            self.skipped_by_exchange.entry(real_exchange).or_default()
-                .entry(exchange).or_default()
-                .insert(symbol);
-        }
-    }
-
-    fn finish(self) -> EmptyResult {
-        if log_enabled!(Level::Trace) {
-            trace!("Got the following {} from T-Bank:", self.name);
-            for (real_exchange, exchanges) in self.found_by_exchange {
-                trace!("* {}:", real_exchange.as_str_name());
-                for (exchange, symbols) in exchanges {
-                    trace!("  * {}: {}", exchange, symbols.iter().join(", "));
-                }
-            }
-
-            if !self.skipped_by_exchange.is_empty() {
-                trace!("Skipped non-{} from T-Bank:", self.name);
-                for (real_exchange, exchanges) in self.skipped_by_exchange {
-                    trace!("* {}:", real_exchange.as_str_name());
-                    for (exchange, symbols) in exchanges {
-                        trace!("  * {}: {}", exchange, symbols.iter().join(", "));
-                    }
-                }
-            }
-
-            let mut has_duplicates = false;
-            for (symbol, exchanges) in self.found_by_symbol {
-                if exchanges.len() == 1 {
-                    continue;
-                }
-
-                if !has_duplicates {
-                    trace!("Duplicated {} from T-Bank:", self.name);
-                    has_duplicates = true;
-                }
-
-                trace!("* {}: {}", symbol, exchanges.iter().map(|(real_exchange, exchange)| {
-                    format!("{}/{}", real_exchange.as_str_name(), exchange)
-                }).join(", "));
-            }
-        }
-
-        if !self.may_be_empty && self.count == 0 {
-            return Err!("Got an empty list of available {}", self.name);
-        }
-
-        Ok(())
-    }
+fn parse_price(currency: &str, quote: Quotation) -> GenericResult<Cash> {
+    let price = Decimal::from(quote.units) + Decimal::new(quote.nano.into(), 9);
+    util::validate_named_cash(
+        "price", currency, price.normalize(),
+        DecimalRestrictions::StrictlyPositive)
 }

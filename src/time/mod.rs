@@ -3,9 +3,10 @@ mod month;
 mod parsing;
 mod period;
 
-use chrono::{Local, TimeZone};
+use chrono::Local;
 #[cfg(debug_assertions)] use lazy_static::lazy_static;
 
+pub use chrono::TimeZone as TimeZone;
 pub use chrono::DateTime as TzDateTime;
 pub use crate::types::{Date, Time, DateTime};
 
@@ -30,7 +31,7 @@ pub fn timestamp() -> i64 {
     utc_now().and_utc().timestamp()
 }
 
-fn tz_now() -> TzDateTime<Local> {
+pub fn tz_now() -> TzDateTime<Local> {
     #[cfg(debug_assertions)]
     {
         use std::process;

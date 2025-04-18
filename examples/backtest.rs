@@ -4,8 +4,9 @@ use std::process::ExitCode;
 
 use clap::Command;
 use easy_logging::LoggingConfig;
-use log::{info, error};
+use log::{warn, error};
 
+use investments::analysis;
 use investments::core::EmptyResult;
 use investments::config::Config;
 
@@ -42,7 +43,10 @@ fn main() -> ExitCode {
 }
 
 pub fn run(config_dir: &Path) -> EmptyResult {
-    Config::new(config_dir)?;
-    info!("Not implemented yet.");
+    let config = Config::new(config_dir)?;
+
+    warn!("Not implemented yet.");
+    analysis::backtest(&config, "SBMX")?;
+
     Ok(())
 }
