@@ -19,11 +19,11 @@ use crate::config::{Config, PortfolioConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
+use crate::exchanges::Exchange;
 use crate::quotes::{Quotes, QuotesRc};
-use crate::quotes::tbank::{Tbank, TbankExchange};
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
-use crate::time;
+use crate::time::Period;
 use crate::types::Decimal;
 
 use self::config::{AssetGroupConfig, PerformanceMergingConfig};
@@ -83,12 +83,12 @@ pub fn simulate_sell(
 
 // FIXME(konishchev): A work in progress mockup
 pub fn backtest(config: &Config, symbol: &str) -> EmptyResult {
-    let client = Tbank::new(config.brokers.as_ref().unwrap().tbank.as_ref().unwrap().api.as_ref().unwrap(), TbankExchange::Moex)?;
+    let (_converter, quotes) = load_tools(config)?;
 
-    let to = time::tz_now();
-    let from = to.checked_sub_months(chrono::Months::new(1)).unwrap();
-
-    client.get_historical_quotes(symbol, from, to)?;
+    let candles = quotes.get_historical(Exchange::Moex, symbol, Period::new(date!(2025, 3, 1), date!(2025, 3, 31))?)?;
+    for (date, price) in candles {
+        println!("{date}: {price}");
+    }
 
     Ok(())
 }

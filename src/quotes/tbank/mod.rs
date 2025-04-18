@@ -5,6 +5,7 @@ mod trace;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use chrono::Local;
 use itertools::Itertools;
 use log::{debug, trace};
 use serde::Deserialize;
@@ -24,11 +25,11 @@ use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::forex;
 use crate::proto;
-use crate::time::{SystemTime, TzDateTime, TimeZone};
+use crate::time::{SystemTime, TimeZone, Period};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
-use super::{SupportedExchange, QuotesMap, QuotesProvider};
+use super::{SupportedExchange, QuotesProvider, QuotesMap, HistoricalQuotes};
 use super::common::is_outdated_quote;
 
 use self::auth::ClientInterceptor;
@@ -181,44 +182,59 @@ impl Tbank {
         Ok(quotes)
     }
 
-    pub fn get_historical_quotes<F, T>(&self, symbol: &str, from: TzDateTime<F>, to: TzDateTime<T>) -> GenericResult<QuotesMap>
-        where F: TimeZone, T: TimeZone
-    {
-        self.runtime.block_on(self.get_historical_quotes_async(symbol, from, to))
-    }
+    async fn get_historical_quotes_async(&self, symbol: &str, period: Period) -> GenericResult<Option<HistoricalQuotes>> {
+        let Some(stock) = self.get_stock(symbol).await? else {
+            return Ok(None);
+        };
 
-    // FIXME(konishchev): A work in progress mockup
-    async fn get_historical_quotes_async<F, T>(&self, symbol: &str, from: TzDateTime<F>, to: TzDateTime<T>) -> GenericResult<QuotesMap>
-        where F: TimeZone, T: TimeZone
-    {
-        let stock = self.get_stock(symbol).await?.unwrap();
+        let (Some(from), Some(last_day), Some(to)) = (
+            Local.from_local_datetime(&period.first_date().into()).single(),
+            Local.from_local_datetime(&period.last_date().into()).single(),
+            period.last_date().and_hms_opt(23, 59, 59).and_then(|time| Local.from_local_datetime(&time).single())
+        ) else {
+            return Err!("Invalid period: {period}");
+        };
 
-        trace!("Getting historical quotes for {symbol} from T-Bank...");
+        trace!("Getting historical quotes for {symbol} ({period}) from T-Bank...");
 
-        let candles = self.market_data_client().get_candles(GetCandlesRequest {
-            instrument_id: Some(stock.uid),
-            from: Some(proto::new_timestamp(from)),
-            to: Some(proto::new_timestamp(to)), // inclusive
-            interval: CandleInterval::Day.into(),
-            ..Default::default()
-        }).await?.into_inner().candles;
+        let mut quotes = HistoricalQuotes::new();
+        let mut cursor = proto::new_timestamp(from);
 
-        for candle in candles {
-            let (Some(time), Some(open), Some(close)) = (
-                candle.time.map(proto::parse_timestamp), candle.open, candle.close
-            ) else {
-                return Err!("Got an invalid candle: {candle:?}");
+        loop {
+            let candles = self.market_data_client().get_candles(GetCandlesRequest {
+                instrument_id: Some(stock.uid.clone()),
+                from: Some(cursor),
+                to: Some(proto::new_timestamp(to)), // inclusive
+                interval: CandleInterval::Day.into(),
+                ..Default::default()
+            }).await?.into_inner().candles;
+
+            for candle in &candles {
+                let (Some(time), Some(open), Some(close)) = (
+                    candle.time.and_then(proto::parse_timestamp), candle.open, candle.close
+                ) else {
+                    return Err!("Got an invalid candle: {candle:?}");
+                };
+
+                let date = time.with_timezone(&Local).date_naive();
+                let open = parse_price(&stock.currency, open)?;
+                let close = parse_price(&stock.currency, close)?;
+
+                let price = ((open + close) / 2).normalize();
+                quotes.insert(date, price);
+
+                if time >= last_day {
+                    return Ok(Some(quotes));
+                }
+            }
+
+            let Some(last_candle) = candles.last() else {
+                return Ok(Some(quotes));
             };
 
-            let open = parse_price(&stock.currency, open)?;
-            let close = parse_price(&stock.currency, close)?;
-
-            let price = (open + close) / 2;
-
-            dbg!((time, price.normalize()));
+            cursor = last_candle.time.unwrap();
+            cursor.seconds += 1;
         }
-
-        Ok(QuotesMap::new())
     }
 
     async fn get_currency(&self, base: &str, quote: &str) -> GenericResult<Option<Currency>> {
@@ -406,6 +422,10 @@ impl QuotesProvider for Tbank {
         "T-Bank"
     }
 
+    fn supports_forex(&self) -> bool {
+        matches!(self.exchange, TbankExchange::Currency)
+    }
+
     fn supports_stocks(&self) -> SupportedExchange {
         match self.exchange {
             TbankExchange::Currency => SupportedExchange::None,
@@ -415,12 +435,16 @@ impl QuotesProvider for Tbank {
         }
     }
 
-    fn supports_forex(&self) -> bool {
-        matches!(self.exchange, TbankExchange::Currency)
+    fn supports_historical_stocks(&self) -> SupportedExchange {
+        self.supports_stocks()
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
         self.runtime.block_on(self.get_quotes_async(symbols))
+    }
+
+    fn get_historical_quotes(&self, symbol: &str, perod: Period) -> GenericResult<Option<HistoricalQuotes>> {
+        self.runtime.block_on(self.get_historical_quotes_async(symbol, perod))
     }
 }
 

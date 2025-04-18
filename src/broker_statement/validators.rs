@@ -35,12 +35,12 @@ impl DateValidator {
 
         if first_date < self.period.first_date() {
             return Err!("Got {} outside of statement period ({}): {}",
-                        name, self.period.format(), formatting::format_date(first_date));
+                        name, self.period, formatting::format_date(first_date));
         }
 
         if last_date > self.period.last_date() {
             return Err!("Got {} outside of statement period ({}): {}",
-                        name, self.period.format(), formatting::format_date(last_date));
+                        name, self.period, formatting::format_date(last_date));
         }
 
         Ok(())

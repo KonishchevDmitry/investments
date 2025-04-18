@@ -12,7 +12,7 @@ pub mod tbank;
 pub mod twelvedata;
 
 use std::cell::RefCell;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{BTreeMap, HashMap, hash_map::Entry};
 use std::rc::Rc;
 use std::sync::Arc;
 #[cfg(test)] use std::sync::Mutex;
@@ -29,7 +29,7 @@ use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::{Exchange, Exchanges};
 use crate::forex;
-use crate::time::Date;
+use crate::time::{Date, Period};
 use crate::types::Decimal;
 
 use self::cache::Cache;
@@ -145,6 +145,11 @@ impl Quotes {
         providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQTF")));
         providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQBR")));
 
+        // At this time this is only for the sake of historical queries
+        if let Some(config) = tbank {
+            providers.push(Arc::new(Tbank::new(config, TbankExchange::Moex)?));
+        }
+
         // As a best effort for unsupported exchanges provide a fallback to T-Bank SPB/OTC stocks
         if let Some(config) = tbank {
             providers.push(Arc::new(Tbank::new(config, TbankExchange::Unknown)?));
@@ -189,6 +194,36 @@ impl Quotes {
         self.execute()?;
 
         Ok(self.cache.get(query.symbol())?.unwrap())
+    }
+
+    pub fn get_historical(&self, exchange: Exchange, symbol: &str, period: Period) -> GenericResult<HistoricalQuotes> {
+        for provider in &self.providers {
+            let provider = match provider.supports_historical_stocks() {
+                SupportedExchange::Some(provider_exchange) => {
+                    if provider_exchange != exchange {
+                        continue;
+                    }
+                    provider
+                },
+                SupportedExchange::Any => {
+                    provider
+                },
+                SupportedExchange::None => {
+                    continue;
+                },
+            };
+
+            debug!("Getting historical quotes from {} for {symbol} ({period})...", provider.name());
+
+            let quotes = provider.get_historical_quotes(symbol, period).map_err(|e| format!(
+                "Failed to get historical quotes from {}: {e}", provider.name()))?;
+
+            if let Some(quotes) = quotes {
+                return Ok(quotes);
+            }
+        }
+
+        Err!("Unable to find historical quotes for {symbol}")
     }
 
     fn batch_forex(&self, mut symbol: String) -> GenericResult<Option<Cash>> {
@@ -412,6 +447,7 @@ impl Quotes {
 }
 
 type QuotesMap = HashMap<String, Cash>;
+type HistoricalQuotes = BTreeMap<Date, Cash>;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SupportedExchange {
@@ -422,10 +458,14 @@ enum SupportedExchange {
 
 trait QuotesProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    fn supports_stocks(&self) -> SupportedExchange {SupportedExchange::None}
-    fn supports_forex(&self) -> bool {false}
+
     fn high_precision(&self) -> bool {false}
+    fn supports_forex(&self) -> bool {false}
+    fn supports_stocks(&self) -> SupportedExchange {SupportedExchange::None}
+    fn supports_historical_stocks(&self) -> SupportedExchange {SupportedExchange::None}
+
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
+    fn get_historical_quotes(&self, _symbol: &str, _period: Period) -> GenericResult<Option<HistoricalQuotes>> {Ok(None)}
 }
 
 #[cfg(test)]

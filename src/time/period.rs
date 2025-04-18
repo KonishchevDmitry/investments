@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::core::GenericResult;
 use crate::formatting;
 
@@ -14,7 +16,7 @@ impl Period {
         let period = Period {first, last};
 
         if period.first > period.last {
-            return Err!("Invalid period: {}", period.format());
+            return Err!("Invalid period: {period}");
         }
 
         Ok(period)
@@ -22,7 +24,7 @@ impl Period {
 
     pub fn join(mut self, other: Period) -> GenericResult<Period> {
         if other.first_date() != self.next_date() {
-            return Err!("Non-continuous periods: {}, {}", self.format(), other.format());
+            return Err!("Non-continuous periods: {self}, {other}");
         }
 
         self.last = other.last;
@@ -52,8 +54,10 @@ impl Period {
     pub fn days(&self) -> i64 {
         (self.last - self.first).num_days() + 1
     }
+}
 
-    pub fn format(&self) -> String {
-        format!("{} - {}", formatting::format_date(self.first), formatting::format_date(self.last))
+impl fmt::Display for Period {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} - {}", formatting::format_date(self.first), formatting::format_date(self.last))
     }
 }

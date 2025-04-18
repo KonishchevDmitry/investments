@@ -87,7 +87,7 @@ impl SectionParser for TradesParser {
             if !self.check_trade_id(&trade.id)? {
                 debug!(
                     "{}: Skipping #{} trade: it's already processed for another statement.",
-                    statement.get_period()?.format(), trade.id,
+                    statement.get_period()?, trade.id,
                 );
                 continue;
             }

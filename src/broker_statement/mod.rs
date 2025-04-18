@@ -101,9 +101,7 @@ impl BrokerStatement {
         for statement in &statements[1..] {
             let period = statement.period.unwrap();
             if period.first_date() <= last_period.last_date() {
-                return Err!(
-                    "Overlapping broker statement periods: {} and {}",
-                    last_period.format(), period.format());
+                return Err!("Overlapping broker statement periods: {last_period} and {period}");
             }
             last_period = period;
         }
@@ -201,7 +199,7 @@ impl BrokerStatement {
                 "The first broker statement ({}) has a non-zero starting assets. ",
                 "Make sure that broker statements directory contains statements for all periods ",
                 "starting from account opening",
-            ), period.format());
+            ), period);
         }
 
         Ok(BrokerStatement {
@@ -250,14 +248,14 @@ impl BrokerStatement {
             return Err!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't overlap with the requested tax year ({})"),
-                self.period.format(), year);
+                self.period, year);
         }
 
         if self.period.last_date() < tax_period_end {
             warn!(concat!(
                 "Period of the specified broker statement ({}) ",
                 "doesn't fully overlap with the requested tax year ({})."
-            ), self.period.format(), year);
+            ), self.period, year);
         }
 
         Period::new(

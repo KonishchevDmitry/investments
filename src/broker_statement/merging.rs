@@ -17,7 +17,7 @@ pub enum StatementsMergingStrategy {
 
 impl StatementsMergingStrategy {
     pub fn validate(self, first: Period, second: Period, last_date: Date) -> EmptyResult {
-        let error = |message| Err!("{}: {}, {}", message, first.format(), second.format());
+        let error = |message| Err!("{message}: {first}, {second}");
 
         if second.first_date() <= first.last_date() {
             return error("Overlapping periods");
