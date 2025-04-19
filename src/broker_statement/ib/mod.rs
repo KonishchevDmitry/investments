@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn parse_real() {
-        let tax_remapping = Config::new("testdata/configs/main").unwrap()
+        let tax_remapping = Config::new("testdata/configs/main", None).unwrap()
             .get_portfolio("ib").unwrap().get_tax_remapping().unwrap();
         let statement = parse_full("my", Some(tax_remapping));
         let current_year = statement.period.next_date().year();

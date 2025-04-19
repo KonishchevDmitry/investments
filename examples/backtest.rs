@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Command;
@@ -8,7 +7,7 @@ use log::{warn, error};
 
 use investments::analysis;
 use investments::core::EmptyResult;
-use investments::config::Config;
+use investments::config::{CliConfig, Config};
 
 fn main() -> ExitCode {
     let matches = Command::new("backtest")
@@ -18,23 +17,23 @@ fn main() -> ExitCode {
         .args(Config::args())
         .get_matches();
 
-    let (log_level, config_dir) = match Config::parse_args(&matches) {
-        Ok(args) => args,
+    let cli_config = match Config::parse_args(&matches) {
+        Ok(cli_config) => cli_config,
         Err(err) => {
             let _ = writeln!(io::stderr(), "{err}.");
             return ExitCode::FAILURE;
         },
     };
 
-    let logging = LoggingConfig::new(module_path!(), log_level)
-        .level_for("investments", log_level);
+    let logging = LoggingConfig::new(module_path!(), cli_config.log_level)
+        .level_for("investments", cli_config.log_level);
 
     if let Err(err) = logging.build() {
         let _ = writeln!(io::stderr(), "Failed to initialize the logging: {err}.");
         return ExitCode::FAILURE;
     }
 
-    if let Err(err) = run(&config_dir) {
+    if let Err(err) = run(cli_config) {
         error!("{err}.");
         return ExitCode::FAILURE;
     }
@@ -42,11 +41,11 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-pub fn run(config_dir: &Path) -> EmptyResult {
-    let config = Config::new(config_dir)?;
+pub fn run(cli_config: CliConfig) -> EmptyResult {
+    let config = Config::new(&cli_config.config_dir, cli_config.cache_expire_time)?;
 
     warn!("Not implemented yet.");
-    analysis::backtest(&config, "SBMX")?;
+    analysis::backtest(&config)?;
 
     Ok(())
 }

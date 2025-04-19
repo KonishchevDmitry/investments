@@ -10,7 +10,7 @@ use regex::Regex;
 use strum::{EnumMessage, IntoEnumIterator};
 
 use investments::analysis::PerformanceAnalysisMethod;
-use investments::config::Config;
+use investments::config::{CliConfig, Config};
 use investments::core::GenericResult;
 use investments::time;
 use investments::types::{Date, Decimal};
@@ -38,11 +38,6 @@ pub struct Parser {
     to_sell: PositionsParser,
 }
 
-pub struct GlobalOptions {
-    pub log_level: log::Level,
-    pub config_dir: PathBuf,
-}
-
 impl Parser {
     pub fn new() -> Parser {
         Parser {
@@ -55,7 +50,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_global(&mut self) -> GenericResult<GlobalOptions> {
+    pub fn parse_global(&mut self) -> GenericResult<CliConfig> {
         let binary_name = "investments";
 
         let mut app = Command::new(binary_name)
@@ -66,12 +61,6 @@ impl Parser {
             .subcommand_required(true)
             .arg_required_else_help(true)
             .args(Config::args())
-            .args([
-                Arg::new("cache_expire_time").short('e').long("cache-expire-time")
-                    .help("Quote cache expire time (in $number{m|h|d} format)")
-                    .value_name("DURATION")
-                    .value_parser(time::parse_duration),
-            ])
 
             .subcommand(Command::new("analyse")
                 .about("Analyze portfolio performance")
@@ -227,7 +216,7 @@ impl Parser {
                 ]));
 
         let matches = app.get_matches_mut();
-        let (log_level, config_dir) = Config::parse_args(&matches)?;
+        let cli_config = Config::parse_args(&matches)?;
 
         {
             let mut app = app;
@@ -243,15 +232,11 @@ impl Parser {
 
         self.matches = Some(matches);
 
-        Ok(GlobalOptions {log_level, config_dir})
+        Ok(cli_config)
     }
 
-    pub fn parse(mut self, config: &mut Config) -> GenericResult<(String, Action)> {
+    pub fn parse(mut self) -> GenericResult<(String, Action)> {
         let matches = self.matches.take().unwrap();
-
-        if let Some(expire_time) = matches.get_one("cache_expire_time").cloned() {
-            config.cache_expire_time = expire_time;
-        };
 
         let (command, matches) = matches.subcommand().unwrap();
         let action = self.parse_command(command, matches)?;

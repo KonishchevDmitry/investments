@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::Duration;
 use clap::{Arg, ArgAction, ArgMatches, value_parser};
-use log::Level;
+
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use validator::Validate;
@@ -31,6 +31,12 @@ use crate::taxes::remapping::TaxRemappingConfig;
 use crate::telemetry::TelemetryConfig;
 use crate::time;
 use crate::types::{Date, Decimal};
+
+pub struct CliConfig {
+    pub log_level: log::Level,
+    pub config_dir: PathBuf,
+    pub cache_expire_time: Option<Duration>,
+}
 
 #[derive(Deserialize, Validate)]
 #[serde(deny_unknown_fields)]
@@ -72,12 +78,16 @@ pub struct Config {
 impl Config {
     const DEFAULT_CONFIG_DIR_PATH: &str = "~/.investments";
 
-    pub fn new<P: AsRef<Path>>(config_dir: P) -> GenericResult<Config> {
+    pub fn new<P: AsRef<Path>>(config_dir: P, cache_expire_time: Option<Duration>) -> GenericResult<Config> {
         let config_dir = config_dir.as_ref();
 
         let config_path = config_dir.join("config.yaml");
         let mut config = Config::load(&config_path).map_err(|e| format!(
             "Error while reading {config_path:?} configuration file: {e}"))?;
+
+        if let Some(cache_expire_time) = cache_expire_time {
+            config.cache_expire_time = cache_expire_time;
+        }
 
         config_dir.join("db.sqlite").to_str()
             .ok_or_else(|| format!("Invalid configuration directory path: {config_dir:?}"))?
@@ -112,18 +122,23 @@ impl Config {
         }
     }
 
-    pub fn args() -> [Arg;2] {[
-        Arg::new("verbose").short('v').long("verbose")
-            .help("Set verbosity level")
-            .action(ArgAction::Count),
-
+    pub fn args() -> [Arg;3] {[
         Arg::new("config").short('c').long("config")
             .help(format!("Configuration directory path [default: {}]", Self::DEFAULT_CONFIG_DIR_PATH))
             .value_name("PATH")
             .value_parser(value_parser!(PathBuf)),
+
+        Arg::new("verbose").short('v').long("verbose")
+            .help("Set verbosity level")
+            .action(ArgAction::Count),
+
+        Arg::new("cache_expire_time").short('e').long("cache-expire-time")
+            .help("Quote cache expire time (in $number{m|h|d} format)")
+            .value_name("DURATION")
+            .value_parser(time::parse_duration),
     ]}
 
-    pub fn parse_args(matches: &ArgMatches) -> GenericResult<(Level, PathBuf)> {
+    pub fn parse_args(matches: &ArgMatches) -> GenericResult<CliConfig> {
         let log_level = match matches.get_count("verbose") {
             0 => log::Level::Info,
             1 => log::Level::Debug,
@@ -134,7 +149,13 @@ impl Config {
         let config_dir = matches.get_one("config").cloned().unwrap_or_else(||
             PathBuf::from(shellexpand::tilde(Self::DEFAULT_CONFIG_DIR_PATH).to_string()));
 
-        Ok((log_level, config_dir))
+        let cache_expire_time = matches.get_one("cache_expire_time").cloned();
+
+        Ok(CliConfig {
+            log_level,
+            config_dir,
+            cache_expire_time,
+        })
     }
 
     pub fn get_tax_country(&self) -> Country {

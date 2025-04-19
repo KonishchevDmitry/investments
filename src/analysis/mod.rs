@@ -1,3 +1,4 @@
+mod backtesting;
 pub mod config;
 pub mod deposit_emulator;
 mod deposit_performance;
@@ -18,14 +19,15 @@ use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
+use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::Exchange;
 use crate::quotes::{Quotes, QuotesRc};
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
-use crate::time::Period;
 use crate::types::Decimal;
 
+use self::backtesting::{Benchmark, BenchmarkInstrument};
 use self::config::{AssetGroupConfig, PerformanceMergingConfig};
 use self::portfolio_analysis::PortfolioAnalyser;
 use self::portfolio_statistics::PortfolioStatistics;
@@ -82,12 +84,32 @@ pub fn simulate_sell(
 }
 
 // FIXME(konishchev): A work in progress mockup
-pub fn backtest(config: &Config, symbol: &str) -> EmptyResult {
-    let (_converter, quotes) = load_tools(config)?;
+pub fn backtest(config: &Config) -> EmptyResult {
+    let (converter, quotes) = load_tools(config)?;
 
-    let candles = quotes.get_historical(Exchange::Moex, symbol, Period::new(date!(2025, 3, 1), date!(2025, 3, 31))?)?;
-    for (date, price) in candles {
-        println!("{date}: {price}");
+    let benchmarks = vec![
+        Benchmark::new("Russian stocks", BenchmarkInstrument::new("SBMX", Exchange::Moex)),
+    ];
+
+    let currency = "RUB";
+
+    let portfolios = load_portfolios(config, Some("sber-iia"))?;
+
+    let mut cash_flows = Vec::new();
+    let mut net_value = Cash::zero(currency);
+
+    for (_portfolio, statement) in portfolios {
+        net_value += statement.net_value(&converter, &quotes, currency, true)?;
+        cash_flows.extend(statement.deposits_and_withdrawals);
+    }
+
+    cash_flows.sort_by_key(|cash_flow| cash_flow.date);
+
+    println!("Portfoio: {net_value}");
+
+    for benchmark in &benchmarks {
+        let result = benchmark.backtest(currency, &cash_flows, &converter, &quotes)?;
+        println!("{}: {result}", benchmark.name);
     }
 
     Ok(())

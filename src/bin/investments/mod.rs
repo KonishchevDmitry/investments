@@ -14,7 +14,7 @@ use log::error;
 
 use investments::analysis;
 use investments::cash_flow;
-use investments::config::Config;
+use investments::config::{CliConfig, Config};
 use investments::core::{EmptyResult, GenericResult};
 use investments::db;
 use investments::deposits;
@@ -24,25 +24,25 @@ use investments::tax_statement;
 use investments::telemetry::{Telemetry, TelemetryRecordBuilder};
 
 use self::action::Action;
-use self::parser::{Parser, GlobalOptions};
+use self::parser::Parser;
 
 fn main() -> ExitCode {
     let mut parser = Parser::new();
 
-    let global = match parser.parse_global() {
-        Ok(global) => global,
+    let cli_config = match parser.parse_global() {
+        Ok(cli_config) => cli_config,
         Err(err) => {
             let _ = writeln!(io::stderr(), "{err}.");
             return ExitCode::FAILURE;
         },
     };
 
-    if let Err(err) = easy_logging::init(module_path!(), global.log_level) {
+    if let Err(err) = easy_logging::init(module_path!(), cli_config.log_level) {
         let _ = writeln!(io::stderr(), "Failed to initialize the logging: {err}.");
         return ExitCode::FAILURE;
     }
 
-    if let Err(err) = run(global, parser) {
+    if let Err(err) = run(cli_config, parser) {
         let message = err.to_string();
 
         if message.contains('\n') {
@@ -57,9 +57,9 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn run(global: GlobalOptions, parser: Parser) -> EmptyResult {
-    let mut config = Config::new(&global.config_dir)?;
-    let (command, action) = parser.parse(&mut config)?;
+fn run(cli_config: CliConfig, parser: Parser) -> EmptyResult {
+    let config = Config::new(&cli_config.config_dir, cli_config.cache_expire_time)?;
+    let (command, action) = parser.parse()?;
 
     let telemetry = (!config.telemetry.disable).then(|| -> GenericResult<Telemetry> {
         let connection = db::connect(&config.db_path)?;
