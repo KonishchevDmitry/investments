@@ -17,6 +17,7 @@ use easy_logging::GlobalContext;
 use itertools::Itertools;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
+use crate::brokers::Broker;
 use crate::config::{Config, PortfolioConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
@@ -84,8 +85,11 @@ pub fn simulate_sell(
 }
 
 pub fn backtest(config: &Config) -> EmptyResult {
+    // let commission_spec = Broker::Tbank.get_commission_spec(Some("Премиум"))?;
+    let commission_spec = Broker::Sber.get_commission_spec(Some("Самостоятельный"))?;
+
     let benchmarks = [
-        Benchmark::new("Russian stocks", BenchmarkInstrument::new("SBMX", Exchange::Moex)),
+        Benchmark::new("Russian stocks", BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec)),
     ];
 
     let (converter, quotes) = load_tools(config)?;
@@ -93,7 +97,7 @@ pub fn backtest(config: &Config) -> EmptyResult {
         .map(|(_portfolio, statement)| statement)
         .collect_vec();
 
-    backtesting::backtest("RUB", &benchmarks, &statements, &converter, &quotes)
+    backtesting::backtest("RUB", &benchmarks, &statements, converter, &quotes)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
@@ -122,7 +126,7 @@ fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<
 }
 
 fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strictness: ReadingStrictness) -> GenericResult<BrokerStatement> {
-    let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
+    let broker = portfolio.broker.get_info(config, portfolio.plan.as_deref())?;
     BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions,

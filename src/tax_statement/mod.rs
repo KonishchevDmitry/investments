@@ -24,7 +24,7 @@ pub fn generate_tax_statement(
 ) -> GenericResult<TelemetryRecordBuilder> {
     let country = config.get_tax_country();
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
+    let broker = portfolio.broker.get_info(config, portfolio.plan.as_deref())?;
 
     let broker_statement = BrokerStatement::read(
         broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,

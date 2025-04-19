@@ -28,31 +28,6 @@ pub enum Broker {
 }
 
 impl Broker {
-    pub fn get_info(self, config: &Config, plan: Option<&String>) -> GenericResult<BrokerInfo> {
-        let config = config.brokers.as_ref()
-            .and_then(|brokers| self.get_config(brokers).cloned())
-            .unwrap_or_default();
-
-        let statements_merging_strategy = match self {
-            Broker::InteractiveBrokers => StatementsMergingStrategy::SparseOnHolidays(1),
-            Broker::Open => StatementsMergingStrategy::SparseSingleDaysLastMonth(0),
-            Broker::Sber => StatementsMergingStrategy::Sparse,
-            _ => StatementsMergingStrategy::ContinuousOnly,
-        };
-
-        Ok(BrokerInfo {
-            type_: self,
-            name: self.name(),
-            brief_name: self.brief_name(),
-
-            config: config,
-            commission_spec: self.get_commission_spec(plan)?,
-            allow_future_fees: matches!(self, Broker::Tbank),
-            fractional_shares_trading: matches!(self, Broker::InteractiveBrokers),
-            statements_merging_strategy: statements_merging_strategy,
-        })
-    }
-
     pub fn id(self) -> &'static str {
         match self {
             Broker::Bcs => "bcs",
@@ -93,18 +68,32 @@ impl Broker {
         }
     }
 
-    fn get_config(self, config: &BrokersConfig) -> Option<&BrokerConfig> {
-        match self {
-            Broker::Bcs => config.bcs.as_ref(),
-            Broker::Firstrade => config.firstrade.as_ref(),
-            Broker::InteractiveBrokers => config.interactive_brokers.as_ref(),
-            Broker::Open => config.open_broker.as_ref(),
-            Broker::Sber => config.sber.as_ref(),
-            Broker::Tbank => config.tbank.as_ref().and_then(|tbank| tbank.broker.as_ref()),
-        }
+    pub fn get_info(self, config: &Config, plan: Option<&str>) -> GenericResult<BrokerInfo> {
+        let config = config.brokers.as_ref()
+            .and_then(|brokers| self.get_config(brokers).cloned())
+            .unwrap_or_default();
+
+        let statements_merging_strategy = match self {
+            Broker::InteractiveBrokers => StatementsMergingStrategy::SparseOnHolidays(1),
+            Broker::Open => StatementsMergingStrategy::SparseSingleDaysLastMonth(0),
+            Broker::Sber => StatementsMergingStrategy::Sparse,
+            _ => StatementsMergingStrategy::ContinuousOnly,
+        };
+
+        Ok(BrokerInfo {
+            type_: self,
+            name: self.name(),
+            brief_name: self.brief_name(),
+
+            config: config,
+            commission_spec: self.get_commission_spec(plan)?,
+            allow_future_fees: matches!(self, Broker::Tbank),
+            fractional_shares_trading: matches!(self, Broker::InteractiveBrokers),
+            statements_merging_strategy: statements_merging_strategy,
+        })
     }
 
-    fn get_commission_spec(self, plan: Option<&String>) -> GenericResult<CommissionSpec> {
+    pub fn get_commission_spec(self, plan: Option<&str>) -> GenericResult<CommissionSpec> {
         type PlanFn = fn() -> CommissionSpec;
 
         let (default, plans): (PlanFn, BTreeMap<&str, PlanFn>) = match self {
@@ -141,7 +130,7 @@ impl Broker {
 
         let plan = match plan {
             Some(plan) => {
-                *plans.get(plan.as_str()).ok_or_else(|| format!(
+                *plans.get(plan).ok_or_else(|| format!(
                     "Invalid plan for {}: {}. Available plans: {}",
                     self.name(), plan, plans.keys().copied().collect::<Vec<_>>().join(", "),
                 ))?
@@ -150,6 +139,17 @@ impl Broker {
         };
 
         Ok(plan())
+    }
+
+    fn get_config(self, config: &BrokersConfig) -> Option<&BrokerConfig> {
+        match self {
+            Broker::Bcs => config.bcs.as_ref(),
+            Broker::Firstrade => config.firstrade.as_ref(),
+            Broker::InteractiveBrokers => config.interactive_brokers.as_ref(),
+            Broker::Open => config.open_broker.as_ref(),
+            Broker::Sber => config.sber.as_ref(),
+            Broker::Tbank => config.tbank.as_ref().and_then(|tbank| tbank.broker.as_ref()),
+        }
     }
 }
 

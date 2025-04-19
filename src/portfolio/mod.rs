@@ -23,7 +23,7 @@ use self::formatting::print_portfolio;
 
 pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
+    let broker = portfolio.broker.get_info(config, portfolio.plan.as_deref())?;
     let database = db::connect(&config.db_path)?;
 
     let statement = BrokerStatement::read(
@@ -130,7 +130,7 @@ pub fn rebalance(config: &Config, portfolio_name: &str, flat: bool) -> GenericRe
 
 fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio_config = config.get_portfolio(portfolio_name)?;
-    let broker = portfolio_config.broker.get_info(config, portfolio_config.plan.as_ref())?;
+    let broker = portfolio_config.broker.get_info(config, portfolio_config.plan.as_deref())?;
     let database = db::connect(&config.db_path)?;
 
     let quotes = Rc::new(Quotes::new(config, database.clone())?);

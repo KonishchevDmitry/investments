@@ -5,9 +5,10 @@ use num_traits::Zero;
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
+use crate::commissions::CommissionSpec;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
-use crate::currency::converter::CurrencyConverter;
+use crate::currency::converter::CurrencyConverterRc;
 use crate::exchanges::Exchange;
 use crate::formatting::table::Cell;
 use crate::quotes::{QuoteQuery, Quotes};
@@ -16,7 +17,7 @@ use crate::types::Decimal;
 
 pub fn backtest(
     currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement],
-    converter: &CurrencyConverter, quotes: &Quotes,
+    converter: CurrencyConverterRc, quotes: &Quotes,
 ) -> EmptyResult {
     let mut cash_flows = BTreeMap::new();
     let mut net_value = Cash::zero(currency);
@@ -28,7 +29,7 @@ pub fn backtest(
                 .or_insert(cash_flow.cash.amount);
         }
 
-        net_value += statement.net_value(converter, quotes, currency, true)?;
+        net_value += statement.net_value(&converter, quotes, currency, true)?;
     }
 
     let cash_flows = cash_flows.into_iter()
@@ -51,7 +52,7 @@ pub fn backtest(
     });
 
     for benchmark in benchmarks {
-        let result = benchmark.backtest(currency, &cash_flows, converter, quotes)?;
+        let result = benchmark.backtest(currency, &cash_flows, converter.clone(), quotes)?;
 
         results.add_row(BacktestingResults {
             benchmark: benchmark.name.clone(),
@@ -81,13 +82,26 @@ impl Benchmark {
     }
 
     // FIXME(konishchev): Implement
-    pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: &CurrencyConverter, quotes: &Quotes) -> GenericResult<Cash> {
+    pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: &Quotes) -> GenericResult<Cash> {
         let benchmark = self.instruments.first_key_value().unwrap().1;
 
         let candles = quotes.get_historical(benchmark.exchange, &benchmark.symbol, Period::new(cash_flows.first().unwrap().date, cash_flows.last().unwrap().date)?)?;
         let mut current_quantity = Decimal::zero();
 
         for cash_flow in cash_flows {
+            // let mut commission_calc = CommissionCalc::new(
+            //     converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
+            // let commission = commission_calc.add_trade(
+            //     conclusion_time.date, TradeType::Sell, quantity, price)?;
+            //     let mut total = MultiCurrencyCashAccount::new();
+
+            //     for commissions in commission_calc.calculate()?.values() {
+            //         for commission in commissions.iter() {
+            //             self.assets.cash.withdraw(commission);
+            //             total.deposit(commission);
+            //         }
+            //     }
+
             let candle_range = candles.range(..=cash_flow.date);
             let candle = candle_range.last().unwrap();
 
@@ -113,13 +127,16 @@ impl Benchmark {
 pub struct BenchmarkInstrument {
     symbol: String,
     exchange: Exchange,
+    #[allow(dead_code)] // FIXME(konishchev): Drop it
+    commission_spec: CommissionSpec,
 }
 
 impl BenchmarkInstrument {
-    pub fn new(symbol: &str, exchange: Exchange) -> BenchmarkInstrument {
+    pub fn new(symbol: &str, exchange: Exchange, commission_spec: CommissionSpec) -> BenchmarkInstrument {
         BenchmarkInstrument {
             symbol: symbol.to_owned(),
             exchange,
+            commission_spec,
         }
     }
 }

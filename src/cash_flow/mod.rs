@@ -23,7 +23,7 @@ use self::mapper::{CashFlow, Operation};
 
 pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Option<i32>) -> GenericResult<TelemetryRecordBuilder> {
     let portfolio = config.get_portfolio(portfolio_name)?;
-    let broker = portfolio.broker.get_info(config, portfolio.plan.as_ref())?;
+    let broker = portfolio.broker.get_info(config, portfolio.plan.as_deref())?;
 
     let database = db::connect(&config.db_path)?;
     let converter = CurrencyConverter::new(database, None, year.is_some());
