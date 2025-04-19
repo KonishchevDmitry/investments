@@ -14,12 +14,12 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use easy_logging::GlobalContext;
+use itertools::Itertools;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
-use crate::currency::Cash;
 use crate::db;
 use crate::exchanges::Exchange;
 use crate::quotes::{Quotes, QuotesRc};
@@ -83,36 +83,17 @@ pub fn simulate_sell(
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-// FIXME(konishchev): A work in progress mockup
 pub fn backtest(config: &Config) -> EmptyResult {
-    let (converter, quotes) = load_tools(config)?;
-
-    let benchmarks = vec![
+    let benchmarks = [
         Benchmark::new("Russian stocks", BenchmarkInstrument::new("SBMX", Exchange::Moex)),
     ];
 
-    let currency = "RUB";
+    let (converter, quotes) = load_tools(config)?;
+    let statements = load_portfolios(config, Some("sber-iia"))?.into_iter()
+        .map(|(_portfolio, statement)| statement)
+        .collect_vec();
 
-    let portfolios = load_portfolios(config, Some("sber-iia"))?;
-
-    let mut cash_flows = Vec::new();
-    let mut net_value = Cash::zero(currency);
-
-    for (_portfolio, statement) in portfolios {
-        net_value += statement.net_value(&converter, &quotes, currency, true)?;
-        cash_flows.extend(statement.deposits_and_withdrawals);
-    }
-
-    cash_flows.sort_by_key(|cash_flow| cash_flow.date);
-
-    println!("Portfoio: {net_value}");
-
-    for benchmark in &benchmarks {
-        let result = benchmark.backtest(currency, &cash_flows, &converter, &quotes)?;
-        println!("{}: {result}", benchmark.name);
-    }
-
-    Ok(())
+    backtesting::backtest("RUB", &benchmarks, &statements, &converter, &quotes)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {

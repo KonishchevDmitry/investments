@@ -44,7 +44,7 @@ fn main() -> ExitCode {
 pub fn run(cli_config: CliConfig) -> EmptyResult {
     let config = Config::new(&cli_config.config_dir, cli_config.cache_expire_time)?;
 
-    warn!("Not implemented yet.");
+    warn!("This is a work in progress tool.");
     analysis::backtest(&config)?;
 
     Ok(())

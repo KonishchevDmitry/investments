@@ -1,17 +1,72 @@
 use std::collections::BTreeMap;
 
+use itertools::Itertools;
 use num_traits::Zero;
+use static_table_derive::StaticTable;
 
-use crate::core::GenericResult;
+use crate::broker_statement::BrokerStatement;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::currency::converter::CurrencyConverter;
 use crate::exchanges::Exchange;
+use crate::formatting::table::Cell;
 use crate::quotes::{QuoteQuery, Quotes};
 use crate::time::{self, Date, Period};
 use crate::types::Decimal;
 
+pub fn backtest(
+    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement],
+    converter: &CurrencyConverter, quotes: &Quotes,
+) -> EmptyResult {
+    let mut cash_flows = BTreeMap::new();
+    let mut net_value = Cash::zero(currency);
+
+    for statement in statements {
+        for cash_flow in &statement.deposits_and_withdrawals {
+            cash_flows.entry((cash_flow.date, cash_flow.cash.currency))
+                .and_modify(|result| *result += cash_flow.cash.amount)
+                .or_insert(cash_flow.cash.amount);
+        }
+
+        net_value += statement.net_value(converter, quotes, currency, true)?;
+    }
+
+    let cash_flows = cash_flows.into_iter()
+        .filter_map(|((date, currency), amount)| {
+            if amount.is_zero() {
+                None
+            } else {
+                Some(CashAssets::new(date, currency, amount))
+            }
+        })
+        .collect_vec();
+
+    let mut results = BacktestingResultsTable::new();
+
+    results.add_row(BacktestingResults {
+        benchmark: s!("Portfolio"),
+        result: Cell::new_round_decimal(net_value.amount),
+        interest: None, // FIXME(konishchev): Implement
+        // interest: self.interest.map(|interest| format!("{}%", interest)),
+    });
+
+    for benchmark in benchmarks {
+        let result = benchmark.backtest(currency, &cash_flows, converter, quotes)?;
+
+        results.add_row(BacktestingResults {
+            benchmark: benchmark.name.clone(),
+            result: Cell::new_round_decimal(result.amount),
+            interest: None, // FIXME(konishchev): Implement
+            // interest: self.interest.map(|interest| format!("{}%", interest)),
+        });
+    }
+
+    results.print("Backtesting results");
+    Ok(())
+}
+
 pub struct Benchmark {
-    pub name: String,
+    name: String,
     instruments: BTreeMap<Date, BenchmarkInstrument>
 }
 
@@ -25,6 +80,7 @@ impl Benchmark {
         }
     }
 
+    // FIXME(konishchev): Implement
     pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: &CurrencyConverter, quotes: &Quotes) -> GenericResult<Cash> {
         let benchmark = self.instruments.first_key_value().unwrap().1;
 
@@ -66,4 +122,15 @@ impl BenchmarkInstrument {
             exchange,
         }
     }
+}
+
+#[derive(StaticTable)]
+#[table(name="BacktestingResultsTable")]
+struct BacktestingResults {
+    #[column(name="Benchmark")]
+    benchmark: String,
+    #[column(name="Result")]
+    result: Cell,
+    #[column(name="Interest", align="right")]
+    interest: Option<String>,
 }
