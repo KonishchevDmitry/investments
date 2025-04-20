@@ -247,19 +247,28 @@ impl CurrentBenchmarkInstrument<'_> {
     }
 
     fn get_price(&self, date: Date) -> GenericResult<Cash> {
-        let Some((&price_date, &price)) = self.quotes.range(..=date).last() else {
-            return Err!(
-                "There are no historical quotes for {} at {}",
-                self.spec.symbol, formatting::format_date(date));
-        };
+        let mut nearest = Vec::new();
 
-        if price_date < self.spec.exchange.min_last_working_day(date) {
-            return Err!(
-                "There are no historical quotes for {} at {}. The nearest quotes we have are at {}",
-                self.spec.symbol, formatting::format_date(date), formatting::format_date(price_date));
+        if let Some((&price_date, &price)) = self.quotes.range(..=date).last() {
+            if price_date >= self.spec.exchange.min_last_working_day(date) {
+                return Ok(price);
+            }
+            nearest.push(price_date);
         }
 
-        Ok(price)
+        if let Some((&price_date, _price)) = self.quotes.range(date..).next() {
+            nearest.push(price_date);
+        }
+
+        if nearest.is_empty() {
+            return Err!("There are no historical quotes for {}", self.spec.symbol);
+        }
+
+        Err!(
+            "There are no historical quotes for {} at {}. The nearest quotes we have are at {}",
+            self.spec.symbol, formatting::format_date(date),
+            nearest.into_iter().map(|date| formatting::format_date(date)).join(" and "),
+        )
     }
 }
 
