@@ -5,7 +5,7 @@ mod trace;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use chrono::Local;
+use chrono::{Datelike, Local, TimeDelta};
 use itertools::Itertools;
 use log::{debug, trace};
 use serde::Deserialize;
@@ -23,9 +23,9 @@ use api::{
 use crate::core::{GenericResult, EmptyResult};
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
-use crate::forex;
+use crate::{forex, formatting};
 use crate::proto;
-use crate::time::{SystemTime, TimeZone, Period};
+use crate::time::{Date, DateTime, TzDateTime, SystemTime, TimeZone, Period};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
@@ -166,7 +166,7 @@ impl Tbank {
                 _ => continue,
             };
 
-            let time = proto::parse_timestamp(timestamp).ok_or_else(|| format!(
+            let time = proto::parse_timestamp(timestamp, Local).ok_or_else(|| format!(
                 "Got an invalid {symbol} quote time: {timestamp:?}"))?;
 
             if let Some(time) = is_outdated_quote(time, &SystemTime()) {
@@ -197,26 +197,29 @@ impl Tbank {
 
         trace!("Getting historical quotes for {symbol} ({period}) from T-Bank...");
 
+        let mut request_from = from;
         let mut quotes = HistoricalQuotes::new();
-        let mut cursor = proto::new_timestamp(from);
 
         loop {
+            let request_to = limit_historical_request_range(request_from, to)?;
+
             let candles = self.market_data_client().get_candles(GetCandlesRequest {
                 instrument_id: Some(stock.uid.clone()),
-                from: Some(cursor),
-                to: Some(proto::new_timestamp(to)), // inclusive
+                from: Some(proto::new_timestamp(request_from)),
+                to: Some(proto::new_timestamp(request_to)), // inclusive
                 interval: CandleInterval::Day.into(),
                 ..Default::default()
             }).await?.into_inner().candles;
 
             for candle in &candles {
                 let (Some(time), Some(open), Some(close)) = (
-                    candle.time.and_then(proto::parse_timestamp), candle.open, candle.close
+                    candle.time.and_then(|time| proto::parse_timestamp(time, Local)),
+                    candle.open, candle.close
                 ) else {
                     return Err!("Got an invalid candle: {candle:?}");
                 };
 
-                let date = time.with_timezone(&Local).date_naive();
+                let date = time.date_naive();
                 let open = parse_price(&stock.currency, open)?;
                 let close = parse_price(&stock.currency, close)?;
 
@@ -228,12 +231,17 @@ impl Tbank {
                 }
             }
 
-            let Some(last_candle) = candles.last() else {
-                return Ok(Some(quotes));
-            };
-
-            cursor = last_candle.time.unwrap();
-            cursor.seconds += 1;
+            if let Some(candle) = candles.last() {
+                request_from = candle.time
+                    .and_then(|time| proto::parse_timestamp(time, Local))
+                    .and_then(|time| time.checked_add_signed(TimeDelta::seconds(1)))
+                    .ok_or_else(|| format!("Got an invalid candle: {candle:?}"))?;
+            } else {
+                if request_to == to {
+                    return Ok(Some(quotes));
+                }
+                request_from = request_to
+            }
         }
     }
 
@@ -476,4 +484,22 @@ fn parse_price(currency: &str, quote: Quotation) -> GenericResult<Cash> {
     util::validate_named_cash(
         "price", currency, price.normalize(),
         DecimalRestrictions::StrictlyPositive)
+}
+
+// To fit into API limits – https://developer.tbank.ru/invest/intro/intro/load_history
+fn limit_historical_request_range(from: TzDateTime<Local>, to: TzDateTime<Local>) -> GenericResult<TzDateTime<Local>> {
+    let from = from.naive_local();
+
+    let max_to = Date::from_ymd_opt(from.year() + 6, from.month(), from.day())
+        .and_then(|max_date| {
+            let max_time = DateTime::new(max_date, from.time());
+            Local.from_local_datetime(&max_time).single()
+        })
+        .ok_or_else(|| format!(
+            "Invalid request period: {} - {}",
+            formatting::format_date(from),
+            formatting::format_date(to.naive_local())
+        ))?;
+
+    Ok(std::cmp::min(to, max_to))
 }

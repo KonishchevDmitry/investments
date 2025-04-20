@@ -1,4 +1,3 @@
-use chrono::Utc;
 use chrono::offset::LocalResult;
 use prost_types::Timestamp;
 
@@ -11,8 +10,8 @@ pub fn new_timestamp<T: TimeZone>(time: TzDateTime<T>) -> Timestamp {
     }
 }
 
-pub fn parse_timestamp(timestamp: Timestamp) -> Option<TzDateTime<Utc>> {
-    match Utc.timestamp_opt(timestamp.seconds, timestamp.nanos as u32) {
+pub fn parse_timestamp<T: TimeZone>(timestamp: Timestamp, tz: T) -> Option<TzDateTime<T>> {
+    match tz.timestamp_opt(timestamp.seconds, timestamp.nanos as u32) {
         LocalResult::Single(time) => Some(time),
         _ => None,
     }
