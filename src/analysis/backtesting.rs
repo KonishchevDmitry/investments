@@ -6,6 +6,8 @@ use itertools::Itertools;
 use log::trace;
 use static_table_derive::StaticTable;
 
+use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
+use crate::analysis::deposit_performance;
 use crate::broker_statement::BrokerStatement;
 use crate::commissions::{CommissionCalc, CommissionSpec};
 use crate::core::{EmptyResult, GenericResult};
@@ -15,7 +17,7 @@ use crate::exchanges::Exchange;
 use crate::formatting;
 use crate::formatting::table::Cell;
 use crate::quotes::{QuoteQuery, Quotes, HistoricalQuotes};
-use crate::time::{Date, Period};
+use crate::time::{self, Date, Period};
 use crate::types::{Decimal, TradeType};
 
 pub fn backtest(
@@ -45,24 +47,37 @@ pub fn backtest(
         })
         .collect_vec();
 
+    let transactions = cash_flows.iter().map(|cash_flow| {
+        Transaction::new(cash_flow.date, cash_flow.cash.amount)
+    }).collect_vec();
+
+    let start_date = transactions.first().ok_or(
+        "An attempt to backtest an empty portfolio (without cash flows)")?.date;
+
+    let interest_periods = [InterestPeriod::new(start_date, time::today())];
+    let portfolio_interest = deposit_performance::compare_instrument_to_bank_deposit(
+        "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
+
     let mut results = BacktestingResultsTable::new();
+    let format_interest = |interest| format!("{}%", interest);
 
     results.add_row(BacktestingResults {
         benchmark: s!("Portfolio"),
         result: Cell::new_round_decimal(net_value.amount),
-        interest: None, // FIXME(konishchev): Implement
-        // interest: self.interest.map(|interest| format!("{}%", interest)),
+        interest: portfolio_interest.map(format_interest),
     });
 
     for benchmark in benchmarks {
         let result = benchmark.backtest(currency, &cash_flows, converter.clone(), quotes).map_err(|e| format!(
             "Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name))?;
 
+        let interest = deposit_performance::compare_instrument_to_bank_deposit(
+            &benchmark.name, currency, &transactions, &interest_periods, result.amount)?;
+
         results.add_row(BacktestingResults {
             benchmark: benchmark.name.clone(),
             result: Cell::new_round_decimal(result.amount),
-            interest: None, // FIXME(konishchev): Implement
-            // interest: self.interest.map(|interest| format!("{}%", interest)),
+            interest: interest.map(format_interest),
         });
     }
 
@@ -89,7 +104,7 @@ impl Benchmark {
         let mut cash_assets = MultiCurrencyCashAccount::new();
         let mut current_instrument: Option<CurrentBenchmarkInstrument<'_>> = None;
 
-        let last_cash_flow_date = cash_flows.last().copied().ok_or(
+        let last_cash_flow_date = cash_flows.last().ok_or(
             "An attempt to backtest an empty portfolio (without cash flows)")?.date;
 
         for cash_flow in cash_flows {

@@ -17,7 +17,6 @@ use easy_logging::GlobalContext;
 use itertools::Itertools;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
-use crate::brokers::Broker;
 use crate::config::{Config, PortfolioConfig};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
@@ -85,9 +84,7 @@ pub fn simulate_sell(
 }
 
 pub fn backtest(config: &Config) -> EmptyResult {
-    // FIXME(konishchev): Replace it
-    // let commission_spec = crate::brokers::plans::tbank::premium();
-    let commission_spec = Broker::Sber.get_commission_spec(Some("Самостоятельный"))?;
+    let commission_spec = crate::brokers::plans::tbank::premium();
 
     let benchmarks = [
         Benchmark::new("Russian stocks (Sber)", BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec.clone())),

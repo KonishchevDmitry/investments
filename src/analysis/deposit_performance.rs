@@ -5,7 +5,7 @@ use indoc::indoc;
 use itertools::Itertools;
 use log::{self, log_enabled, debug, trace, warn};
 
-use crate::core::EmptyResult;
+use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::formatting;
 use crate::types::Decimal;
@@ -13,7 +13,19 @@ use crate::util;
 
 use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
 
-pub fn compare_to_bank_deposit(
+pub fn compare_instrument_to_bank_deposit(
+    name: &str, currency: &str, transactions: &[Transaction], interest_periods: &[InterestPeriod],
+    current_assets: Decimal
+) -> GenericResult<Option<Decimal>> {
+    compare_to_bank_deposit(transactions, interest_periods, current_assets)
+        .map(|(interest, difference)| -> GenericResult<Decimal> {
+            check_emulation_precision(name, currency, transactions, current_assets, difference)?;
+            Ok(interest)
+        })
+        .transpose()
+}
+
+fn compare_to_bank_deposit(
     transactions: &[Transaction], interest_periods: &[InterestPeriod], current_assets: Decimal
 ) -> Option<(Decimal, Decimal)> {
     if log_enabled!(log::Level::Trace) {
@@ -112,7 +124,7 @@ pub fn compare_to_bank_deposit(
     Some((interest, difference))
 }
 
-pub fn check_emulation_precision(
+fn check_emulation_precision(
     name: &str, currency: &str, transactions: &[Transaction],
     current_assets: Decimal, difference: Decimal,
 ) -> EmptyResult {

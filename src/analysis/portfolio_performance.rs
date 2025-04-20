@@ -133,14 +133,8 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
         let adjusted_transactions = self.adjust_transactions(&deposit_view.transactions)?;
 
-        let interest = deposit_performance::compare_to_bank_deposit(
-            &adjusted_transactions, &deposit_view.interest_periods, dec!(0),
-        ).map(|(interest, difference)| -> GenericResult<Decimal> {
-            deposit_performance::check_emulation_precision(
-                symbol, self.currency, &adjusted_transactions,
-                dec!(0), difference)?;
-            Ok(interest)
-        }).transpose()?;
+        let interest = deposit_performance::compare_instrument_to_bank_deposit(
+            symbol, self.currency, &adjusted_transactions, &deposit_view.interest_periods, dec!(0))?;
 
         let name = deposit_view.name.unwrap();
         let days = get_total_activity_duration(&deposit_view.interest_periods);
@@ -172,17 +166,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.transactions.sort_by_key(|transaction| transaction.date);
         let adjusted_transactions = self.adjust_transactions(&self.transactions)?;
 
-        let activity_periods = vec![InterestPeriod::new(
+        let activity_periods = [InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
-        let interest = deposit_performance::compare_to_bank_deposit(
-            &adjusted_transactions, &activity_periods, self.current_assets,
-        ).map(|(interest, difference)| -> GenericResult<Decimal> {
-            deposit_performance::check_emulation_precision(
-                "portfolio", self.currency, &adjusted_transactions,
-                self.current_assets, difference)?;
-            Ok(interest)
-        }).transpose()?;
+        let interest = deposit_performance::compare_instrument_to_bank_deposit(
+            "portfolio", self.currency, &adjusted_transactions, &activity_periods, self.current_assets)?;
 
         let days = get_total_activity_duration(&activity_periods);
         let investments = self.transactions.iter()
