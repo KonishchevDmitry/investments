@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::ops::Bound;
 
-use chrono::Days;
+
 use itertools::Itertools;
 use log::trace;
 use static_table_derive::StaticTable;
@@ -113,11 +113,28 @@ impl Benchmark {
 
             let instrument = match current_instrument.as_mut() {
                 Some(instrument) if instrument.until.is_none() || instrument.until.unwrap() > cash_flow.date => instrument,
-                _ => current_instrument.insert(self.select_instrument(cash_flow.date, last_cash_flow_date, quotes)?),
+                _ => {
+                    let new_instrument = if let Some(old_instrument) = current_instrument.take() {
+                        let conversion_date = old_instrument.until.unwrap();
+                        assert!(conversion_date <= cash_flow.date);
+
+                        let net_value = old_instrument.get_price(conversion_date)? * old_instrument.quantity;
+                        cash_assets.deposit(net_value);
+
+                        let mut new_instrument = self.select_instrument(conversion_date, last_cash_flow_date, quotes)?;
+                        cash_assets = new_instrument.process_cash_flow(conversion_date, cash_assets, converter.clone(), true)?;
+
+                        new_instrument
+                    } else {
+                        self.select_instrument(cash_flow.date, last_cash_flow_date, quotes)?
+                    };
+
+                    current_instrument.insert(new_instrument)
+                },
             };
 
             cash_assets.deposit(cash_flow.cash);
-            cash_assets = instrument.process_cash_flow(cash_flow.date, cash_assets, converter.clone())?;
+            cash_assets = instrument.process_cash_flow(cash_flow.date, cash_assets, converter.clone(), false)?;
         }
 
         let instrument = current_instrument.unwrap();
@@ -144,8 +161,7 @@ impl Benchmark {
             instrument.exchange.min_last_working_day(date),
             std::cmp::min(
                 last_cash_flow_date,
-                until.map(|until| until.checked_sub_days(Days::new(1)).unwrap())
-                    .unwrap_or(last_cash_flow_date),
+                until.unwrap_or(last_cash_flow_date),
             ),
         )?;
 
@@ -155,7 +171,6 @@ impl Benchmark {
             spec: instrument,
             quotes: candles,
             until,
-            // FIXME(konishchev): Convert shares
             quantity: dec!(0),
         })
     }
@@ -187,6 +202,7 @@ struct CurrentBenchmarkInstrument<'a> {
 impl CurrentBenchmarkInstrument<'_> {
     fn process_cash_flow(
         &mut self, date: Date, mut cash_assets: MultiCurrencyCashAccount, converter: CurrencyConverterRc,
+        commission_free: bool,
     ) -> GenericResult<MultiCurrencyCashAccount> {
         let price = self.get_price(date)?;
         let cash = cash_assets.total_cash_assets(date, price.currency, &converter)?;
@@ -197,31 +213,33 @@ impl CurrentBenchmarkInstrument<'_> {
             return Ok(cash_assets);
         }
 
-        let trade_type = if change.is_sign_positive() {
-            TradeType::Buy
-        } else {
-            TradeType::Sell
-        };
-
         cash_assets.clear();
         self.quantity += change;
 
-        let commission_spec = self.spec.commission_spec.clone();
-        if !commission_spec.is_simple_percent() {
-            return Err!(concat!(
-                "Current backtesting logic doesn't support complex commissions which require trade aggregation or ",
-                "have non-percent fees"
-            ));
-        }
+        if !commission_free {
+            let trade_type = if change.is_sign_positive() {
+                TradeType::Buy
+            } else {
+                TradeType::Sell
+            };
 
-        let mut commission_calc = CommissionCalc::new(converter.clone(), commission_spec, net_value)?;
+            let commission_spec = self.spec.commission_spec.clone();
+            if !commission_spec.is_simple_percent() {
+                return Err!(concat!(
+                    "Current backtesting logic doesn't support complex commissions which require trade aggregation or ",
+                    "have non-percent fees"
+                ));
+            }
 
-        let commission = commission_calc.add_trade(date, trade_type, change.abs(), price)?;
-        cash_assets.withdraw(commission);
+            let mut commission_calc = CommissionCalc::new(converter.clone(), commission_spec, net_value)?;
 
-        for commissions in commission_calc.calculate()?.values() {
-            for commission in commissions.iter() {
-                cash_assets.withdraw(commission);
+            let commission = commission_calc.add_trade(date, trade_type, change.abs(), price)?;
+            cash_assets.withdraw(commission);
+
+            for commissions in commission_calc.calculate()?.values() {
+                for commission in commissions.iter() {
+                    cash_assets.withdraw(commission);
+                }
             }
         }
 
