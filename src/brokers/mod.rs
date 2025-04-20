@@ -1,5 +1,5 @@
 pub mod config;
-mod plans;
+pub mod plans;
 
 use std::collections::BTreeMap;
 

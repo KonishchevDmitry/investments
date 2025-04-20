@@ -85,11 +85,14 @@ pub fn simulate_sell(
 }
 
 pub fn backtest(config: &Config) -> EmptyResult {
-    // let commission_spec = Broker::Tbank.get_commission_spec(Some("Премиум"))?;
+    // FIXME(konishchev): Replace it
+    // let commission_spec = crate::brokers::plans::tbank::premium();
     let commission_spec = Broker::Sber.get_commission_spec(Some("Самостоятельный"))?;
 
     let benchmarks = [
-        Benchmark::new("Russian stocks", BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec)),
+        Benchmark::new("Russian stocks (Sber)", BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec.clone())),
+        Benchmark::new("Russian stocks (TBank)", BenchmarkInstrument::new("TMOS", Exchange::Moex, commission_spec.clone())),
+        Benchmark::new("Russian stocks (VTB)", BenchmarkInstrument::new("EQMX", Exchange::Moex, commission_spec.clone())),
     ];
 
     let (converter, quotes) = load_tools(config)?;

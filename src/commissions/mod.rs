@@ -24,6 +24,11 @@ pub struct CommissionSpec {
 }
 
 impl CommissionSpec {
+    pub fn is_simple_percent(&self) -> bool {
+        self.trade.is_simple_percent() &&
+        self.cumulative.is_simple_percent()
+    }
+
     fn round(&self, amount: Decimal) -> Decimal {
         util::round_with(amount, 2, self.rounding_method)
     }
@@ -40,6 +45,13 @@ pub struct TradeCommissionSpec {
     transaction_fees: Vec<(TradeType, TransactionCommissionSpec)>,
 }
 
+impl TradeCommissionSpec {
+    fn is_simple_percent(&self) -> bool {
+        self.commission.is_simple_percent() &&
+        self.transaction_fees.iter().all(|(_trade_type, fee)| fee.is_simple_percent())
+    }
+}
+
 #[derive(Default, Clone, Copy)]
 pub struct TransactionCommissionSpec {
     percent: Option<Decimal>,
@@ -50,6 +62,11 @@ pub struct TransactionCommissionSpec {
 }
 
 impl TransactionCommissionSpec {
+    fn is_simple_percent(&self) -> bool {
+        self.per_share.is_none() &&
+        self.minimum.is_none()
+    }
+
     fn calculate(&self, calc: &CommissionCalc, date: Date, shares: u32, volume: Cash) -> GenericResult<Cash> {
         let mut commission = dec!(0);
         let currency = volume.currency;
@@ -88,11 +105,20 @@ pub struct CumulativeCommissionSpec {
     minimum_daily: Option<Decimal>,
     minimum_monthly: Option<Decimal>,
 
-    // Additional fees (exchange, regulatory and clearing)
+    // Additional fees (exchange, regulatofry and clearing)
     fees: Vec<CumulativeFeeSpec>,
 
     // Depositary (tiered by portfolio net value)
     monthly_depositary: BTreeMap<Decimal, Decimal>,
+}
+
+impl CumulativeCommissionSpec {
+    fn is_simple_percent(&self) -> bool {
+        self.minimum_daily.is_none() &&
+        self.minimum_monthly.is_none() &&
+        self.fees.iter().all(|fee| fee.is_simple_percent()) &&
+        self.monthly_depositary.is_empty()
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -124,6 +150,12 @@ impl CumulativeTieredSpec {
 #[derive(Clone, Copy)]
 pub struct CumulativeFeeSpec {
     percent: Decimal,
+}
+
+impl CumulativeFeeSpec {
+    fn is_simple_percent(&self) -> bool {
+        true
+    }
 }
 
 pub struct CommissionCalc {

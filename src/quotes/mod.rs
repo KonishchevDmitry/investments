@@ -447,7 +447,7 @@ impl Quotes {
 }
 
 type QuotesMap = HashMap<String, Cash>;
-type HistoricalQuotes = BTreeMap<Date, Cash>;
+pub type HistoricalQuotes = BTreeMap<Date, Cash>;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SupportedExchange {

@@ -1,19 +1,22 @@
 use std::collections::BTreeMap;
+use std::ops::Bound;
 
+use chrono::Days;
 use itertools::Itertools;
-use num_traits::Zero;
+use log::trace;
 use static_table_derive::StaticTable;
 
 use crate::broker_statement::BrokerStatement;
-use crate::commissions::CommissionSpec;
+use crate::commissions::{CommissionCalc, CommissionSpec};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{Cash, CashAssets};
+use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::CurrencyConverterRc;
 use crate::exchanges::Exchange;
+use crate::formatting;
 use crate::formatting::table::Cell;
-use crate::quotes::{QuoteQuery, Quotes};
-use crate::time::{self, Date, Period};
-use crate::types::Decimal;
+use crate::quotes::{QuoteQuery, Quotes, HistoricalQuotes};
+use crate::time::{Date, Period};
+use crate::types::{Decimal, TradeType};
 
 pub fn backtest(
     currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement],
@@ -52,7 +55,8 @@ pub fn backtest(
     });
 
     for benchmark in benchmarks {
-        let result = benchmark.backtest(currency, &cash_flows, converter.clone(), quotes)?;
+        let result = benchmark.backtest(currency, &cash_flows, converter.clone(), quotes).map_err(|e| format!(
+            "Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name))?;
 
         results.add_row(BacktestingResults {
             benchmark: benchmark.name.clone(),
@@ -67,7 +71,7 @@ pub fn backtest(
 }
 
 pub struct Benchmark {
-    name: String,
+    pub name: String,
     instruments: BTreeMap<Date, BenchmarkInstrument>
 }
 
@@ -81,53 +85,70 @@ impl Benchmark {
         }
     }
 
-    // FIXME(konishchev): Implement
     pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: &Quotes) -> GenericResult<Cash> {
-        let benchmark = self.instruments.first_key_value().unwrap().1;
+        let mut cash_assets = MultiCurrencyCashAccount::new();
+        let mut current_instrument: Option<CurrentBenchmarkInstrument<'_>> = None;
 
-        let candles = quotes.get_historical(benchmark.exchange, &benchmark.symbol, Period::new(cash_flows.first().unwrap().date, cash_flows.last().unwrap().date)?)?;
-        let mut current_quantity = Decimal::zero();
+        let last_cash_flow_date = cash_flows.last().copied().ok_or(
+            "An attempt to backtest an empty portfolio (without cash flows)")?.date;
 
         for cash_flow in cash_flows {
-            // let mut commission_calc = CommissionCalc::new(
-            //     converter.clone(), statement.broker.commission_spec.clone(), net_value)?;
-            // let commission = commission_calc.add_trade(
-            //     conclusion_time.date, TradeType::Sell, quantity, price)?;
-            //     let mut total = MultiCurrencyCashAccount::new();
+            trace!("Backtesting cash flow: {}: {}...", formatting::format_date(cash_flow.date), cash_flow.cash);
+            assert!(cash_flow.date <= last_cash_flow_date);
 
-            //     for commissions in commission_calc.calculate()?.values() {
-            //         for commission in commissions.iter() {
-            //             self.assets.cash.withdraw(commission);
-            //             total.deposit(commission);
-            //         }
-            //     }
+            let instrument = match current_instrument.as_mut() {
+                Some(instrument) if instrument.until.is_none() || instrument.until.unwrap() > cash_flow.date => instrument,
+                _ => current_instrument.insert(self.select_instrument(cash_flow.date, last_cash_flow_date, quotes)?),
+            };
 
-            let candle_range = candles.range(..=cash_flow.date);
-            let candle = candle_range.last().unwrap();
-
-            let price = *candle.1;
-            let amount = converter.convert_to_cash(cash_flow.date, cash_flow.cash, price.currency)?;
-
-            let quantity = amount / price;
-
-            if cash_flow.cash.is_negative() {
-                current_quantity -= quantity;
-            } else {
-                current_quantity += quantity;
-            }
+            cash_assets.deposit(cash_flow.cash);
+            cash_assets = instrument.process_cash_flow(cash_flow.date, cash_assets, converter.clone())?;
         }
 
-        let price = quotes.get(QuoteQuery::Stock(benchmark.symbol.clone(), vec![benchmark.exchange]))?;
-        let net_assets = converter.convert_to_cash_rounding(time::today(), price * current_quantity, currency)?;
+        let instrument = current_instrument.unwrap();
+        let price = quotes.get(QuoteQuery::Stock(instrument.spec.symbol.clone(), vec![instrument.spec.exchange]))?;
 
-        Ok(net_assets)
+        let net_value =
+            converter.real_time_convert_to(price * instrument.quantity, currency)? +
+            cash_assets.total_assets_real_time(currency, &converter)?;
+
+        Ok(Cash::new(currency, net_value))
+    }
+
+    fn select_instrument(&self, date: Date, last_cash_flow_date: Date, quotes: &Quotes) -> GenericResult<CurrentBenchmarkInstrument> {
+        let Some((start_date, instrument)) = self.instruments.range(..date).last() else {
+            return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
+        };
+
+        trace!("Select new benchmark instrument: {}.", instrument.symbol);
+
+        let until = self.instruments.range((Bound::Excluded(start_date), Bound::Unbounded)).next()
+            .map(|(start_date, _instrument)| start_date).copied();
+
+        let quotes_period = Period::new(
+            instrument.exchange.min_last_working_day(date),
+            std::cmp::min(
+                last_cash_flow_date,
+                until.map(|until| until.checked_sub_days(Days::new(1)).unwrap())
+                    .unwrap_or(last_cash_flow_date),
+            ),
+        )?;
+
+        let candles = quotes.get_historical(instrument.exchange, &instrument.symbol, quotes_period)?;
+
+        Ok(CurrentBenchmarkInstrument {
+            spec: instrument,
+            quotes: candles,
+            until,
+            // FIXME(konishchev): Convert shares
+            quantity: dec!(0),
+        })
     }
 }
 
 pub struct BenchmarkInstrument {
     symbol: String,
     exchange: Exchange,
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
     commission_spec: CommissionSpec,
 }
 
@@ -138,6 +159,74 @@ impl BenchmarkInstrument {
             exchange,
             commission_spec,
         }
+    }
+}
+
+struct CurrentBenchmarkInstrument<'a> {
+    spec: &'a BenchmarkInstrument,
+    quotes: HistoricalQuotes,
+    until: Option<Date>,
+    quantity: Decimal,
+}
+
+impl CurrentBenchmarkInstrument<'_> {
+    fn process_cash_flow(
+        &mut self, date: Date, mut cash_assets: MultiCurrencyCashAccount, converter: CurrencyConverterRc,
+    ) -> GenericResult<MultiCurrencyCashAccount> {
+        let price = self.get_price(date)?;
+        let cash = cash_assets.total_cash_assets(date, price.currency, &converter)?;
+        let net_value = price * self.quantity + cash;
+
+        let change = cash / price;
+        if change.is_zero() {
+            return Ok(cash_assets);
+        }
+
+        let trade_type = if change.is_sign_positive() {
+            TradeType::Buy
+        } else {
+            TradeType::Sell
+        };
+
+        cash_assets.clear();
+        self.quantity += change;
+
+        let commission_spec = self.spec.commission_spec.clone();
+        if !commission_spec.is_simple_percent() {
+            return Err!(concat!(
+                "Current backtesting logic doesn't support complex commissions which require trade aggregation or ",
+                "have non-percent fees"
+            ));
+        }
+
+        let mut commission_calc = CommissionCalc::new(converter.clone(), commission_spec, net_value)?;
+
+        let commission = commission_calc.add_trade(date, trade_type, change.abs(), price)?;
+        cash_assets.withdraw(commission);
+
+        for commissions in commission_calc.calculate()?.values() {
+            for commission in commissions.iter() {
+                cash_assets.withdraw(commission);
+            }
+        }
+
+        Ok(cash_assets)
+    }
+
+    fn get_price(&self, date: Date) -> GenericResult<Cash> {
+        let Some((&price_date, &price)) = self.quotes.range(..=date).last() else {
+            return Err!(
+                "There are no historical quotes for {} at {}",
+                self.spec.symbol, formatting::format_date(date));
+        };
+
+        if price_date < self.spec.exchange.min_last_working_day(date) {
+            return Err!(
+                "There are no historical quotes for {} at {}. The nearest quotes we have are at {}",
+                self.spec.symbol, formatting::format_date(date), formatting::format_date(price_date));
+        }
+
+        Ok(price)
     }
 }
 
