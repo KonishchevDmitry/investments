@@ -5,7 +5,7 @@ mod trace;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use chrono::{Datelike, Local, TimeDelta};
+use chrono::{Local, Months, TimeDelta};
 use itertools::Itertools;
 use log::{debug, trace};
 use serde::Deserialize;
@@ -15,7 +15,8 @@ use tonic::service::interceptor::InterceptedService;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use api::{
-    InstrumentsRequest, InstrumentStatus, RealExchange, GetLastPricesRequest, GetCandlesRequest, CandleInterval, Quotation,
+    InstrumentsRequest, InstrumentStatus, RealExchange, GetLastPricesRequest, GetCandlesRequest, CandleInterval,
+    CandleSource, HistoricCandle, Quotation,
     instruments_service_client::InstrumentsServiceClient,
     market_data_service_client::MarketDataServiceClient,
 };
@@ -25,7 +26,7 @@ use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::{forex, formatting};
 use crate::proto;
-use crate::time::{Date, DateTime, TzDateTime, SystemTime, TimeZone, Period};
+use crate::time::{self, Date, TzDateTime, SystemTime, TimeZone, Period};
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
@@ -174,9 +175,8 @@ impl Tbank {
                 continue;
             }
 
-            let price = parse_price(&currency, price)?;
-
-            quotes.insert(symbol, price / denomination);
+            let price = parse_price(price)? / denomination;
+            quotes.insert(symbol, Cash::new(&currency, price));
         }
 
         Ok(quotes)
@@ -187,10 +187,15 @@ impl Tbank {
             return Ok(None);
         };
 
-        let (Some(from), Some(last_day), Some(to)) = (
-            Local.from_local_datetime(&period.first_date().into()).single(),
-            Local.from_local_datetime(&period.last_date().into()).single(),
-            period.last_date().and_hms_opt(23, 59, 59).and_then(|time| Local.from_local_datetime(&time).single())
+        let time_zone = match self.exchange {
+            TbankExchange::Moex | TbankExchange::Spb => time::tz_to_fixed(chrono_tz::Europe::Moscow),
+            TbankExchange::Unknown => time::tz_to_fixed(Local),
+            TbankExchange::Currency => unreachable!(),
+        };
+
+        let (Some(from), Some(to)) = (
+            time_zone.from_local_datetime(&period.first_date().into()).latest(),
+            period.last_date().and_hms_opt(23, 59, 59).and_then(|time| time_zone.from_local_datetime(&time).latest())
         ) else {
             return Err!("Invalid period: {period}");
         };
@@ -198,50 +203,62 @@ impl Tbank {
         trace!("Getting historical quotes for {symbol} ({period}) from T-Bank...");
 
         let mut request_from = from;
-        let mut quotes = HistoricalQuotes::new();
+        let mut quotes: HashMap<Date, Vec<Decimal>> = HashMap::new();
 
         loop {
-            let request_to = limit_historical_request_range(request_from, to)?;
+            let interval = CandleInterval::Hour;
+            let request_to = limit_historical_request_range(request_from, to, interval)?;
+
+            trace!(
+                "Requesting {symbol} ({} - {}) from T-Bank...",
+                formatting::format_date(request_from.with_timezone(&Local).naive_local()),
+                formatting::format_date(request_to.with_timezone(&Local).naive_local()),
+            );
 
             let candles = self.market_data_client().get_candles(GetCandlesRequest {
                 instrument_id: Some(stock.uid.clone()),
+                candle_source_type: Some(CandleSource::Exchange.into()),
+
                 from: Some(proto::new_timestamp(request_from)),
                 to: Some(proto::new_timestamp(request_to)), // inclusive
-                interval: CandleInterval::Day.into(),
+                interval: interval.into(),
+
                 ..Default::default()
             }).await?.into_inner().candles;
 
+            if candles.is_empty() {
+                trace!("Got an empty candles response.");
+            } else {
+                let debug_time = |candle: Option<&HistoricCandle>| {
+                    candle.and_then(|candle| candle.time)
+                        .and_then(|time| proto::parse_timestamp(time, Local))
+                        .map(|time| formatting::format_date(time.naive_local()))
+                        .unwrap_or_default()
+                };
+                trace!("Got candles for {} - {}.", debug_time(candles.first()), debug_time(candles.last()));
+            }
+
             for candle in &candles {
                 let (Some(time), Some(open), Some(close)) = (
-                    candle.time.and_then(|time| proto::parse_timestamp(time, Local)),
+                    candle.time.and_then(|time| proto::parse_timestamp(time, time_zone)),
                     candle.open, candle.close
                 ) else {
                     return Err!("Got an invalid candle: {candle:?}");
                 };
 
                 let date = time.date_naive();
-                let open = parse_price(&stock.currency, open)?;
-                let close = parse_price(&stock.currency, close)?;
+                let open = parse_price(open)?;
+                let close = parse_price(close)?;
 
-                let price = ((open + close) / 2).normalize();
-                quotes.insert(date, price);
-
-                if time >= last_day {
-                    return Ok(Some(quotes));
-                }
+                let price = (open + close) / Decimal::from(2);
+                quotes.entry(date).or_default().push(price);
             }
 
-            if let Some(candle) = candles.last() {
-                request_from = candle.time
-                    .and_then(|time| proto::parse_timestamp(time, Local))
-                    .and_then(|time| time.checked_add_signed(TimeDelta::seconds(1)))
-                    .ok_or_else(|| format!("Got an invalid candle: {candle:?}"))?;
-            } else {
-                if request_to == to {
-                    return Ok(Some(quotes));
-                }
-                request_from = request_to
+            if request_to >= to {
+                return Ok(Some(aggregate_historical_quotes(&stock.currency, quotes)))
             }
+
+            request_from = request_to.checked_add_signed(TimeDelta::seconds(1)).unwrap();
         }
     }
 
@@ -479,27 +496,33 @@ struct Currency {
     denomination: Decimal,
 }
 
-fn parse_price(currency: &str, quote: Quotation) -> GenericResult<Cash> {
+fn parse_price(quote: Quotation) -> GenericResult<Decimal> {
     let price = Decimal::from(quote.units) + Decimal::new(quote.nano.into(), 9);
-    util::validate_named_cash(
-        "price", currency, price.normalize(),
-        DecimalRestrictions::StrictlyPositive)
+    util::validate_named_decimal("price", price.normalize(), DecimalRestrictions::StrictlyPositive)
 }
 
 // To fit into API limits – https://developer.tbank.ru/invest/intro/intro/load_history
-fn limit_historical_request_range(from: TzDateTime<Local>, to: TzDateTime<Local>) -> GenericResult<TzDateTime<Local>> {
-    let from = from.naive_local();
+fn limit_historical_request_range<Tz: TimeZone>(
+    from: TzDateTime<Tz>, to: TzDateTime<Tz>, interval: CandleInterval
+) -> GenericResult<TzDateTime<Tz>> {
+    let max_months = match interval {
+        CandleInterval::Hour => 3,
+        CandleInterval::Day => 6 * 12,
+        _ => return Err!("Unsupported candle interval: {:?}", interval),
+    };
 
-    let max_to = Date::from_ymd_opt(from.year() + 6, from.month(), from.day())
-        .and_then(|max_date| {
-            let max_time = DateTime::new(max_date, from.time());
-            Local.from_local_datetime(&max_time).single()
-        })
-        .ok_or_else(|| format!(
-            "Invalid request period: {} - {}",
-            formatting::format_date(from),
-            formatting::format_date(to.naive_local())
-        ))?;
+    let max_to = from.clone().checked_add_months(Months::new(max_months)).ok_or_else(|| format!(
+        "Invalid request period: {} - {}",
+        formatting::format_date(from.naive_local()),
+        formatting::format_date(to.naive_local())
+    ))?;
 
     Ok(std::cmp::min(to, max_to))
+}
+
+fn aggregate_historical_quotes(currency: &str, quotes: HashMap<Date, Vec<Decimal>>) -> HistoricalQuotes {
+    quotes.into_iter().map(|(date, prices)| {
+        let price = prices.iter().copied().sum::<Decimal>() / Decimal::from(prices.len());
+        (date, Cash::new(currency, price).normalize())
+    }).collect()
 }

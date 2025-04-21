@@ -31,7 +31,7 @@ pub fn parse_date_time(date_time: &str, format: &str) -> GenericResult<DateTime>
 pub fn parse_tz_date_time<T: TimeZone>(
     string: &str, format: &str, tz: T, future_check: bool,
 ) -> GenericResult<TzDateTime<T>> {
-    let date_time = chrono::NaiveDateTime::parse_from_str(string, format).ok()
+    let date_time = DateTime::parse_from_str(string, format).ok()
         .and_then(|date_time| tz.from_local_datetime(&date_time).single())
         .ok_or_else(|| format!("Invalid time: {:?}", string))?;
 
@@ -92,8 +92,9 @@ pub fn parse_fake_now() -> GenericResult<Option<TzDateTime<Local>>> {
 
     let fake_now = match env::var(name) {
         Ok(value) => {
-            chrono::NaiveDateTime::parse_from_str(&value, "%Y.%m.%d %H:%M:%S").ok()
-                .and_then(|date_time| Local.from_local_datetime(&date_time).single())
+            DateTime::parse_from_str(&value, "%Y.%m.%d %H:%M:%S").ok().and_then(|date_time| {
+                Local.from_local_datetime(&date_time).single()
+            })
         },
         Err(e) => match e {
             VarError::NotPresent => return Ok(None),

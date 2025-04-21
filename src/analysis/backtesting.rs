@@ -267,7 +267,7 @@ impl CurrentBenchmarkInstrument<'_> {
         Err!(
             "There are no historical quotes for {} at {}. The nearest quotes we have are at {}",
             self.spec.symbol, formatting::format_date(date),
-            nearest.into_iter().map(|date| formatting::format_date(date)).join(" and "),
+            nearest.into_iter().map(formatting::format_date).join(" and "),
         )
     }
 }

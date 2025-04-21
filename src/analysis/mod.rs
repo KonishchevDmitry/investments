@@ -93,7 +93,7 @@ pub fn backtest(config: &Config) -> EmptyResult {
     ];
 
     let (converter, quotes) = load_tools(config)?;
-    let statements = load_portfolios(config, None)?.into_iter()
+    let statements = load_portfolios(config, Some("sber-iia"))?.into_iter()
         .map(|(_portfolio, statement)| statement)
         .collect_vec();
 

@@ -3,11 +3,12 @@ mod month;
 mod parsing;
 mod period;
 
-use chrono::Local;
+use chrono::{Local, Offset, Utc};
 #[cfg(debug_assertions)] use lazy_static::lazy_static;
 
 pub use chrono::TimeZone as TimeZone;
 pub use chrono::DateTime as TzDateTime;
+pub use chrono::FixedOffset as FixedTimeZone;
 pub use crate::types::{Date, Time, DateTime};
 
 pub use date::*;
@@ -49,6 +50,12 @@ pub fn tz_now() -> TzDateTime<Local> {
     }
 
     Local::now()
+}
+
+// Attention: This function returns a fixed offset which is correct only for now, so must be used with care and only for
+// cases when this allowance is acceptable.
+pub fn tz_to_fixed<T: TimeZone>(time_zone: T) -> FixedTimeZone {
+    time_zone.offset_from_utc_datetime(&Utc::now().naive_utc()).fix()
 }
 
 pub trait TimeProvider: Sync + Send {
