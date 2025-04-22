@@ -87,13 +87,14 @@ pub fn backtest(config: &Config) -> EmptyResult {
     let commission_spec = crate::brokers::plans::tbank::premium();
 
     let benchmarks = [
-        Benchmark::new("Russian stocks (Sber)", BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec.clone())),
-        Benchmark::new("Russian stocks (TBank)", BenchmarkInstrument::new("TMOS", Exchange::Moex, commission_spec.clone())),
-        Benchmark::new("Russian stocks (VTB)", BenchmarkInstrument::new("EQMX", Exchange::Moex, commission_spec.clone())),
+        Benchmark::new("Russian stocks (Sber)", BenchmarkInstrument::new("FXRL", Exchange::Moex, commission_spec.clone()))
+            .then(date!(2021, 7, 29), BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec.clone()))?,
+        // Benchmark::new("Russian stocks (TBank)", BenchmarkInstrument::new("TMOS", Exchange::Moex, commission_spec.clone())),
+        // Benchmark::new("Russian stocks (VTB)", BenchmarkInstrument::new("EQMX", Exchange::Moex, commission_spec.clone())),
     ];
 
     let (converter, quotes) = load_tools(config)?;
-    let statements = load_portfolios(config, Some("sber-iia"))?.into_iter()
+    let statements = load_portfolios(config, Some("tbank"))?.into_iter()
         .map(|(_portfolio, statement)| statement)
         .collect_vec();
 

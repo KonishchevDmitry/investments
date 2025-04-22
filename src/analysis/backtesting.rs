@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::ops::Bound;
 
 
@@ -100,6 +101,18 @@ impl Benchmark {
         }
     }
 
+    pub fn then(mut self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
+        match self.instruments.entry(date) {
+            Entry::Vacant(entry) => {
+                entry.insert(instrument);
+            },
+            Entry::Occupied(_) => {
+                return Err!("An attempt to override {}", formatting::format_date(date));
+            },
+        }
+        Ok(self)
+    }
+
     pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: &Quotes) -> GenericResult<Cash> {
         let mut cash_assets = MultiCurrencyCashAccount::new();
         let mut current_instrument: Option<CurrentBenchmarkInstrument<'_>> = None;
@@ -148,7 +161,7 @@ impl Benchmark {
     }
 
     fn select_instrument(&self, date: Date, last_cash_flow_date: Date, quotes: &Quotes) -> GenericResult<CurrentBenchmarkInstrument> {
-        let Some((start_date, instrument)) = self.instruments.range(..date).last() else {
+        let Some((start_date, instrument)) = self.instruments.range(..=date).last() else {
             return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
         };
 
