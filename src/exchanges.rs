@@ -23,10 +23,13 @@ impl Exchange {
     }
 
     pub fn min_last_working_day(self, today: Date) -> Date {
-        // Experimentally deduced timeout. Originally was smaller, but for example in 2022 when FinEx
-        // ETF have been suspended, MOEX returned their price, but with day delay, so for example during
-        // May holidays we had quotes only for 29 april during 30 april - 4 may period.
-        today - Duration::days(5)
+        // Issues due to start of SMO
+        if date!(2022, 2, 25) < today && today < date!(2022, 3, 31) {
+            date!(2022, 2, 25)
+        } else {
+            // Experimentally deduced timeout
+            today - Duration::days(5)
+        }
     }
 
     pub fn is_valid_execution_date(self, conclusion: Date, execution: Date) -> bool {

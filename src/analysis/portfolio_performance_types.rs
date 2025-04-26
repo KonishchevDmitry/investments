@@ -128,6 +128,7 @@ impl InstrumentPerformanceAnalysis {
         let result = util::round(self.result, 0);
         let profit = result - investments;
 
+        // FIXME(konishchev): To backtesting
         let (duration_name, duration_days) = if self.days >= 365 {
             ("y", 365)
         } else if self.days >= 30 {

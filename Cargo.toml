@@ -30,6 +30,7 @@ path = "examples/tax_statement_parser.rs"
 
 [lints.clippy]
 collapsible-if = "allow"
+comparison-chain = "allow"
 derive-partial-eq-without-eq = "allow"
 new-ret-no-self = "allow"
 new-without-default = "allow"

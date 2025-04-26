@@ -1,32 +1,60 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
-use log::{error, trace};
+use itertools::Itertools;
+use log::{error, debug};
+use num_traits::FromPrimitive;
 use reqwest::Url;
-use reqwest::blocking::Client;
+use reqwest::blocking::{Client, Response};
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
+use serde_json::Value;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formats::xml;
-use crate::time;
-use crate::types::{Decimal, Date};
+use crate::time::{self, Date, DateTime, Period};
+use crate::types::Decimal;
+use crate::util;
 
-use super::{SupportedExchange, QuotesMap, QuotesProvider};
+use super::common::{send_request, parse_response};
+use super::{QuotesProvider, SupportedExchange, QuotesMap, HistoricalQuotes};
 
+const ENGINE: &str = "stock";
+const MARKET: &str = "shares";
+
+const STOCKS_BOARD: &str = "TQBR";
+const ETF_BOARD: &str = "TQTF";
+
+// API docs – https://www.moex.com/a2193
 pub struct Moex {
     url: String,
-    board: String,
+    client: Client,
 }
 
 impl Moex {
-    pub fn new(url: &str, board: &str) -> Moex {
+    pub fn new(url: &str) -> Moex {
         Moex {
             url: url.to_owned(),
-            board: board.to_owned(),
+            client: Client::new(),
         }
+    }
+
+    fn get_instrument_info(&self, symbol: &str) -> GenericResult<Option<InstrumentInfo>> {
+        let url = Url::parse_with_params(
+            &format!("{}/iss/securities/{symbol}.json", self.url), &[
+            ("primary_board", "1"),
+
+            ("iss.only", "boards"),
+            ("boards.columns", "boardid,market,engine,currencyid"),
+
+            ("iss.meta", "off"),
+            ("iss.json", "extended"),
+        ])?;
+
+        Ok(send_request(&self.client, &url, None).and_then(InstrumentInfo::parse).map_err(|e| format!(
+            "Failed to get instrument info from {url}: {e}"))?)
     }
 }
 
@@ -39,31 +67,135 @@ impl QuotesProvider for Moex {
         SupportedExchange::Some(Exchange::Moex)
     }
 
+    fn supports_historical_stocks(&self) -> SupportedExchange {
+        self.supports_stocks()
+    }
+
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
-        let url = Url::parse_with_params(
-            &format!("{}/iss/engines/stock/markets/shares/boards/{}/securities.xml", self.url, self.board),
-            &[("securities", symbols.join(",").as_str())],
-        )?;
+        let mut all_quotes = QuotesMap::new();
+        let mut symbols: HashSet<&str> = symbols.iter().copied().collect();
 
-        let get = |url| -> GenericResult<HashMap<String, Cash>> {
-            trace!("Sending request to {}...", url);
-            let response = Client::new().get(url).send()?;
-            trace!("Got response from {}.", url);
+        for board in [ETF_BOARD, STOCKS_BOARD] {
+            let url = Url::parse_with_params(
+                &format!("{}/iss/engines/{ENGINE}/markets/{MARKET}/boards/{board}/securities.xml", self.url),
+                &[("securities", symbols.iter().sorted().join(",").as_str())],
+            )?;
 
-            if !response.status().is_success() {
-                return Err!("The server returned an error: {}", response.status());
+            let quotes = send_request(&self.client, &url, None).and_then(parse_quotes).map_err(|e| format!(
+                "Failed to get quotes from {url}: {e}"))?;
+
+            for symbol in quotes.keys() {
+                symbols.remove(symbol.as_str());
             }
+            all_quotes.extend(quotes);
 
-            Ok(parse_quotes(&response.bytes()?).map_err(|e| format!(
-                "Quotes info parsing error: {}", e))?)
+            if symbols.is_empty() {
+                break;
+            }
+        }
+
+        Ok(all_quotes)
+    }
+
+    fn get_historical_quotes(&self, symbol: &str, period: Period) -> GenericResult<Option<HistoricalQuotes>> {
+        let Some(instrument) = self.get_instrument_info(symbol)? else {
+            return Ok(None);
         };
 
-        Ok(get(url.as_str()).map_err(|e| format!(
-            "Failed to get quotes from {}: {}", url, e))?)
+        let mut start = 0;
+        let mut quotes: HashMap<Date, Vec<Decimal>> = HashMap::new();
+
+        loop {
+            let start_arg = start.to_string();
+            let url = Url::parse_with_params(
+                &format!("{}/iss/engines/{}/markets/{}/boards/{}/securities/{symbol}/candles.json",
+                    self.url, instrument.engine, instrument.market, instrument.board), &[
+
+                ("from", period.first_date().format("%Y.%m.%d").to_string().as_str()),
+                ("till", period.last_date().format("%Y.%m.%d").to_string().as_str()),
+                ("interval", "60"),
+                ("start", &start_arg),
+
+                ("candles.columns", "begin,open,close"),
+                ("iss.meta", "off"),
+            ])?;
+
+            let count = send_request(&self.client, &url, None).and_then(|response| {
+                parse_historical_quotes(response, &mut quotes)
+            }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?;
+
+            if count == 0 {
+                return Ok(Some(super::aggregate_historical_quotes(&instrument.currency, quotes)))
+            }
+
+            start += count;
+        }
     }
 }
 
-fn parse_quotes(data: &[u8]) -> GenericResult<HashMap<String, Cash>> {
+struct InstrumentInfo {
+    engine: String,
+    market: String,
+    board: String,
+    currency: String,
+}
+
+impl InstrumentInfo {
+    fn parse(response: Response) -> GenericResult<Option<InstrumentInfo>> {
+        #[derive(Deserialize)]
+        struct Response {
+            boards: Vec<Board>,
+        }
+
+        #[derive(Deserialize)]
+        struct Board {
+            #[serde(rename = "boardid")]
+            id: String,
+            #[serde(rename = "engine")]
+            engine: String,
+            #[serde(rename = "market")]
+            market: String,
+            #[serde(rename = "currencyid")]
+            currency: String,
+        }
+
+        let body = response.text()?;
+
+        let mut response: Vec<Value> = parse_response(&body)?;
+        if response.len() != 2 {
+            return Err!("Got an unexpected response: {body}");
+        }
+
+        let mut response: Response = serde_json::from_value(response.pop().unwrap()).map_err(|e| format!(
+            "Got an unexpected response: {e}"))?;
+
+        if response.boards.len() > 1 {
+            return Err!("Got an unexpected response: {body}");
+        }
+
+        let Some(board) = response.boards.pop() else {
+            return Ok(None);
+        };
+
+        if !matches!(
+            (board.id.as_str(), board.engine.as_str(), board.market.as_str()),
+            (STOCKS_BOARD | ETF_BOARD, ENGINE, MARKET),
+        ) {
+            debug!("Skipping unsupported instrument type: engine={}, market={}, board={}.",
+                board.engine, board.market, board.id);
+            return Ok(None);
+        }
+
+        Ok(Some(InstrumentInfo {
+            engine: board.engine,
+            market: board.market,
+            board: board.id,
+            currency: board.currency,
+        }))
+    }
+}
+
+fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     #[derive(Deserialize)]
     struct Document {
         data: Vec<Data>,
@@ -122,7 +254,7 @@ fn parse_quotes(data: &[u8]) -> GenericResult<HashMap<String, Cash>> {
         time: Option<String>,
     }
 
-    let result: Document = xml::deserialize(data)?;
+    let result: Document = xml::deserialize(&response.bytes()? as &[u8])?;
     let (mut securities, mut market_data) = (None, None);
 
     for data in result.data {
@@ -171,7 +303,7 @@ fn parse_quotes(data: &[u8]) -> GenericResult<HashMap<String, Cash>> {
     for row in market_data {
         let symbol = get_value(row.symbol)?;
 
-        let date = time::parse_date_time(&get_value(row.time)?, "%Y-%m-%d %H:%M:%S")?.date();
+        let date = parse_time(&get_value(row.time)?)?.date();
         if is_outdated(date) {
             outdated.push(symbol);
             continue;
@@ -215,8 +347,46 @@ fn parse_quotes(data: &[u8]) -> GenericResult<HashMap<String, Cash>> {
     Ok(quotes)
 }
 
+fn parse_historical_quotes(response: Response, quotes: &mut HashMap<Date, Vec<Decimal>>) -> GenericResult<usize> {
+    #[derive(Deserialize)]
+    struct Response {
+        candles: Candles,
+    }
+
+    #[derive(Deserialize)]
+    struct Candles {
+        data: Vec<[Value;3]>,
+    }
+
+    let response: Response = parse_response(&response.text()?)?;
+    let parse_price = |data: &Value| {
+        data.as_f64()
+            .and_then(Decimal::from_f64)
+            .and_then(|price| util::validate_decimal(price, util::DecimalRestrictions::StrictlyPositive).ok())
+    };
+
+    for data in &response.candles.data {
+        let (Some(date), Some(open), Some(close)) = (
+            data[0].as_str().and_then(|time| parse_time(time).ok()).map(|time| time.date()),
+            parse_price(&data[1]),
+            parse_price(&data[2]),
+        ) else {
+            return Err!("Got an invalid candle: {data:?}");
+        };
+
+        let price = ((open + close) / dec!(2)).normalize();
+        quotes.entry(date).or_default().push(price);
+    }
+
+    Ok(response.candles.data.len())
+}
+
 fn get_value<T>(value: Option<T>) -> GenericResult<T> {
     Ok(value.ok_or("Got an unexpected response from server")?)
+}
+
+fn parse_time(value: &str) -> GenericResult<DateTime> {
+    time::parse_date_time(value, "%Y-%m-%d %H:%M:%S")
 }
 
 #[cfg(not(test))]
@@ -254,19 +424,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn no_quotes() {
-        let board = "TQTF";
-        let (mut server, client) = create_server(board);
-        let _mock = mock(&mut server, board, &["FXUS", "FXIT"], "moex-empty.xml");
+    fn missing_instrument_info() {
+        let (mut server, client) = create_server();
+        let _mock = mock_instrument_info(&mut server, "INVALID", "moex-instrument-info-missing.json");
+        assert!(client.get_instrument_info("INVALID").unwrap().is_none());
+    }
 
-        assert_eq!(client.get_quotes(&["FXUS", "FXIT"]).unwrap(), HashMap::new());
+    #[test]
+    fn instrument_info() {
+        let (mut server, client) = create_server();
+        let _mock = mock_instrument_info(&mut server, "FXUS", "moex-instrument-info.json");
+
+        let info = client.get_instrument_info("FXUS").unwrap().unwrap();
+        assert_eq!(info.board, ETF_BOARD);
+        assert_eq!(info.currency, "RUB");
     }
 
     #[test]
     fn quotes() {
-        let board = "TQTF";
-        let (mut server, client) = create_server(board);
-        let _mock = mock(&mut server, board, &["FXUS", "FXIT", "INVALID"], "moex.xml");
+        let (mut server, client) = create_server();
+        let _mock = mock_quotes(&mut server, ETF_BOARD, &["FXUS", "FXIT", "INVALID"], "moex.xml");
+        let _mock = mock_quotes(&mut server, STOCKS_BOARD, &["INVALID"], "moex-empty.xml");
 
         let mut quotes = HashMap::new();
         quotes.insert(s!("FXUS"), Cash::new("RUB", dec!(3320)));
@@ -276,26 +454,25 @@ mod tests {
     }
 
     #[test]
-    fn exchange_closed() {
+    fn exchange_closed_quotes() {
         test_exchange_status("closed")
     }
 
     #[test]
-    fn exchange_opening() {
+    fn exchange_opening_quotes() {
         test_exchange_status("opening")
     }
 
     #[test]
-    fn exchange_open() {
+    fn exchange_open_quotes() {
         test_exchange_status("open")
     }
 
     fn test_exchange_status(status: &str) {
-        let board = "TQTF";
         let securities = ["FXAU", "FXCN", "FXDE", "FXIT", "FXJP", "FXRB", "FXRL", "FXRU", "FXUK", "FXUS"];
 
-        let (mut server, client) = create_server(board);
-        let _mock = mock(&mut server, board, &securities, &format!("moex-{}.xml", status));
+        let (mut server, client) = create_server();
+        let _mock = mock_quotes(&mut server, ETF_BOARD, &securities, &format!("moex-{}.xml", status));
 
         let quotes = client.get_quotes(&securities).unwrap();
         assert_eq!(
@@ -304,28 +481,57 @@ mod tests {
         );
     }
 
-    fn create_server(board: &str) -> (ServerGuard, Moex) {
+    #[test]
+    fn historical_quotes() {
+        let (mut server, client) = create_server();
+
+        let _mock = mock_instrument_info(&mut server, "FXUS", "moex-instrument-info.json");
+        let _mock = mock_candles(&mut server, 0, "moex-historical-start.json");
+        let _mock = mock_candles(&mut server, 4, "moex-historical-end.json");
+
+        let period = Period::new(date!(2016, 5, 25), date!(2016, 5, 30)).unwrap();
+        let quotes = client.get_historical_quotes("FXUS", period).unwrap().unwrap();
+
+        assert_eq!(quotes, btreemap! {
+            date!(2016, 5, 25) => Cash::new("RUB", dec!(24.275)),
+            date!(2016, 5, 26) => Cash::new("RUB", dec!(23.98)),
+            date!(2016, 5, 27) => Cash::new("RUB", dec!(24.24)),
+            date!(2016, 5, 30) => Cash::new("RUB", dec!(24.275)),
+        });
+    }
+
+    fn create_server() -> (ServerGuard, Moex) {
         let server = Server::new();
-        let client = Moex::new(&server.url(), board);
+        let client = Moex::new(&server.url());
         (server, client)
     }
 
-    fn mock(server: &mut Server, board: &str, securities: &[&str], body_path: &str) -> Mock {
+    fn mock_instrument_info(server: &mut Server, symbol: &str, body_path: &str) -> Mock {
+        let path = format!("/iss/securities/{symbol}.json?primary_board=1&iss.only=boards&boards.columns=boardid%2Cmarket%2Cengine%2Ccurrencyid&iss.meta=off&iss.json=extended");
+        mock_response(server, &path, body_path)
+    }
+
+    fn mock_quotes(server: &mut Server, board: &str, securities: &[&str], body_path: &str) -> Mock {
         let securities =
-            url::form_urlencoded::byte_serialize(securities.join(",").as_bytes())
+            url::form_urlencoded::byte_serialize(securities.iter().copied().sorted().join(",").as_bytes())
             .collect::<String>();
 
-        let path = format!(
-            "/iss/engines/stock/markets/shares/boards/{}/securities.xml?securities={}",
-            board, securities);
+        let path = format!("/iss/engines/{ENGINE}/markets/{MARKET}/boards/{board}/securities.xml?securities={securities}");
+        mock_response(server, &path, body_path)
+    }
 
+    fn mock_candles(server: &mut Server, start: usize, body_path: &str) -> Mock {
+        let path = format!("/iss/engines/{ENGINE}/markets/{MARKET}/boards/{ETF_BOARD}/securities/FXUS/candles.json?from=2016.05.25&till=2016.05.30&interval=60&start={start}&candles.columns=begin%2Copen%2Cclose&iss.meta=off");
+        mock_response(server, &path, body_path)
+    }
+
+    fn mock_response(server: &mut Server, path: &str, body_path: &str) -> Mock {
         let mut body = String::new();
         let body_path = Path::new(file!()).parent().unwrap().join("testdata").join(body_path);
         File::open(body_path).unwrap().read_to_string(&mut body).unwrap();
 
-        server.mock("GET", path.as_str())
+        server.mock("GET", path)
             .with_status(200)
-            .with_header("Content-Type", "application/xml; charset=utf-8")
             .with_body(body)
             .create()
     }

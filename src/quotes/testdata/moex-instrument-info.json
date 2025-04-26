@@ -1,0 +1,6 @@
+[
+{"charsetinfo": {"name": "utf-8"}},
+{
+"boards": [
+{"boardid": "TQTF", "market": "shares", "engine": "stock", "currencyid": "RUB"}]}
+]

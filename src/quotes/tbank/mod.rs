@@ -55,6 +55,8 @@ pub enum TbankExchange {
 }
 
 // T-Bank Invest API (https://developer.tbank.ru/invest/api)
+//
+// Please note that T-Bank API has a limited historical quotes depth – they start from 06.03.2018.
 pub struct Tbank {
     token: String,
     exchange: TbankExchange,
@@ -255,7 +257,7 @@ impl Tbank {
             }
 
             if request_to >= to {
-                return Ok(Some(aggregate_historical_quotes(&stock.currency, quotes)))
+                return Ok(Some(super::aggregate_historical_quotes(&stock.currency, quotes)))
             }
 
             request_from = request_to.checked_add_signed(TimeDelta::seconds(1)).unwrap();
@@ -518,11 +520,4 @@ fn limit_historical_request_range<Tz: TimeZone>(
     ))?;
 
     Ok(std::cmp::min(to, max_to))
-}
-
-fn aggregate_historical_quotes(currency: &str, quotes: HashMap<Date, Vec<Decimal>>) -> HistoricalQuotes {
-    quotes.into_iter().map(|(date, prices)| {
-        let price = prices.iter().copied().sum::<Decimal>() / Decimal::from(prices.len());
-        (date, Cash::new(currency, price).normalize())
-    }).collect()
 }

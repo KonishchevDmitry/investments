@@ -142,8 +142,7 @@ impl Quotes {
 
         // Prefer FinEx provider over MOEX until their funds are suspended
         providers.push(Arc::new(Finex::new("https://api.finex-etf.ru")));
-        providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQTF")));
-        providers.push(Arc::new(Moex::new("https://iss.moex.com", "TQBR")));
+        providers.push(Arc::new(Moex::new("https://iss.moex.com")));
 
         // At this time this is only for the sake of historical queries
         if let Some(config) = tbank {
@@ -466,6 +465,13 @@ trait QuotesProvider: Send + Sync {
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
     fn get_historical_quotes(&self, _symbol: &str, _period: Period) -> GenericResult<Option<HistoricalQuotes>> {Ok(None)}
+}
+
+fn aggregate_historical_quotes(currency: &str, quotes: HashMap<Date, Vec<Decimal>>) -> HistoricalQuotes {
+    quotes.into_iter().map(|(date, prices)| {
+        let price = prices.iter().copied().sum::<Decimal>() / Decimal::from(prices.len());
+        (date, Cash::new(currency, price).normalize())
+    }).collect()
 }
 
 #[cfg(test)]

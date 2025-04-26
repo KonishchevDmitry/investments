@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
 use std::ops::Bound;
 
-
 use itertools::Itertools;
-use log::trace;
+use log::debug;
 use static_table_derive::StaticTable;
 
 use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
@@ -34,23 +32,31 @@ pub fn backtest(
                 .and_modify(|result| *result += cash_flow.cash.amount)
                 .or_insert(cash_flow.cash.amount);
         }
-
         net_value += statement.net_value(&converter, quotes, currency, true)?;
     }
 
-    let cash_flows = cash_flows.into_iter()
-        .filter_map(|((date, currency), amount)| {
-            if amount.is_zero() {
-                None
-            } else {
-                Some(CashAssets::new(date, currency, amount))
-            }
-        })
-        .collect_vec();
-
-    let transactions = cash_flows.iter().map(|cash_flow| {
-        Transaction::new(cash_flow.date, cash_flow.cash.amount)
+    let cash_flows = cash_flows.into_iter().filter_map(|((date, currency), amount)| {
+        if amount.is_zero() {
+            None
+        } else {
+            Some(CashAssets::new(date, currency, amount))
+        }
     }).collect_vec();
+
+    let transactions = {
+        let mut transactions = BTreeMap::new();
+
+        for cash_flow in &cash_flows {
+            let amount = converter.convert_to(cash_flow.date, cash_flow.cash, currency)?;
+            transactions.entry(cash_flow.date)
+                .and_modify(|result| *result += amount)
+                .or_insert(amount);
+        }
+
+        transactions.into_iter().map(|(date, amount)| {
+            Transaction::new(date, amount)
+        }).collect_vec()
+    };
 
     let start_date = transactions.first().ok_or(
         "An attempt to backtest an empty portfolio (without cash flows)")?.date;
@@ -102,14 +108,15 @@ impl Benchmark {
     }
 
     pub fn then(mut self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
-        match self.instruments.entry(date) {
-            Entry::Vacant(entry) => {
-                entry.insert(instrument);
-            },
-            Entry::Occupied(_) => {
-                return Err!("An attempt to override {}", formatting::format_date(date));
-            },
+        let &last_date = self.instruments.last_entry().unwrap().key();
+
+        if date == last_date {
+            return Err!("An attempt to override {}", formatting::format_date(date));
+        } else if date < last_date {
+            return Err!("Benchmark instruments chain must be ordered by date");
         }
+
+        assert!(self.instruments.insert(date, instrument).is_none());
         Ok(self)
     }
 
@@ -121,7 +128,7 @@ impl Benchmark {
             "An attempt to backtest an empty portfolio (without cash flows)")?.date;
 
         for cash_flow in cash_flows {
-            trace!("Backtesting cash flow: {}: {}...", formatting::format_date(cash_flow.date), cash_flow.cash);
+            debug!("Backtesting cash flow: {}: {}...", formatting::format_date(cash_flow.date), cash_flow.cash);
             assert!(cash_flow.date <= last_cash_flow_date);
 
             let instrument = match current_instrument.as_mut() {
@@ -131,11 +138,21 @@ impl Benchmark {
                         let conversion_date = old_instrument.until.unwrap();
                         assert!(conversion_date <= cash_flow.date);
 
-                        let net_value = old_instrument.get_price(conversion_date)? * old_instrument.quantity;
-                        cash_assets.deposit(net_value);
-
                         let mut new_instrument = self.select_instrument(conversion_date, last_cash_flow_date, quotes)?;
-                        cash_assets = new_instrument.process_cash_flow(conversion_date, cash_assets, converter.clone(), true)?;
+
+                        // FIXME(konishchev): Support it
+                        if old_instrument.spec.symbol == "VTBX" && new_instrument.spec.symbol == "EQMX" {
+                            new_instrument.quantity = old_instrument.quantity;
+                        } else {
+                            let net_value = old_instrument.get_price(conversion_date)? * old_instrument.quantity;
+                            cash_assets.deposit(net_value);
+                            cash_assets = new_instrument.process_cash_flow(conversion_date, cash_assets, converter.clone(), true)?;
+                        }
+
+                        debug!("Converted {} {} -> {} {} at {}.",
+                            old_instrument.quantity, old_instrument.spec.symbol,
+                            new_instrument.quantity, new_instrument.spec.symbol,
+                            formatting::format_date(conversion_date));
 
                         new_instrument
                     } else {
@@ -165,8 +182,6 @@ impl Benchmark {
             return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
         };
 
-        trace!("Select new benchmark instrument: {}.", instrument.symbol);
-
         let until = self.instruments.range((Bound::Excluded(start_date), Bound::Unbounded)).next()
             .map(|(start_date, _instrument)| start_date).copied();
 
@@ -177,6 +192,10 @@ impl Benchmark {
                 until.unwrap_or(last_cash_flow_date),
             ),
         )?;
+
+        debug!(
+            "Select new benchmark instrument for {}+: {} ({quotes_period}).",
+            formatting::format_date(date), instrument.symbol);
 
         let candles = quotes.get_historical(instrument.exchange, &instrument.symbol, quotes_period)?;
 
@@ -189,6 +208,7 @@ impl Benchmark {
     }
 }
 
+#[derive(Clone)]
 pub struct BenchmarkInstrument {
     symbol: String,
     exchange: Exchange,
