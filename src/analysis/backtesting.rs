@@ -7,6 +7,7 @@ use static_table_derive::StaticTable;
 
 use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
 use crate::analysis::deposit_performance;
+use crate::analysis::portfolio_performance;
 use crate::broker_statement::BrokerStatement;
 use crate::commissions::{CommissionCalc, CommissionSpec};
 use crate::core::{EmptyResult, GenericResult};
@@ -62,6 +63,8 @@ pub fn backtest(
         "An attempt to backtest an empty portfolio (without cash flows)")?.date;
 
     let interest_periods = [InterestPeriod::new(start_date, time::today())];
+    let days = portfolio_performance::get_total_activity_duration(&interest_periods);
+
     let portfolio_interest = deposit_performance::compare_instrument_to_bank_deposit(
         "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
 
@@ -88,13 +91,13 @@ pub fn backtest(
         });
     }
 
-    results.print("Backtesting results");
+    results.print(&format!("Backtesting results ({})", formatting::format_days(days)));
     Ok(())
 }
 
 pub struct Benchmark {
     pub name: String,
-    instruments: BTreeMap<Date, BenchmarkInstrument>
+    instruments: BTreeMap<Date, (BenchmarkInstrumentTransition, BenchmarkInstrument)>
 }
 
 impl Benchmark {
@@ -102,22 +105,17 @@ impl Benchmark {
         Benchmark {
             name: name.to_owned(),
             instruments: btreemap!{
-                Date::MIN => instrument,
+                Date::MIN => (BenchmarkInstrumentTransition::Convert, instrument),
             }
         }
     }
 
-    pub fn then(mut self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
-        let &last_date = self.instruments.last_entry().unwrap().key();
+    pub fn then(self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
+        self.then_transition(date, BenchmarkInstrumentTransition::Convert, instrument)
+    }
 
-        if date == last_date {
-            return Err!("An attempt to override {}", formatting::format_date(date));
-        } else if date < last_date {
-            return Err!("Benchmark instruments chain must be ordered by date");
-        }
-
-        assert!(self.instruments.insert(date, instrument).is_none());
-        Ok(self)
+    pub fn then_rename(self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
+        self.then_transition(date, BenchmarkInstrumentTransition::Rename, instrument)
     }
 
     pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: &Quotes) -> GenericResult<Cash> {
@@ -138,15 +136,18 @@ impl Benchmark {
                         let conversion_date = old_instrument.until.unwrap();
                         assert!(conversion_date <= cash_flow.date);
 
-                        let mut new_instrument = self.select_instrument(conversion_date, last_cash_flow_date, quotes)?;
+                        let (transition_type, mut new_instrument) = self.select_instrument(
+                            conversion_date, last_cash_flow_date, quotes)?;
 
-                        // FIXME(konishchev): Support it
-                        if old_instrument.spec.symbol == "VTBX" && new_instrument.spec.symbol == "EQMX" {
-                            new_instrument.quantity = old_instrument.quantity;
-                        } else {
-                            let net_value = old_instrument.get_price(conversion_date)? * old_instrument.quantity;
-                            cash_assets.deposit(net_value);
-                            cash_assets = new_instrument.process_cash_flow(conversion_date, cash_assets, converter.clone(), true)?;
+                        match transition_type {
+                            BenchmarkInstrumentTransition::Convert => {
+                                let net_value = old_instrument.get_price(conversion_date)? * old_instrument.quantity;
+                                cash_assets.deposit(net_value);
+                                cash_assets = new_instrument.process_cash_flow(conversion_date, cash_assets, converter.clone(), true)?;
+                            },
+                            BenchmarkInstrumentTransition::Rename => {
+                                new_instrument.quantity = old_instrument.quantity;
+                            },
                         }
 
                         debug!("Converted {} {} -> {} {} at {}.",
@@ -156,7 +157,10 @@ impl Benchmark {
 
                         new_instrument
                     } else {
-                        self.select_instrument(cash_flow.date, last_cash_flow_date, quotes)?
+                        let (_transition, instrument) = self.select_instrument(cash_flow.date, last_cash_flow_date, quotes)?;
+                        // FIXME(konishchev): Enable
+                        // assert_eq!(transition, BenchmarkInstrumentTransition::Convert);
+                        instrument
                     };
 
                     current_instrument.insert(new_instrument)
@@ -167,6 +171,7 @@ impl Benchmark {
             cash_assets = instrument.process_cash_flow(cash_flow.date, cash_assets, converter.clone(), false)?;
         }
 
+        // FIXME(konishchev): May need instrument selection
         let instrument = current_instrument.unwrap();
         let price = quotes.get(QuoteQuery::Stock(instrument.spec.symbol.clone(), vec![instrument.spec.exchange]))?;
 
@@ -177,8 +182,21 @@ impl Benchmark {
         Ok(Cash::new(currency, net_value))
     }
 
-    fn select_instrument(&self, date: Date, last_cash_flow_date: Date, quotes: &Quotes) -> GenericResult<CurrentBenchmarkInstrument> {
-        let Some((start_date, instrument)) = self.instruments.range(..=date).last() else {
+    fn then_transition(mut self, date: Date, transition: BenchmarkInstrumentTransition, instrument: BenchmarkInstrument) -> GenericResult<Self> {
+        let &last_date = self.instruments.last_entry().unwrap().key();
+
+        if date == last_date {
+            return Err!("An attempt to override {}", formatting::format_date(date));
+        } else if date < last_date {
+            return Err!("Benchmark instruments chain must be ordered by date");
+        }
+
+        assert!(self.instruments.insert(date, (transition, instrument)).is_none());
+        Ok(self)
+    }
+
+    fn select_instrument(&self, date: Date, last_cash_flow_date: Date, quotes: &Quotes) -> GenericResult<(BenchmarkInstrumentTransition, CurrentBenchmarkInstrument)> {
+        let Some((start_date, (transition_type, instrument))) = self.instruments.range(..=date).last() else {
             return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
         };
 
@@ -199,13 +217,19 @@ impl Benchmark {
 
         let candles = quotes.get_historical(instrument.exchange, &instrument.symbol, quotes_period)?;
 
-        Ok(CurrentBenchmarkInstrument {
+        Ok((*transition_type, CurrentBenchmarkInstrument {
             spec: instrument,
             quotes: candles,
             until,
             quantity: dec!(0),
-        })
+        }))
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum BenchmarkInstrumentTransition {
+    Convert,
+    Rename,
 }
 
 #[derive(Clone)]

@@ -85,16 +85,29 @@ pub fn simulate_sell(
 
 pub fn backtest(config: &Config) -> EmptyResult {
     let commission_spec = crate::brokers::plans::tbank::premium();
+    let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex, commission_spec.clone());
 
     let benchmarks = [
-        Benchmark::new("Russian stocks (Sber)", BenchmarkInstrument::new("FXRL", Exchange::Moex, commission_spec.clone()))
-            .then(date!(2021, 7, 29), BenchmarkInstrument::new("SBMX", Exchange::Moex, commission_spec.clone()))?,
-        // Benchmark::new("Russian stocks (TBank)", BenchmarkInstrument::new("TMOS", Exchange::Moex, commission_spec.clone())),
-        // Benchmark::new("Russian stocks (VTB)", BenchmarkInstrument::new("EQMX", Exchange::Moex, commission_spec.clone())),
+        Benchmark::new("Russian stocks / Sber", instrument("FXRL"))
+            .then(date!(2021, 7, 29), instrument("SBMX"))?,
+
+        Benchmark::new("Russian stocks / T-Bank", instrument("FXRL"))
+            .then(date!(2021, 7, 29), instrument("TMOS"))?,
+
+        Benchmark::new("Russian stocks / VTB", instrument("FXRL"))
+            .then(date!(2021, 7, 29), instrument("VTBX"))?
+            .then_rename(date!(2022, 7, 22), instrument("EQMX"))?,
+
+        // FIXME(konishchev): Rewrite
+        // Benchmark::new("Russian euro bonds", BenchmarkInstrument::new("FXRU", Exchange::Moex, commission_spec.clone()))
+        //     .then(date!(2021, 7, 29), BenchmarkInstrument::new("SBCB", Exchange::Moex, commission_spec.clone()))?
+        //     .then(date!(2022, 1, 29), BenchmarkInstrument::new("SBRB", Exchange::Moex, commission_spec.clone()))?
+        //     .then(date!(2023, 12, 15), BenchmarkInstrument::new("SBCB", Exchange::Moex, commission_spec.clone()))?,
     ];
 
     let (converter, quotes) = load_tools(config)?;
-    let statements = load_portfolios(config, Some("tbank"))?.into_iter()
+    // FIXME(konishchev): Reading strictness
+    let statements = load_portfolios(config, Some("sber-iia"))?.into_iter()
         .map(|(_portfolio, statement)| statement)
         .collect_vec();
 

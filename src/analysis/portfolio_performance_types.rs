@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use static_table_derive::StaticTable;
 
-use crate::formatting::table::{Cell, Style};
+use crate::formatting::{self, table::{Cell, Style}};
 use crate::types::Decimal;
 use crate::util;
 
@@ -128,24 +128,12 @@ impl InstrumentPerformanceAnalysis {
         let result = util::round(self.result, 0);
         let profit = result - investments;
 
-        // FIXME(konishchev): To backtesting
-        let (duration_name, duration_days) = if self.days >= 365 {
-            ("y", 365)
-        } else if self.days >= 30 {
-            ("m", 30)
-        } else {
-            ("d", 1)
-        };
-        let duration = format!(
-            "{}{}", util::round(Decimal::from(self.days) / Decimal::from(duration_days), 1),
-            duration_name);
-
         let mut row = table.add_row(Row {
             instrument: name.to_owned(),
             investments: Cell::new_round_decimal(investments),
             profit: Cell::new_round_decimal(profit),
             result: Cell::new_round_decimal(result),
-            duration: duration,
+            duration: formatting::format_days(self.days),
             interest: self.interest.map(|interest| format!("{}%", interest)),
         });
 

@@ -519,6 +519,6 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     }
 }
 
-fn get_total_activity_duration(periods: &[InterestPeriod]) -> u32 {
+pub fn get_total_activity_duration(periods: &[InterestPeriod]) -> u32 {
     periods.iter().map(InterestPeriod::days).sum()
 }
