@@ -14,7 +14,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use easy_logging::GlobalContext;
-use itertools::Itertools;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
@@ -106,12 +105,17 @@ pub fn backtest(config: &Config) -> EmptyResult {
     ];
 
     let (converter, quotes) = load_tools(config)?;
-    // FIXME(konishchev): Reading strictness
-    let statements = load_portfolios(config, Some("sber-iia"))?.into_iter()
-        .map(|(_portfolio, statement)| statement)
-        .collect_vec();
+    let reading_strictness = ReadingStrictness::empty();
+    let multiple_portfolios = config.portfolios.len() > 1;
 
-    backtesting::backtest("RUB", &benchmarks, &statements, converter, &quotes)
+    let mut statements = Vec::new();
+
+    for portfolio in &config.portfolios {
+        let _logging_context = multiple_portfolios.then(|| GlobalContext::new(&portfolio.name));
+        statements.push(load_portfolio(config, portfolio, reading_strictness)?);
+    }
+
+    backtesting::backtest("RUB", &benchmarks, &statements, converter, quotes)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
