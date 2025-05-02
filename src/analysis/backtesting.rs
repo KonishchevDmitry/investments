@@ -108,6 +108,7 @@ pub struct Benchmark {
 }
 
 impl Benchmark {
+    // FIXME(konishchev): Provider name for metric labels
     pub fn new(name: &str, instrument: BenchmarkInstrument) -> Benchmark {
         Benchmark {
             name: name.to_owned(),
@@ -126,14 +127,16 @@ impl Benchmark {
         self.then_transition(date, instrument)
     }
 
+    // FIXME(konishchev): Metrics generation
     pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: QuotesRc) -> GenericResult<Cash> {
         debug!("Backtesting {}...", self.name);
 
         let start_date = cash_flows.first().ok_or(
             "An attempt to backtest an empty portfolio (without cash flows)")?.date;
-
         let end_date = cash_flows.last().unwrap().date;
-        let (_, instrument) = self.select_instrument(start_date, end_date, &quotes)?;
+
+        let (transition_date, instrument) = self.select_instrument(start_date, end_date, &quotes)?;
+        assert_eq!(transition_date, start_date);
 
         Backtester {
             currency, quotes, converter,
@@ -148,7 +151,7 @@ impl Benchmark {
     }
 
     fn then_transition(mut self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
-        let &last_date = self.instruments.last_entry().unwrap().key();
+        let &last_date = self.instruments.last_key_value().unwrap().0;
 
         if date == last_date {
             return Err!("An attempt to override {}", formatting::format_date(date));
@@ -167,7 +170,7 @@ impl Benchmark {
         };
 
         // We don't select the passed date as instrument transition date, because it's highly likely that instrument
-        // transition date is carefully selected as a date with minimum volatility for this instrument.
+        // transition date was carefully selected as a date with minimum volatility for this instrument.
         //
         // But if it's the first instrument, there will be no transition actually, so we can narrow quotes period.
         let mut transition_date = start_date;
@@ -180,16 +183,14 @@ impl Benchmark {
 
         let quotes_period = Period::new(
             instrument.id.exchange.min_last_working_day(transition_date),
-            std::cmp::max(
-                transition_date,
-                std::cmp::min(quotes_limit, until.unwrap_or(quotes_limit)),
-            ),
+            std::cmp::max(transition_date, until.unwrap_or(quotes_limit)),
         )?;
 
         debug!(
             "Select new benchmark instrument for {}+: {} ({quotes_period}).",
             formatting::format_date(date), instrument.id.symbol);
 
+        // FIXME(konishchev): Historical quotes caching
         let candles = quotes.get_historical(instrument.id.exchange, &instrument.id.symbol, quotes_period)?;
 
         Ok((transition_date, CurrentBenchmarkInstrument {
@@ -215,6 +216,7 @@ struct Backtester<'a> {
 }
 
 impl Backtester<'_> {
+    // FIXME(konishchev): Daily statistics
     fn backtest(mut self) -> GenericResult<Cash> {
         for cash_flow in self.cash_flows {
             debug!("Backtesting cash flow: {}: {}...", formatting::format_date(cash_flow.date), cash_flow.cash);
@@ -224,7 +226,8 @@ impl Backtester<'_> {
         }
 
         self.process_to(time::today())?;
-        let price = self.quotes.get(QuoteQuery::Stock(self.instrument.spec.id.symbol.clone(), vec![self.instrument.spec.id.exchange]))?;
+        let instrument = self.instrument.spec.id.clone();
+        let price = self.quotes.get(QuoteQuery::Stock(instrument.symbol, vec![instrument.exchange]))?;
 
         let net_value =
             self.converter.real_time_convert_to(price * self.instrument.quantity, self.currency)? +
@@ -318,30 +321,32 @@ impl CurrentBenchmarkInstrument<'_> {
         cash_assets.clear();
         self.quantity += change;
 
-        if !commission_free {
-            let trade_type = if change.is_sign_positive() {
-                TradeType::Buy
-            } else {
-                TradeType::Sell
-            };
+        if commission_free {
+            return Ok(());
+        }
 
-            let commission_spec = self.spec.commission_spec.clone();
-            if !commission_spec.is_simple_percent() {
-                return Err!(concat!(
-                    "Current backtesting logic doesn't support complex commissions which require trade aggregation or ",
-                    "have non-percent fees"
-                ));
-            }
+        let trade_type = if change.is_sign_positive() {
+            TradeType::Buy
+        } else {
+            TradeType::Sell
+        };
 
-            let mut commission_calc = CommissionCalc::new(converter.clone(), commission_spec, net_value)?;
+        let commission_spec = self.spec.commission_spec.clone();
+        if !commission_spec.is_simple_percent() {
+            return Err!(concat!(
+                "Current backtesting logic doesn't support complex commissions which require trade aggregation or ",
+                "have non-percent fees"
+            ));
+        }
 
-            let commission = commission_calc.add_trade(date, trade_type, change.abs(), price)?;
-            cash_assets.withdraw(commission);
+        let mut commission_calc = CommissionCalc::new(converter.clone(), commission_spec, net_value)?;
 
-            for commissions in commission_calc.calculate()?.values() {
-                for commission in commissions.iter() {
-                    cash_assets.withdraw(commission);
-                }
+        let commission = commission_calc.add_trade(date, trade_type, change.abs(), price)?;
+        cash_assets.withdraw(commission);
+
+        for commissions in commission_calc.calculate()?.values() {
+            for commission in commissions.iter() {
+                cash_assets.withdraw(commission);
             }
         }
 
