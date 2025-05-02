@@ -86,22 +86,68 @@ pub fn backtest(config: &Config) -> EmptyResult {
     let commission_spec = crate::brokers::plans::tbank::premium();
     let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex, commission_spec.clone());
 
+    // FIXME(konishchev): Recheck them
     let benchmarks = [
         Benchmark::new("Russian stocks / Sber", instrument("FXRL"))
             .then(date!(2021, 7, 29), instrument("SBMX"))?,
-
         Benchmark::new("Russian stocks / T-Bank", instrument("FXRL"))
             .then(date!(2021, 7, 29), instrument("TMOS"))?,
-
         Benchmark::new("Russian stocks / VTB", instrument("FXRL"))
             .then(date!(2021, 7, 29), instrument("VTBX"))?
             .then_rename(date!(2022, 7, 22), instrument("EQMX"))?,
 
-        // FIXME(konishchev): Rewrite
-        // Benchmark::new("Russian euro bonds", BenchmarkInstrument::new("FXRU", Exchange::Moex, commission_spec.clone()))
-        //     .then(date!(2021, 7, 29), BenchmarkInstrument::new("SBCB", Exchange::Moex, commission_spec.clone()))?
-        //     .then(date!(2022, 1, 29), BenchmarkInstrument::new("SBRB", Exchange::Moex, commission_spec.clone()))?
-        //     .then(date!(2023, 12, 15), BenchmarkInstrument::new("SBCB", Exchange::Moex, commission_spec.clone()))?,
+        Benchmark::new("Money market / Sber", instrument("FXRB"))
+            .then(date!(2018, 03, 07), instrument("FXMM"))?
+            .then(date!(2021, 12, 30), instrument("SBMM"))?,
+        Benchmark::new("Money market / T-Bank", instrument("FXRB"))
+            .then(date!(2018, 03, 07), instrument("FXMM"))?
+            .then(date!(2021, 12, 30), instrument("SBMM"))?
+            .then(date!(2023, 07, 14), instrument("TMON"))?,
+        Benchmark::new("Money market / VTB", instrument("FXRB"))
+            .then(date!(2018, 03, 07), instrument("FXMM"))?
+            .then(date!(2021, 12, 30), instrument("VTBM"))?
+            .then_rename(date!(2022, 7, 22), instrument("LQDT"))?,
+
+        Benchmark::new("Russian corporate euro bonds / Sber", instrument("FXRU"))
+            .then(date!(2020, 09, 24), instrument("SBCB"))?
+            .then(date!(2022, 01, 25), instrument("SBMM"))? // SBCB was frozen for this period, so ideally we need some stub only for new income
+            .then(date!(2023, 12, 15), instrument("SBCB"))?, // The open price is equal to close price of previous SBCB interval
+        Benchmark::new("Russian corporate euro bonds / T-Bank", instrument("FXRU"))
+            .then(date!(2020, 09, 24), instrument("SBCB"))?
+            .then(date!(2022, 01, 25), instrument("SBMM"))? // SBCB was frozen for this period, so ideally we need some stub only for new income
+            .then(date!(2023, 12, 15), instrument("SBCB"))? // The open price is equal to close price of previous SBCB interval
+            .then(date!(2024, 04, 01), instrument("TLCB"))?,
+
+        Benchmark::new("Russian corporate bonds / Sber", instrument("FXRB"))
+            .then(date!(2020, 05, 20), instrument("SBRB"))?,
+        Benchmark::new("Russian corporate bonds / T-Bank", instrument("FXRB"))
+            .then(date!(2020, 05, 20), instrument("SBRB"))?
+            .then(date!(2021, 08, 06), instrument("TBRU"))?,
+        Benchmark::new("Russian corporate bonds / VTB", instrument("FXRB"))
+            .then(date!(2020, 05, 20), instrument("SBRB"))?
+            .then(date!(2021, 08, 06), instrument("VTBB"))?
+            .then_rename(date!(2022, 7, 22), instrument("OBLG"))?,
+
+        Benchmark::new("Russian government bonds / Sber", instrument("FXRB"))
+             .then(date!(2019, 01, 25), instrument("SBGB"))?,
+        Benchmark::new("Russian government bonds / T-Bank", instrument("FXRB"))
+             .then(date!(2019, 01, 25), instrument("SBGB"))?
+             .then(date!(2024, 12, 17), instrument("TOFZ"))?,
+
+        Benchmark::new("Gold / Sber", instrument("FXRB"))
+             .then(date!(2018, 03, 07), instrument("FXGD"))?
+             .then(date!(2020, 07, 15), instrument("VTBG"))?
+             .then_rename(date!(2022, 7, 22), instrument("GOLD"))?
+             .then(date!(2022, 11, 21), instrument("SBGD"))?,
+        Benchmark::new("Gold / T-Bank", instrument("FXRB"))
+             .then(date!(2018, 03, 07), instrument("FXGD"))?
+             .then(date!(2020, 07, 15), instrument("VTBG"))?
+             .then_rename(date!(2022, 7, 22), instrument("GOLD"))?
+             .then(date!(2024, 11, 05), instrument("TGLD"))?,
+        Benchmark::new("Gold / VTB", instrument("FXRB"))
+             .then(date!(2018, 03, 07), instrument("FXGD"))?
+             .then(date!(2020, 07, 15), instrument("VTBG"))?
+             .then_rename(date!(2022, 7, 22), instrument("GOLD"))?,
     ];
 
     let (converter, quotes) = load_tools(config)?;
@@ -111,6 +157,10 @@ pub fn backtest(config: &Config) -> EmptyResult {
     let mut statements = Vec::new();
 
     for portfolio in &config.portfolios {
+        // FIXME(konishchev): Drop it
+        if portfolio.name != "tbank-iia" {
+            continue;
+        }
         let _logging_context = multiple_portfolios.then(|| GlobalContext::new(&portfolio.name));
         statements.push(load_portfolio(config, portfolio, reading_strictness)?);
     }
