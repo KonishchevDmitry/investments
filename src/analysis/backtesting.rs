@@ -135,7 +135,7 @@ impl Benchmark {
             "An attempt to backtest an empty portfolio (without cash flows)")?.date;
         let end_date = cash_flows.last().unwrap().date;
 
-        let (transition_date, instrument) = self.select_instrument(start_date, end_date, &quotes)?;
+        let (transition_date, instrument) = self.select_instrument(start_date, end_date, &quotes, true)?;
         assert_eq!(transition_date, start_date);
 
         Backtester {
@@ -163,9 +163,8 @@ impl Benchmark {
         Ok(self)
     }
 
-    fn select_instrument(&self, date: Date, quotes_limit: Date, quotes: &Quotes) -> GenericResult<(Date, CurrentBenchmarkInstrument)> {
-        let mut instruments = self.instruments.range(..=date).rev();
-        let Some((&start_date, instrument)) = instruments.next() else {
+    fn select_instrument(&self, date: Date, quotes_limit: Date, quotes: &Quotes, first: bool) -> GenericResult<(Date, CurrentBenchmarkInstrument)> {
+        let Some((&start_date, instrument)) = self.instruments.range(..=date).last() else {
             return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
         };
 
@@ -173,10 +172,11 @@ impl Benchmark {
         // transition date was carefully selected as a date with minimum volatility for this instrument.
         //
         // But if it's the first instrument, there will be no transition actually, so we can narrow quotes period.
-        let mut transition_date = start_date;
-        if instruments.next().is_none() {
-            transition_date = date;
-        }
+        let transition_date = if first {
+            date
+        } else {
+            start_date
+        };
 
         let until = self.instruments.range((Bound::Excluded(start_date), Bound::Unbounded)).next()
             .map(|(date, _instrument)| date).copied();
@@ -249,7 +249,7 @@ impl Backtester<'_> {
         }
 
         let (transition_date, mut new_instrument) = self.benchmark.select_instrument(
-            date, self.cash_flows.last().unwrap().date, &self.quotes)?;
+            date, self.cash_flows.last().unwrap().date, &self.quotes, false)?;
 
         match new_instrument.spec.renamed_from.as_ref() {
             Some(renamed_from) if *renamed_from == self.instrument.spec.id => {

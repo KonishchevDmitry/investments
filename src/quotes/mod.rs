@@ -14,8 +14,7 @@ pub mod twelvedata;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, hash_map::Entry};
 use std::rc::Rc;
-use std::sync::Arc;
-#[cfg(test)] use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use itertools::Itertools;
 use log::debug;
@@ -84,6 +83,7 @@ pub struct Quotes {
     cache: Cache,
     providers: Vec<Arc<dyn QuotesProvider>>,
     batched_requests: RefCell<HashMap<String, QuoteRequest>>,
+    historical_cache: Mutex<HashMap<HistoricalCacheKey, HistoricalQuotes>>,
 }
 
 pub type QuotesRc = Rc<Quotes>;
@@ -162,6 +162,7 @@ impl Quotes {
             cache: cache,
             providers: providers,
             batched_requests: RefCell::new(HashMap::new()),
+            historical_cache: Default::default(),
         }
     }
 
@@ -196,6 +197,17 @@ impl Quotes {
     }
 
     pub fn get_historical(&self, exchange: Exchange, symbol: &str, period: Period) -> GenericResult<HistoricalQuotes> {
+        let mut cache = self.historical_cache.lock().unwrap();
+
+        // Historical data much harder to cache in the database and it must be invalidated after stock splits, so for
+        // now cache it at least in memory.
+        let cache_slot = match cache.entry((exchange, symbol.to_owned(), period)) {
+            Entry::Vacant(entry) => entry,
+            Entry::Occupied(entry) => {
+                return Ok(entry.get().clone());
+            },
+        };
+
         for provider in &self.providers {
             let provider = match provider.supports_historical_stocks() {
                 SupportedExchange::Some(provider_exchange) => {
@@ -218,6 +230,7 @@ impl Quotes {
                 "Failed to get historical quotes from {}: {e}", provider.name()))?;
 
             if let Some(quotes) = quotes {
+                cache_slot.insert(quotes.clone());
                 return Ok(quotes);
             }
         }
@@ -446,6 +459,7 @@ impl Quotes {
 }
 
 type QuotesMap = HashMap<String, Cash>;
+type HistoricalCacheKey = (Exchange, String, Period);
 pub type HistoricalQuotes = BTreeMap<Date, Cash>;
 
 #[derive(Clone, Copy, PartialEq)]

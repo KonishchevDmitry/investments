@@ -5,7 +5,7 @@ use crate::formatting;
 
 use super::Date;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct Period {
     first: Date,
     last: Date,
