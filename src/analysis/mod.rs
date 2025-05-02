@@ -167,9 +167,12 @@ pub fn backtest(config: &Config) -> EmptyResult {
         statements.push(load_portfolio(config, portfolio, reading_strictness)?);
     }
 
-    // FIXME(konishchev): Multiple currencies support
     // FIXME(konishchev): Check analysis virtual performance calculation logic
-    backtesting::backtest("RUB", &benchmarks, &statements, converter, quotes)
+    for currency in ["USD", "RUB"] {
+        backtesting::backtest(currency, &benchmarks, &statements, converter.clone(), quotes.clone())?;
+    }
+
+    Ok(())
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {

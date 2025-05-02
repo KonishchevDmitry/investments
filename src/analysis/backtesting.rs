@@ -98,7 +98,7 @@ pub fn backtest(
         });
     }
 
-    results.print(&format!("Backtesting results ({})", formatting::format_days(days)));
+    results.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
     Ok(())
 }
 
