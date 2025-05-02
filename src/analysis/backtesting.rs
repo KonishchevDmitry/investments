@@ -83,16 +83,16 @@ pub fn backtest(
     }
 
     for benchmark in benchmarks {
-        let _logging_context = GlobalContext::new(&benchmark.name);
+        let _logging_context = GlobalContext::new(&benchmark.name());
 
         let result = benchmark.backtest(currency, &cash_flows, converter.clone(), quotes.clone()).map_err(|e| format!(
-            "Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name))?;
+            "Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
         let interest = deposit_performance::compare_instrument_to_bank_deposit(
-            &benchmark.name, currency, &transactions, &interest_periods, result.amount)?;
+            &benchmark.name(), currency, &transactions, &interest_periods, result.amount)?;
 
         results.add_row(BacktestingResults {
-            benchmark: benchmark.name.clone(),
+            benchmark: benchmark.name(),
             result: Cell::new_round_decimal(result.amount),
             interest: interest.map(format_interest),
         });
@@ -103,7 +103,8 @@ pub fn backtest(
 }
 
 pub struct Benchmark {
-    pub name: String,
+    name: String,
+    provider: Option<String>,
     instruments: BTreeMap<Date, BenchmarkInstrument>
 }
 
@@ -112,10 +113,16 @@ impl Benchmark {
     pub fn new(name: &str, instrument: BenchmarkInstrument) -> Benchmark {
         Benchmark {
             name: name.to_owned(),
+            provider: None,
             instruments: btreemap!{
                 Date::MIN => instrument,
             }
         }
+    }
+
+    pub fn with_provider(mut self, name: &str) -> Self {
+        self.provider.replace(name.to_owned());
+        self
     }
 
     pub fn then(self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
@@ -127,9 +134,16 @@ impl Benchmark {
         self.then_transition(date, instrument)
     }
 
+    pub fn name(&self) -> String {
+        match self.provider.as_ref() {
+            Some(provider) => format!("{} ({provider})", self.name),
+            None => self.name.clone(),
+        }
+    }
+
     // FIXME(konishchev): Metrics generation
     pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: QuotesRc) -> GenericResult<Cash> {
-        debug!("Backtesting {}...", self.name);
+        debug!("Backtesting {}...", self.name());
 
         let start_date = cash_flows.first().ok_or(
             "An attempt to backtest an empty portfolio (without cash flows)")?.date;
@@ -190,7 +204,6 @@ impl Benchmark {
             "Select new benchmark instrument for {}+: {} ({quotes_period}).",
             formatting::format_date(date), instrument.id.symbol);
 
-        // FIXME(konishchev): Historical quotes caching
         let candles = quotes.get_historical(instrument.id.exchange, &instrument.id.symbol, quotes_period)?;
 
         Ok((transition_date, CurrentBenchmarkInstrument {
