@@ -21,10 +21,27 @@ use crate::quotes::{Quotes, QuotesRc, QuoteQuery, HistoricalQuotes};
 use crate::time::{self, Date, Period};
 use crate::types::{Decimal, TradeType};
 
+// FIXME(konishchev): Drop it
+#[allow(dead_code)]
+pub struct BenchmarkBacktestingResult {
+    pub name: String,
+    pub provider: Option<String>,
+    pub currency: String,
+    pub results: Vec<BacktestingResult>,
+}
+
+// FIXME(konishchev): Drop it
+#[allow(dead_code)]
+pub struct BacktestingResult {
+    pub date: Date,
+    pub result: Decimal,
+    pub interest: Option<Decimal>,
+}
+
 pub fn backtest(
-    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement],
+    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement], full: bool,
     converter: CurrencyConverterRc, quotes: QuotesRc,
-) -> EmptyResult {
+) -> GenericResult<Vec<BenchmarkBacktestingResult>> {
     let mut cash_flows = BTreeMap::new();
     let mut net_value = Cash::zero(currency);
 
@@ -63,10 +80,17 @@ pub fn backtest(
     let start_date = transactions.first().ok_or(
         "An attempt to backtest an empty portfolio (without cash flows)")?.date;
 
-    let interest_periods = [InterestPeriod::new(start_date, time::today())];
+    let today = time::today();
+    if start_date == today {
+        return Err!("An attempt to backtest portfolio which was created today");
+    } else if today < transactions.last().unwrap().date {
+        return Err!("The portfolio contains future cash flows");
+    }
+
+    let interest_periods = [InterestPeriod::new(start_date, today)];
     let days = portfolio_performance::get_total_activity_duration(&interest_periods);
 
-    let mut results = BacktestingResultsTable::new();
+    let mut table = BacktestingResultsTable::new();
     let format_interest = |interest| format!("{}%", interest);
 
     {
@@ -75,31 +99,40 @@ pub fn backtest(
         let portfolio_interest = deposit_performance::compare_instrument_to_bank_deposit(
             "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
 
-        results.add_row(BacktestingResults {
+        table.add_row(BacktestingResultsTableRow {
             benchmark: s!("Portfolio"),
             result: Cell::new_round_decimal(net_value.amount),
             interest: portfolio_interest.map(format_interest),
         });
     }
 
+    let mut results = Vec::new();
+
     for benchmark in benchmarks {
         let _logging_context = GlobalContext::new(&benchmark.name());
 
-        let result = benchmark.backtest(currency, &cash_flows, converter.clone(), quotes.clone()).map_err(|e| format!(
+        let benchmark_results = benchmark.backtest(currency, &cash_flows, full, today, converter.clone(), quotes.clone()).map_err(|e| format!(
             "Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
-        let interest = deposit_performance::compare_instrument_to_bank_deposit(
-            &benchmark.name(), currency, &transactions, &interest_periods, result.amount)?;
+        let current = benchmark_results.last().unwrap();
+        assert_eq!(current.date, today);
 
-        results.add_row(BacktestingResults {
+        table.add_row(BacktestingResultsTableRow {
             benchmark: benchmark.name(),
-            result: Cell::new_round_decimal(result.amount),
-            interest: interest.map(format_interest),
+            result: Cell::new_round_decimal(current.result),
+            interest: current.interest.map(format_interest),
+        });
+
+        results.push(BenchmarkBacktestingResult {
+            name: benchmark.name.clone(),
+            provider: benchmark.provider.clone(),
+            currency: currency.to_owned(),
+            results: benchmark_results,
         });
     }
 
-    results.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
-    Ok(())
+    table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
+    Ok(results)
 }
 
 pub struct Benchmark {
@@ -109,7 +142,6 @@ pub struct Benchmark {
 }
 
 impl Benchmark {
-    // FIXME(konishchev): Provider name for metric labels
     pub fn new(name: &str, instrument: BenchmarkInstrument) -> Benchmark {
         Benchmark {
             name: name.to_owned(),
@@ -141,24 +173,35 @@ impl Benchmark {
         }
     }
 
-    // FIXME(konishchev): Metrics generation
-    pub fn backtest(&self, currency: &str, cash_flows: &[CashAssets], converter: CurrencyConverterRc, quotes: QuotesRc) -> GenericResult<Cash> {
+    fn backtest(
+        &self, currency: &str, cash_flows: &[CashAssets], full: bool,
+        today: Date, converter: CurrencyConverterRc, quotes: QuotesRc,
+    ) -> GenericResult<Vec<BacktestingResult>> {
         debug!("Backtesting {}...", self.name());
 
-        let start_date = cash_flows.first().ok_or(
-            "An attempt to backtest an empty portfolio (without cash flows)")?.date;
-        let end_date = cash_flows.last().unwrap().date;
+        let start_date = cash_flows.first().unwrap().date;
 
-        let (transition_date, instrument) = self.select_instrument(start_date, end_date, &quotes, true)?;
+        let quotes_limit = if full {
+            today.pred_opt().unwrap()
+        } else {
+            cash_flows.last().unwrap().date
+        };
+
+        let (transition_date, instrument) = self.select_instrument(start_date, quotes_limit, &quotes, true)?;
         assert_eq!(transition_date, start_date);
 
         Backtester {
-            currency, quotes, converter,
+            currency, quotes, converter, quotes_limit,
 
             benchmark: self,
             cash_flows,
+            transactions: Vec::new(),
+            results: Vec::new(),
+            full,
 
             date: start_date,
+            today,
+
             cash_assets: MultiCurrencyCashAccount::new(),
             instrument: instrument
         }.backtest()
@@ -219,68 +262,122 @@ struct Backtester<'a> {
     currency: &'a str,
     quotes: QuotesRc,
     converter: CurrencyConverterRc,
+    quotes_limit: Date,
 
     benchmark: &'a Benchmark,
     cash_flows: &'a [CashAssets],
+    transactions: Vec<Transaction>,
+    results: Vec<BacktestingResult>,
+    full: bool,
 
     date: Date,
+    today: Date,
+
     cash_assets: MultiCurrencyCashAccount,
     instrument: CurrentBenchmarkInstrument<'a>,
 }
 
 impl Backtester<'_> {
-    // FIXME(konishchev): Daily statistics
-    fn backtest(mut self) -> GenericResult<Cash> {
+    fn backtest(mut self) -> GenericResult<Vec<BacktestingResult>> {
         for cash_flow in self.cash_flows {
             debug!("Backtesting cash flow: {}: {}...", formatting::format_date(cash_flow.date), cash_flow.cash);
             self.process_to(cash_flow.date)?;
+
+            let amount = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.currency)?;
+            self.transactions.push(Transaction::new(cash_flow.date, amount));
+
             self.cash_assets.deposit(cash_flow.cash);
             self.instrument.process_cash_flow(cash_flow.date, &mut self.cash_assets, self.converter.clone(), false)?;
         }
 
-        self.process_to(time::today())?;
-        let instrument = self.instrument.spec.id.clone();
-        let price = self.quotes.get(QuoteQuery::Stock(instrument.symbol, vec![instrument.exchange]))?;
+        self.process_to(self.today)?;
+        self.close_day()?;
 
-        let net_value =
-            self.converter.real_time_convert_to(price * self.instrument.quantity, self.currency)? +
-            self.cash_assets.total_assets_real_time(self.currency, &self.converter)?;
-
-        Ok(Cash::new(self.currency, net_value))
+        Ok(self.results)
     }
 
     fn process_to(&mut self, date: Date) -> EmptyResult {
         assert!(date >= self.date);
-        self.date = date;
 
-        let Some(transition_date) = self.instrument.until else {
-            return Ok(());
+        while self.date != date {
+            if self.full {
+                self.close_day()?; // Steps to the next day
+            } else {
+                self.date = date; // Attention: jumps to the requested date possibly skipping some transitions
+            }
+
+            let Some(transition_date) = self.instrument.until else {
+                continue;
+            };
+
+            if self.date < transition_date {
+                continue;
+            }
+
+            let (transition_date, mut new_instrument) = self.benchmark.select_instrument(
+                self.date, self.quotes_limit, &self.quotes, false)?;
+
+            if self.full {
+                assert_eq!(transition_date, self.date);
+            }
+
+            match new_instrument.spec.renamed_from.as_ref() {
+                Some(renamed_from) if *renamed_from == self.instrument.spec.id => {
+                    new_instrument.quantity = self.instrument.quantity;
+                },
+                _ => {
+                    self.cash_assets.deposit(self.instrument.get_value(transition_date)?);
+                    new_instrument.process_cash_flow(transition_date, &mut self.cash_assets, self.converter.clone(), true)?;
+                },
+            }
+
+            debug!("Converted {} {} -> {} {} at {}.",
+                self.instrument.quantity, self.instrument.spec.id.symbol,
+                new_instrument.quantity, new_instrument.spec.id.symbol,
+                formatting::format_date(transition_date));
+
+            self.instrument = new_instrument;
+        }
+
+        Ok(())
+    }
+
+    fn close_day(&mut self) -> EmptyResult {
+        assert!(self.date <= self.today);
+
+        let net_value = if self.date == self.today {
+            let cash_assets = self.cash_assets.total_assets_real_time(self.currency, &self.converter)?;
+
+            let instrument = &self.instrument.spec.id;
+            let price = self.quotes.get(QuoteQuery::Stock(instrument.symbol.clone(), vec![instrument.exchange]))?;
+            let instrument_value = self.converter.real_time_convert_to(price * self.instrument.quantity, self.currency)?;
+
+            cash_assets + instrument_value
+        } else {
+            let mut net_value = MultiCurrencyCashAccount::new();
+            net_value.add(&self.cash_assets);
+            net_value.deposit(self.instrument.get_value(self.date)?);
+            net_value.total_assets(self.date, self.currency, &self.converter)?
         };
 
-        if date < transition_date {
-            return Ok(());
+        let mut result = BacktestingResult {
+            date: self.date,
+            result: net_value,
+            interest: None,
+        };
+
+        let start_date = self.transactions.first().unwrap().date;
+        if (self.date - start_date).num_days() > 0 { // FIXME(konishchev): Alter the value
+            let name = format!("{} @ {}", self.benchmark.name(), formatting::format_date(self.date));
+            let interest_periods = [InterestPeriod::new(start_date, self.date)];
+
+            result.interest = deposit_performance::compare_instrument_to_bank_deposit(
+                &name, self.currency, &self.transactions, &interest_periods, net_value)?;
         }
 
-        let (transition_date, mut new_instrument) = self.benchmark.select_instrument(
-            date, self.cash_flows.last().unwrap().date, &self.quotes, false)?;
+        self.results.push(result);
+        self.date = self.date.succ_opt().unwrap();
 
-        match new_instrument.spec.renamed_from.as_ref() {
-            Some(renamed_from) if *renamed_from == self.instrument.spec.id => {
-                new_instrument.quantity = self.instrument.quantity;
-            },
-            _ => {
-                let net_value = self.instrument.get_price(transition_date)? * self.instrument.quantity;
-                self.cash_assets.deposit(net_value);
-                new_instrument.process_cash_flow(transition_date, &mut self.cash_assets, self.converter.clone(), true)?;
-            },
-        }
-
-        debug!("Converted {} {} -> {} {} at {}.",
-            self.instrument.quantity, self.instrument.spec.id.symbol,
-            new_instrument.quantity, new_instrument.spec.id.symbol,
-            formatting::format_date(transition_date));
-
-        self.instrument = new_instrument;
         Ok(())
     }
 }
@@ -390,11 +487,15 @@ impl CurrentBenchmarkInstrument<'_> {
             nearest.into_iter().map(formatting::format_date).join(" and "),
         )
     }
+
+    fn get_value(&self, date: Date) -> GenericResult<Cash> {
+        Ok(self.get_price(date)? * self.quantity)
+    }
 }
 
 #[derive(StaticTable)]
 #[table(name="BacktestingResultsTable")]
-struct BacktestingResults {
+struct BacktestingResultsTableRow {
     #[column(name="Benchmark")]
     benchmark: String,
     #[column(name="Result")]

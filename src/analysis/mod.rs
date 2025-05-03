@@ -167,9 +167,13 @@ pub fn backtest(config: &Config) -> EmptyResult {
         statements.push(load_portfolio(config, portfolio, reading_strictness)?);
     }
 
-    // FIXME(konishchev): Check analysis virtual performance calculation logic
+    // FIXME(konishchev): Drop it
+    let benchmarks = &benchmarks[..1];
+
+    // FIXME(konishchev): Metrics generation
     for currency in ["USD", "RUB"] {
-        backtesting::backtest(currency, &benchmarks, &statements, converter.clone(), quotes.clone())?;
+        // FIXME(konishchev): Check analysis virtual performance calculation logic
+        backtesting::backtest(currency, benchmarks, &statements, true, converter.clone(), quotes.clone())?;
     }
 
     Ok(())

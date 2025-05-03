@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 #[cfg(test)] use chrono::Duration;
 use indoc::indoc;
 use itertools::Itertools;
-use log::{self, log_enabled, debug, trace, warn};
+use log::{self, log_enabled, trace, warn};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
@@ -19,7 +19,7 @@ pub fn compare_instrument_to_bank_deposit(
 ) -> GenericResult<Option<Decimal>> {
     compare_to_bank_deposit(transactions, interest_periods, current_assets)
         .map(|(interest, difference)| -> GenericResult<Decimal> {
-            check_emulation_precision(name, currency, transactions, current_assets, difference)?;
+            check_emulation_precision(name, currency, transactions, current_assets, interest, difference)?;
             Ok(interest)
         })
         .transpose()
@@ -125,8 +125,8 @@ fn compare_to_bank_deposit(
 }
 
 fn check_emulation_precision(
-    name: &str, currency: &str, transactions: &[Transaction],
-    current_assets: Decimal, difference: Decimal,
+    name: &str, currency: &str, transactions: &[Transaction], current_assets: Decimal,
+    interest: Decimal, difference: Decimal,
 ) -> EmptyResult {
     // It's actually hard to find the suitable assets amount to check the difference against:
     // 1. Cash assets may be very small or even zero
@@ -147,13 +147,13 @@ fn check_emulation_precision(
     if precision >= dec!(0.1) {
         warn!(concat!(
             "Failed to compare {} {} performance to bank deposit: ",
-            "got a result with too low precision ({}%, {})."
-        ), name, currency, util::round(precision, 3), difference);
+            "got a result with too low precision: {}% ({}%, {})."
+        ), name, currency, interest, util::round(precision, 3), difference);
         return Ok(());
     }
 
-    debug!("Got a result of comparing {} {} performance to bank deposit: {}% precision ({}).",
-           name, currency, util::round(precision, 4), difference);
+    trace!("Got a result of comparing {} {} performance to bank deposit: {}% ({}% precision, {}).",
+           name, currency, interest, util::round(precision, 4), difference);
 
     Ok(())
 }
