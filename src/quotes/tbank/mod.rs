@@ -36,6 +36,9 @@ use super::common::is_outdated_quote;
 use self::auth::ClientInterceptor;
 use self::trace::InstrumentTrace;
 
+// T-Bank API has a limited historical quotes depth
+pub const HISTORICAL_QUOTES_START_DATE: Date = date!(2018, 3, 6);
+
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -55,8 +58,6 @@ pub enum TbankExchange {
 }
 
 // T-Bank Invest API (https://developer.tbank.ru/invest/api)
-//
-// Please note that T-Bank API has a limited historical quotes depth – they start from 06.03.2018.
 pub struct Tbank {
     token: String,
     exchange: TbankExchange,

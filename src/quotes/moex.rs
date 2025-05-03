@@ -31,13 +31,15 @@ const ETF_BOARD: &str = "TQTF";
 pub struct Moex {
     url: String,
     client: Client,
+    historical_until: Option<Date>,
 }
 
 impl Moex {
-    pub fn new(url: &str) -> Moex {
+    pub fn new(url: &str, historical_until: Option<Date>) -> Moex {
         Moex {
             url: url.to_owned(),
             client: Client::new(),
+            historical_until,
         }
     }
 
@@ -98,6 +100,12 @@ impl QuotesProvider for Moex {
     }
 
     fn get_historical_quotes(&self, symbol: &str, period: Period) -> GenericResult<Option<HistoricalQuotes>> {
+        if let Some(until) = self.historical_until {
+            if period.first_date() >= until {
+                return Ok(None);
+            }
+        }
+
         let Some(instrument) = self.get_instrument_info(symbol)? else {
             return Ok(None);
         };
@@ -502,7 +510,7 @@ mod tests {
 
     fn create_server() -> (ServerGuard, Moex) {
         let server = Server::new();
-        let client = Moex::new(&server.url());
+        let client = Moex::new(&server.url(), None);
         (server, client)
     }
 

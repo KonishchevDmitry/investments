@@ -142,7 +142,11 @@ impl Quotes {
 
         // Prefer FinEx provider over MOEX until their funds are suspended
         providers.push(Arc::new(Finex::new("https://api.finex-etf.ru")));
-        providers.push(Arc::new(Moex::new("https://iss.moex.com")));
+        providers.push(Arc::new(Moex::new("https://iss.moex.com", tbank.map(|_| {
+            // MOEX historical API is buggy: it may return incomplete results without any sign of it, so prefer T-Bank
+            // API when possible.
+            tbank::HISTORICAL_QUOTES_START_DATE
+        }))));
 
         // At this time this is only for the sake of historical queries
         if let Some(config) = tbank {
