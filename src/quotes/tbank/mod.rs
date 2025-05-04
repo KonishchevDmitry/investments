@@ -5,12 +5,15 @@ mod trace;
 use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
+use backoff::backoff::Backoff;
+use backoff::ExponentialBackoffBuilder;
 use chrono::{Local, Months, TimeDelta};
 use itertools::Itertools;
 use log::{debug, trace};
 use serde::Deserialize;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
+use tonic::{Status, Code};
 use tonic::service::interceptor::InterceptedService;
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -41,6 +44,7 @@ pub const HISTORICAL_QUOTES_START_DATE: Date = date!(2018, 3, 6);
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const RETRY_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -94,14 +98,28 @@ impl Tbank {
         })
     }
 
-    fn instruments_client(&self) -> InstrumentsServiceClient<InterceptedService<Channel, ClientInterceptor>> {
-        let interceptor = ClientInterceptor::new(&self.token, REQUEST_TIMEOUT);
-        InstrumentsServiceClient::with_interceptor(self.channel.clone(), interceptor)
+    async fn instruments_call<F, A, R>(&self, call: F) -> Result<R, Status>
+        where
+            F: Fn(InstrumentsServiceClient<InterceptedService<Channel, ClientInterceptor>>) -> A,
+            A: Future<Output = Result<R, Status>>
+    {
+        retryable_call(async || {
+            let interceptor = ClientInterceptor::new(&self.token, REQUEST_TIMEOUT);
+            let client = InstrumentsServiceClient::with_interceptor(self.channel.clone(), interceptor);
+            call(client).await
+        }).await
     }
 
-    fn market_data_client(&self) -> MarketDataServiceClient<InterceptedService<Channel, ClientInterceptor>> {
-        let interceptor = ClientInterceptor::new(&self.token, REQUEST_TIMEOUT);
-        MarketDataServiceClient::with_interceptor(self.channel.clone(), interceptor)
+    async fn market_data_call<F, A, R>(&self, call: F) -> Result<R, Status>
+        where
+            F: Fn(MarketDataServiceClient<InterceptedService<Channel, ClientInterceptor>>) -> A,
+            A: Future<Output = Result<R, Status>>
+    {
+        retryable_call(async || {
+            let interceptor = ClientInterceptor::new(&self.token, REQUEST_TIMEOUT);
+            let client = MarketDataServiceClient::with_interceptor(self.channel.clone(), interceptor);
+            call(client).await
+        }).await
     }
 
     async fn get_quotes_async(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {
@@ -148,9 +166,11 @@ impl Tbank {
             }).sorted().join(", ")
         );
 
-        let last_prices = self.market_data_client().get_last_prices(GetLastPricesRequest {
-            instrument_id: instruments.keys().cloned().collect(),
-            ..Default::default()
+        let last_prices = self.market_data_call(async |mut client| {
+            client.get_last_prices(GetLastPricesRequest {
+                instrument_id: instruments.keys().cloned().collect(),
+                ..Default::default()
+            }).await
         }).await?.into_inner().last_prices;
 
         for last_price in last_prices {
@@ -218,15 +238,17 @@ impl Tbank {
                 formatting::format_date(request_to.with_timezone(&Local).naive_local()),
             );
 
-            let candles = self.market_data_client().get_candles(GetCandlesRequest {
-                instrument_id: Some(stock.uid.clone()),
-                candle_source_type: Some(CandleSource::Exchange.into()),
+            let candles = self.market_data_call(async |mut client| {
+                client.get_candles(GetCandlesRequest {
+                    instrument_id: Some(stock.uid.clone()),
+                    candle_source_type: Some(CandleSource::Exchange.into()),
 
-                from: Some(proto::new_timestamp(request_from)),
-                to: Some(proto::new_timestamp(request_to)), // inclusive
-                interval: interval.into(),
+                    from: Some(proto::new_timestamp(request_from)),
+                    to: Some(proto::new_timestamp(request_to)), // inclusive
+                    interval: interval.into(),
 
-                ..Default::default()
+                    ..Default::default()
+                }).await
             }).await?.into_inner().candles;
 
             if candles.is_empty() {
@@ -269,10 +291,12 @@ impl Tbank {
         let mut currencies = self.currencies.lock().await;
 
         if currencies.is_empty() {
-            let instruments = self.instruments_client().currencies(InstrumentsRequest {
-                ..Default::default()
+            let instruments = self.instruments_call(async |mut client| {
+                client.currencies(InstrumentsRequest {
+                    ..Default::default()
+                }).await
             }).await.map_err(|e| format!(
-                "Failed to get available currencies list: {}", e,
+                "Failed to get available currencies list: {e}"
             ))?.into_inner().instruments;
 
             if instruments.is_empty() {
@@ -346,12 +370,13 @@ impl Tbank {
 
         let mut trace = InstrumentTrace::new(name, false);
 
-        #[allow(clippy::needless_update)]
-        let instruments = self.instruments_client().shares(InstrumentsRequest {
-            instrument_status: Some(status.into()),
-            ..Default::default()
+        let instruments = self.instruments_call(async |mut client| {
+            client.shares(InstrumentsRequest {
+                instrument_status: Some(status.into()),
+                ..Default::default()
+            }).await
         }).await.map_err(|e| format!(
-            "Failed to get available {} list: {}", name, e,
+            "Failed to get available {name} list: {e}",
         ))?.into_inner().instruments;
 
         for stock in instruments {
@@ -387,12 +412,13 @@ impl Tbank {
         // When SPB Exchange got under US sanctions, the list became empty, so we should allow it
         let mut trace = InstrumentTrace::new(name, may_be_empty);
 
-        #[allow(clippy::needless_update)]
-        let instruments = self.instruments_client().etfs(InstrumentsRequest {
-            instrument_status: Some(status.into()),
-            ..Default::default()
+        let instruments = self.instruments_call(async |mut client| {
+            client.etfs(InstrumentsRequest {
+                instrument_status: Some(status.into()),
+                ..Default::default()
+            }).await
         }).await.map_err(|e| format!(
-            "Failed to get available {} list: {}", name, e,
+            "Failed to get available {name} list: {e}"
         ))?.into_inner().instruments;
 
         for stock in instruments {
@@ -521,4 +547,32 @@ fn limit_historical_request_range<Tz: TimeZone>(
     ))?;
 
     Ok(std::cmp::min(to, max_to))
+}
+
+async fn retryable_call<F, A, R>(call: F) -> Result<R, Status>
+    where
+        F: Fn() -> A,
+        A: Future<Output = Result<R, Status>>
+{
+    let mut backoff = ExponentialBackoffBuilder::new()
+        .with_max_elapsed_time(Some(RETRY_TIMEOUT))
+        .build();
+
+    loop {
+        let err = match call().await {
+            Ok(response) => return Ok(response),
+            Err(err) => err,
+        };
+
+        if !matches!(err.code(), Code::Internal | Code::Unavailable | Code::DeadlineExceeded) {
+            return Err(err);
+        }
+
+        let Some(delay) = backoff.next_backoff() else {
+            return Err(err);
+        };
+
+        debug!("T-Bank API returned an error: {err}. Retrying after {delay:?}...");
+        tokio::time::sleep(delay).await;
+    }
 }
