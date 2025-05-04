@@ -13,7 +13,9 @@ pub mod portfolio_statistics;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use chrono::Duration;
 use easy_logging::GlobalContext;
+use url::Url;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
@@ -82,7 +84,7 @@ pub fn simulate_sell(
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-pub fn backtest(config: &Config) -> EmptyResult {
+pub fn backtest(config: &Config, backfilling_url: Option<&Url>, _scrape_period: Duration) -> EmptyResult {
     let commission_spec = crate::brokers::plans::tbank::premium();
     let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex, commission_spec.clone());
 
@@ -169,11 +171,12 @@ pub fn backtest(config: &Config) -> EmptyResult {
 
     // FIXME(konishchev): Drop it
     let benchmarks = &benchmarks[..1];
+    let mut metrics = backfilling_url.map(|_| Vec::new());
 
     // FIXME(konishchev): Metrics generation
     for currency in ["USD", "RUB"] {
         // FIXME(konishchev): Check analysis virtual performance calculation logic
-        backtesting::backtest(currency, benchmarks, &statements, true, converter.clone(), quotes.clone())?;
+        backtesting::backtest(currency, benchmarks, &statements, metrics.as_mut(), converter.clone(), quotes.clone())?;
     }
 
     Ok(())

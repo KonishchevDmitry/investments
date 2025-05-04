@@ -42,6 +42,12 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
+    let default_panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        default_panic_hook(info);
+        std::process::abort();
+    }));
+
     if let Err(err) = run(cli_config, parser) {
         let message = err.to_string();
 

@@ -88,6 +88,7 @@ strum = { version = "0.27", features = ["derive"] }
 textwrap = "0.16.2"
 tokio = "1.44.2"
 tonic = { version = "0.13", features = ["tls-ring", "tls-native-roots"] }
+url = "2.5.4"
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
 xml-rs = "0.8.25"

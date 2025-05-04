@@ -1,13 +1,18 @@
 use std::io::{self, Write};
 use std::process::ExitCode;
 
-use clap::Command;
+use chrono::Duration;
+use clap::{Command, Arg, ArgMatches, value_parser};
 use easy_logging::LoggingConfig;
-use log::{warn, error};
+use log::error;
+use url::Url;
+
+#[macro_use] extern crate investments;
 
 use investments::analysis;
-use investments::core::EmptyResult;
 use investments::config::{CliConfig, Config};
+use investments::core::{EmptyResult, GenericResult};
+use investments::time;
 
 fn main() -> ExitCode {
     let matches = Command::new("backtest")
@@ -15,6 +20,17 @@ fn main() -> ExitCode {
         .help_expected(true)
         .disable_help_subcommand(true)
         .args(Config::args())
+        .args([
+            Arg::new("url").long("url").short('u')
+                .value_name("URL")
+                .value_parser(value_parser!(Url))
+                .help("VictoriaMetrics URL for metrics backfilling"),
+
+            Arg::new("scrape_period").long("scrape-period").short('s')
+                .help("Scrape period (in $number{m|h|d} format)")
+                .value_name("DURATION")
+                .value_parser(time::parse_duration),
+        ])
         .get_matches();
 
     let cli_config = match Config::parse_args(&matches) {
@@ -33,7 +49,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    if let Err(err) = run(cli_config) {
+    if let Err(err) = run(cli_config, &matches) {
         error!("{err}.");
         return ExitCode::FAILURE;
     }
@@ -41,11 +57,16 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-pub fn run(cli_config: CliConfig) -> EmptyResult {
+pub fn run(cli_config: CliConfig, matches: &ArgMatches) -> EmptyResult {
     let config = Config::new(&cli_config.config_dir, cli_config.cache_expire_time)?;
 
-    warn!("This is a work in progress tool.");
-    analysis::backtest(&config)?;
+    let backfilling_url = matches.get_one("url").cloned();
+    let scrape_period = matches.get_one("scrape_period").cloned().map(|period| -> GenericResult<Duration> {
+        if period < Duration::seconds(1) || period > Duration::days(1) {
+            return Err!("Invalid scrape period");
+        }
+        Ok(period)
+    }).transpose()?.unwrap_or(Duration::minutes(1));
 
-    Ok(())
+    analysis::backtest(&config, backfilling_url.as_ref(), scrape_period)
 }

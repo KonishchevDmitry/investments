@@ -1,3 +1,4 @@
+pub mod backfilling;
 pub mod config;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -199,7 +200,7 @@ fn save(path: &Path) -> EmptyResult {
     Ok(fs::rename(&temp_path, path)?)
 }
 
-const NAMESPACE: &str = "investments";
+pub const NAMESPACE: &str = "investments";
 
 const PORTFOLIO_LABEL: &str = "portfolio";
 pub const PORTFOLIO_LABEL_ALL: &str = "all";

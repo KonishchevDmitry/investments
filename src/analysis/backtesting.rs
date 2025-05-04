@@ -4,6 +4,7 @@ use std::ops::Bound;
 use easy_logging::GlobalContext;
 use itertools::Itertools;
 use log::debug;
+use num_traits::ToPrimitive;
 use static_table_derive::StaticTable;
 
 use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
@@ -17,31 +18,15 @@ use crate::currency::converter::CurrencyConverterRc;
 use crate::exchanges::Exchange;
 use crate::formatting;
 use crate::formatting::table::Cell;
+use crate::metrics::{self, backfilling::DailyTimeSeries};
 use crate::quotes::{Quotes, QuotesRc, QuoteQuery, HistoricalQuotes};
 use crate::time::{self, Date, Period};
 use crate::types::{Decimal, TradeType};
 
-// FIXME(konishchev): Drop it
-#[allow(dead_code)]
-pub struct BenchmarkBacktestingResult {
-    pub name: String,
-    pub provider: Option<String>,
-    pub currency: String,
-    pub results: Vec<BacktestingResult>,
-}
-
-// FIXME(konishchev): Drop it
-#[allow(dead_code)]
-pub struct BacktestingResult {
-    pub date: Date,
-    pub result: Decimal,
-    pub interest: Option<Decimal>,
-}
-
 pub fn backtest(
-    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement], full: bool,
+    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement], mut metrics: Option<&mut Vec<DailyTimeSeries>>,
     converter: CurrencyConverterRc, quotes: QuotesRc,
-) -> GenericResult<Vec<BenchmarkBacktestingResult>> {
+) -> EmptyResult {
     let mut cash_flows = BTreeMap::new();
     let mut net_value = Cash::zero(currency);
 
@@ -106,15 +91,14 @@ pub fn backtest(
         });
     }
 
-    let mut results = Vec::new();
-
     for benchmark in benchmarks {
         let _logging_context = GlobalContext::new(&benchmark.name());
 
-        let benchmark_results = benchmark.backtest(currency, &cash_flows, full, today, converter.clone(), quotes.clone()).map_err(|e| format!(
-            "Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
+        let results = benchmark.backtest(
+            currency, &cash_flows, metrics.is_some(), today, converter.clone(), quotes.clone(),
+        ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
-        let current = benchmark_results.last().unwrap();
+        let current = results.last().unwrap();
         assert_eq!(current.date, today);
 
         table.add_row(BacktestingResultsTableRow {
@@ -123,16 +107,47 @@ pub fn backtest(
             interest: current.interest.map(format_interest),
         });
 
-        results.push(BenchmarkBacktestingResult {
-            name: benchmark.name.clone(),
-            provider: benchmark.provider.clone(),
-            currency: currency.to_owned(),
-            results: benchmark_results,
-        });
+        let Some(metrics) = metrics.as_mut() else {
+            continue;
+        };
+
+        let namespace = format!("{}_backtesting", metrics::NAMESPACE);
+
+        let time_series = |name: &str| {
+            let mut time_series = DailyTimeSeries::new(&format!("{namespace}_{name}"))
+                .with_label("currency", currency)
+                .with_label("instrument", &benchmark.name);
+
+            if let Some(ref provider) = benchmark.provider {
+                time_series = time_series.with_label("provider", provider);
+            }
+
+            time_series
+        };
+
+        let mut net_value_time_series = time_series("net_value");
+        let mut performance_time_series = time_series("performance");
+
+        for result in results {
+            let net_value = result.result.to_f64().ok_or_else(|| format!(
+                "Got an invalid result for {}: {}", benchmark.name(), result.result))?;
+            net_value_time_series.add_value(result.date, net_value);
+
+            if let Some(interest) = result.interest {
+                let interest = interest.to_f64().ok_or_else(|| format!(
+                    "Got an invalid performance for {}: {}", benchmark.name(), interest))?;
+                performance_time_series.add_value(result.date, interest);
+            }
+        }
+
+        metrics.push(net_value_time_series);
+        if !performance_time_series.is_empty() {
+            metrics.push(performance_time_series);
+        }
     }
 
     table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
-    Ok(results)
+    Ok(())
 }
 
 pub struct Benchmark {
@@ -491,6 +506,12 @@ impl CurrentBenchmarkInstrument<'_> {
     fn get_value(&self, date: Date) -> GenericResult<Cash> {
         Ok(self.get_price(date)? * self.quantity)
     }
+}
+
+struct BacktestingResult {
+    date: Date,
+    result: Decimal,
+    interest: Option<Decimal>,
 }
 
 #[derive(StaticTable)]
