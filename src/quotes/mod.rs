@@ -1,3 +1,4 @@
+mod adapter;
 pub mod alphavantage;
 mod cache;
 pub mod cbr;
@@ -31,6 +32,7 @@ use crate::forex;
 use crate::time::{Date, Period};
 use crate::types::Decimal;
 
+use self::adapter::QuotesProviderAdapter;
 use self::cache::Cache;
 use self::cbr::Cbr;
 use self::custom_provider::{CustomProvider, CustomProviderConfig};
@@ -142,15 +144,28 @@ impl Quotes {
 
         // Prefer FinEx provider over MOEX until their funds are suspended
         providers.push(Arc::new(Finex::new("https://api.finex-etf.ru")));
-        providers.push(Arc::new(Moex::new("https://iss.moex.com", tbank.map(|_| {
-            // MOEX historical API is buggy: it may return incomplete results without any sign of it, so prefer T-Bank
-            // API when possible.
-            tbank::HISTORICAL_QUOTES_START_DATE
-        }))));
 
-        // At this time this is only for the sake of historical queries
+        providers.push({
+            // For other MOEX stocks prefer MOEX provider
+            let mut moex = QuotesProviderAdapter::new(Moex::new("https://iss.moex.com", true));
+
+            // ... but MOEX historical API is buggy: it may return incomplete results without any sign of it, so prefer
+            // T-Bank API when possible.
+            if tbank.is_some() {
+                moex = moex.historical_until(tbank::HISTORICAL_QUOTES_START_DATE);
+            }
+
+            Arc::new(moex)
+        });
+
+        // Use T-Bank API for historical quotes when possible. But it contains a limited number of instruments (for
+        // example it doesn't provide SBMM), so fall back to MOEX API when instrument is not found.
         if let Some(config) = tbank {
-            providers.push(Arc::new(Tbank::new(config, TbankExchange::Moex)?));
+            let tbank = Tbank::new(config, TbankExchange::Moex)?;
+            providers.push(Arc::new(QuotesProviderAdapter::new(tbank).historical_only()));
+
+            let moex = Moex::new("https://iss.moex.com", true);
+            providers.push(Arc::new(QuotesProviderAdapter::new(moex).historical_only()));
         }
 
         // As a best effort for unsupported exchanges provide a fallback to T-Bank SPB/OTC stocks
@@ -485,7 +500,7 @@ trait QuotesProvider: Send + Sync {
     fn get_historical_quotes(&self, _symbol: &str, _period: Period) -> GenericResult<Option<HistoricalQuotes>> {Ok(None)}
 }
 
-fn aggregate_historical_quotes(currency: &str, quotes: HashMap<Date, Vec<Decimal>>) -> HistoricalQuotes {
+fn aggregate_historical_quotes(currency: &str, quotes: BTreeMap<Date, Vec<Decimal>>) -> HistoricalQuotes {
     quotes.into_iter().map(|(date, prices)| {
         let price = prices.iter().copied().sum::<Decimal>() / Decimal::from(prices.len());
         (date, Cash::new(currency, price).normalize())

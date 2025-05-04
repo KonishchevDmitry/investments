@@ -2,7 +2,7 @@ mod api;
 mod auth;
 mod trace;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use chrono::{Local, Months, TimeDelta};
@@ -206,7 +206,7 @@ impl Tbank {
         trace!("Getting historical quotes for {symbol} ({period}) from T-Bank...");
 
         let mut request_from = from;
-        let mut quotes: HashMap<Date, Vec<Decimal>> = HashMap::new();
+        let mut quotes: BTreeMap<Date, Vec<Decimal>> = BTreeMap::new();
 
         loop {
             let interval = CandleInterval::Hour;

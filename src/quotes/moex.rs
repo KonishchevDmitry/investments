@@ -1,5 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::str::FromStr;
+use std::time::Duration;
 
 use itertools::Itertools;
 use log::{error, debug};
@@ -31,15 +32,15 @@ const ETF_BOARD: &str = "TQTF";
 pub struct Moex {
     url: String,
     client: Client,
-    historical_until: Option<Date>,
+    incomplete_results_workaround: bool,
 }
 
 impl Moex {
-    pub fn new(url: &str, historical_until: Option<Date>) -> Moex {
+    pub fn new(url: &str, incomplete_results_workaround: bool) -> Moex {
         Moex {
             url: url.to_owned(),
             client: Client::new(),
-            historical_until,
+            incomplete_results_workaround,
         }
     }
 
@@ -100,18 +101,13 @@ impl QuotesProvider for Moex {
     }
 
     fn get_historical_quotes(&self, symbol: &str, period: Period) -> GenericResult<Option<HistoricalQuotes>> {
-        if let Some(until) = self.historical_until {
-            if period.first_date() >= until {
-                return Ok(None);
-            }
-        }
-
         let Some(instrument) = self.get_instrument_info(symbol)? else {
             return Ok(None);
         };
 
         let mut start = 0;
-        let mut quotes: HashMap<Date, Vec<Decimal>> = HashMap::new();
+        let mut tries = 0;
+        let mut quotes: BTreeMap<Date, Vec<Decimal>> = BTreeMap::new();
 
         loop {
             let start_arg = start.to_string();
@@ -128,15 +124,27 @@ impl QuotesProvider for Moex {
                 ("iss.meta", "off"),
             ])?;
 
+            tries += 1;
             let count = send_request(&self.client, &url, None).and_then(|response| {
                 parse_historical_quotes(response, &mut quotes)
             }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?;
+
+            // The API is buggy: it may return incomplete results without any sign of it. So we have to workaround it
+            // in a such ugly manner.
+            if self.incomplete_results_workaround && count < 500 && tries < 60 && !quotes.last_key_value().map(|(&date, _)| {
+                date >= Exchange::Moex.min_last_working_day(period.last_date())
+            }).unwrap_or_default() {
+                debug!("Looks like we've got incomplete results from MOEX historical API. Retrying...");
+                std::thread::sleep(Duration::from_millis(500));
+                continue;
+            }
 
             if count == 0 {
                 return Ok(Some(super::aggregate_historical_quotes(&instrument.currency, quotes)))
             }
 
             start += count;
+            tries = 0;
         }
     }
 }
@@ -355,7 +363,7 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     Ok(quotes)
 }
 
-fn parse_historical_quotes(response: Response, quotes: &mut HashMap<Date, Vec<Decimal>>) -> GenericResult<usize> {
+fn parse_historical_quotes(response: Response, quotes: &mut BTreeMap<Date, Vec<Decimal>>) -> GenericResult<usize> {
     #[derive(Deserialize)]
     struct Response {
         candles: Candles,
@@ -510,7 +518,7 @@ mod tests {
 
     fn create_server() -> (ServerGuard, Moex) {
         let server = Server::new();
-        let client = Moex::new(&server.url(), None);
+        let client = Moex::new(&server.url(), false);
         (server, client)
     }
 
