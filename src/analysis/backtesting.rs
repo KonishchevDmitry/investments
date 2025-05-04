@@ -262,7 +262,13 @@ impl Benchmark {
             "Select new benchmark instrument for {}+: {} ({quotes_period}).",
             formatting::format_date(date), instrument.id.symbol);
 
-        let candles = quotes.get_historical(instrument.id.exchange, &instrument.id.symbol, quotes_period)?;
+        let mut candles = HistoricalQuotes::new();
+        for symbol in [&instrument.id.symbol].into_iter().chain(instrument.aliases.iter()) {
+            candles = quotes.get_historical(instrument.id.exchange, symbol, quotes_period)?;
+            if !candles.is_empty() {
+                break
+            }
+        }
 
         Ok((transition_date, CurrentBenchmarkInstrument {
             spec: instrument,
@@ -405,20 +411,32 @@ pub struct BenchmarkInstrumentId {
 
 pub struct BenchmarkInstrument {
     id: BenchmarkInstrumentId,
+    aliases: Vec<String>,
     commission_spec: CommissionSpec,
     renamed_from: Option<BenchmarkInstrumentId>,
 }
 
 impl BenchmarkInstrument {
-    pub fn new(symbol: &str, exchange: Exchange, commission_spec: CommissionSpec) -> BenchmarkInstrument {
+    pub fn new(symbol: &str, exchange: Exchange, commission_spec: CommissionSpec) -> Self {
         BenchmarkInstrument {
             id: BenchmarkInstrumentId {
                 symbol: symbol.to_owned(),
                 exchange,
             },
+            aliases: Vec::new(),
             commission_spec,
             renamed_from: None,
         }
+    }
+
+    // Historical API handle instrument renames differently:
+    // * With MOEX API you need to request quotes for different symbols depending on the period.
+    // * T-Bank API forgets all previous instrument symbols and returns all quotes by its current symbol.
+    //
+    // This method is used to write search rules which will work with both provider types.
+    pub fn alias(mut self, symbol: &str) -> Self {
+        self.aliases.push(symbol.to_owned());
+        self
     }
 }
 

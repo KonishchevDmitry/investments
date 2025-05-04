@@ -97,7 +97,7 @@ pub fn backtest(config: &Config, backfilling_url: Option<&Url>, _scrape_period: 
         benchmark("Russian stocks", tbank, "FXRL")
             .then(date!(2021, 7, 29), instrument("TMOS"))?,
         benchmark("Russian stocks", vtb, "FXRL")
-            .then(date!(2021, 7, 29), instrument("VTBX"))?
+            .then(date!(2021, 7, 29), instrument("VTBX").alias("EQMX"))?
             .then_rename(date!(2022, 7, 22), instrument("EQMX"))?,
 
         benchmark("Russian money market", sber, "FXRB")
