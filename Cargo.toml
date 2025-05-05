@@ -45,6 +45,7 @@ lto = true
 
 [dependencies]
 ansi_term = "0.12.1"
+async-stream = "0.3.6"
 backoff = "0.4.0"
 bitflags = "2.9.0"
 calamine = "0.26.1"
@@ -58,6 +59,7 @@ cusip = "0.3.0"
 dyn-clone = "1.0.19"
 easy-logging = "1.1.0"
 encoding_rs = "0.8.35"
+futures-core = "0.3.31"
 governor = "0.10.0"
 indoc = "2.0.6"
 isin = "0.1.18"
@@ -74,10 +76,10 @@ prettytable-rs = "0.10.0"
 prometheus = "0.14.0"
 prost = "0.13"
 prost-types = "0.13"
-quick-xml = { version = "0.37.4", features = [ "serialize" ] }
+quick-xml = { version = "0.37.4", features = ["serialize"] }
 rayon = "1.10.0"
 regex = "1.11.1"
-reqwest = { version = "0.12.15", features = ["blocking", "json"] }
+reqwest = { version = "0.12.15", features = ["blocking", "json", "stream"] }
 scraper = "0.23.1"
 separator = "0.4.1"
 serde = { version = "1.0.219", features = ["derive"] }

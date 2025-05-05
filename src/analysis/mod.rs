@@ -23,6 +23,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
 use crate::exchanges::Exchange;
+use crate::metrics::backfilling;
 use crate::quotes::{Quotes, QuotesRc};
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
@@ -84,7 +85,7 @@ pub fn simulate_sell(
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-pub fn backtest(config: &Config, backfilling_url: Option<&Url>, _scrape_period: Duration) -> EmptyResult {
+pub fn backtest(config: &Config, backfilling_url: Option<&Url>, scrape_interval: Duration) -> EmptyResult {
     let commission_spec = crate::brokers::plans::tbank::premium();
     let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex, commission_spec.clone());
 
@@ -173,10 +174,15 @@ pub fn backtest(config: &Config, backfilling_url: Option<&Url>, _scrape_period: 
     let benchmarks = &benchmarks[..1];
     let mut metrics = backfilling_url.map(|_| Vec::new());
 
-    // FIXME(konishchev): Metrics generation
     for currency in ["USD", "RUB"] {
+        // FIXME(konishchev): Inflation adjusted variant
         // FIXME(konishchev): Check analysis virtual performance calculation logic
         backtesting::backtest(currency, benchmarks, &statements, metrics.as_mut(), converter.clone(), quotes.clone())?;
+    }
+
+    if let (Some(url), Some(metrics)) = (backfilling_url, metrics) {
+        backfilling::backfill(url, scrape_interval, metrics).map_err(|e| format!(
+            "Failed to backfill backtesting results: {e}"))?;
     }
 
     Ok(())

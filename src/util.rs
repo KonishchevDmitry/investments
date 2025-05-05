@@ -1,10 +1,12 @@
 use std::borrow::Cow;
+use std::error::Error;
 use std::ops::Neg;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use reqwest;
 use rust_decimal::RoundingStrategy;
 
 use crate::core::GenericResult;
@@ -99,6 +101,18 @@ pub fn temp_path(path: &Path) -> PathBuf {
     let mut temp_path = path.as_os_str().to_os_string();
     temp_path.push(".tmp");
     PathBuf::from(temp_path)
+}
+
+pub fn humanize_reqwest_error(err: reqwest::Error) -> String {
+    let err = err.without_url();
+
+    // reqwest/hyper errors hide all details, so extract the underlying error
+    let mut err: &dyn Error = &err;
+    while let Some(source) = err.source() {
+        err = source;
+    }
+
+    err.to_string()
 }
 
 #[cfg(test)]

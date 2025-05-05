@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::Mutex;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
@@ -12,6 +11,7 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::quotes::QuotesMap;
 use crate::time::{SystemTime, TimeProvider};
+use crate::util;
 
 pub fn parallelize_quotes<F>(symbols: &[&str], get_quote: F) -> GenericResult<QuotesMap>
     where F: Fn(&str) -> GenericResult<Option<Cash>> + Sync + Send
@@ -70,17 +70,7 @@ pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Optio
     }
 
     trace!("Sending request to {}...", url);
-    let response = request.send().map_err(|err| -> String {
-        let err = err.without_url();
-
-        // reqwest/hyper errors hide all details, so extract the underlying error
-        let mut err: &dyn Error = &err;
-        while let Some(source) = err.source() {
-            err = source;
-        }
-
-        err.to_string()
-    })?;
+    let response = request.send().map_err(util::humanize_reqwest_error)?;
     trace!("Got response from {}.", url);
 
     if !response.status().is_success() {

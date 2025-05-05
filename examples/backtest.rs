@@ -26,8 +26,8 @@ fn main() -> ExitCode {
                 .value_parser(value_parser!(Url))
                 .help("VictoriaMetrics URL for metrics backfilling"),
 
-            Arg::new("scrape_period").long("scrape-period").short('s')
-                .help("Scrape period (in $number{m|h|d} format)")
+            Arg::new("scrape_interval").long("scrape-interval").short('s')
+                .help("Scrape interval (in $number{m|h|d} format)")
                 .value_name("DURATION")
                 .value_parser(time::parse_duration),
         ])
@@ -61,12 +61,12 @@ pub fn run(cli_config: CliConfig, matches: &ArgMatches) -> EmptyResult {
     let config = Config::new(&cli_config.config_dir, cli_config.cache_expire_time)?;
 
     let backfilling_url = matches.get_one("url").cloned();
-    let scrape_period = matches.get_one("scrape_period").cloned().map(|period| -> GenericResult<Duration> {
-        if period < Duration::seconds(1) || period > Duration::days(1) {
+    let scrape_interval = matches.get_one("scrape_interval").cloned().map(|interval| -> GenericResult<Duration> {
+        if interval < Duration::seconds(1) || interval > Duration::days(1) {
             return Err!("Invalid scrape period");
         }
-        Ok(period)
+        Ok(interval)
     }).transpose()?.unwrap_or(Duration::minutes(1));
 
-    analysis::backtest(&config, backfilling_url.as_ref(), scrape_period)
+    analysis::backtest(&config, backfilling_url.as_ref(), scrape_interval)
 }
