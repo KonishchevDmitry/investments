@@ -83,6 +83,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         trace!("Deposit emulator transactions for {:?}:", portfolio.name);
         self.process_deposits_and_withdrawals(statement)?;
+        // FIXME(konishchev): Forex trades
         self.process_positions(statement, portfolio)?;
         self.process_dividends(statement, portfolio)?;
         self.process_interest(statement, portfolio)?;

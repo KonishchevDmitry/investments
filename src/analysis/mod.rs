@@ -86,8 +86,7 @@ pub fn simulate_sell(
 }
 
 pub fn backtest(config: &Config, backfilling_url: Option<&Url>, scrape_interval: Duration) -> EmptyResult {
-    let commission_spec = crate::brokers::plans::tbank::premium();
-    let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex, commission_spec.clone());
+    let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex);
 
     let (sber, tbank, vtb) = ("Sber", "T-Bank", "VTB");
     let benchmark = |name: &str, provider: &str, symbol: &str| Benchmark::new(name, instrument(symbol)).with_provider(provider);
@@ -176,8 +175,8 @@ pub fn backtest(config: &Config, backfilling_url: Option<&Url>, scrape_interval:
 
     for currency in ["USD", "RUB"] {
         // FIXME(konishchev): Inflation adjusted variant
-        // FIXME(konishchev): Check analysis virtual performance calculation logic
-        backtesting::backtest(currency, benchmarks, &statements, metrics.as_mut(), converter.clone(), quotes.clone())?;
+        // FIXME(konishchev): Benchmark metrics
+        backtesting::backtest(currency, benchmarks, &statements, true, metrics.as_mut(), converter.clone(), quotes.clone())?;
     }
 
     if let (Some(url), Some(metrics)) = (backfilling_url, metrics) {

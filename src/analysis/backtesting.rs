@@ -10,85 +10,65 @@ use static_table_derive::StaticTable;
 use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
 use crate::analysis::deposit_performance;
 use crate::analysis::portfolio_performance;
-use crate::broker_statement::BrokerStatement;
-use crate::commissions::{CommissionCalc, CommissionSpec};
+use crate::broker_statement::{BrokerStatement, StockSellType, StockSource};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
-use crate::currency::converter::CurrencyConverterRc;
+use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::exchanges::Exchange;
 use crate::formatting;
 use crate::formatting::table::Cell;
 use crate::metrics::{self, backfilling::DailyTimeSeries};
 use crate::quotes::{Quotes, QuotesRc, QuoteQuery, HistoricalQuotes};
 use crate::time::{self, Date, Period};
-use crate::types::{Decimal, TradeType};
+use crate::types::Decimal;
 
 pub fn backtest(
-    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement], mut metrics: Option<&mut Vec<DailyTimeSeries>>,
-    converter: CurrencyConverterRc, quotes: QuotesRc,
+    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement], interactive: bool,
+    mut metrics: Option<&mut Vec<DailyTimeSeries>>, converter: CurrencyConverterRc, quotes: QuotesRc,
 ) -> EmptyResult {
-    let mut cash_flows = BTreeMap::new();
-    let mut net_value = Cash::zero(currency);
-
     for statement in statements {
-        for cash_flow in &statement.deposits_and_withdrawals {
-            cash_flows.entry((cash_flow.date, cash_flow.cash.currency))
-                .and_modify(|result| *result += cash_flow.cash.amount)
-                .or_insert(cash_flow.cash.amount);
+        if interactive {
+            statement.check_date();
         }
-        net_value += statement.net_value(&converter, &quotes, currency, true)?;
+        statement.batch_quotes(&quotes)?;
     }
 
-    let cash_flows = cash_flows.into_iter().filter_map(|((date, currency), amount)| {
-        if amount.is_zero() {
-            None
-        } else {
-            Some(CashAssets::new(date, currency, amount))
-        }
-    }).collect_vec();
-
-    let transactions = {
-        let mut transactions = BTreeMap::new();
-
-        for cash_flow in &cash_flows {
-            let amount = converter.convert_to(cash_flow.date, cash_flow.cash, currency)?;
-            transactions.entry(cash_flow.date)
-                .and_modify(|result| *result += amount)
-                .or_insert(amount);
-        }
-
-        transactions.into_iter().map(|(date, amount)| {
-            Transaction::new(date, amount)
-        }).collect_vec()
-    };
-
-    let start_date = transactions.first().ok_or(
+    let cash_flows = generalize_portfolios_to_cash_flows(statements);
+    let start_date = cash_flows.first().ok_or(
         "An attempt to backtest an empty portfolio (without cash flows)")?.date;
 
     let today = time::today();
     if start_date == today {
         return Err!("An attempt to backtest portfolio which was created today");
-    } else if today < transactions.last().unwrap().date {
+    } else if today < cash_flows.last().unwrap().date {
         return Err!("The portfolio contains future cash flows");
     }
 
     let interest_periods = [InterestPeriod::new(start_date, today)];
     let days = portfolio_performance::get_total_activity_duration(&interest_periods);
 
-    let mut table = BacktestingResultsTable::new();
+    let mut table = interactive.then(BacktestingResultsTable::new);
     let format_interest = |interest| format!("{}%", interest);
 
     {
         let _logging_context = GlobalContext::new("Portfolio");
+        let transactions = cash_flows_to_transactions(currency, &cash_flows, &converter)?;
 
-        let portfolio_interest = deposit_performance::compare_instrument_to_bank_deposit(
+        let mut net_value = Cash::zero(currency);
+        for statement in statements {
+            net_value += statement.net_value(&converter, &quotes, currency, true)?;
+        }
+
+        let interest = deposit_performance::compare_instrument_to_bank_deposit(
             "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
 
-        table.add_row(BacktestingResultsTableRow {
-            benchmark: s!("Portfolio"),
-            result: Cell::new_round_decimal(net_value.amount),
-            interest: portfolio_interest.map(format_interest),
-        });
+        if let Some(table) = table.as_mut() {
+            table.add_row(BacktestingResultsTableRow {
+                benchmark: s!("Portfolio"),
+                result: Cell::new_round_decimal(net_value.amount),
+                interest: interest.map(format_interest),
+            });
+        }
     }
 
     for benchmark in benchmarks {
@@ -101,11 +81,13 @@ pub fn backtest(
         let current = results.last().unwrap();
         assert_eq!(current.date, today);
 
-        table.add_row(BacktestingResultsTableRow {
-            benchmark: benchmark.name(),
-            result: Cell::new_round_decimal(current.result),
-            interest: current.interest.map(format_interest),
-        });
+        if let Some(table) = table.as_mut() {
+            table.add_row(BacktestingResultsTableRow {
+                benchmark: benchmark.name(),
+                result: Cell::new_round_decimal(current.result),
+                interest: current.interest.map(format_interest),
+            });
+        }
 
         let Some(metrics) = metrics.as_mut() else {
             continue;
@@ -146,7 +128,10 @@ pub fn backtest(
         }
     }
 
-    table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
+    if let Some(table) = table.as_mut() {
+        table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
+    }
+
     Ok(())
 }
 
@@ -308,7 +293,7 @@ impl Backtester<'_> {
             self.transactions.push(Transaction::new(cash_flow.date, amount));
 
             self.cash_assets.deposit(cash_flow.cash);
-            self.instrument.process_cash_flow(cash_flow.date, &mut self.cash_assets, self.converter.clone(), false)?;
+            self.instrument.process_cash_flow(cash_flow.date, &mut self.cash_assets, &self.converter)?;
         }
 
         self.process_to(self.today)?;
@@ -348,7 +333,7 @@ impl Backtester<'_> {
                 },
                 _ => {
                     self.cash_assets.deposit(self.instrument.get_value(transition_date)?);
-                    new_instrument.process_cash_flow(transition_date, &mut self.cash_assets, self.converter.clone(), true)?;
+                    new_instrument.process_cash_flow(transition_date, &mut self.cash_assets, &self.converter.clone())?;
                 },
             }
 
@@ -412,19 +397,17 @@ pub struct BenchmarkInstrumentId {
 pub struct BenchmarkInstrument {
     id: BenchmarkInstrumentId,
     aliases: Vec<String>,
-    commission_spec: CommissionSpec,
     renamed_from: Option<BenchmarkInstrumentId>,
 }
 
 impl BenchmarkInstrument {
-    pub fn new(symbol: &str, exchange: Exchange, commission_spec: CommissionSpec) -> Self {
+    pub fn new(symbol: &str, exchange: Exchange) -> Self {
         BenchmarkInstrument {
             id: BenchmarkInstrumentId {
                 symbol: symbol.to_owned(),
                 exchange,
             },
             aliases: Vec::new(),
-            commission_spec,
             renamed_from: None,
         }
     }
@@ -449,49 +432,13 @@ struct CurrentBenchmarkInstrument<'a> {
 
 impl CurrentBenchmarkInstrument<'_> {
     fn process_cash_flow(
-        &mut self, date: Date, cash_assets: &mut MultiCurrencyCashAccount, converter: CurrencyConverterRc,
-        commission_free: bool,
+        &mut self, date: Date, cash_assets: &mut MultiCurrencyCashAccount, converter: &CurrencyConverter,
     ) -> EmptyResult {
         let price = self.get_price(date)?;
-        let cash = cash_assets.total_cash_assets(date, price.currency, &converter)?;
-        let net_value = price * self.quantity + cash;
+        let cash = cash_assets.total_cash_assets(date, price.currency, converter)?;
 
-        let change = cash / price;
-        if change.is_zero() {
-            return Ok(());
-        }
-
+        self.quantity += cash / price;
         cash_assets.clear();
-        self.quantity += change;
-
-        if commission_free {
-            return Ok(());
-        }
-
-        let trade_type = if change.is_sign_positive() {
-            TradeType::Buy
-        } else {
-            TradeType::Sell
-        };
-
-        let commission_spec = self.spec.commission_spec.clone();
-        if !commission_spec.is_simple_percent() {
-            return Err!(concat!(
-                "Current backtesting logic doesn't support complex commissions which require trade aggregation or ",
-                "have non-percent fees"
-            ));
-        }
-
-        let mut commission_calc = CommissionCalc::new(converter.clone(), commission_spec, net_value)?;
-
-        let commission = commission_calc.add_trade(date, trade_type, change.abs(), price)?;
-        cash_assets.withdraw(commission);
-
-        for commissions in commission_calc.calculate()?.values() {
-            for commission in commissions.iter() {
-                cash_assets.withdraw(commission);
-            }
-        }
 
         Ok(())
     }
@@ -541,4 +488,76 @@ struct BacktestingResultsTableRow {
     result: Cell,
     #[column(name="Interest", align="right")]
     interest: Option<String>,
+}
+
+fn generalize_portfolios_to_cash_flows(statements: &[BrokerStatement]) -> Vec<CashAssets> {
+    let mut cash_flows = BTreeMap::new();
+    let mut add = |date: Date, cash: Cash| {
+        cash_flows.entry((date, cash.currency))
+            .and_modify(|total| *total += cash)
+            .or_insert(cash);
+    };
+
+    for statement in statements {
+        generalize_portfolio_to_cash_flows(statement, &mut add)
+    }
+
+    cash_flows.into_iter().filter_map(|((date, _currency), cash)| {
+        if cash.is_zero() {
+            None
+        } else {
+            Some(CashAssets::new_from_cash(date, cash))
+        }
+    }).collect_vec()
+}
+
+fn generalize_portfolio_to_cash_flows<A: FnMut(Date, Cash)>(statement: &BrokerStatement, mut add: A) {
+    for cash_flow in &statement.deposits_and_withdrawals {
+        add(cash_flow.date, cash_flow.cash);
+    }
+
+    for trade in &statement.forex_trades {
+        add(trade.conclusion_time.date, -trade.commission)
+    }
+
+    for trade in &statement.stock_buys {
+        match trade.type_ {
+            StockSource::Trade { commission, .. } => {
+                add(trade.conclusion_time.date, -commission);
+            },
+            StockSource::CorporateAction | StockSource::Grant => {},
+        }
+    }
+
+    for trade in &statement.stock_sells {
+        match trade.type_ {
+            StockSellType::Trade { commission, .. } => {
+                add(trade.conclusion_time.date, -commission);
+            },
+            StockSellType::CorporateAction => {},
+        }
+    }
+
+    for fee in &statement.fees {
+        add(fee.date, -fee.amount.withholding());
+    }
+
+    for tax in &statement.tax_agent_withholdings {
+        add(tax.date, -tax.amount.withholding())
+    }
+}
+
+fn cash_flows_to_transactions(currency: &str, cash_flows: &[CashAssets], converter: &CurrencyConverter) -> GenericResult<Vec<Transaction>> {
+    let mut transactions = BTreeMap::new();
+
+    for cash_flow in cash_flows {
+        let amount = converter.convert_to(cash_flow.date, cash_flow.cash, currency)?;
+        transactions.entry(cash_flow.date)
+            .and_modify(|total| *total += amount)
+            .or_insert(amount);
+    }
+
+    Ok(transactions.into_iter().map(|(date, amount)| {
+        Transaction::new(date, amount)
+    }).collect_vec())
 }
