@@ -6,6 +6,7 @@ use itertools::Itertools;
 use log::debug;
 use num_traits::ToPrimitive;
 use static_table_derive::StaticTable;
+use strum::IntoEnumIterator;
 
 use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
 use crate::analysis::deposit_performance;
@@ -22,10 +23,32 @@ use crate::quotes::{Quotes, QuotesRc, QuoteQuery, HistoricalQuotes};
 use crate::time::{self, Date, Period};
 use crate::types::Decimal;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(strum::Display, strum::EnumIter, strum::EnumMessage, strum::EnumString, strum::IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
+pub enum BenchmarkPerformanceType {
+    #[strum(message = "plain performance")]
+    Virtual,
+
+    // FIXME(konishchev): Support
+    // #[strum(message = "inflation-adjusted performance")]
+    // InflationAdjusted,
+}
+
+pub struct BacktestingResults {
+    pub method: BenchmarkPerformanceType,
+    pub currency: String,
+
+    pub portfolio_net_value: Decimal,
+    pub portfolio_performance: Option<Decimal>,
+
+    pub benchmark_metrics: Option<Vec<DailyTimeSeries>>,
+}
+
 pub fn backtest(
-    currency: &str, benchmarks: &[Benchmark], statements: &[BrokerStatement], interactive: bool,
-    mut metrics: Option<&mut Vec<DailyTimeSeries>>, converter: CurrencyConverterRc, quotes: QuotesRc,
-) -> EmptyResult {
+    statements: &[BrokerStatement], benchmarks: Option<&[Benchmark]>, converter: CurrencyConverterRc, quotes: QuotesRc,
+    with_metrics: bool, interactive: bool,
+) -> GenericResult<Vec<BacktestingResults>> {
     for statement in statements {
         if interactive {
             statement.check_date();
@@ -44,95 +67,82 @@ pub fn backtest(
         return Err!("The portfolio contains future cash flows");
     }
 
+    let format_performance = |interest| format!("{}%", interest);
     let interest_periods = [InterestPeriod::new(start_date, today)];
     let days = portfolio_performance::get_total_activity_duration(&interest_periods);
 
-    let mut table = interactive.then(BacktestingResultsTable::new);
-    let format_interest = |interest| format!("{}%", interest);
+    let mut results = Vec::new();
 
-    {
-        let _logging_context = GlobalContext::new("Portfolio");
-        let transactions = cash_flows_to_transactions(currency, &cash_flows, &converter)?;
+    for method in BenchmarkPerformanceType::iter() {
+        for currency in ["USD", "RUB"] {
+            let mut table = interactive.then(BacktestingResultsTable::new);
 
-        let mut net_value = Cash::zero(currency);
-        for statement in statements {
-            net_value += statement.net_value(&converter, &quotes, currency, true)?;
-        }
+            let mut result = {
+                let _logging_context = GlobalContext::new(&format!("Portfolio / {method} {currency}"));
+                let transactions = cash_flows_to_transactions(currency, &cash_flows, &converter)?;
 
-        let interest = deposit_performance::compare_instrument_to_bank_deposit(
-            "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
+                let mut net_value = Cash::zero(currency);
+                for statement in statements {
+                    net_value += statement.net_value(&converter, &quotes, currency, true)?;
+                }
 
-        if let Some(table) = table.as_mut() {
-            table.add_row(BacktestingResultsTableRow {
-                benchmark: s!("Portfolio"),
-                result: Cell::new_round_decimal(net_value.amount),
-                interest: interest.map(format_interest),
-            });
-        }
-    }
+                let performance = deposit_performance::compare_instrument_to_bank_deposit(
+                    "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
 
-    for benchmark in benchmarks {
-        let _logging_context = GlobalContext::new(&benchmark.name());
+                if let Some(table) = table.as_mut() {
+                    table.add_row(BacktestingResultsTableRow {
+                        benchmark: s!("Portfolio"),
+                        result: Cell::new_round_decimal(net_value.amount),
+                        performance: performance.map(format_performance),
+                    });
+                }
 
-        let results = benchmark.backtest(
-            currency, &cash_flows, metrics.is_some(), today, converter.clone(), quotes.clone(),
-        ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
+                BacktestingResults {
+                    method,
+                    currency: currency.to_owned(),
 
-        let current = results.last().unwrap();
-        assert_eq!(current.date, today);
+                    portfolio_net_value: net_value.round().amount,
+                    portfolio_performance: performance,
 
-        if let Some(table) = table.as_mut() {
-            table.add_row(BacktestingResultsTableRow {
-                benchmark: benchmark.name(),
-                result: Cell::new_round_decimal(current.result),
-                interest: current.interest.map(format_interest),
-            });
-        }
+                    benchmark_metrics: None,
+                }
+            };
 
-        let Some(metrics) = metrics.as_mut() else {
-            continue;
-        };
+            for benchmark in benchmarks.unwrap_or_default() {
+                let full_name = format!("{} / {method} {currency}", benchmark.name());
+                let _logging_context = GlobalContext::new(&full_name);
 
-        let namespace = format!("{}_backtesting", metrics::NAMESPACE);
+                let daily_results = benchmark.backtest(
+                    currency, &cash_flows, with_metrics, today, converter.clone(), quotes.clone(),
+                ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
-        let time_series = |name: &str| {
-            let mut time_series = DailyTimeSeries::new(&format!("{namespace}_{name}"))
-                .with_label("currency", currency)
-                .with_label("instrument", &benchmark.name);
+                if with_metrics {
+                    let metrics = generate_metrics(benchmark, method, currency, &daily_results).map_err(|e| format!(
+                        "Failed to generate metrics for {full_name}: {e}"))?;
+                    result.benchmark_metrics.get_or_insert_default().extend(metrics);
+                }
 
-            if let Some(ref provider) = benchmark.provider {
-                time_series = time_series.with_label("provider", provider);
+                if let Some(table) = table.as_mut() {
+                    let current = daily_results.last().unwrap();
+                    assert_eq!(current.date, today);
+
+                    table.add_row(BacktestingResultsTableRow {
+                        benchmark: benchmark.name(),
+                        result: Cell::new_round_decimal(current.result),
+                        performance: current.interest.map(format_performance),
+                    });
+                }
             }
 
-            time_series
-        };
-
-        let mut net_value_time_series = time_series("net_value");
-        let mut performance_time_series = time_series("performance");
-
-        for result in results {
-            let net_value = result.result.to_f64().ok_or_else(|| format!(
-                "Got an invalid result for {}: {}", benchmark.name(), result.result))?;
-            net_value_time_series.add_value(result.date, net_value);
-
-            if let Some(interest) = result.interest {
-                let interest = interest.to_f64().ok_or_else(|| format!(
-                    "Got an invalid performance for {}: {}", benchmark.name(), interest))?;
-                performance_time_series.add_value(result.date, interest);
+            if let Some(table) = table.as_mut() {
+                table.print(&format!("Backtesting results ({method} {currency}, {})", formatting::format_days(days)));
             }
-        }
 
-        metrics.push(net_value_time_series);
-        if !performance_time_series.is_empty() {
-            metrics.push(performance_time_series);
+            results.push(result);
         }
     }
 
-    if let Some(table) = table.as_mut() {
-        table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
-    }
-
-    Ok(())
+    Ok(results)
 }
 
 pub struct Benchmark {
@@ -486,8 +496,8 @@ struct BacktestingResultsTableRow {
     benchmark: String,
     #[column(name="Result")]
     result: Cell,
-    #[column(name="Interest", align="right")]
-    interest: Option<String>,
+    #[column(name="Performance", align="right")]
+    performance: Option<String>,
 }
 
 fn generalize_portfolios_to_cash_flows(statements: &[BrokerStatement]) -> Vec<CashAssets> {
@@ -560,4 +570,43 @@ fn cash_flows_to_transactions(currency: &str, cash_flows: &[CashAssets], convert
     Ok(transactions.into_iter().map(|(date, amount)| {
         Transaction::new(date, amount)
     }).collect_vec())
+}
+
+fn generate_metrics(
+    benchmark: &Benchmark, method: BenchmarkPerformanceType, currency: &str, results: &[BacktestingResult],
+) -> GenericResult<Vec<DailyTimeSeries>> {
+    let time_series = |name: &str| {
+        let mut time_series = DailyTimeSeries::new(&format!("{}_{name}", metrics::NAMESPACE))
+            .with_label(metrics::INSTRUMENT_LABEL, &benchmark.name)
+            .with_label(metrics::TYPE_LABEL, method.into())
+            .with_label(metrics::CURRENCY_LABEL, currency);
+
+        if let Some(ref provider) = benchmark.provider {
+            time_series = time_series.with_label(metrics::PROVIDER_LABEL, provider);
+        }
+
+        time_series
+    };
+
+    let mut net_value_time_series = time_series(metrics::BACKTESTING_NET_VALUE_NAME);
+    let mut performance_time_series = time_series(metrics::BACKTESTING_PERFORMANCE_NAME);
+
+    for result in results {
+        let net_value = result.result.to_f64().ok_or_else(|| format!(
+            "Got an invalid result: {}", result.result))?;
+        net_value_time_series.add_value(result.date, net_value);
+
+        if let Some(interest) = result.interest {
+            let interest = interest.to_f64().ok_or_else(|| format!(
+                "Got an invalid performance: {}", interest))?;
+            performance_time_series.add_value(result.date, interest);
+        }
+    }
+
+    let mut metrics = vec![net_value_time_series];
+    if !performance_time_series.is_empty() {
+        metrics.push(performance_time_series);
+    }
+
+    Ok(metrics)
 }

@@ -5,6 +5,7 @@ use validator::Validate;
 
 use crate::analysis::config::{AssetGroupConfig, PerformanceMergingConfig};
 use crate::core::EmptyResult;
+use crate::metrics;
 
 #[derive(Deserialize, Default, Validate)]
 #[serde(deny_unknown_fields)]
@@ -24,6 +25,10 @@ pub struct MetricsConfig {
 impl MetricsConfig {
     pub fn validate_inner(&self, portfolios: &HashSet<String>) -> EmptyResult {
         for (name, group) in &self.asset_groups {
+            if name == metrics::PORTFOLIO_INSTRUMENT {
+                return Err!("Invalid asset group name: {name:?}")
+            }
+
             group.validate_inner(portfolios).map_err(|e| format!(
                 "{:?} asset group: {}", name, e))?;
         }

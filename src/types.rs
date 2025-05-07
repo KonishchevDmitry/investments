@@ -11,6 +11,7 @@ pub enum TradeType {
     Sell,
 }
 
+#[macro_export]
 macro_rules! date {
     ($year:expr, $month:expr, $day:expr) => (
         ::chrono::NaiveDate::from_ymd_opt($year, $month, $day).unwrap()

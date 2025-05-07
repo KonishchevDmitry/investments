@@ -12,6 +12,11 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::time::Date;
 use crate::util;
 
+pub struct BackfillingConfig {
+    pub url: Url,
+    pub scrape_interval: Duration,
+}
+
 pub struct DailyTimeSeries {
     labels: HashMap<String, String>,
     values: Vec<(Date, f64)>,
@@ -42,7 +47,7 @@ impl DailyTimeSeries {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn backfill(url: &Url, scrape_interval: Duration, metrics: Vec<DailyTimeSeries>) -> EmptyResult {
+pub async fn backfill(config: &BackfillingConfig, metrics: Vec<DailyTimeSeries>) -> EmptyResult {
     let client = ClientBuilder::new()
         .redirect(reqwest::redirect::Policy::none())
         .no_brotli()
@@ -51,10 +56,10 @@ pub async fn backfill(url: &Url, scrape_interval: Duration, metrics: Vec<DailyTi
         .no_zstd()
         .build()?;
 
-    let import_url = url.join("/api/v1/import").map_err(|e| format!(
+    let import_url = config.url.join("/api/v1/import").map_err(|e| format!(
         "Invalid URL: {e}"))?;
 
-        let import_stream = get_import_stream(metrics, scrape_interval).await;
+    let import_stream = get_import_stream(metrics, config.scrape_interval).await;
 
     info!("Backfilling the metrics to VictoriaMetrics...");
     let response = client.post(import_url).body(Body::wrap_stream(import_stream)).send().await.map_err(|err| {

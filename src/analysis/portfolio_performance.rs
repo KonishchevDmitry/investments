@@ -134,7 +134,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
         let adjusted_transactions = self.adjust_transactions(&deposit_view.transactions)?;
 
-        let interest = deposit_performance::compare_instrument_to_bank_deposit(
+        let performance = deposit_performance::compare_instrument_to_bank_deposit(
             symbol, self.currency, &adjusted_transactions, &deposit_view.interest_periods, dec!(0))?;
 
         let name = deposit_view.name.unwrap();
@@ -152,7 +152,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         }
 
         Ok(InstrumentPerformanceAnalysis {
-            name, days, investments, result, interest,
+            name, days, investments, result, performance,
             inactive: deposit_view.closed,
         })
     }
@@ -170,7 +170,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let activity_periods = [InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
-        let interest = deposit_performance::compare_instrument_to_bank_deposit(
+        let performance = deposit_performance::compare_instrument_to_bank_deposit(
             "portfolio", self.currency, &adjusted_transactions, &activity_periods, self.current_assets)?;
 
         let days = get_total_activity_duration(&activity_periods);
@@ -182,7 +182,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
             name: s!("Portfolio"),
             days, investments,
             result: self.current_assets,
-            interest,
+            performance,
             inactive: false
         })
     }
@@ -484,6 +484,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.transactions.push(Transaction::new(date, amount));
     }
 
+    // FIXME(konishchev): Support for benchmarks
     fn adjust_transactions(&self, transactions: &[Transaction]) -> GenericResult<Vec<Transaction>> {
         let inflation_calc = match self.method {
             PerformanceAnalysisMethod::Virtual | PerformanceAnalysisMethod::Real => None,

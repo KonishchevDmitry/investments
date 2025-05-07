@@ -98,7 +98,7 @@ pub struct InstrumentPerformanceAnalysis {
     pub days: u32,
     pub investments: Decimal,
     pub result: Decimal,
-    pub interest: Option<Decimal>,
+    pub performance: Option<Decimal>,
     pub inactive: bool,
 }
 
@@ -114,8 +114,8 @@ struct Row {
     result: Cell,
     #[column(name="Duration", align="right")]
     duration: String,
-    #[column(name="Interest", align="right")]
-    interest: Option<String>,
+    #[column(name="Performance", align="right")]
+    performance: Option<String>,
 }
 
 impl InstrumentPerformanceAnalysis {
@@ -134,7 +134,7 @@ impl InstrumentPerformanceAnalysis {
             profit: Cell::new_round_decimal(profit),
             result: Cell::new_round_decimal(result),
             duration: formatting::format_days(self.days),
-            interest: self.interest.map(|interest| format!("{}%", interest)),
+            performance: self.performance.map(|performance| format!("{}%", performance)),
         });
 
         if self.inactive {

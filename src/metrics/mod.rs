@@ -12,6 +12,7 @@ use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, re
 use strum::IntoEnumIterator;
 
 use crate::analysis::{self, PerformanceAnalysisMethod};
+use crate::analysis::backtesting::BacktestingResults;
 use crate::analysis::portfolio_statistics::{Asset, AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
@@ -27,7 +28,7 @@ lazy_static! {
         "time", "Metrics generation time");
 
     static ref BROKERS: GaugeVec = register_metric(
-        "brokers", "Net asset value by broker", &["currency", "broker", "country"]);
+        "brokers", "Net asset value by broker", &[CURRENCY_LABEL, "broker", "country"]);
 
     static ref ASSETS: GaugeVec = register_instrument_metric(
         "assets", "Open positions value");
@@ -36,7 +37,7 @@ lazy_static! {
         "net_assets", "Open positions net value");
 
     static ref ASSET_GROUPS: GaugeVec = register_metric(
-        "asset_groups", "Net asset value of custom groups", &["name", "currency"]);
+        "asset_groups", "Net asset value of custom groups", &["name", CURRENCY_LABEL]);
 
     static ref PERFORMANCE: GaugeVec = register_performance_metric(
         "performance", "Instrument performance");
@@ -63,10 +64,16 @@ lazy_static! {
         "projected_commissions", "Projected commissions to pay");
 
     static ref LTO: GaugeVec = register_metric(
-        "lto", "Long-term ownership tax exemption applying results", &["year", "type"]);
+        "lto", "Long-term ownership tax exemption applying results", &["year", TYPE_LABEL]);
 
     static ref PROJECTED_LTO: GaugeVec = register_metric(
-        "projected_lto", "Long-term ownership tax exemption projected results", &["type"]);
+        "projected_lto", "Long-term ownership tax exemption projected results", &[TYPE_LABEL]);
+
+    static ref BACKTESTING_NET_VALUE: GaugeVec = register_metric(
+        BACKTESTING_NET_VALUE_NAME, "Benchmark backtesting result: net value", &[INSTRUMENT_LABEL, PROVIDER_LABEL, TYPE_LABEL, CURRENCY_LABEL]);
+
+    static ref BACKTESTING_PERFORMANCE: GaugeVec = register_metric(
+        BACKTESTING_PERFORMANCE_NAME, "Benchmark backtesting result: performance", &[INSTRUMENT_LABEL, PROVIDER_LABEL, TYPE_LABEL, CURRENCY_LABEL]);
 
     static ref FOREX_PAIRS: GaugeVec = register_metric(
         "forex_pairs", "Forex quotes", &["base", "quote"]);
@@ -77,22 +84,24 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         config, None, false, &config.metrics.asset_groups,
         Some(&config.metrics.merge_performance), false)?;
 
-    UPDATE_TIME.set(cast::f64(time::timestamp()));
+    let backtesting = analysis::backtest(config, None, None, false)?;
 
+    UPDATE_TIME.set(cast::f64(time::timestamp()));
     for statistics in &statistics.currencies {
-        collect_portfolio_metrics(statistics);
+        collect_portfolio(statistics);
     }
 
     collect_forex_quotes(quotes, &config.metrics.currency_rates)?;
     collect_asset_groups(&statistics.asset_groups);
-    collect_lto_metrics(statistics.lto.as_ref().unwrap());
+    collect_backtesting(&backtesting[..0]); // FIXME(konishchev): Drop it
+    collect_lto(statistics.lto.as_ref().unwrap());
 
     save(path)?;
 
     Ok(telemetry)
 }
 
-fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
+fn collect_portfolio(statistics: &PortfolioCurrencyStatistics) {
     let currency = &statistics.currency;
     let income_structure = &statistics.real_performance.as_ref().unwrap().income_structure;
 
@@ -118,13 +127,13 @@ fn collect_portfolio_metrics(statistics: &PortfolioCurrencyStatistics) {
         let performance = statistics.performance(method);
 
         for (instrument, analysis) in &performance.instruments {
-            if let Some(interest) = analysis.interest {
-                set_performance_metric(&PERFORMANCE, currency, instrument, method_name, interest);
+            if let Some(performance) = analysis.performance {
+                set_performance_metric(&PERFORMANCE, currency, instrument, method_name, performance);
             }
         }
 
-        if let Some(interest) = performance.portfolio.interest {
-            set_performance_metric(&PERFORMANCE, currency, "Portfolio", method_name, interest);
+        if let Some(performance) = performance.portfolio.performance {
+            set_performance_metric(&PERFORMANCE, currency, PORTFOLIO_INSTRUMENT, method_name, performance);
         }
     }
 
@@ -152,7 +161,7 @@ fn collect_asset_groups(groups: &BTreeMap<String, AssetGroup>) {
     }
 }
 
-fn collect_lto_metrics(lto: &LtoStatistics) {
+fn collect_lto(lto: &LtoStatistics) {
     for (year, result) in &lto.applied {
         let year = year.to_string();
         let year = year.as_str();
@@ -164,6 +173,17 @@ fn collect_lto_metrics(lto: &LtoStatistics) {
     set_metric(&PROJECTED_LTO, &["deduction"], lto.projected.deduction);
     set_metric(&PROJECTED_LTO, &["limit"], lto.projected.limit);
     set_metric(&PROJECTED_LTO, &["loss"], lto.projected.loss);
+}
+
+fn collect_backtesting(results: &[BacktestingResults]) {
+    for result in results {
+        let labels = &[PORTFOLIO_INSTRUMENT, "", result.method.into(), &result.currency];
+
+        set_metric(&BACKTESTING_NET_VALUE, labels, result.portfolio_net_value);
+        if let Some(performance) = result.portfolio_performance {
+            set_metric(&BACKTESTING_PERFORMANCE, labels, performance);
+        }
+    }
 }
 
 fn collect_forex_quotes(quotes: QuotesRc, pairs: &BTreeSet<String>) -> EmptyResult {
@@ -202,25 +222,33 @@ fn save(path: &Path) -> EmptyResult {
 
 pub const NAMESPACE: &str = "investments";
 
+pub const BACKTESTING_NET_VALUE_NAME: &str = "backtesting_net_value";
+pub const BACKTESTING_PERFORMANCE_NAME: &str = "backtesting_performance";
+
 const PORTFOLIO_LABEL: &str = "portfolio";
 pub const PORTFOLIO_LABEL_ALL: &str = "all";
 
-const CURRENCY_LABEL: &str = "currency";
+pub const PORTFOLIO_INSTRUMENT: &str = "Portfolio";
+
+pub const CURRENCY_LABEL: &str = "currency";
+pub const INSTRUMENT_LABEL: &str = "instrument";
+pub const PROVIDER_LABEL: &str = "provider";
+pub const TYPE_LABEL: &str = "type";
 
 fn register_portfolio_metric(name: &str, help: &str) -> GaugeVec {
     register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL])
 }
 
 fn register_instrument_metric(name: &str, help: &str) -> GaugeVec {
-    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, "instrument"])
+    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, INSTRUMENT_LABEL])
 }
 
 fn register_performance_metric(name: &str, help: &str) -> GaugeVec {
-    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, "instrument", "type"])
+    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, INSTRUMENT_LABEL, TYPE_LABEL])
 }
 
 fn register_structure_metric(name: &str, help: &str) -> GaugeVec {
-    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, "type"])
+    register_metric(name, help, &[PORTFOLIO_LABEL, CURRENCY_LABEL, TYPE_LABEL])
 }
 
 fn register_metric(name: &str, help: &str, labels: &[&str]) -> GaugeVec {

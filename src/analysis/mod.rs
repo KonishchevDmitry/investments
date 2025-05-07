@@ -1,4 +1,4 @@
-mod backtesting;
+pub mod backtesting;
 pub mod config;
 pub mod deposit_emulator;
 mod deposit_performance;
@@ -13,23 +13,21 @@ pub mod portfolio_statistics;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use chrono::Duration;
 use easy_logging::GlobalContext;
-use url::Url;
+use itertools::Itertools;
 
 use crate::broker_statement::{BrokerStatement, ReadingStrictness};
 use crate::config::{Config, PortfolioConfig};
-use crate::core::{EmptyResult, GenericResult};
+use crate::core::GenericResult;
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
-use crate::exchanges::Exchange;
-use crate::metrics::backfilling;
+use crate::metrics::backfilling::{self, BackfillingConfig};
 use crate::quotes::{Quotes, QuotesRc};
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
-use self::backtesting::{Benchmark, BenchmarkInstrument};
+use self::backtesting::{Benchmark, BacktestingResults};
 use self::config::{AssetGroupConfig, PerformanceMergingConfig};
 use self::portfolio_analysis::PortfolioAnalyser;
 use self::portfolio_statistics::PortfolioStatistics;
@@ -85,75 +83,7 @@ pub fn simulate_sell(
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-pub fn backtest(config: &Config, backfilling_url: Option<&Url>, scrape_interval: Duration) -> EmptyResult {
-    let instrument = |symbol: &str| BenchmarkInstrument::new(symbol, Exchange::Moex);
-
-    let (sber, tbank, vtb) = ("Sber", "T-Bank", "VTB");
-    let benchmark = |name: &str, provider: &str, symbol: &str| Benchmark::new(name, instrument(symbol)).with_provider(provider);
-
-    let benchmarks = [
-        benchmark("Russian stocks", sber, "FXRL")
-            .then(date!(2021, 7, 29), instrument("SBMX"))?,
-        benchmark("Russian stocks", tbank, "FXRL")
-            .then(date!(2021, 7, 29), instrument("TMOS"))?,
-        benchmark("Russian stocks", vtb, "FXRL")
-            .then(date!(2021, 7, 29), instrument("VTBX").alias("EQMX"))?
-            .then_rename(date!(2022, 7, 22), instrument("EQMX"))?,
-
-        benchmark("Russian money market", sber, "FXRB")
-            .then(date!(2018,  3,  7), instrument("FXMM"))?
-            .then(date!(2021, 12, 30), instrument("SBMM"))?,
-        benchmark("Russian money market", tbank, "FXRB")
-            .then(date!(2018,  3,  7), instrument("FXMM"))?
-            .then(date!(2021, 12, 30), instrument("SBMM"))?
-            .then(date!(2023,  7, 14), instrument("TMON"))?,
-        benchmark("Russian money market", vtb, "FXRB")
-            .then(date!(2018,  3,  7), instrument("FXMM"))?
-            .then(date!(2021, 12, 30), instrument("VTBM"))?
-            .then_rename(date!(2022, 7, 22), instrument("LQDT"))?,
-
-        benchmark("Russian government bonds", sber, "FXRB")
-            .then(date!(2019,  1, 25), instrument("SBGB"))?,
-        benchmark("Russian government bonds", tbank, "FXRB")
-            .then(date!(2019,  1, 25), instrument("SBGB"))?
-            .then(date!(2024, 12, 17), instrument("TOFZ"))?,
-
-        benchmark("Russian corporate bonds", sber, "FXRB")
-            .then(date!(2020,  5, 20), instrument("SBRB"))?,
-        benchmark("Russian corporate bonds", tbank, "FXRB")
-            .then(date!(2020,  5, 20), instrument("SBRB"))?
-            .then(date!(2021,  8,  6), instrument("TBRU"))?,
-        benchmark("Russian corporate bonds", vtb, "FXRB")
-            .then(date!(2020,  5, 20), instrument("SBRB"))?
-            .then(date!(2021,  8,  6), instrument("VTBB"))?
-            .then_rename(date!(2022, 7, 22), instrument("OBLG"))?,
-
-        benchmark("Russian corporate eurobonds", sber, "FXRU")
-            .then(date!(2020,  9, 24), instrument("SBCB"))?
-            .then(date!(2022,  1, 25), instrument("SBMM"))? // SBCB was frozen for this period. Ideally we need some stub only for new deposits
-            .then(date!(2023, 12, 15), instrument("SBCB"))?, // The open price is equal to close price of previous SBCB interval
-        benchmark("Russian corporate eurobonds", tbank, "FXRU")
-            .then(date!(2020,  9, 24), instrument("SBCB"))?
-            .then(date!(2022,  1, 25), instrument("SBMM"))? // SBCB was frozen for this period. Ideally we need some stub only for new deposits
-            .then(date!(2023, 12, 15), instrument("SBCB"))? // The open price is equal to close price of previous SBCB interval
-            .then(date!(2024,  4,  1), instrument("TLCB"))?,
-
-        benchmark("Gold", sber, "FXRU")
-            .then(date!(2018,  3,  7), instrument("FXGD"))?
-            .then(date!(2020,  7, 15), instrument("VTBG"))?
-            .then_rename(date!(2022, 7, 22), instrument("GOLD"))?
-            .then(date!(2022, 11, 21), instrument("SBGD"))?,
-        benchmark("Gold", tbank, "FXRU")
-            .then(date!(2018,  3,  7), instrument("FXGD"))?
-            .then(date!(2020,  7, 15), instrument("VTBG"))?
-            .then_rename(date!(2022, 7, 22), instrument("GOLD"))?
-            .then(date!(2024, 11,  5), instrument("TGLD"))?,
-        benchmark("Gold", vtb, "FXRU")
-            .then(date!(2018,  3,  7), instrument("FXGD"))?
-            .then(date!(2020,  7, 15), instrument("VTBG"))?
-            .then_rename(date!(2022, 7, 22), instrument("GOLD"))?,
-    ];
-
+pub fn backtest(config: &Config, benchmarks: Option<&[Benchmark]>, backfilling: Option<BackfillingConfig>, interactive: bool) -> GenericResult<Vec<BacktestingResults>> {
     let (converter, quotes) = load_tools(config)?;
     let reading_strictness = ReadingStrictness::empty();
     let multiple_portfolios = config.portfolios.len() > 1;
@@ -169,22 +99,19 @@ pub fn backtest(config: &Config, backfilling_url: Option<&Url>, scrape_interval:
         statements.push(load_portfolio(config, portfolio, reading_strictness)?);
     }
 
-    // FIXME(konishchev): Drop it
-    let benchmarks = &benchmarks[..1];
-    let mut metrics = backfilling_url.map(|_| Vec::new());
+    let mut results = backtesting::backtest(
+        &statements, benchmarks, converter.clone(), quotes.clone(), backfilling.is_some(), interactive)?;
 
-    for currency in ["USD", "RUB"] {
-        // FIXME(konishchev): Inflation adjusted variant
-        // FIXME(konishchev): Benchmark metrics
-        backtesting::backtest(currency, benchmarks, &statements, true, metrics.as_mut(), converter.clone(), quotes.clone())?;
-    }
+    if let Some(config) = backfilling {
+        let metrics = results.iter_mut()
+            .flat_map(|result| result.benchmark_metrics.take().unwrap())
+            .collect_vec();
 
-    if let (Some(url), Some(metrics)) = (backfilling_url, metrics) {
-        backfilling::backfill(url, scrape_interval, metrics).map_err(|e| format!(
+        backfilling::backfill(&config, metrics).map_err(|e| format!(
             "Failed to backfill backtesting results: {e}"))?;
     }
 
-    Ok(())
+    Ok(results)
 }
 
 fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
