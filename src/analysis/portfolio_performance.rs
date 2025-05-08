@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, BTreeMap};
 
 use itertools::Itertools;
@@ -484,22 +485,20 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         self.transactions.push(Transaction::new(date, amount));
     }
 
-    // FIXME(konishchev): Support for benchmarks
-    fn adjust_transactions(&self, transactions: &[Transaction]) -> GenericResult<Vec<Transaction>> {
+    fn adjust_transactions<'t>(&self, transactions: &'t [Transaction]) -> GenericResult<Cow<'t, [Transaction]>> {
         let inflation_calc = match self.method {
-            PerformanceAnalysisMethod::Virtual | PerformanceAnalysisMethod::Real => None,
-            PerformanceAnalysisMethod::InflationAdjusted => Some(
+            PerformanceAnalysisMethod::InflationAdjusted => {
                 InflationCalc::new(self.currency, self.today)?
-            ),
+            },
+            PerformanceAnalysisMethod::Virtual | PerformanceAnalysisMethod::Real => {
+                return Ok(Cow::Borrowed(transactions));
+            },
         };
 
-        Ok(transactions.iter().map(|transaction| {
-            let amount = match inflation_calc.as_ref() {
-                Some(calc) => calc.adjust(transaction.date, transaction.amount),
-                None => transaction.amount,
-            };
+        Ok(Cow::Owned(transactions.iter().map(|transaction| {
+            let amount = inflation_calc.adjust(transaction.date, transaction.amount);
             Transaction::new(transaction.date, amount)
-        }).collect())
+        }).collect()))
     }
 
     fn map_tax_to_deposit_amount(&self, tax_payment_date: Date, tax_to_pay: Cash) -> GenericResult<Option<Decimal>> {

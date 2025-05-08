@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Bound;
 
@@ -10,6 +11,7 @@ use strum::IntoEnumIterator;
 
 use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
 use crate::analysis::deposit_performance;
+use crate::analysis::inflation::InflationCalc;
 use crate::analysis::portfolio_performance;
 use crate::broker_statement::{BrokerStatement, StockSellType, StockSource};
 use crate::core::{EmptyResult, GenericResult};
@@ -22,18 +24,6 @@ use crate::metrics::{self, backfilling::DailyTimeSeries};
 use crate::quotes::{Quotes, QuotesRc, QuoteQuery, HistoricalQuotes};
 use crate::time::{self, Date, Period};
 use crate::types::Decimal;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[derive(strum::Display, strum::EnumIter, strum::EnumMessage, strum::EnumString, strum::IntoStaticStr)]
-#[strum(serialize_all = "kebab-case")]
-pub enum BenchmarkPerformanceType {
-    #[strum(message = "plain performance")]
-    Virtual,
-
-    // FIXME(konishchev): Support
-    // #[strum(message = "inflation-adjusted performance")]
-    // InflationAdjusted,
-}
 
 pub struct BacktestingResults {
     pub method: BenchmarkPerformanceType,
@@ -79,7 +69,9 @@ pub fn backtest(
 
             let mut result = {
                 let _logging_context = GlobalContext::new(&format!("Portfolio / {method} {currency}"));
+
                 let transactions = cash_flows_to_transactions(currency, &cash_flows, &converter)?;
+                let transactions = method.adjust_transactions(currency, today, &transactions)?;
 
                 let mut net_value = Cash::zero(currency);
                 for statement in statements {
@@ -113,7 +105,7 @@ pub fn backtest(
                 let _logging_context = GlobalContext::new(&full_name);
 
                 let daily_results = benchmark.backtest(
-                    currency, &cash_flows, with_metrics, today, converter.clone(), quotes.clone(),
+                    method, currency, &cash_flows, with_metrics, today, converter.clone(), quotes.clone(),
                 ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
                 if with_metrics {
@@ -128,8 +120,8 @@ pub fn backtest(
 
                     table.add_row(BacktestingResultsTableRow {
                         benchmark: benchmark.name(),
-                        result: Cell::new_round_decimal(current.result),
-                        performance: current.interest.map(format_performance),
+                        result: Cell::new_round_decimal(current.net_value),
+                        performance: current.performance.map(format_performance),
                     });
                 }
             }
@@ -184,7 +176,7 @@ impl Benchmark {
     }
 
     fn backtest(
-        &self, currency: &str, cash_flows: &[CashAssets], full: bool,
+        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], full: bool,
         today: Date, converter: CurrencyConverterRc, quotes: QuotesRc,
     ) -> GenericResult<Vec<BacktestingResult>> {
         debug!("Backtesting {}...", self.name());
@@ -201,7 +193,7 @@ impl Benchmark {
         assert_eq!(transition_date, start_date);
 
         Backtester {
-            currency, quotes, converter, quotes_limit,
+            method, currency, quotes, converter, quotes_limit,
 
             benchmark: self,
             cash_flows,
@@ -275,6 +267,7 @@ impl Benchmark {
 }
 
 struct Backtester<'a> {
+    method: BenchmarkPerformanceType,
     currency: &'a str,
     quotes: QuotesRc,
     converter: CurrencyConverterRc,
@@ -378,17 +371,19 @@ impl Backtester<'_> {
 
         let mut result = BacktestingResult {
             date: self.date,
-            result: net_value,
-            interest: None,
+            net_value,
+            performance: None,
         };
 
         let start_date = self.transactions.first().unwrap().date;
         if (self.date - start_date).num_days() > 0 { // FIXME(konishchev): Alter the value
             let name = format!("{} @ {}", self.benchmark.name(), formatting::format_date(self.date));
+
+            let transactions = self.method.adjust_transactions(&self.currency, self.date, &self.transactions)?;
             let interest_periods = [InterestPeriod::new(start_date, self.date)];
 
-            result.interest = deposit_performance::compare_instrument_to_bank_deposit(
-                &name, self.currency, &self.transactions, &interest_periods, net_value)?;
+            result.performance = deposit_performance::compare_instrument_to_bank_deposit(
+                &name, self.currency, &transactions, &interest_periods, net_value)?;
         }
 
         self.results.push(result);
@@ -483,10 +478,38 @@ impl CurrentBenchmarkInstrument<'_> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(strum::Display, strum::EnumIter, strum::EnumMessage, strum::EnumString, strum::IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
+pub enum BenchmarkPerformanceType {
+    Virtual,
+    InflationAdjusted,
+}
+
+impl BenchmarkPerformanceType {
+    fn adjust_transactions<'t>(
+        self, currency: &str, today: Date, transactions: &'t [Transaction],
+    ) -> GenericResult<Cow<'t, [Transaction]>> {
+        let inflation_calc = match self {
+            BenchmarkPerformanceType::InflationAdjusted => {
+                InflationCalc::new(currency, today)?
+            },
+            BenchmarkPerformanceType::Virtual => {
+                return Ok(Cow::Borrowed(transactions));
+            },
+        };
+
+        Ok(Cow::Owned(transactions.iter().map(|transaction| {
+            let amount = inflation_calc.adjust(transaction.date, transaction.amount);
+            Transaction::new(transaction.date, amount)
+        }).collect()))
+    }
+}
+
 struct BacktestingResult {
     date: Date,
-    result: Decimal,
-    interest: Option<Decimal>,
+    net_value: Decimal,
+    performance: Option<Decimal>,
 }
 
 #[derive(StaticTable)]
@@ -592,13 +615,13 @@ fn generate_metrics(
     let mut performance_time_series = time_series(metrics::BACKTESTING_PERFORMANCE_NAME);
 
     for result in results {
-        let net_value = result.result.to_f64().ok_or_else(|| format!(
-            "Got an invalid result: {}", result.result))?;
+        let net_value = result.net_value.to_f64().ok_or_else(|| format!(
+            "Got an invalid result: {}", result.net_value))?;
         net_value_time_series.add_value(result.date, net_value);
 
-        if let Some(interest) = result.interest {
-            let interest = interest.to_f64().ok_or_else(|| format!(
-                "Got an invalid performance: {}", interest))?;
+        if let Some(performance) = result.performance {
+            let interest = performance.to_f64().ok_or_else(|| format!(
+                "Got an invalid performance: {}", performance))?;
             performance_time_series.add_value(result.date, interest);
         }
     }

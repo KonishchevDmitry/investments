@@ -168,7 +168,7 @@ impl DepositEmulator {
     }
 }
 
-#[cfg_attr(test, derive(Clone, Copy))]
+#[derive(Clone, Copy)]
 pub struct Transaction {
     pub date: Date,
     pub amount: Decimal,
