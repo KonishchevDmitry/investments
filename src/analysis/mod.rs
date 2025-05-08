@@ -64,7 +64,7 @@ pub fn analyse(
     };
     analyser.process(portfolios, &mut statistics)?;
 
-    Ok((statistics, quotes, telemetry))
+    Ok((statistics.commit(), quotes, telemetry))
 }
 
 pub fn simulate_sell(

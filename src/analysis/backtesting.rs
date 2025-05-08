@@ -15,7 +15,7 @@ use crate::analysis::inflation::InflationCalc;
 use crate::analysis::portfolio_performance;
 use crate::broker_statement::{BrokerStatement, StockSellType, StockSource};
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
+use crate::currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::exchanges::Exchange;
 use crate::formatting;
@@ -377,7 +377,7 @@ impl Backtester<'_> {
 
         let mut result = BacktestingResult {
             date: self.date,
-            net_value,
+            net_value: currency::round(net_value),
             performance: None,
         };
 

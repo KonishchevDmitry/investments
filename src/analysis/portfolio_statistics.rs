@@ -4,7 +4,7 @@ use log::warn;
 
 use crate::brokers::Broker;
 use crate::core::EmptyResult;
-use crate::currency::Cash;
+use crate::currency::{self, Cash};
 use crate::localities::Country;
 use crate::taxes::{LtoDeduction, NetLtoDeduction, TaxCalculator};
 use crate::types::Decimal;
@@ -16,11 +16,6 @@ pub struct PortfolioStatistics {
     pub currencies: Vec<PortfolioCurrencyStatistics>,
     pub asset_groups: BTreeMap<String, AssetGroup>,
     pub lto: Option<LtoStatistics>,
-}
-
-pub struct AssetGroup {
-    pub taxes: TaxCalculator,
-    pub net_value: Vec<Cash>,
 }
 
 pub struct LtoStatistics {
@@ -89,6 +84,19 @@ impl PortfolioStatistics {
 
         Ok(())
     }
+
+    pub fn commit(self) -> Self {
+        let asset_groups = self.asset_groups.into_iter().map(|(name, value)| {
+            (name, value.commit())
+        }).collect();
+
+        PortfolioStatistics {
+            country: self.country,
+            currencies: self.currencies.into_iter().map(PortfolioCurrencyStatistics::commit).collect(),
+            asset_groups,
+            lto: self.lto,
+        }
+    }
 }
 
 pub struct PortfolioCurrencyStatistics {
@@ -135,6 +143,48 @@ impl PortfolioCurrencyStatistics {
         };
         assert!(container.replace(performance).is_none());
     }
+
+    fn commit(self) -> Self {
+        let assets = self.assets.into_iter().map(|(instrument, portfolios)| {
+            let portfolios = portfolios.into_iter().map(|(portfolio, asset)| {
+                (portfolio, asset.commit())
+            }).collect();
+
+            (instrument, portfolios)
+        }).collect();
+
+        let brokers = self.brokers.into_iter().map(|(broker, value)| {
+            (broker, currency::round(value))
+        }).collect();
+
+        PortfolioCurrencyStatistics {
+            currency: self.currency,
+
+            assets, brokers,
+
+            virtual_performance: self.virtual_performance.map(PortfolioPerformanceAnalysis::commit),
+            real_performance: self.real_performance.map(PortfolioPerformanceAnalysis::commit),
+            inflation_adjusted_performance: self.inflation_adjusted_performance.map(PortfolioPerformanceAnalysis::commit),
+
+            projected_taxes: currency::round(self.projected_taxes),
+            projected_tax_deductions: currency::round(self.projected_tax_deductions),
+            projected_commissions: currency::round(self.projected_commissions),
+        }
+    }
+}
+
+pub struct AssetGroup {
+    pub taxes: TaxCalculator,
+    pub net_value: Vec<Cash>,
+}
+
+impl AssetGroup {
+    fn commit(self) -> Self {
+        AssetGroup {
+            taxes: self.taxes,
+            net_value: self.net_value.into_iter().map(Cash::round).collect(),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -147,5 +197,12 @@ impl Asset {
     pub fn add(&mut self, other: &Asset) {
         self.value += other.value;
         self.net_value += other.net_value;
+    }
+
+    fn commit(self) -> Self {
+        Asset {
+            value: currency::round(self.value),
+            net_value: currency::round(self.net_value),
+        }
     }
 }

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use static_table_derive::StaticTable;
 
+use crate::currency;
 use crate::formatting::{self, table::{Cell, Style}};
 use crate::types::Decimal;
 use crate::util;
@@ -44,6 +45,18 @@ impl PortfolioPerformanceAnalysis {
         self.portfolio.format(&mut table, "");
 
         table.print(name);
+    }
+
+    pub fn commit(self) -> Self {
+        let instruments = self.instruments.into_iter().map(|(instrument, statistics)| {
+            (instrument, statistics.commit())
+        }).collect();
+
+        PortfolioPerformanceAnalysis {
+            income_structure: self.income_structure.commit(),
+            instruments,
+            portfolio: self.portfolio.commit(),
+        }
     }
 }
 
@@ -91,6 +104,25 @@ impl IncomeStructure {
     pub fn tax_deductions(&self) -> Decimal {
         self.trading_tax_deductions + self.additional_tax_deductions
     }
+
+    fn commit(self) -> Self {
+        IncomeStructure {
+            net_profit: currency::round(self.net_profit),
+
+            dividends: currency::round(self.dividends),
+            interest: currency::round(self.interest),
+
+            trading_taxes: currency::round(self.trading_taxes),
+            dividend_taxes: currency::round(self.dividend_taxes),
+            interest_taxes: currency::round(self.interest_taxes),
+
+            trading_tax_deductions: currency::round(self.trading_tax_deductions),
+            additional_tax_deductions: currency::round(self.additional_tax_deductions),
+
+            commissions: currency::round(self.commissions),
+            grants: currency::round(self.grants),
+        }
+    }
 }
 
 pub struct InstrumentPerformanceAnalysis {
@@ -100,6 +132,19 @@ pub struct InstrumentPerformanceAnalysis {
     pub result: Decimal,
     pub performance: Option<Decimal>,
     pub inactive: bool,
+}
+
+impl InstrumentPerformanceAnalysis {
+    fn commit(self) -> Self {
+        InstrumentPerformanceAnalysis {
+            name: self.name,
+            days: self.days,
+            investments: currency::round(self.investments),
+            result: currency::round(self.result),
+            performance: self.performance,
+            inactive: self.inactive,
+        }
+    }
 }
 
 #[derive(StaticTable)]
