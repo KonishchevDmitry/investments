@@ -70,7 +70,7 @@ lazy_static! {
         "projected_lto", "Long-term ownership tax exemption projected results", &[TYPE_LABEL]);
 
     static ref BACKTESTING_NET_VALUE: GaugeVec = register_metric(
-        BACKTESTING_NET_VALUE_NAME, "Benchmark backtesting result: net value", &[INSTRUMENT_LABEL, PROVIDER_LABEL, TYPE_LABEL, CURRENCY_LABEL]);
+        BACKTESTING_NET_VALUE_NAME, "Benchmark backtesting result: net value", &[INSTRUMENT_LABEL, PROVIDER_LABEL, CURRENCY_LABEL]);
 
     static ref BACKTESTING_PERFORMANCE: GaugeVec = register_metric(
         BACKTESTING_PERFORMANCE_NAME, "Benchmark backtesting result: performance", &[INSTRUMENT_LABEL, PROVIDER_LABEL, TYPE_LABEL, CURRENCY_LABEL]);
@@ -93,7 +93,7 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
 
     collect_forex_quotes(quotes, &config.metrics.currency_rates)?;
     collect_asset_groups(&statistics.asset_groups);
-    collect_backtesting(&backtesting[..0]); // FIXME(konishchev): Drop it
+    collect_backtesting(&backtesting);
     collect_lto(statistics.lto.as_ref().unwrap());
 
     save(path)?;
@@ -177,11 +177,10 @@ fn collect_lto(lto: &LtoStatistics) {
 
 fn collect_backtesting(results: &[BacktestingResults]) {
     for result in results {
-        let labels = &[PORTFOLIO_INSTRUMENT, "", result.method.into(), &result.currency];
+        set_metric(&BACKTESTING_NET_VALUE, &[PORTFOLIO_INSTRUMENT, "", &result.currency], result.portfolio_net_value);
 
-        set_metric(&BACKTESTING_NET_VALUE, labels, result.portfolio_net_value);
         if let Some(performance) = result.portfolio_performance {
-            set_metric(&BACKTESTING_PERFORMANCE, labels, performance);
+            set_metric(&BACKTESTING_PERFORMANCE, &[PORTFOLIO_INSTRUMENT, "", result.method.into(), &result.currency], performance);
         }
     }
 }

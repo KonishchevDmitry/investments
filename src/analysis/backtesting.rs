@@ -63,7 +63,7 @@ pub fn backtest(
 
     let mut results = Vec::new();
 
-    for method in BenchmarkPerformanceType::iter() {
+    for (method_index, method) in BenchmarkPerformanceType::iter().enumerate() {
         for currency in ["USD", "RUB"] {
             let mut table = interactive.and_then(|interactive_method| {
                 if method == interactive_method {
@@ -115,7 +115,7 @@ pub fn backtest(
                 ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
                 if with_metrics {
-                    let metrics = generate_metrics(benchmark, method, currency, &daily_results).map_err(|e| format!(
+                    let metrics = generate_metrics(benchmark, method, currency, &daily_results, method_index == 0).map_err(|e| format!(
                         "Failed to generate metrics for {full_name}: {e}"))?;
                     result.benchmark_metrics.get_or_insert_default().extend(metrics);
                 }
@@ -603,13 +603,18 @@ fn cash_flows_to_transactions(currency: &str, cash_flows: &[CashAssets], convert
 
 fn generate_metrics(
     benchmark: &Benchmark, method: BenchmarkPerformanceType, currency: &str, results: &[BacktestingResult],
+    with_net_value: bool,
 ) -> GenericResult<Vec<DailyTimeSeries>> {
-    let time_series = |name: &str| {
+    let time_series = |name: &str, with_type: bool| {
         let mut time_series = DailyTimeSeries::new(&format!("{}_{name}", metrics::NAMESPACE))
             .with_label(metrics::INSTRUMENT_LABEL, &benchmark.name)
-            .with_label(metrics::TYPE_LABEL, method.into())
             .with_label(metrics::CURRENCY_LABEL, currency);
 
+        if with_type {
+            time_series = time_series.with_label(metrics::TYPE_LABEL, method.into())
+        }
+
+        // FIXME(konishchev): Send empty?
         if let Some(ref provider) = benchmark.provider {
             time_series = time_series.with_label(metrics::PROVIDER_LABEL, provider);
         }
@@ -617,13 +622,15 @@ fn generate_metrics(
         time_series
     };
 
-    let mut net_value_time_series = time_series(metrics::BACKTESTING_NET_VALUE_NAME);
-    let mut performance_time_series = time_series(metrics::BACKTESTING_PERFORMANCE_NAME);
+    let mut net_value_time_series = with_net_value.then(|| time_series(metrics::BACKTESTING_NET_VALUE_NAME, false));
+    let mut performance_time_series = time_series(metrics::BACKTESTING_PERFORMANCE_NAME, true);
 
     for result in results {
-        let net_value = result.net_value.to_f64().ok_or_else(|| format!(
-            "Got an invalid result: {}", result.net_value))?;
-        net_value_time_series.add_value(result.date, net_value);
+        if let Some(net_value_time_series) = net_value_time_series.as_mut() {
+            let net_value = result.net_value.to_f64().ok_or_else(|| format!(
+                "Got an invalid result: {}", result.net_value))?;
+            net_value_time_series.add_value(result.date, net_value);
+        }
 
         if let Some(performance) = result.performance {
             let performance = performance.to_f64().ok_or_else(|| format!(
@@ -632,7 +639,12 @@ fn generate_metrics(
         }
     }
 
-    let mut metrics = vec![net_value_time_series];
+    let mut metrics = Vec::new();
+
+    if let Some(net_value_time_series) = net_value_time_series {
+        metrics.push(net_value_time_series);
+    }
+
     if !performance_time_series.is_empty() {
         metrics.push(performance_time_series);
     }
