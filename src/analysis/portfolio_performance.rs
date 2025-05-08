@@ -84,11 +84,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         trace!("Deposit emulator transactions for {:?}:", portfolio.name);
         self.process_deposits_and_withdrawals(statement)?;
-        // FIXME(konishchev): Forex trades
         self.process_positions(statement, portfolio)?;
         self.process_dividends(statement, portfolio)?;
         self.process_interest(statement, portfolio)?;
         self.process_grants(statement)?;
+        self.process_forex(statement)?;
         self.process_fees(statement)?;
         self.process_tax_agent_withholdings(statement)?;
         self.process_tax_deductions(portfolio)?;
@@ -429,6 +429,15 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn process_grants(&mut self, statement: &BrokerStatement) -> EmptyResult {
         for grant in &statement.cash_grants {
             self.income_structure.grants += self.converter.convert_to(grant.date, grant.amount, self.currency)?;
+        }
+
+        Ok(())
+    }
+
+    fn process_forex(&mut self, statement: &BrokerStatement) -> EmptyResult {
+        for trade in &statement.forex_trades {
+            self.income_structure.commissions += self.converter.convert_to(
+                trade.conclusion_time.date, trade.commission, self.currency)?;
         }
 
         Ok(())
