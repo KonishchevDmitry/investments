@@ -605,25 +605,16 @@ fn generate_metrics(
     benchmark: &Benchmark, method: BenchmarkPerformanceType, currency: &str, results: &[BacktestingResult],
     with_net_value: bool,
 ) -> GenericResult<Vec<DailyTimeSeries>> {
-    let time_series = |name: &str, with_type: bool| {
-        let mut time_series = DailyTimeSeries::new(&format!("{}_{name}", metrics::NAMESPACE))
+    let time_series = |name: &str| {
+        DailyTimeSeries::new(&format!("{}_{name}", metrics::NAMESPACE))
             .with_label(metrics::INSTRUMENT_LABEL, &benchmark.name)
-            .with_label(metrics::CURRENCY_LABEL, currency);
-
-        if with_type {
-            time_series = time_series.with_label(metrics::TYPE_LABEL, method.into())
-        }
-
-        // FIXME(konishchev): Send empty?
-        if let Some(ref provider) = benchmark.provider {
-            time_series = time_series.with_label(metrics::PROVIDER_LABEL, provider);
-        }
-
-        time_series
+            .with_label(metrics::PROVIDER_LABEL, benchmark.provider.as_deref().unwrap_or_default())
+            .with_label(metrics::CURRENCY_LABEL, currency)
     };
 
-    let mut net_value_time_series = with_net_value.then(|| time_series(metrics::BACKTESTING_NET_VALUE_NAME, false));
-    let mut performance_time_series = time_series(metrics::BACKTESTING_PERFORMANCE_NAME, true);
+    let mut net_value_time_series = with_net_value.then(|| time_series(metrics::BACKTESTING_NET_VALUE_NAME));
+    let mut performance_time_series = time_series(metrics::BACKTESTING_PERFORMANCE_NAME)
+        .with_label(metrics::TYPE_LABEL, method.into());
 
     for result in results {
         if let Some(net_value_time_series) = net_value_time_series.as_mut() {
