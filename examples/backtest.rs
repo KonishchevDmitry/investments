@@ -1,16 +1,20 @@
 use std::io::{self, Write};
 use std::process::ExitCode;
+use std::str::FromStr;
 
 use chrono::Duration;
 use clap::{Command, Arg, ArgMatches, value_parser};
+use clap::builder::NonEmptyStringValueParser;
 use easy_logging::LoggingConfig;
+use itertools::Itertools;
 use log::error;
+use strum::IntoEnumIterator;
 use url::Url;
 
 #[macro_use] extern crate investments;
 
 use investments::analysis;
-use investments::analysis::backtesting::{Benchmark, BenchmarkInstrument};
+use investments::analysis::backtesting::{Benchmark, BenchmarkInstrument, BenchmarkPerformanceType};
 use investments::config::{CliConfig, Config};
 use investments::core::{EmptyResult, GenericResult};
 use investments::exchanges::Exchange;
@@ -24,10 +28,24 @@ fn main() -> ExitCode {
         .disable_help_subcommand(true)
         .args(Config::args())
         .args([
+            Arg::new("portfolio")
+                .help("Portfolio name (omit to show an aggregated result for all portfolios)")
+                .value_name("PORTFOLIO")
+                .value_parser(NonEmptyStringValueParser::new())
+                .conflicts_with("url"),
+
+            Arg::new("method").short('m').long("method")
+                .help(format!("Performance analysis method ({})", BenchmarkPerformanceType::iter().map(|method| {
+                        Into::<&'static str>::into(method)
+                }).join(", ")))
+                .value_name("METHOD")
+                .value_parser(BenchmarkPerformanceType::from_str)
+                .default_value(Into::<&'static str>::into(BenchmarkPerformanceType::Virtual)),
+
             Arg::new("url").long("url").short('u')
+                .help("VictoriaMetrics URL for metrics backfilling")
                 .value_name("URL")
-                .value_parser(value_parser!(Url))
-                .help("VictoriaMetrics URL for metrics backfilling"),
+                .value_parser(value_parser!(Url)),
 
             Arg::new("scrape_interval").long("scrape-interval").short('s')
                 .help("Scrape interval (in $number{m|h|d} format)")
@@ -62,6 +80,9 @@ fn main() -> ExitCode {
 
 pub fn run(cli_config: CliConfig, matches: &ArgMatches) -> EmptyResult {
     let config = Config::new(&cli_config.config_dir, cli_config.cache_expire_time)?;
+
+    let portfolio = matches.get_one::<String>("portfolio").cloned();
+    let method = matches.get_one("method").cloned().unwrap();
 
     let scrape_interval = matches.get_one("scrape_interval").cloned().map(|interval| -> GenericResult<Duration> {
         if interval < Duration::seconds(1) || interval > Duration::days(1) {
@@ -146,7 +167,7 @@ pub fn run(cli_config: CliConfig, matches: &ArgMatches) -> EmptyResult {
     ];
 
     // FIXME(konishchev): Drop it
-    analysis::backtest(&config, Some(&benchmarks[..1]), backfilling_config, true)?;
+    analysis::backtest(&config, portfolio.as_deref(), Some(&benchmarks[..3]), backfilling_config, Some(method))?;
 
     Ok(())
 }

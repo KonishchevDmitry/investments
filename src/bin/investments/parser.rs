@@ -76,6 +76,7 @@ impl Parser {
                                 format!("{} - {}", Into::<&'static str>::into(method), method.get_message().unwrap())
                             }).join(", ")
                         )
+                        .value_name("METHOD")
                         .value_parser(PerformanceAnalysisMethod::from_str)
                         .default_value(Into::<&'static str>::into(PerformanceAnalysisMethod::Real)),
 

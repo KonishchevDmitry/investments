@@ -37,10 +37,10 @@ pub struct BacktestingResults {
 
 pub fn backtest(
     statements: &[BrokerStatement], benchmarks: Option<&[Benchmark]>, converter: CurrencyConverterRc, quotes: QuotesRc,
-    with_metrics: bool, interactive: bool,
+    with_metrics: bool, interactive: Option<BenchmarkPerformanceType>,
 ) -> GenericResult<Vec<BacktestingResults>> {
     for statement in statements {
-        if interactive {
+        if interactive.is_some() {
             statement.check_date();
         }
         statement.batch_quotes(&quotes)?;
@@ -57,15 +57,21 @@ pub fn backtest(
         return Err!("The portfolio contains future cash flows");
     }
 
-    let format_performance = |interest| format!("{}%", interest);
     let interest_periods = [InterestPeriod::new(start_date, today)];
     let days = portfolio_performance::get_total_activity_duration(&interest_periods);
+    let format_performance = |performance| format!("{}%", performance);
 
     let mut results = Vec::new();
 
     for method in BenchmarkPerformanceType::iter() {
         for currency in ["USD", "RUB"] {
-            let mut table = interactive.then(BacktestingResultsTable::new);
+            let mut table = interactive.and_then(|interactive_method| {
+                if method == interactive_method {
+                    Some(BacktestingResultsTable::new())
+                } else {
+                    None
+                }
+            });
 
             let mut result = {
                 let _logging_context = GlobalContext::new(&format!("Portfolio / {method} {currency}"));
@@ -127,7 +133,7 @@ pub fn backtest(
             }
 
             if let Some(table) = table.as_mut() {
-                table.print(&format!("Backtesting results ({method} {currency}, {})", formatting::format_days(days)));
+                table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
             }
 
             results.push(result);
@@ -379,7 +385,7 @@ impl Backtester<'_> {
         if (self.date - start_date).num_days() > 0 { // FIXME(konishchev): Alter the value
             let name = format!("{} @ {}", self.benchmark.name(), formatting::format_date(self.date));
 
-            let transactions = self.method.adjust_transactions(&self.currency, self.date, &self.transactions)?;
+            let transactions = self.method.adjust_transactions(self.currency, self.date, &self.transactions)?;
             let interest_periods = [InterestPeriod::new(start_date, self.date)];
 
             result.performance = deposit_performance::compare_instrument_to_bank_deposit(
@@ -479,7 +485,7 @@ impl CurrentBenchmarkInstrument<'_> {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[derive(strum::Display, strum::EnumIter, strum::EnumMessage, strum::EnumString, strum::IntoStaticStr)]
+#[derive(strum::Display, strum::EnumIter, strum::EnumString, strum::IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 pub enum BenchmarkPerformanceType {
     Virtual,
@@ -620,9 +626,9 @@ fn generate_metrics(
         net_value_time_series.add_value(result.date, net_value);
 
         if let Some(performance) = result.performance {
-            let interest = performance.to_f64().ok_or_else(|| format!(
+            let performance = performance.to_f64().ok_or_else(|| format!(
                 "Got an invalid performance: {}", performance))?;
-            performance_time_series.add_value(result.date, interest);
+            performance_time_series.add_value(result.date, performance);
         }
     }
 

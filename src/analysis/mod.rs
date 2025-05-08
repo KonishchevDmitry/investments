@@ -27,7 +27,7 @@ use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
-use self::backtesting::{Benchmark, BacktestingResults};
+use self::backtesting::{Benchmark, BacktestingResults, BenchmarkPerformanceType};
 use self::config::{AssetGroupConfig, PerformanceMergingConfig};
 use self::portfolio_analysis::PortfolioAnalyser;
 use self::portfolio_statistics::PortfolioStatistics;
@@ -43,8 +43,9 @@ pub fn analyse(
 
     let country = config.get_tax_country();
     let (converter, quotes) = load_tools(config)?;
+    let reading_strictness = ReadingStrictness::REPO_TRADES | ReadingStrictness::TAX_EXEMPTIONS;
 
-    let portfolios = load_portfolios(config, portfolio_name)?;
+    let portfolios = load_portfolios(config, portfolio_name, reading_strictness)?;
     for (portfolio, _statement) in &portfolios {
         telemetry.add_broker(portfolio.broker);
     }
@@ -83,21 +84,16 @@ pub fn simulate_sell(
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
 }
 
-pub fn backtest(config: &Config, benchmarks: Option<&[Benchmark]>, backfilling: Option<BackfillingConfig>, interactive: bool) -> GenericResult<Vec<BacktestingResults>> {
+pub fn backtest(
+    config: &Config, portfolio_name: Option<&str>, benchmarks: Option<&[Benchmark]>,
+    backfilling: Option<BackfillingConfig>, interactive: Option<BenchmarkPerformanceType>,
+) -> GenericResult<Vec<BacktestingResults>> {
     let (converter, quotes) = load_tools(config)?;
-    let reading_strictness = ReadingStrictness::empty();
-    let multiple_portfolios = config.portfolios.len() > 1;
 
-    let mut statements = Vec::new();
-
-    for portfolio in &config.portfolios {
-        // FIXME(konishchev): Drop it
-        if portfolio.name != "tbank-iia" {
-            continue;
-        }
-        let _logging_context = multiple_portfolios.then(|| GlobalContext::new(&portfolio.name));
-        statements.push(load_portfolio(config, portfolio, reading_strictness)?);
-    }
+    let statements = load_portfolios(config, portfolio_name, ReadingStrictness::empty())?
+        .into_iter()
+        .map(|(_portfolio, statement)| statement)
+        .collect_vec();
 
     let mut results = backtesting::backtest(
         &statements, benchmarks, converter.clone(), quotes.clone(), backfilling.is_some(), interactive)?;
@@ -114,9 +110,10 @@ pub fn backtest(config: &Config, benchmarks: Option<&[Benchmark]>, backfilling: 
     Ok(results)
 }
 
-fn load_portfolios<'a>(config: &'a Config, name: Option<&str>) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
+fn load_portfolios<'a>(
+    config: &'a Config, name: Option<&str>, reading_strictness: ReadingStrictness,
+) -> GenericResult<Vec<(&'a PortfolioConfig, BrokerStatement)>> {
     let mut portfolios = Vec::new();
-    let reading_strictness = ReadingStrictness::REPO_TRADES | ReadingStrictness::TAX_EXEMPTIONS;
 
     if let Some(name) = name {
         let portfolio = config.get_portfolio(name)?;

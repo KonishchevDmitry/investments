@@ -84,7 +84,7 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         config, None, false, &config.metrics.asset_groups,
         Some(&config.metrics.merge_performance), false)?;
 
-    let backtesting = analysis::backtest(config, None, None, false)?;
+    let backtesting = analysis::backtest(config, None, None, None, None)?;
 
     UPDATE_TIME.set(cast::f64(time::timestamp()));
     for statistics in &statistics.currencies {
