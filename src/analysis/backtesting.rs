@@ -382,7 +382,7 @@ impl Backtester<'_> {
         };
 
         let start_date = self.transactions.first().unwrap().date;
-        if (self.date - start_date).num_days() > 0 { // FIXME(konishchev): Alter the value
+        if (self.date - start_date).num_days() >= 365 {
             let name = format!("{} @ {}", self.benchmark.name(), formatting::format_date(self.date));
 
             let transactions = self.method.adjust_transactions(self.currency, self.date, &self.transactions)?;

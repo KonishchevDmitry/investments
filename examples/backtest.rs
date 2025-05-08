@@ -168,6 +168,7 @@ pub fn run(cli_config: CliConfig, matches: &ArgMatches) -> EmptyResult {
 
     // FIXME(konishchev): Drop it
     analysis::backtest(&config, portfolio.as_deref(), Some(&benchmarks[..3]), backfilling_config, Some(method))?;
+    // analysis::backtest(&config, portfolio.as_deref(), Some(&benchmarks), backfilling_config, Some(method))?;
 
     Ok(())
 }

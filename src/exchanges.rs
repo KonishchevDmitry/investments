@@ -24,11 +24,11 @@ impl Exchange {
 
     pub fn min_last_working_day(self, today: Date) -> Date {
         // Issues due to start of SMO
-        if date!(2022, 2, 25) < today && today < date!(2022, 3, 31) {
+        if date!(2022, 2, 25) < today && today < date!(2022, 4, 6) {
             date!(2022, 2, 25)
         } else {
             // Experimentally deduced timeout
-            today - Duration::days(5)
+            today - Duration::days(6)
         }
     }
 
