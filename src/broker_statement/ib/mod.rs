@@ -71,7 +71,7 @@ impl BrokerStatementReader for StatementReader {
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
-            statement: PartialBrokerStatement::new(&[Exchange::Us, Exchange::Other], false),
+            statement: PartialBrokerStatement::new(&[Exchange::Us, Exchange::Lse, Exchange::Other], false),
 
             base_currency: None,
             base_currency_summary: None,

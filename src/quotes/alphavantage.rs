@@ -8,7 +8,6 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
-use crate::exchanges::Exchange;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
@@ -19,8 +18,8 @@ use super::common::{send_request, is_outdated_time};
 #[serde(deny_unknown_fields)]
 pub struct AlphaVantageConfig {
     #[serde(skip, default = "AlphaVantageConfig::default_url")]
-    url: String,
-    api_key: String,
+    pub url: String,
+    pub api_key: String,
 }
 
 impl AlphaVantageConfig {
@@ -36,10 +35,6 @@ pub struct AlphaVantage {
 }
 
 impl AlphaVantage {
-    // At some time has become too restrictive in API limits - only 5 RPM and deprecated batch
-    // quotes API which makes it unusable for stocks now, but maybe will be useful for forex quotes
-    // in the future.
-    #[allow(dead_code)]
     pub fn new(config: &AlphaVantageConfig) -> AlphaVantage {
         AlphaVantage {
             url: config.url.clone(),
@@ -48,7 +43,6 @@ impl AlphaVantage {
         }
     }
 
-    #[allow(dead_code)]
     pub fn find_symbol(&self, symbol: &str) -> GenericResult<HashMap<String, String>> {
         let url = Url::parse_with_params(&format!("{}/query", self.url), &[
             ("function", "SYMBOL_SEARCH"),
@@ -67,8 +61,10 @@ impl QuotesProvider for AlphaVantage {
         "Alpha Vantage"
     }
 
+    // At some time it has become too restrictive in API limits - only 5 RPM and deprecated batch quotes API which makes
+    // it unusable for stocks now, but maybe will be useful for forex quotes in the future.
     fn supports_stocks(&self) -> SupportedExchange {
-        SupportedExchange::Some(Exchange::Us)
+        SupportedExchange::None
     }
 
     fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap> {

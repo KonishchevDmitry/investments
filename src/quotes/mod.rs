@@ -9,6 +9,7 @@ mod finex;
 pub mod finnhub;
 mod moex;
 mod static_provider;
+mod stooq;
 pub mod tbank;
 pub mod twelvedata;
 
@@ -33,6 +34,7 @@ use crate::time::{Date, Period};
 use crate::types::Decimal;
 
 use self::adapter::QuotesProviderAdapter;
+use self::alphavantage::{AlphaVantage, AlphaVantageConfig};
 use self::cache::Cache;
 use self::cbr::Cbr;
 use self::custom_provider::{CustomProvider, CustomProviderConfig};
@@ -41,6 +43,7 @@ use self::finex::Finex;
 use self::finnhub::{Finnhub, FinnhubConfig};
 use self::moex::Moex;
 use self::static_provider::{StaticProvider, StaticProviderConfig};
+use self::stooq::Stooq;
 use self::tbank::{Tbank, TbankExchange};
 
 #[derive(Clone)]
@@ -73,6 +76,7 @@ pub struct CurrencyRate {
 #[derive(Deserialize, Default, Validate)]
 #[serde(deny_unknown_fields)]
 pub struct QuotesConfig {
+    pub alphavantage: Option<AlphaVantageConfig>,
     pub fcsapi: Option<FcsApiConfig>,
     pub finnhub: Option<FinnhubConfig>,
     #[validate(nested)]
@@ -140,6 +144,12 @@ impl Quotes {
             providers.push(Arc::new(Finnhub::new(config)))
         } else if !has_custom_provider {
             return Err!("Finnhub token is not set in the configuration file");
+        }
+
+        // Use Stooq for historical quotes of foreign stocks
+        if let Some(config) = config.quotes.alphavantage.as_ref() {
+            let alphavantage = AlphaVantage::new(config);
+            providers.push(Arc::new(Stooq::new("https://stooq.com", alphavantage)));
         }
 
         // Prefer FinEx provider over MOEX until their funds are suspended
@@ -368,6 +378,7 @@ impl Quotes {
                     new_exchanges.add_prioritized(Exchange::Moex);
                     new_exchanges.add_prioritized(Exchange::Spb);
                     new_exchanges.add_prioritized(Exchange::Other);
+                    new_exchanges.add_prioritized(Exchange::Lse);
                     new_exchanges.add_prioritized(Exchange::Us);
                 }
                 new_exchanges.add_prioritized(exchange);
@@ -384,6 +395,7 @@ impl Quotes {
                 if exchange == Exchange::Spb {
                     new_exchanges.add_prioritized(Exchange::Moex);
                     new_exchanges.add_prioritized(Exchange::Other);
+                    new_exchanges.add_prioritized(Exchange::Lse);
                     new_exchanges.add_prioritized(Exchange::Us);
                 } else {
                     new_exchanges.add_prioritized(exchange);
@@ -496,7 +508,7 @@ trait QuotesProvider: Send + Sync {
     fn supports_stocks(&self) -> SupportedExchange {SupportedExchange::None}
     fn supports_historical_stocks(&self) -> SupportedExchange {SupportedExchange::None}
 
-    fn get_quotes(&self, symbols: &[&str]) -> GenericResult<QuotesMap>;
+    fn get_quotes(&self, _symbols: &[&str]) -> GenericResult<QuotesMap> {Ok(QuotesMap::new())}
     fn get_historical_quotes(&self, _symbol: &str, _period: Period) -> GenericResult<Option<HistoricalQuotes>> {Ok(None)}
 }
 

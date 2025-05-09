@@ -206,7 +206,7 @@ impl BrokerInfo {
             Broker::Bcs | Broker::Open | Broker::Sber => vec![Exchange::Moex, Exchange::Spb],
             Broker::Tbank => vec![Exchange::Moex, Exchange::Spb, Exchange::Otc],
             Broker::Firstrade => vec![Exchange::Us],
-            Broker::InteractiveBrokers => vec![Exchange::Us, Exchange::Other],
+            Broker::InteractiveBrokers => vec![Exchange::Us, Exchange::Lse, Exchange::Other],
         }
     }
 }

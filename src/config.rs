@@ -237,15 +237,21 @@ impl Config {
     }
 
     fn move_deprecated_settings(&mut self) {
+        if self.quotes.alphavantage.is_none() {
+            if let Some(config) = self.alphavantage.take() {
+                self.quotes.alphavantage.replace(config);
+            }
+        }
+
         if self.quotes.fcsapi.is_none() {
-            if let Some(fcsapi) = self.fcsapi.take() {
-                self.quotes.fcsapi.replace(fcsapi);
+            if let Some(config) = self.fcsapi.take() {
+                self.quotes.fcsapi.replace(config);
             }
         }
 
         if self.quotes.finnhub.is_none() {
-            if let Some(finnhub) = self.finnhub.take() {
-                self.quotes.finnhub.replace(finnhub);
+            if let Some(config) = self.finnhub.take() {
+                self.quotes.finnhub.replace(config);
             }
         }
     }

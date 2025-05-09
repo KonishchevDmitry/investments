@@ -8,8 +8,9 @@ use crate::time::{self, Date, DateOptTime};
 pub enum Exchange {
     Moex,
     Spb,
-    Us,
     Otc,
+    Us,
+    Lse,
     Other,
 }
 
