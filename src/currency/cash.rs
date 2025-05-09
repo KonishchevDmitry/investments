@@ -88,7 +88,7 @@ impl Cash {
 
     pub fn normalize_currency(self) -> Cash {
         match self.currency {
-            "GBX" => Cash::new("GBP", self.amount / dec!(100)),
+            "GBX" => Cash::new("GBP", self.amount / dec!(100)).normalize(),
             _ => self,
         }
     }

@@ -186,7 +186,7 @@ mod tests {
 
         assert_eq!(*quotes.first_key_value().unwrap().0, date!(2025, 4, 3));
         assert_eq!(*quotes.last_key_value().unwrap().0, date!(2025, 5, 8));
-        assert_eq!(quotes[&date!(2025, 4, 22)], Cash::new("GBX", dec!(6304.5)));
+        assert_eq!(quotes[&date!(2025, 4, 22)], Cash::new("GBP", dec!(63.045)));
     }
 
     #[test]
