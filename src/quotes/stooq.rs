@@ -99,14 +99,7 @@ fn parse_historical_quotes(currency: &str, response: Response) -> GenericResult<
         };
 
         let price = (open + close) / dec!(2);
-
-        // FIXME(konishchev): Do we need it?
-        // if currency == "GBX" {
-        //     price /= dec!(100);
-        //     currency = "GBP";
-        // }
-
-        quotes.insert(date, Cash::new(currency, price));
+        quotes.insert(date, Cash::new(currency, price).normalize_currency());
     }
 
     Ok(Some(quotes))

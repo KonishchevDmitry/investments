@@ -86,6 +86,13 @@ impl Cash {
         self
     }
 
+    pub fn normalize_currency(self) -> Cash {
+        match self.currency {
+            "GBX" => Cash::new("GBP", self.amount / dec!(100)),
+            _ => self,
+        }
+    }
+
     pub fn format_rounded(&self) -> String {
         let amount = super::round_to(self.amount, 0).to_i64().unwrap().separated_string();
         super::format_currency(self.currency, &amount)
