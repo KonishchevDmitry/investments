@@ -21,7 +21,7 @@ use crate::exchanges::Exchange;
 use crate::formatting;
 use crate::formatting::table::Cell;
 use crate::metrics::{self, backfilling::DailyTimeSeries};
-use crate::quotes::{Quotes, QuotesRc, QuoteQuery, HistoricalQuotes};
+use crate::quotes::{Quotes, QuotesRc, HistoricalQuotes};
 use crate::time::{self, Date, Period};
 use crate::types::Decimal;
 
@@ -186,20 +186,13 @@ impl Benchmark {
         today: Date, converter: CurrencyConverterRc, quotes: QuotesRc,
     ) -> GenericResult<Vec<BacktestingResult>> {
         debug!("Backtesting {}...", self.name());
-
         let start_date = cash_flows.first().unwrap().date;
 
-        let quotes_limit = if full {
-            today.pred_opt().unwrap()
-        } else {
-            cash_flows.last().unwrap().date
-        };
-
-        let (transition_date, instrument) = self.select_instrument(start_date, quotes_limit, &quotes, true)?;
+        let (transition_date, instrument) = self.select_instrument(start_date, today, &quotes, true)?;
         assert_eq!(transition_date, start_date);
 
         Backtester {
-            method, currency, quotes, converter, quotes_limit,
+            method, currency, quotes, converter,
 
             benchmark: self,
             cash_flows,
@@ -228,7 +221,7 @@ impl Benchmark {
         Ok(self)
     }
 
-    fn select_instrument(&self, date: Date, quotes_limit: Date, quotes: &Quotes, first: bool) -> GenericResult<(Date, CurrentBenchmarkInstrument)> {
+    fn select_instrument(&self, date: Date, today: Date, quotes: &Quotes, first: bool) -> GenericResult<(Date, CurrentBenchmarkInstrument)> {
         let Some((&start_date, instrument)) = self.instruments.range(..=date).last() else {
             return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
         };
@@ -248,7 +241,7 @@ impl Benchmark {
 
         let quotes_period = Period::new(
             instrument.id.exchange.min_last_working_day(transition_date),
-            std::cmp::max(transition_date, until.unwrap_or(quotes_limit)),
+            std::cmp::max(transition_date, until.unwrap_or(today)),
         )?;
 
         debug!(
@@ -277,7 +270,6 @@ struct Backtester<'a> {
     currency: &'a str,
     quotes: QuotesRc,
     converter: CurrencyConverterRc,
-    quotes_limit: Date,
 
     benchmark: &'a Benchmark,
     cash_flows: &'a [CashAssets],
@@ -330,7 +322,7 @@ impl Backtester<'_> {
             }
 
             let (transition_date, mut new_instrument) = self.benchmark.select_instrument(
-                self.date, self.quotes_limit, &self.quotes, false)?;
+                self.date, self.today, &self.quotes, false)?;
 
             if self.full {
                 assert_eq!(transition_date, self.date);
@@ -360,20 +352,13 @@ impl Backtester<'_> {
     fn close_day(&mut self) -> EmptyResult {
         assert!(self.date <= self.today);
 
-        let net_value = if self.date == self.today {
-            let cash_assets = self.cash_assets.total_assets_real_time(self.currency, &self.converter)?;
+        // Intentionally don't try to use real time quotes for today's date because real time and historical quotes
+        // providers give access to different stocks.
+        let mut net_value = MultiCurrencyCashAccount::new();
+        net_value.add(&self.cash_assets);
+        net_value.deposit(self.instrument.get_value(self.date)?);
 
-            let instrument = &self.instrument.spec.id;
-            let price = self.quotes.get(QuoteQuery::Stock(instrument.symbol.clone(), vec![instrument.exchange]))?;
-            let instrument_value = self.converter.real_time_convert_to(price * self.instrument.quantity, self.currency)?;
-
-            cash_assets + instrument_value
-        } else {
-            let mut net_value = MultiCurrencyCashAccount::new();
-            net_value.add(&self.cash_assets);
-            net_value.deposit(self.instrument.get_value(self.date)?);
-            net_value.total_assets(self.date, self.currency, &self.converter)?
-        };
+        let net_value = net_value.total_assets(self.date, self.currency, &self.converter)?;
 
         let mut result = BacktestingResult {
             date: self.date,
