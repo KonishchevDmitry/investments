@@ -16,7 +16,8 @@ pub mod twelvedata;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, hash_map::Entry};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+#[cfg(test)] use std::sync::Mutex;
 
 use itertools::Itertools;
 use log::debug;
@@ -45,6 +46,8 @@ use self::moex::Moex;
 use self::static_provider::{StaticProvider, StaticProviderConfig};
 use self::stooq::Stooq;
 use self::tbank::{Tbank, TbankExchange};
+
+pub use self::cache::HistoricalQuotes;
 
 #[derive(Clone)]
 pub enum QuoteQuery {
@@ -89,7 +92,6 @@ pub struct Quotes {
     cache: Cache,
     providers: Vec<Arc<dyn QuotesProvider>>,
     batched_requests: RefCell<HashMap<String, QuoteRequest>>,
-    historical_cache: Mutex<HashMap<HistoricalCacheKey, HistoricalQuotes>>,
 }
 
 pub type QuotesRc = Rc<Quotes>;
@@ -191,7 +193,6 @@ impl Quotes {
             cache: cache,
             providers: providers,
             batched_requests: RefCell::new(HashMap::new()),
-            historical_cache: Default::default(),
         }
     }
 
@@ -222,20 +223,13 @@ impl Quotes {
 
         self.execute()?;
 
-        Ok(self.cache.get(query.symbol())?.unwrap())
+        Ok(self.cache.get_real_time(query.symbol())?.unwrap())
     }
 
     pub fn get_historical(&self, exchange: Exchange, symbol: &str, period: Period) -> GenericResult<HistoricalQuotes> {
-        let mut cache = self.historical_cache.lock().unwrap();
-
-        // Historical data much harder to cache in the database and it must be invalidated after stock splits, so for
-        // now cache it at least in memory.
-        let cache_slot = match cache.entry((exchange, symbol.to_owned(), period)) {
-            Entry::Vacant(entry) => entry,
-            Entry::Occupied(entry) => {
-                return Ok(entry.get().clone());
-            },
-        };
+        if let Some(quotes) = self.cache.get_historical(exchange, symbol, period)? {
+            return Ok(quotes);
+        }
 
         for provider in &self.providers {
             let provider = match provider.supports_historical_stocks() {
@@ -259,18 +253,18 @@ impl Quotes {
                 "Failed to get historical quotes from {}: {e}", provider.name()))?;
 
             if let Some(quotes) = quotes {
-                cache_slot.insert(quotes.clone());
-                return Ok(quotes);
+                self.cache.save_historical(exchange, symbol, period, quotes)?;
+                return Ok(self.cache.get_historical(exchange, symbol, period)?.unwrap());
             }
         }
 
-        Err!("Unable to find historical quotes for {symbol}")
+        Err!("Unable to find historical quotes for {symbol} ({exchange})")
     }
 
     fn batch_forex(&self, mut symbol: String) -> GenericResult<Option<Cash>> {
         let (base, quote) = forex::parse_currency_pair(&symbol)?;
 
-        if let Some(price) = self.cache.get(&symbol)? {
+        if let Some(price) = self.cache.get_real_time(&symbol)? {
             return Ok(Some(price));
         }
 
@@ -303,7 +297,7 @@ impl Quotes {
         }
         assert!(!exchanges.is_empty());
 
-        if let Some(price) = self.cache.get(&symbol)? {
+        if let Some(price) = self.cache.get_real_time(&symbol)? {
             return Ok(Some(price));
         }
 
@@ -451,7 +445,7 @@ impl Quotes {
                             // Plus see notes above about reverse pairs consistency with direct ones.
                             let reverse_pair = forex::get_currency_pair(quote, base);
                             let reverse_price = Cash::new(base, dec!(1) / price.amount);
-                            self.cache.save(&reverse_pair, reverse_price)?;
+                            self.cache.save_real_time(&reverse_pair, reverse_price)?;
                             plan.remove(&reverse_pair);
                         },
 
@@ -471,7 +465,7 @@ impl Quotes {
                         }
                     }
 
-                    self.cache.save(&symbol, price)?;
+                    self.cache.save_real_time(&symbol, price)?;
                     plan.remove(&symbol);
                 }
             }
@@ -490,8 +484,6 @@ impl Quotes {
 }
 
 type QuotesMap = HashMap<String, Cash>;
-type HistoricalCacheKey = (Exchange, String, Period);
-pub type HistoricalQuotes = BTreeMap<Date, Cash>;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SupportedExchange {
@@ -509,6 +501,8 @@ trait QuotesProvider: Send + Sync {
     fn supports_historical_stocks(&self) -> SupportedExchange {SupportedExchange::None}
 
     fn get_quotes(&self, _symbols: &[&str]) -> GenericResult<QuotesMap> {Ok(QuotesMap::new())}
+
+    // Please note that provider may return quotes for wider period if it has more than one day granularity
     fn get_historical_quotes(&self, _symbol: &str, _period: Period) -> GenericResult<Option<HistoricalQuotes>> {Ok(None)}
 }
 

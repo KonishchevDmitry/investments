@@ -51,6 +51,27 @@ impl Period {
         self.first <= date && date <= self.last
     }
 
+    pub fn contains_period(&self, other: Period) -> bool {
+        self.first <= other.first && self.last >= other.last
+    }
+
+    pub fn try_union(&self, other: Period) -> Option<Period> {
+        let (earlier, later) = if self.first <= other.first {
+            (*self, other)
+        } else {
+            (other, *self)
+        };
+
+        if later.first > earlier.next_date() {
+            return None;
+        }
+
+        Some(Period {
+            first: earlier.first,
+            last: std::cmp::max(earlier.last, later.last),
+        })
+    }
+
     pub fn days(&self) -> i64 {
         (self.last - self.first).num_days() + 1
     }
@@ -59,5 +80,47 @@ impl Period {
 impl fmt::Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} - {}", formatting::format_date(self.first), formatting::format_date(self.last))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use super::*;
+
+    #[rstest(first, second, expected,
+        case(
+            Period::new(date!(2000, 1, 1), date!(2000, 2, 1)),
+            Period::new(date!(2000, 2, 2), date!(2000, 3, 1)),
+            Some(Period::new(date!(2000, 1, 1), date!(2000, 3, 1))),
+        ),
+        case(
+            Period::new(date!(2000, 1, 1), date!(2000, 2, 1)),
+            Period::new(date!(2000, 2, 1), date!(2000, 3, 1)),
+            Some(Period::new(date!(2000, 1, 1), date!(2000, 3, 1))),
+        ),
+        case(
+            Period::new(date!(2000, 1, 1), date!(2000, 2, 1)),
+            Period::new(date!(2000, 1, 31), date!(2000, 3, 1)),
+            Some(Period::new(date!(2000, 1, 1), date!(2000, 3, 1))),
+        ),
+        case(
+            Period::new(date!(2000, 1, 1), date!(2000, 2, 1)),
+            Period::new(date!(2000, 1, 1), date!(2000, 2, 1)),
+            Some(Period::new(date!(2000, 1, 1), date!(2000, 2, 1))),
+        ),
+        case(
+            Period::new(date!(2000, 1, 1), date!(2000, 2, 1)),
+            Period::new(date!(2000, 2, 3), date!(2000, 3, 1)),
+            None,
+        ),
+    )]
+    fn union(first: GenericResult<Period>, second: GenericResult<Period>, expected: Option<GenericResult<Period>>) {
+        let first = first.unwrap();
+        let second = second.unwrap();
+        let expected = expected.transpose().unwrap();
+
+        assert_eq!(first.try_union(second), expected);
+        assert_eq!(second.try_union(first), expected);
     }
 }

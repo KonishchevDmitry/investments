@@ -40,7 +40,7 @@ impl QuotesProvider for Stooq {
         SupportedExchange::Some(Exchange::Lse)
     }
 
-    fn get_historical_quotes(&self, symbol: &str, period: Period) -> GenericResult<Option<HistoricalQuotes>> {
+    fn get_historical_quotes(&self, symbol: &str, _period: Period) -> GenericResult<Option<HistoricalQuotes>> {
         // Stooq provides free historical quotes without any rate limiting, but doesn't provide their currency, so we
         // use Alpha Vantage to determine it.
         //
@@ -57,12 +57,12 @@ impl QuotesProvider for Stooq {
         ])?;
 
         Ok(send_request(&self.client, &url, None).and_then(|response| {
-            parse_historical_quotes(period, &currency, response)
+            parse_historical_quotes(&currency, response)
         }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?)
     }
 }
 
-fn parse_historical_quotes(period: Period, currency: &str, response: Response) -> GenericResult<Option<HistoricalQuotes>> {
+fn parse_historical_quotes(currency: &str, response: Response) -> GenericResult<Option<HistoricalQuotes>> {
     let response = response.text()?;
     if response.trim() == "No data" {
         return Ok(None);
@@ -98,17 +98,15 @@ fn parse_historical_quotes(period: Period, currency: &str, response: Response) -
             return Err!("Got an unexpected record: {:?}", record);
         };
 
-        if period.contains(date) {
-            let price = (open + close) / dec!(2);
+        let price = (open + close) / dec!(2);
 
-            // FIXME(konishchev): Do we need it?
-            // if currency == "GBX" {
-            //     price /= dec!(100);
-            //     currency = "GBP";
-            // }
+        // FIXME(konishchev): Do we need it?
+        // if currency == "GBX" {
+        //     price /= dec!(100);
+        //     currency = "GBP";
+        // }
 
-            quotes.insert(date, Cash::new(currency, price));
-        }
+        quotes.insert(date, Cash::new(currency, price));
     }
 
     Ok(Some(quotes))
@@ -193,8 +191,8 @@ mod tests {
         let period = Period::new(date!(2025, 4, 10), date!(2025, 4, 25)).unwrap();
         let quotes = client.get_historical_quotes("SSAC", period).unwrap().unwrap();
 
-        assert_eq!(*quotes.first_key_value().unwrap().0, period.first_date());
-        assert_eq!(*quotes.last_key_value().unwrap().0, period.last_date());
+        assert_eq!(*quotes.first_key_value().unwrap().0, date!(2025, 4, 3));
+        assert_eq!(*quotes.last_key_value().unwrap().0, date!(2025, 5, 8));
         assert_eq!(quotes[&date!(2025, 4, 22)], Cash::new("GBX", dec!(6304.5)));
     }
 

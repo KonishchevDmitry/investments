@@ -4,13 +4,19 @@ use chrono::Duration;
 
 use crate::time::{self, Date, DateOptTime};
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, strum::Display)]
 pub enum Exchange {
+    #[strum(to_string = "MOEX")]
     Moex,
+    #[strum(to_string = "SPB")]
     Spb,
+    #[strum(to_string = "OTC")]
     Otc,
+    #[strum(to_string = "US")]
     Us,
+    #[strum(to_string = "LSE")]
     Lse,
+    #[strum(to_string = "other")]
     Other,
 }
 
