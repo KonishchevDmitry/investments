@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use investments::analysis::PerformanceAnalysisMethod;
+use investments::analysis::performance::types::PerformanceAnalysisMethod;
 use investments::time::Date;
 use investments::types::Decimal;
 

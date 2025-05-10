@@ -4,12 +4,11 @@ use std::collections::{BTreeMap, HashMap};
 use itertools::Itertools;
 use num_traits::Zero;
 
+use crate::analysis::deposit::{Transaction, InterestPeriod};
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting;
 use crate::time::{Date, DateOptTime};
 use crate::types::Decimal;
-
-use super::deposit_emulator::{Transaction, InterestPeriod};
 
 pub struct InstrumentDepositView {
     symbol: String,

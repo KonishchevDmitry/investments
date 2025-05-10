@@ -1,14 +1,8 @@
 pub mod backtesting;
-pub mod config;
-pub mod deposit_emulator;
-mod deposit_performance;
+pub mod deposit;
 mod inflation;
-mod instrument_view;
-mod portfolio_analysis;
-mod portfolio_performance_types;
-mod portfolio_performance;
+pub mod performance;
 mod sell_simulation;
-pub mod portfolio_statistics;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -28,11 +22,9 @@ use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
 use self::backtesting::{Benchmark, BacktestingResults, BenchmarkPerformanceType};
-use self::config::{AssetGroupConfig, PerformanceMergingConfig};
-use self::portfolio_analysis::PortfolioAnalyser;
-use self::portfolio_statistics::PortfolioStatistics;
-
-pub use self::portfolio_performance_types::PerformanceAnalysisMethod;
+use self::performance::PortfolioAnalyser;
+use self::performance::config::{AssetGroupConfig, PerformanceMergingConfig};
+use self::performance::statistics::PortfolioStatistics;
 
 pub fn analyse(
     config: &Config, portfolio_name: Option<&str>, include_closed_positions: bool,

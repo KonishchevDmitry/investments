@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use serde::Deserialize;
 use validator::Validate;
 
-use crate::analysis::config::{AssetGroupConfig, PerformanceMergingConfig};
+use crate::analysis::performance::config::{AssetGroupConfig, PerformanceMergingConfig};
 use crate::core::EmptyResult;
 use crate::metrics;
 

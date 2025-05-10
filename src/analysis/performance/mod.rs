@@ -1,3 +1,9 @@
+mod analyser;
+pub mod config;
+mod instrument_view;
+pub mod types;
+pub mod statistics;
+
 use std::collections::HashMap;
 
 use easy_logging::GlobalContext;
@@ -15,10 +21,10 @@ use crate::localities::Country;
 use crate::quotes::QuotesRc;
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 
-use super::config::{AssetGroupConfig, PerformanceMergingConfig};
-use super::portfolio_performance::PortfolioPerformanceAnalyser;
-use super::portfolio_performance_types::PerformanceAnalysisMethod;
-use super::portfolio_statistics::{AssetGroup, PortfolioStatistics, LtoStatistics};
+use self::analyser::PortfolioPerformanceAnalyser;
+use self::config::{AssetGroupConfig, PerformanceMergingConfig};
+use self::statistics::{AssetGroup, PortfolioStatistics, LtoStatistics};
+use self::types::PerformanceAnalysisMethod;
 
 pub struct PortfolioAnalyser<'a> {
     pub country: Country,

@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use strum::{EnumMessage, IntoEnumIterator};
 
-use investments::analysis::PerformanceAnalysisMethod;
+use investments::analysis::performance::types::PerformanceAnalysisMethod;
 use investments::config::{CliConfig, Config};
 use investments::core::GenericResult;
 use investments::time;

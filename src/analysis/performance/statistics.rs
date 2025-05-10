@@ -9,7 +9,7 @@ use crate::localities::Country;
 use crate::taxes::{LtoDeduction, NetLtoDeduction, TaxCalculator};
 use crate::types::Decimal;
 
-use super::portfolio_performance_types::{PerformanceAnalysisMethod, PortfolioPerformanceAnalysis};
+use super::types::{PerformanceAnalysisMethod, PortfolioPerformanceAnalysis};
 
 pub struct PortfolioStatistics {
     country: Country,

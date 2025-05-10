@@ -11,7 +11,7 @@ use crate::formatting;
 use crate::types::Decimal;
 use crate::util;
 
-use super::deposit_emulator::{DepositEmulator, Transaction, InterestPeriod};
+use super::{DepositEmulator, Transaction, InterestPeriod};
 
 pub fn compare_instrument_to_bank_deposit(
     name: &str, currency: &str, transactions: &[Transaction], interest_periods: &[InterestPeriod],

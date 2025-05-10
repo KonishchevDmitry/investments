@@ -9,10 +9,9 @@ use num_traits::ToPrimitive;
 use static_table_derive::StaticTable;
 use strum::IntoEnumIterator;
 
-use crate::analysis::deposit_emulator::{InterestPeriod, Transaction};
-use crate::analysis::deposit_performance;
+use crate::analysis::deposit::{self, InterestPeriod, Transaction};
+use crate::analysis::deposit::performance::compare_instrument_to_bank_deposit;
 use crate::analysis::inflation::InflationCalc;
-use crate::analysis::portfolio_performance;
 use crate::broker_statement::{BrokerStatement, StockSellType, StockSource};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
@@ -58,7 +57,7 @@ pub fn backtest(
     }
 
     let interest_periods = [InterestPeriod::new(start_date, today)];
-    let days = portfolio_performance::get_total_activity_duration(&interest_periods);
+    let days = deposit::get_total_activity_duration(&interest_periods);
     let format_performance = |performance| format!("{}%", performance);
 
     let mut results = Vec::new();
@@ -84,7 +83,7 @@ pub fn backtest(
                     net_value += statement.net_value(&converter, &quotes, currency, true)?;
                 }
 
-                let performance = deposit_performance::compare_instrument_to_bank_deposit(
+                let performance = compare_instrument_to_bank_deposit(
                     "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
 
                 if let Some(table) = table.as_mut() {
@@ -373,7 +372,7 @@ impl Backtester<'_> {
             let transactions = self.method.adjust_transactions(self.currency, self.date, &self.transactions)?;
             let interest_periods = [InterestPeriod::new(start_date, self.date)];
 
-            result.performance = deposit_performance::compare_instrument_to_bank_deposit(
+            result.performance = compare_instrument_to_bank_deposit(
                 &name, self.currency, &transactions, &interest_periods, net_value)?;
         }
 

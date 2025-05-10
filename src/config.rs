@@ -5,12 +5,11 @@ use std::path::{Path, PathBuf};
 
 use chrono::Duration;
 use clap::{Arg, ArgAction, ArgMatches, value_parser};
-
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use validator::Validate;
 
-use crate::analysis::config::PerformanceMergingConfig;
+use crate::analysis::performance::config::PerformanceMergingConfig;
 use crate::broker_statement::CorporateAction;
 use crate::brokers::Broker;
 use crate::brokers::config::BrokersConfig;

@@ -3,7 +3,7 @@ pub mod config;
 use chrono::Duration;
 use static_table_derive::StaticTable;
 
-use crate::analysis::deposit_emulator::{DepositEmulator, Transaction};
+use crate::analysis::deposit::{DepositEmulator, Transaction};
 use crate::currency::{Cash, MultiCurrencyCashAccount};
 use crate::formatting::{self, table::Style};
 use crate::localities::Country;

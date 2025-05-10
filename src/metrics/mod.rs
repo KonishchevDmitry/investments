@@ -11,9 +11,10 @@ use num_traits::ToPrimitive;
 use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, register_gauge_vec};
 use strum::IntoEnumIterator;
 
-use crate::analysis::{self, PerformanceAnalysisMethod};
+use crate::analysis;
 use crate::analysis::backtesting::BacktestingResults;
-use crate::analysis::portfolio_statistics::{Asset, AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
+use crate::analysis::performance::types::PerformanceAnalysisMethod;
+use crate::analysis::performance::statistics::{Asset, AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
 use crate::core::{EmptyResult, GenericError, GenericResult};
 use crate::forex;

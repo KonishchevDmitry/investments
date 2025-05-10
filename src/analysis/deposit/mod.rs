@@ -1,3 +1,5 @@
+pub mod performance;
+
 use chrono::Datelike;
 
 use crate::core::GenericResult;
@@ -199,6 +201,10 @@ impl InterestPeriod {
         let days = (self.end - self.start).num_days();
         cast::u32(days).unwrap()
     }
+}
+
+pub fn get_total_activity_duration(periods: &[InterestPeriod]) -> u32 {
+    periods.iter().map(InterestPeriod::days).sum()
 }
 
 #[derive(Clone, Copy)]

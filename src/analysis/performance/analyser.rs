@@ -4,6 +4,9 @@ use std::collections::{HashMap, BTreeMap};
 use itertools::Itertools;
 use log::{self, log_enabled, trace};
 
+use crate::analysis::deposit::{self, Transaction, InterestPeriod};
+use crate::analysis::deposit::performance::compare_instrument_to_bank_deposit;
+use crate::analysis::inflation::InflationCalc;
 use crate::broker_statement::{BrokerStatement, StockSource, StockSellType};
 use crate::config::PortfolioConfig;
 use crate::core::{EmptyResult, GenericResult};
@@ -16,12 +19,8 @@ use crate::time::{self, Date, DateOptTime};
 use crate::types::Decimal;
 
 use super::config::PerformanceMergingConfig;
-use super::deposit_emulator::{Transaction, InterestPeriod};
-use super::deposit_performance;
-use super::inflation::InflationCalc;
 use super::instrument_view::InstrumentDepositView;
-use super::portfolio_performance_types::{
-    PerformanceAnalysisMethod, PortfolioPerformanceAnalysis, InstrumentPerformanceAnalysis, IncomeStructure};
+use super::types::{PerformanceAnalysisMethod, PortfolioPerformanceAnalysis, InstrumentPerformanceAnalysis, IncomeStructure};
 
 /// Calculates average rate of return from cash investments by comparing portfolio performance to
 /// performance of a bank deposit with exactly the same investments and monthly capitalization.
@@ -135,11 +134,11 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
         let adjusted_transactions = self.adjust_transactions(&deposit_view.transactions)?;
 
-        let performance = deposit_performance::compare_instrument_to_bank_deposit(
+        let performance = compare_instrument_to_bank_deposit(
             symbol, self.currency, &adjusted_transactions, &deposit_view.interest_periods, dec!(0))?;
 
         let name = deposit_view.name.unwrap();
-        let days = get_total_activity_duration(&deposit_view.interest_periods);
+        let days = deposit::get_total_activity_duration(&deposit_view.interest_periods);
 
         let mut investments = dec!(0);
         let mut result = dec!(0);
@@ -171,10 +170,10 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
         let activity_periods = [InterestPeriod::new(
             self.transactions.first().unwrap().date, self.today)];
 
-        let performance = deposit_performance::compare_instrument_to_bank_deposit(
+        let performance = compare_instrument_to_bank_deposit(
             "portfolio", self.currency, &adjusted_transactions, &activity_periods, self.current_assets)?;
 
-        let days = get_total_activity_duration(&activity_periods);
+        let days = deposit::get_total_activity_duration(&activity_periods);
         let investments = self.transactions.iter()
             .map(|transaction| transaction.amount)
             .sum();
@@ -527,8 +526,4 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
 
         Ok(Some(self.converter.convert_to(conversion_date, tax_to_pay, self.currency)?))
     }
-}
-
-pub fn get_total_activity_duration(periods: &[InterestPeriod]) -> u32 {
-    periods.iter().map(InterestPeriod::days).sum()
 }
