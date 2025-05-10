@@ -61,8 +61,8 @@ impl QuotesProvider for AlphaVantage {
         "Alpha Vantage"
     }
 
-    // At some time it has become too restrictive in API limits - only 5 RPM and deprecated batch quotes API which makes
-    // it unusable for stocks now, but maybe will be useful for forex quotes in the future.
+    // At some time it has became too restrictive in API limits - only 5 RPM + 25 RPD and deprecated batch quotes API
+    // which makes it fully unusable.
     fn supports_stocks(&self) -> SupportedExchange {
         SupportedExchange::None
     }
