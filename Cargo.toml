@@ -1,6 +1,6 @@
 [package]
 name = "investments"
-version = "7.6.0"
+version = "7.6.1"
 description = "Helps you with managing your investments"
 keywords = ["finance", "investment", "stocks", "trading", "taxes"]
 categories = ["command-line-utilities"]
