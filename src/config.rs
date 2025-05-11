@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde::de::IgnoredAny;
 use validator::Validate;
 
+use crate::analysis::backtesting::config::BacktestingConfig;
 use crate::analysis::performance::config::PerformanceMergingConfig;
 use crate::broker_statement::CorporateAction;
 use crate::brokers::Broker;
@@ -55,12 +56,16 @@ pub struct Config {
     #[serde(default)]
     pub taxes: TaxConfig,
 
-    #[validate(nested)]
     #[serde(default)]
+    #[validate(nested)]
     pub quotes: QuotesConfig,
-    #[validate(nested)]
     #[serde(default)]
+    #[validate(nested)]
     pub metrics: MetricsConfig,
+    #[serde(default)]
+    #[validate(nested)]
+    pub backtesting: BacktestingConfig,
+
     #[serde(default)]
     pub telemetry: TelemetryConfig,
 
@@ -110,6 +115,7 @@ impl Config {
 
             quotes: Default::default(),
             metrics: Default::default(),
+            backtesting: Default::default(),
 
             alphavantage: None,
             fcsapi: None,
@@ -198,6 +204,7 @@ impl Config {
         }
 
         config.metrics.validate_inner(&portfolio_names)?;
+        config.backtesting.validate_inner()?;
 
         Ok(config)
     }

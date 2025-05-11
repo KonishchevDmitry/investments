@@ -1,21 +1,27 @@
 use std::ops::Add;
 
 use chrono::Duration;
+use serde::Deserialize;
 
 use crate::time::{self, Date, DateOptTime};
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, strum::Display)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, strum::Display, Deserialize)]
+#[serde(rename_all="SCREAMING-KEBAB-CASE")]
 pub enum Exchange {
     #[strum(to_string = "MOEX")]
     Moex,
+    #[serde(skip)]
     #[strum(to_string = "SPB")]
     Spb,
+    #[serde(skip)]
     #[strum(to_string = "OTC")]
     Otc,
+    #[serde(skip)]
     #[strum(to_string = "US")]
     Us,
     #[strum(to_string = "LSE")]
     Lse,
+    #[serde(skip)]
     #[strum(to_string = "other")]
     Other,
 }

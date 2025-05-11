@@ -14,10 +14,9 @@ use url::Url;
 #[macro_use] extern crate investments;
 
 use investments::analysis;
-use investments::analysis::backtesting::{Benchmark, BenchmarkInstrument, BenchmarkPerformanceType};
+use investments::analysis::backtesting::BenchmarkPerformanceType;
 use investments::config::{CliConfig, Config};
 use investments::core::{EmptyResult, GenericResult};
-use investments::exchanges::Exchange;
 use investments::metrics::backfilling::BackfillingConfig;
 use investments::time;
 
@@ -98,82 +97,7 @@ pub fn run(cli_config: CliConfig, matches: &ArgMatches) -> EmptyResult {
         }
     });
 
-    let instrument = |symbol, exchange| BenchmarkInstrument::new(symbol, exchange);
-    let lse = |symbol| instrument(symbol, Exchange::Lse);
-    let moex = |symbol| instrument(symbol, Exchange::Moex);
-
-    let (sber, tbank, vtb, blackrock) = ("Sber", "T-Bank", "VTB", "BlackRock");
-    let benchmark = |name, provider, instrument| Benchmark::new(name, instrument).with_provider(provider);
-
-    let benchmarks = [
-        benchmark("Global stocks", blackrock, lse("SSAC")),
-        benchmark("Global corporate bonds", blackrock, lse("IGLA"))
-            .then(date!(2018, 5, 15), lse("CRPA"))?,
-        benchmark("Global government bonds", blackrock, lse("IGLA")),
-
-        benchmark("Russian stocks", sber, moex("FXRL"))
-            .then(date!(2021, 7, 29), moex("SBMX"))?,
-        benchmark("Russian stocks", tbank, moex("FXRL"))
-            .then(date!(2021, 7, 29), moex("TMOS"))?,
-        benchmark("Russian stocks", vtb, moex("FXRL"))
-            .then(date!(2021, 7, 29), moex("VTBX").alias("EQMX"))?
-            .then_rename(date!(2022, 7, 22), moex("EQMX"))?,
-
-        benchmark("Russian money market", sber, moex("FXRB"))
-            .then(date!(2018,  3,  7), moex("FXMM"))?
-            .then(date!(2021, 12, 30), moex("SBMM"))?,
-        benchmark("Russian money market", tbank, moex("FXRB"))
-            .then(date!(2018,  3,  7), moex("FXMM"))?
-            .then(date!(2021, 12, 30), moex("SBMM"))?
-            .then(date!(2023,  7, 14), moex("TMON"))?,
-        benchmark("Russian money market", vtb, moex("FXRB"))
-            .then(date!(2018,  3,  7), moex("FXMM"))?
-            .then(date!(2021, 12, 30), moex("VTBM"))?
-            .then_rename(date!(2022, 7, 22), moex("LQDT"))?,
-
-        benchmark("Russian government bonds", sber, moex("FXRB"))
-            .then(date!(2019,  1, 25), moex("SBGB"))?,
-        benchmark("Russian government bonds", tbank, moex("FXRB"))
-            .then(date!(2019,  1, 25), moex("SBGB"))?
-            .then(date!(2024, 12, 17), moex("TOFZ"))?,
-
-        benchmark("Russian corporate bonds", sber, moex("FXRB"))
-            .then(date!(2020,  5, 20), moex("SBRB"))?,
-        benchmark("Russian corporate bonds", tbank, moex("FXRB"))
-            .then(date!(2020,  5, 20), moex("SBRB"))?
-            .then(date!(2021,  8,  6), moex("TBRU"))?,
-        benchmark("Russian corporate bonds", vtb, moex("FXRB"))
-            .then(date!(2020,  5, 20), moex("SBRB"))?
-            .then(date!(2021,  8,  6), moex("VTBB"))?
-            .then_rename(date!(2022, 7, 22), moex("OBLG"))?,
-
-        benchmark("Russian corporate eurobonds", sber, moex("FXRU"))
-            .then(date!(2020,  9, 24), moex("SBCB"))?
-            .then(date!(2022,  1, 25), moex("SBMM"))? // SBCB was frozen for this period. Ideally we need some stub only for new deposits
-            .then(date!(2023, 12, 15), moex("SBCB"))?, // The open price is equal to close price of previous SBCB interval
-        benchmark("Russian corporate eurobonds", tbank, moex("FXRU"))
-            .then(date!(2020,  9, 24), moex("SBCB"))?
-            .then(date!(2022,  1, 25), moex("SBMM"))? // SBCB was frozen for this period. Ideally we need some stub only for new deposits
-            .then(date!(2023, 12, 15), moex("SBCB"))? // The open price is equal to close price of previous SBCB interval
-            .then(date!(2024,  4,  1), moex("TLCB"))?,
-
-        benchmark("Gold", sber, moex("FXRU"))
-            .then(date!(2018,  3,  7), moex("FXGD"))?
-            .then(date!(2020,  7, 15), moex("VTBG"))?
-            .then_rename(date!(2022, 7, 22), moex("GOLD"))?
-            .then(date!(2022, 11, 21), moex("SBGD"))?,
-        benchmark("Gold", tbank, moex("FXRU"))
-            .then(date!(2018,  3,  7), moex("FXGD"))?
-            .then(date!(2020,  7, 15), moex("VTBG"))?
-            .then_rename(date!(2022, 7, 22), moex("GOLD"))?
-            .then(date!(2024, 11,  5), moex("TGLD"))?,
-        benchmark("Gold", vtb, moex("FXRU"))
-            .then(date!(2018,  3,  7), moex("FXGD"))?
-            .then(date!(2020,  7, 15), moex("VTBG"))?
-            .then_rename(date!(2022, 7, 22), moex("GOLD"))?,
-    ];
-
-    analysis::backtest(&config, portfolio.as_deref(), Some(&benchmarks), backfilling_config, Some(method))?;
+    analysis::backtest(&config, portfolio.as_deref(), true, backfilling_config, Some(method))?;
 
     Ok(())
 }

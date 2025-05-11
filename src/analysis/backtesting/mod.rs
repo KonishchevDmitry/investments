@@ -1,3 +1,5 @@
+pub mod config;
+
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ops::Bound;
@@ -24,6 +26,8 @@ use crate::quotes::{Quotes, QuotesRc, HistoricalQuotes};
 use crate::time::{self, Date, Period};
 use crate::types::Decimal;
 
+use self::config::{BacktestingConfig, BenchmarkConfig, TransitionType};
+
 pub struct BacktestingResults {
     pub method: BenchmarkPerformanceType,
     pub currency: String,
@@ -35,9 +39,17 @@ pub struct BacktestingResults {
 }
 
 pub fn backtest(
-    statements: &[BrokerStatement], benchmarks: Option<&[Benchmark]>, converter: CurrencyConverterRc, quotes: QuotesRc,
-    with_metrics: bool, interactive: Option<BenchmarkPerformanceType>,
+    config: &BacktestingConfig, statements: &[BrokerStatement], converter: CurrencyConverterRc, quotes: QuotesRc,
+    with_benchmarks: Option<bool>, interactive: Option<BenchmarkPerformanceType>,
 ) -> GenericResult<Vec<BacktestingResults>> {
+    let mut benchmarks = Vec::new();
+
+    if with_benchmarks.is_some() {
+        for benchmark in &config.benchmarks {
+            benchmarks.push(Benchmark::new(benchmark)?);
+        }
+    }
+
     for statement in statements {
         if interactive.is_some() {
             statement.check_date();
@@ -105,7 +117,8 @@ pub fn backtest(
                 }
             };
 
-            for benchmark in benchmarks.unwrap_or_default() {
+            for benchmark in &benchmarks {
+                let with_metrics = with_benchmarks.unwrap();
                 let full_name = format!("{} / {method} {currency}", benchmark.name());
                 let _logging_context = GlobalContext::new(&full_name);
 
@@ -142,38 +155,41 @@ pub fn backtest(
     Ok(results)
 }
 
-pub struct Benchmark {
+struct Benchmark {
     name: String,
     provider: Option<String>,
     instruments: BTreeMap<Date, BenchmarkInstrument>
 }
 
 impl Benchmark {
-    pub fn new(name: &str, instrument: BenchmarkInstrument) -> Benchmark {
-        Benchmark {
-            name: name.to_owned(),
-            provider: None,
+    fn new(config: &BenchmarkConfig) -> GenericResult<Self> {
+        let mut benchmark = Benchmark {
+            name: config.name.clone(),
+            provider: config.provider.clone(),
             instruments: btreemap!{
-                Date::MIN => instrument,
+                Date::MIN => BenchmarkInstrument::new(&config.symbol, config.exchange, config.aliases.clone()),
+            },
+        };
+
+        for (&date, transition) in &config.transitions {
+            let exchange = transition.exchange.unwrap_or(config.exchange);
+            let mut instrument = BenchmarkInstrument::new(&transition.symbol, exchange, transition.aliases.clone());
+
+            match transition.transition_type.unwrap_or(TransitionType::Convert) {
+                TransitionType::Convert => {},
+                TransitionType::Rename => {
+                    let last_instrument = benchmark.instruments.last_key_value().unwrap().1;
+                    instrument.renamed_from = Some(last_instrument.id.clone());
+                },
             }
+
+            assert!(benchmark.instruments.insert(date, instrument).is_none());
         }
+
+        Ok(benchmark)
     }
 
-    pub fn with_provider(mut self, name: &str) -> Self {
-        self.provider.replace(name.to_owned());
-        self
-    }
-
-    pub fn then(self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
-        self.then_transition(date, instrument)
-    }
-
-    pub fn then_rename(self, date: Date, mut instrument: BenchmarkInstrument) -> GenericResult<Self> {
-        instrument.renamed_from = Some(self.instruments.last_key_value().unwrap().1.id.clone());
-        self.then_transition(date, instrument)
-    }
-
-    pub fn name(&self) -> String {
+    fn name(&self) -> String {
         match self.provider.as_ref() {
             Some(provider) => format!("{} ({provider})", self.name),
             None => self.name.clone(),
@@ -205,19 +221,6 @@ impl Benchmark {
             cash_assets: MultiCurrencyCashAccount::new(),
             instrument: instrument
         }.backtest()
-    }
-
-    fn then_transition(mut self, date: Date, instrument: BenchmarkInstrument) -> GenericResult<Self> {
-        let &last_date = self.instruments.last_key_value().unwrap().0;
-
-        if date == last_date {
-            return Err!("An attempt to override {}", formatting::format_date(date));
-        } else if date < last_date {
-            return Err!("Benchmark instruments chain must be ordered by date");
-        }
-
-        assert!(self.instruments.insert(date, instrument).is_none());
-        Ok(self)
     }
 
     fn select_instrument(&self, date: Date, today: Date, quotes: &Quotes, first: bool) -> GenericResult<(Date, CurrentBenchmarkInstrument)> {
@@ -384,37 +387,33 @@ impl Backtester<'_> {
 }
 
 #[derive(Clone, PartialEq)]
-pub struct BenchmarkInstrumentId {
+struct BenchmarkInstrumentId {
     symbol: String,
     exchange: Exchange,
 }
 
-pub struct BenchmarkInstrument {
+struct BenchmarkInstrument {
     id: BenchmarkInstrumentId,
-    aliases: Vec<String>,
     renamed_from: Option<BenchmarkInstrumentId>,
-}
-
-impl BenchmarkInstrument {
-    pub fn new(symbol: &str, exchange: Exchange) -> Self {
-        BenchmarkInstrument {
-            id: BenchmarkInstrumentId {
-                symbol: symbol.to_owned(),
-                exchange,
-            },
-            aliases: Vec::new(),
-            renamed_from: None,
-        }
-    }
 
     // Historical API handle instrument renames differently:
     // * With MOEX API you need to request quotes for different symbols depending on the period.
     // * T-Bank API forgets all previous instrument symbols and returns all quotes by its current symbol.
     //
-    // This method is used to write search rules which will work with both provider types.
-    pub fn alias(mut self, symbol: &str) -> Self {
-        self.aliases.push(symbol.to_owned());
-        self
+    // This field is used to support both provider types.
+    aliases: Vec<String>,
+}
+
+impl BenchmarkInstrument {
+    fn new(symbol: &str, exchange: Exchange, aliases: Vec<String>) -> Self {
+        BenchmarkInstrument {
+            id: BenchmarkInstrumentId {
+                symbol: symbol.to_owned(),
+                exchange,
+            },
+            renamed_from: None,
+            aliases,
+        }
     }
 }
 
