@@ -21,7 +21,7 @@ use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
 use crate::types::Decimal;
 
-use self::backtesting::{BacktestingResults, BenchmarkPerformanceType};
+use self::backtesting::{BenchmarkBacktestingResult, BenchmarkPerformanceType};
 use self::performance::PortfolioAnalyser;
 use self::performance::config::{AssetGroupConfig, PerformanceMergingConfig};
 use self::performance::statistics::PortfolioStatistics;
@@ -79,7 +79,7 @@ pub fn simulate_sell(
 pub fn backtest(
     config: &Config, portfolio_name: Option<&str>, with_benchmarks: bool,
     backfilling: Option<BackfillingConfig>, interactive: Option<BenchmarkPerformanceType>,
-) -> GenericResult<Vec<BacktestingResults>> {
+) -> GenericResult<Vec<BenchmarkBacktestingResult>> {
     let (converter, quotes) = load_tools(config)?;
 
     let statements = load_portfolios(config, portfolio_name, ReadingStrictness::empty())?
@@ -87,15 +87,11 @@ pub fn backtest(
         .map(|(_portfolio, statement)| statement)
         .collect_vec();
 
-    let mut results = backtesting::backtest(
+    let (results, metrics) = backtesting::backtest(
         &config.backtesting, &statements, converter.clone(), quotes.clone(),
         with_benchmarks.then_some(backfilling.is_some()), interactive)?;
 
     if let Some(config) = backfilling {
-        let metrics = results.iter_mut()
-            .flat_map(|result| result.benchmark_metrics.take().unwrap())
-            .collect_vec();
-
         backfilling::backfill(&config, metrics).map_err(|e| format!(
             "Failed to backfill backtesting results: {e}"))?;
     }

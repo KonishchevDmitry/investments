@@ -1,7 +1,7 @@
 pub mod backfilling;
 pub mod config;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{BufWriter, Write};
 use std::fs::{self, File};
 use std::path::Path;
@@ -12,7 +12,7 @@ use prometheus::{self, TextEncoder, Encoder, Gauge, GaugeVec, register_gauge, re
 use strum::IntoEnumIterator;
 
 use crate::analysis;
-use crate::analysis::backtesting::BacktestingResults;
+use crate::analysis::backtesting::BenchmarkBacktestingResult;
 use crate::analysis::performance::types::PerformanceAnalysisMethod;
 use crate::analysis::performance::statistics::{Asset, AssetGroup, PortfolioCurrencyStatistics, LtoStatistics};
 use crate::config::Config;
@@ -85,7 +85,8 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         config, None, false, &config.metrics.asset_groups,
         Some(&config.metrics.merge_performance), false)?;
 
-    let backtesting = analysis::backtest(config, None, false, None, None)?;
+    // FIXME(konishchev): Add command line option?
+    let backtesting = analysis::backtest(config, None, !config.backtesting.benchmarks.is_empty(), None, None)?;
 
     UPDATE_TIME.set(cast::f64(time::timestamp()));
     for statistics in &statistics.currencies {
@@ -176,12 +177,22 @@ fn collect_lto(lto: &LtoStatistics) {
     set_metric(&PROJECTED_LTO, &["loss"], lto.projected.loss);
 }
 
-fn collect_backtesting(results: &[BacktestingResults]) {
-    for result in results {
-        set_metric(&BACKTESTING_NET_VALUE, &[PORTFOLIO_INSTRUMENT, "", &result.currency], result.portfolio_net_value);
+fn collect_backtesting(results: &[BenchmarkBacktestingResult]) {
+    let mut net_values = HashMap::new();
 
-        if let Some(performance) = result.portfolio_performance {
-            set_metric(&BACKTESTING_PERFORMANCE, &[PORTFOLIO_INSTRUMENT, "", result.method.into(), &result.currency], performance);
+    for result in results {
+        if let Some(previous) = net_values.insert((&result.name, &result.provider, &result.currency), result.net_value) {
+            assert_eq!(previous, result.net_value)
+        } else {
+            set_metric(&BACKTESTING_NET_VALUE, &[
+                &result.name, result.provider.as_deref().unwrap_or_default(), &result.currency,
+            ], result.net_value);
+        }
+
+        if let Some(performance) = result.performance {
+            set_metric(&BACKTESTING_PERFORMANCE, &[
+                &result.name, result.provider.as_deref().unwrap_or_default(), result.method.into(), &result.currency,
+            ], performance);
         }
     }
 }

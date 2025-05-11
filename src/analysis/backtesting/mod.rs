@@ -28,20 +28,21 @@ use crate::types::Decimal;
 
 use self::config::{BacktestingConfig, BenchmarkConfig, TransitionType};
 
-pub struct BacktestingResults {
+pub struct BenchmarkBacktestingResult {
+    pub name: String,
+    pub provider: Option<String>,
+
     pub method: BenchmarkPerformanceType,
     pub currency: String,
 
-    pub portfolio_net_value: Decimal,
-    pub portfolio_performance: Option<Decimal>,
-
-    pub benchmark_metrics: Option<Vec<DailyTimeSeries>>,
+    pub net_value: Decimal,
+    pub performance: Option<Decimal>,
 }
 
 pub fn backtest(
     config: &BacktestingConfig, statements: &[BrokerStatement], converter: CurrencyConverterRc, quotes: QuotesRc,
     with_benchmarks: Option<bool>, interactive: Option<BenchmarkPerformanceType>,
-) -> GenericResult<Vec<BacktestingResults>> {
+) -> GenericResult<(Vec<BenchmarkBacktestingResult>, Vec<DailyTimeSeries>)> {
     let mut benchmarks = Vec::new();
 
     if with_benchmarks.is_some() {
@@ -73,6 +74,7 @@ pub fn backtest(
     let format_performance = |performance| format!("{}%", performance);
 
     let mut results = Vec::new();
+    let mut daily_time_series = Vec::new();
 
     for (method_index, method) in BenchmarkPerformanceType::iter().enumerate() {
         for currency in ["USD", "RUB"] {
@@ -84,7 +86,7 @@ pub fn backtest(
                 }
             });
 
-            let mut result = {
+            {
                 let _logging_context = GlobalContext::new(&format!("Portfolio / {method} {currency}"));
 
                 let transactions = cash_flows_to_transactions(currency, &cash_flows, &converter)?;
@@ -106,15 +108,16 @@ pub fn backtest(
                     });
                 }
 
-                BacktestingResults {
+                results.push(BenchmarkBacktestingResult {
+                    name: metrics::PORTFOLIO_INSTRUMENT.to_owned(),
+                    provider: None,
+
                     method,
                     currency: currency.to_owned(),
 
-                    portfolio_net_value: net_value.round().amount,
-                    portfolio_performance: performance,
-
-                    benchmark_metrics: None,
-                }
+                    net_value: net_value.round().amount,
+                    performance: performance,
+                });
             };
 
             for benchmark in &benchmarks {
@@ -129,13 +132,24 @@ pub fn backtest(
                 if with_metrics {
                     let metrics = generate_metrics(benchmark, method, currency, &daily_results, method_index == 0).map_err(|e| format!(
                         "Failed to generate metrics for {full_name}: {e}"))?;
-                    result.benchmark_metrics.get_or_insert_default().extend(metrics);
+                    daily_time_series.extend(metrics);
                 }
 
-                if let Some(table) = table.as_mut() {
-                    let current = daily_results.last().unwrap();
-                    assert_eq!(current.date, today);
+                let current = daily_results.last().unwrap();
+                assert_eq!(current.date, today);
 
+                results.push(BenchmarkBacktestingResult {
+                    name: benchmark.name.clone(),
+                    provider: benchmark.provider.clone(),
+
+                    method,
+                    currency: currency.to_owned(),
+
+                    net_value: current.net_value,
+                    performance: current.performance,
+                });
+
+                if let Some(table) = table.as_mut() {
                     table.add_row(BacktestingResultsTableRow {
                         benchmark: benchmark.name(),
                         result: Cell::new_round_decimal(current.net_value),
@@ -147,12 +161,10 @@ pub fn backtest(
             if let Some(table) = table.as_mut() {
                 table.print(&format!("Backtesting results ({currency}, {})", formatting::format_days(days)));
             }
-
-            results.push(result);
         }
     }
 
-    Ok(results)
+    Ok((results, daily_time_series))
 }
 
 struct Benchmark {
