@@ -44,20 +44,19 @@ impl Moex {
         }
     }
 
-    fn get_instrument_info(&self, symbol: &str) -> GenericResult<Option<InstrumentInfo>> {
+    fn get_instrument_info(&self, symbol: &str) -> GenericResult<BTreeMap<Period, Board>> {
         let url = Url::parse_with_params(
             &format!("{}/iss/securities/{symbol}.json", self.url), &[
-            ("primary_board", "1"),
-
             ("iss.only", "boards"),
-            ("boards.columns", "boardid,market,engine,currencyid"),
+            ("boards.columns", "boardid,market,engine,history_from,history_till,currencyid"),
 
             ("iss.meta", "off"),
             ("iss.json", "extended"),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(InstrumentInfo::parse).map_err(|e| format!(
-            "Failed to get instrument info from {url}: {e}"))?)
+        Ok(send_request(&self.client, &url, None).and_then(|response| {
+            parse_instrument_info(symbol, response)
+        }).map_err(|e| format!("Failed to get instrument info from {url}: {e}"))?)
     }
 }
 
@@ -101,114 +100,137 @@ impl QuotesProvider for Moex {
     }
 
     fn get_historical_quotes(&self, symbol: &str, period: Period) -> GenericResult<Option<HistoricalQuotes>> {
-        let Some(instrument) = self.get_instrument_info(symbol)? else {
+        let boards = self.get_instrument_info(symbol)?.into_iter().filter_map(|(board_period, board)| {
+            period.try_intersect(board_period).map(|period| (period, board))
+        }).collect_vec();
+
+        if boards.is_empty() {
             return Ok(None);
-        };
-
-        let mut start = 0;
-        let mut tries = 0;
-        let mut quotes: BTreeMap<Date, Vec<Decimal>> = BTreeMap::new();
-
-        loop {
-            let start_arg = start.to_string();
-            let url = Url::parse_with_params(
-                &format!("{}/iss/engines/{}/markets/{}/boards/{}/securities/{symbol}/candles.json",
-                    self.url, instrument.engine, instrument.market, instrument.board), &[
-
-                ("from", period.first_date().format("%Y.%m.%d").to_string().as_str()),
-                ("till", period.last_date().format("%Y.%m.%d").to_string().as_str()),
-                ("interval", "60"),
-                ("start", &start_arg),
-
-                ("candles.columns", "begin,open,close"),
-                ("iss.meta", "off"),
-            ])?;
-
-            tries += 1;
-            let count = send_request(&self.client, &url, None).and_then(|response| {
-                parse_historical_quotes(response, &mut quotes)
-            }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?;
-
-            // The API is buggy: it may return incomplete results without any sign of it. So we have to workaround it
-            // in a such ugly manner.
-            if self.incomplete_results_workaround && count < 500 && tries < 60 && !quotes.last_key_value().map(|(&date, _)| {
-                date >= Exchange::Moex.min_last_working_day(period.last_date())
-            }).unwrap_or_default() {
-                debug!("Looks like we've got incomplete results from MOEX historical API. Retrying...");
-                std::thread::sleep(Duration::from_millis(500));
-                continue;
-            }
-
-            if count == 0 {
-                return Ok(Some(super::aggregate_historical_quotes(&instrument.currency, quotes)))
-            }
-
-            start += count;
-            tries = 0;
         }
+
+        let mut quotes = HistoricalQuotes::new();
+
+        for (board_period, board) in boards {
+            let mut start = 0;
+            let mut tries = 0;
+            let mut board_quotes: BTreeMap<Date, Vec<Decimal>> = BTreeMap::new();
+
+            loop {
+                let start_arg = start.to_string();
+                let url = Url::parse_with_params(
+                    &format!("{}/iss/engines/{}/markets/{}/boards/{}/securities/{symbol}/candles.json",
+                        self.url, board.engine, board.market, board.name), &[
+
+                    ("from", board_period.first_date().format("%Y.%m.%d").to_string().as_str()),
+                    ("till", board_period.last_date().format("%Y.%m.%d").to_string().as_str()),
+                    ("interval", "60"),
+                    ("start", &start_arg),
+
+                    ("candles.columns", "begin,open,close"),
+                    ("iss.meta", "off"),
+                ])?;
+
+                tries += 1;
+                let count = send_request(&self.client, &url, None).and_then(|response| {
+                    parse_historical_quotes(response, &mut board_quotes)
+                }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?;
+
+                // The API is buggy: it may return incomplete results without any sign of it. So we have to workaround it
+                // in a such ugly manner.
+                if self.incomplete_results_workaround && count < 500 && tries < 60 && !board_quotes.last_key_value().map(|(&date, _)| {
+                    date >= Exchange::Moex.min_last_working_day(board_period.last_date())
+                }).unwrap_or_default() {
+                    debug!("Looks like we've got incomplete results from MOEX historical API. Retrying...");
+                    std::thread::sleep(Duration::from_millis(500));
+                    continue;
+                }
+
+                if count == 0 {
+                    quotes.extend(super::aggregate_historical_quotes(&board.currency, board_quotes));
+                    break;
+                }
+
+                start += count;
+                tries = 0;
+            }
+        }
+
+        Ok(Some(quotes))
     }
 }
 
-struct InstrumentInfo {
-    engine: String,
+struct Board {
+    name: String,
     market: String,
-    board: String,
+    engine: String,
     currency: String,
 }
 
-impl InstrumentInfo {
-    fn parse(response: Response) -> GenericResult<Option<InstrumentInfo>> {
-        #[derive(Deserialize)]
-        struct Response {
-            boards: Vec<Board>,
-        }
-
-        #[derive(Deserialize)]
-        struct Board {
-            #[serde(rename = "boardid")]
-            id: String,
-            #[serde(rename = "engine")]
-            engine: String,
-            #[serde(rename = "market")]
-            market: String,
-            #[serde(rename = "currencyid")]
-            currency: String,
-        }
-
-        let body = response.text()?;
-
-        let mut response: Vec<Value> = parse_response(&body)?;
-        if response.len() != 2 {
-            return Err!("Got an unexpected response: {body}");
-        }
-
-        let mut response: Response = serde_json::from_value(response.pop().unwrap()).map_err(|e| format!(
-            "Got an unexpected response: {e}"))?;
-
-        if response.boards.len() > 1 {
-            return Err!("Got an unexpected response: {body}");
-        }
-
-        let Some(board) = response.boards.pop() else {
-            return Ok(None);
-        };
-
-        if !matches!(
-            (board.id.as_str(), board.engine.as_str(), board.market.as_str()),
-            (STOCKS_BOARD | ETF_BOARD, ENGINE, MARKET),
-        ) {
-            debug!("Skipping unsupported instrument type: engine={}, market={}, board={}.",
-                board.engine, board.market, board.id);
-            return Ok(None);
-        }
-
-        Ok(Some(InstrumentInfo {
-            engine: board.engine,
-            market: board.market,
-            board: board.id,
-            currency: board.currency,
-        }))
+fn parse_instrument_info(symbol: &str, response: Response) -> GenericResult<BTreeMap<Period, Board>> {
+    #[derive(Deserialize)]
+    struct Response {
+        boards: Vec<BoardInfo>,
     }
+
+    #[derive(Deserialize)]
+    struct BoardInfo {
+        #[serde(rename = "boardid")]
+        name: String,
+        #[serde(rename = "engine")]
+        engine: String,
+        #[serde(rename = "market")]
+        market: String,
+        #[serde(rename = "history_from", deserialize_with = "deserialize_optional_date")]
+        from: Option<Date>,
+        #[serde(rename = "history_till", deserialize_with = "deserialize_optional_date")]
+        till: Option<Date>,
+        #[serde(rename = "currencyid")]
+        currency: Option<String>,
+    }
+
+    let body = response.text()?;
+
+    let mut response: Vec<Value> = parse_response(&body)?;
+    if response.len() != 2 {
+        return Err!("Got an unexpected response: {body}");
+    }
+
+    let response: Response = serde_json::from_value(response.pop().unwrap()).map_err(|e| format!(
+        "Got an unexpected response: {e}"))?;
+
+    let boards = response.boards.into_iter().filter(|board| {
+        matches!(
+            (board.name.as_str(), board.engine.as_str(), board.market.as_str()),
+            (STOCKS_BOARD | ETF_BOARD, ENGINE, MARKET),
+        ) && board.from.is_some() && board.till.is_some() && board.currency.is_some()
+    }).collect_vec();
+
+    let mut periods: BTreeMap<Period, Board> = BTreeMap::new();
+
+    for board in boards {
+        let period = Period::new(board.from.unwrap(), board.till.unwrap())?;
+
+        for (&other_period, other_board) in &periods {
+            if period.try_intersect(other_period).is_some() {
+                return Err!("{} board ({period}) intersects with {} board ({other_period})", board.name, other_board.name);
+            }
+        }
+
+        periods.insert(period, Board {
+            name: board.name,
+            market: board.market,
+            engine: board.engine,
+            currency: board.currency.unwrap(),
+        });
+    }
+
+    if !periods.is_empty() {
+        debug!("Got the following boards for {symbol}:{}", periods.iter().map(|(period, board)| {
+            format!("\n* {period}: {}", board.name)
+        }).join(""));
+    }
+
+    Ok(periods)
 }
 
 fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
@@ -415,6 +437,14 @@ fn is_outdated(_date: Date) -> bool {
     false
 }
 
+fn deserialize_optional_date<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
+    where D: Deserializer<'de>
+{
+    let value: Option<String> = Deserialize::deserialize(deserializer)?;
+    value.map(|date| time::parse_date(date.as_str(), "%Y-%m-%d"))
+        .transpose().map_err(|e| D::Error::custom(e.to_string()))
+}
+
 fn deserialize_optional_decimal<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
     where D: Deserializer<'de>
 {
@@ -430,7 +460,6 @@ fn deserialize_optional_decimal<'de, D>(deserializer: D) -> Result<Option<Decima
 #[cfg(test)]
 mod tests {
     use std::borrow::ToOwned;
-    use std::collections::HashSet;
     use std::fs::File;
     use std::io::Read;
     use std::path::Path;
@@ -442,18 +471,26 @@ mod tests {
     #[test]
     fn missing_instrument_info() {
         let (mut server, client) = create_server();
-        let _mock = mock_instrument_info(&mut server, "INVALID", "moex-instrument-info-missing.json");
-        assert!(client.get_instrument_info("INVALID").unwrap().is_none());
+        let _mock = mock_instrument_info(&mut server, "INVALID", "moex-instrument-missing.json");
+        assert!(client.get_instrument_info("INVALID").unwrap().is_empty());
     }
 
     #[test]
-    fn instrument_info() {
+    fn instrument_info_single_board() {
         let (mut server, client) = create_server();
-        let _mock = mock_instrument_info(&mut server, "FXUS", "moex-instrument-info.json");
+        let _mock = mock_instrument_info(&mut server, "FXUS", "moex-instrument-fxus.json");
 
-        let info = client.get_instrument_info("FXUS").unwrap().unwrap();
-        assert_eq!(info.board, ETF_BOARD);
-        assert_eq!(info.currency, "RUB");
+        let boards = client.get_instrument_info("FXUS").unwrap().into_values().map(|board| board.name).collect_vec();
+        assert_eq!(boards, vec![ETF_BOARD]);
+    }
+
+    #[test]
+    fn instrument_info_multiple_boards() {
+        let (mut server, client) = create_server();
+        let _mock = mock_instrument_info(&mut server, "FXRB", "moex-instrument-fxrb.json");
+
+        let boards = client.get_instrument_info("FXRB").unwrap().into_values().map(|board| board.name).collect_vec();
+        assert_eq!(boards, vec![STOCKS_BOARD, ETF_BOARD]);
     }
 
     #[test]
@@ -501,9 +538,9 @@ mod tests {
     fn historical_quotes() {
         let (mut server, client) = create_server();
 
-        let _mock = mock_instrument_info(&mut server, "FXUS", "moex-instrument-info.json");
-        let _mock = mock_candles(&mut server, 0, "moex-historical-start.json");
-        let _mock = mock_candles(&mut server, 4, "moex-historical-end.json");
+        let _mock = mock_instrument_info(&mut server, "FXUS", "moex-instrument-fxus.json");
+        let _mock = mock_candles(&mut server, 0, "moex-historical-fxus-start.json");
+        let _mock = mock_candles(&mut server, 4, "moex-historical-fxus-end.json");
 
         let period = Period::new(date!(2016, 5, 25), date!(2016, 5, 30)).unwrap();
         let quotes = client.get_historical_quotes("FXUS", period).unwrap().unwrap();
@@ -523,7 +560,7 @@ mod tests {
     }
 
     fn mock_instrument_info(server: &mut Server, symbol: &str, body_path: &str) -> Mock {
-        let path = format!("/iss/securities/{symbol}.json?primary_board=1&iss.only=boards&boards.columns=boardid%2Cmarket%2Cengine%2Ccurrencyid&iss.meta=off&iss.json=extended");
+        let path = format!("/iss/securities/{symbol}.json?iss.only=boards&boards.columns=boardid%2Cmarket%2Cengine%2Chistory_from%2Chistory_till%2Ccurrencyid&iss.meta=off&iss.json=extended");
         mock_response(server, &path, body_path)
     }
 

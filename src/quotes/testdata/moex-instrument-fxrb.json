@@ -1,0 +1,30 @@
+[
+{"charsetinfo": {"name": "utf-8"}},
+{
+"boards": [
+{"boardid": "TQTF", "market": "shares", "engine": "stock", "history_from": "2014-06-09", "history_till": "2022-06-24", "currencyid": "RUB"},
+{"boardid": "TQBR", "market": "shares", "engine": "stock", "history_from": "2013-09-02", "history_till": "2014-06-06", "currencyid": "RUB"},
+{"boardid": "EQBR", "market": "shares", "engine": "stock", "history_from": "2013-04-29", "history_till": "2013-08-30", "currencyid": "RUB"},
+{"boardid": "LIQB", "market": "mamc", "engine": "stock", "history_from": null, "history_till": null, "currencyid": null},
+{"boardid": "RPMA", "market": "repo", "engine": "stock", "history_from": "2017-12-29", "history_till": "2019-04-17", "currencyid": "RUB"},
+{"boardid": "RPEU", "market": "repo", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "USD"},
+{"boardid": "RPEO", "market": "repo", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "EUR"},
+{"boardid": "SOTC", "market": "otc", "engine": "stock", "history_from": "2016-03-10", "history_till": "2022-06-09", "currencyid": null},
+{"boardid": "PTTF", "market": "ndm", "engine": "stock", "history_from": "2016-10-19", "history_till": "2020-03-20", "currencyid": "RUB"},
+{"boardid": "PTEQ", "market": "ndm", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "RUB"},
+{"boardid": "PSTF", "market": "ndm", "engine": "stock", "history_from": "2015-12-30", "history_till": "2016-11-02", "currencyid": "RUB"},
+{"boardid": "PSEQ", "market": "ndm", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "RUB"},
+{"boardid": "RPMO", "market": "repo", "engine": "stock", "history_from": "2019-04-23", "history_till": "2022-03-01", "currencyid": "RUB"},
+{"boardid": "EQRP", "market": "ccp", "engine": "stock", "history_from": "2017-03-23", "history_till": "2020-06-18", "currencyid": "RUB"},
+{"boardid": "EQRD", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "USD"},
+{"boardid": "EQRE", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "EUR"},
+{"boardid": "EQRY", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "CNY"},
+{"boardid": "EQWP", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "RUB"},
+{"boardid": "EQWD", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "USD"},
+{"boardid": "EQWE", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "EUR"},
+{"boardid": "LIQR", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "RUB"},
+{"boardid": "PSRP", "market": "ccp", "engine": "stock", "history_from": "2017-08-22", "history_till": "2022-03-03", "currencyid": "RUB"},
+{"boardid": "PSRD", "market": "ccp", "engine": "stock", "history_from": "2021-12-20", "history_till": "2022-02-28", "currencyid": "USD"},
+{"boardid": "PSRE", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "EUR"},
+{"boardid": "PSRY", "market": "ccp", "engine": "stock", "history_from": null, "history_till": null, "currencyid": "CNY"}]}
+]

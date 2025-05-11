@@ -55,6 +55,23 @@ impl Period {
         self.first <= other.first && self.last >= other.last
     }
 
+    pub fn try_intersect(&self, other: Period) -> Option<Period> {
+        let (earlier, later) = if self.first <= other.first {
+            (*self, other)
+        } else {
+            (other, *self)
+        };
+
+        if later.first > earlier.last {
+            return None;
+        }
+
+        Some(Period {
+            first: later.first,
+            last: std::cmp::min(earlier.last, later.last),
+        })
+    }
+
     pub fn try_union(&self, other: Period) -> Option<Period> {
         let (earlier, later) = if self.first <= other.first {
             (*self, other)
