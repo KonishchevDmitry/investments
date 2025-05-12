@@ -19,10 +19,6 @@ exclude = ["/src/quotes/tbank/specs", "/testdata"]
 name = "investments"
 path = "src/bin/investments/mod.rs"
 
-[[example]]
-name = "backtest"
-path = "examples/backtest.rs"
-
 # Used by regression tests
 [[example]]
 name = "tax-statement-parser"
