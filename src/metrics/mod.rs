@@ -85,7 +85,6 @@ pub fn collect(config: &Config, path: &Path) -> GenericResult<TelemetryRecordBui
         config, None, false, &config.metrics.asset_groups,
         Some(&config.metrics.merge_performance), false)?;
 
-    // FIXME(konishchev): sed '/^backtesting:/,/deposits:/d' config.yaml
     let (backtesting, _telemetry) = analysis::backtest(config, None, false, None)?;
 
     UPDATE_TIME.set(cast::f64(time::timestamp()));
