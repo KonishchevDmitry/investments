@@ -18,7 +18,7 @@ fn generate_regression_tests() {
 
     for command in [
         "sync", "show", "rebalance", "cash", "buy", "sell",
-        "analyse", "simulate-sell", "tax-statement", "cash-flow",
+        "analyse", "backtest", "simulate-sell", "tax-statement", "cash-flow",
         "deposits", "metrics", "completion",
     ] {
         t.add(&format!("Help {} short", command), &format!("{} -h", command));
@@ -38,6 +38,12 @@ fn generate_regression_tests() {
     t.add("Analyse virtual", "analyse --all --method virtual");
     t.add("Analyse inflation-adjusted", "analyse --all --method inflation-adjusted");
     t.add("Analyse delisted", "analyse tbank-delisting --all").config("other");
+
+    // backtest
+    t.add("Backtest", "backtest");
+    t.add("Backtest virtual", "backtest --method virtual");
+    t.add("Backtest inflation-adjusted", "backtest --method inflation-adjusted");
+    t.add("Backtest portfolio", "backtest ib");
 
     // simulate-sell
     t.add("Simulate sell partial", "simulate-sell ib all VTI 50 BND 50 BND");

@@ -5,16 +5,23 @@ use chrono::{Duration, TimeZone, Utc};
 use futures_core::stream::Stream;
 use log::info;
 use reqwest::{self, Body, ClientBuilder};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
+use serde::de::{Deserializer, Error};
 use url::Url;
+use validator::Validate;
 
 use crate::core::{EmptyResult, GenericResult};
-use crate::time::Date;
+use crate::time::{self, Date};
 use crate::util;
 
+// FIXME(konishchev): To docs
+#[derive(Deserialize, Validate)]
+#[serde(deny_unknown_fields)]
 pub struct BackfillingConfig {
     pub url: Url,
+    #[serde(deserialize_with = "deserialize_scrape_interval")]
     pub scrape_interval: Duration,
+    // FIXME(konishchev): Labels
 }
 
 pub struct DailyTimeSeries {
@@ -83,10 +90,6 @@ pub async fn backfill(config: &BackfillingConfig, metrics: Vec<DailyTimeSeries>)
 
 async fn get_import_stream(metrics: Vec<DailyTimeSeries>, scrape_interval: Duration) -> impl Stream<Item = GenericResult<Vec<u8>>> {
     try_stream! {
-        if scrape_interval < Duration::seconds(1) || scrape_interval > Duration::days(1) {
-            return Err("Invalid scrape interval")?;
-        }
-
         let scrape_interval = scrape_interval.num_seconds();
 
         let mut sent = 0;
@@ -139,4 +142,13 @@ struct TimeSeries {
     timestamps: Vec<i64>,
     #[serde(rename="values")]
     values: Vec<f64>,
+}
+
+fn deserialize_scrape_interval<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where D: Deserializer<'de>
+{
+    let value: String = Deserialize::deserialize(deserializer)?;
+    time::parse_duration(&value).ok().filter(|&scrape_interval| {
+        scrape_interval >= Duration::seconds(1) && scrape_interval <= Duration::days(1)
+    }).ok_or_else(|| D::Error::custom(format!("Invalid scrape interval: {value:?}")))
 }

@@ -6,7 +6,7 @@ use std::ops::Bound;
 
 use easy_logging::GlobalContext;
 use itertools::Itertools;
-use log::debug;
+use log::{debug, warn};
 use num_traits::ToPrimitive;
 use static_table_derive::StaticTable;
 use strum::IntoEnumIterator;
@@ -41,14 +41,15 @@ pub struct BenchmarkBacktestingResult {
 
 pub fn backtest(
     config: &BacktestingConfig, statements: &[BrokerStatement], converter: CurrencyConverterRc, quotes: QuotesRc,
-    with_benchmarks: Option<bool>, interactive: Option<BenchmarkPerformanceType>,
+    with_metrics: bool, interactive: Option<BenchmarkPerformanceType>,
 ) -> GenericResult<(Vec<BenchmarkBacktestingResult>, Vec<DailyTimeSeries>)> {
     let mut benchmarks = Vec::new();
+    for benchmark in &config.benchmarks {
+        benchmarks.push(Benchmark::new(benchmark)?);
+    }
 
-    if with_benchmarks.is_some() {
-        for benchmark in &config.benchmarks {
-            benchmarks.push(Benchmark::new(benchmark)?);
-        }
+    if interactive.is_some() && benchmarks.is_empty() {
+        warn!("There are no benchmark specs in the configuration file.");
     }
 
     for statement in statements {
@@ -121,7 +122,6 @@ pub fn backtest(
             };
 
             for benchmark in &benchmarks {
-                let with_metrics = with_benchmarks.unwrap();
                 let full_name = format!("{} / {method} {currency}", benchmark.name());
                 let _logging_context = GlobalContext::new(&full_name);
 

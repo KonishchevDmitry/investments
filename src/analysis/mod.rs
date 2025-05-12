@@ -15,7 +15,7 @@ use crate::config::{Config, PortfolioConfig};
 use crate::core::GenericResult;
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::db;
-use crate::metrics::backfilling::{self, BackfillingConfig};
+use crate::metrics::backfilling;
 use crate::quotes::{Quotes, QuotesRc};
 use crate::taxes::{LtoDeductionCalculator, TaxCalculator};
 use crate::telemetry::TelemetryRecordBuilder;
@@ -59,6 +59,34 @@ pub fn analyse(
     Ok((statistics.commit(), quotes, telemetry))
 }
 
+pub fn backtest(
+    config: &Config, portfolio_name: Option<&str>, backfill: bool, interactive: Option<BenchmarkPerformanceType>,
+) -> GenericResult<(Vec<BenchmarkBacktestingResult>, TelemetryRecordBuilder)> {
+    let mut telemetry = TelemetryRecordBuilder::new();
+    let (converter, quotes) = load_tools(config)?;
+
+    let backfill = backfill.then(|| config.metrics.backfilling.as_ref().ok_or(
+        "Metrics backfilling settings aren't specified in the configuration file")).transpose()?;
+
+    let statements = load_portfolios(config, portfolio_name, ReadingStrictness::empty())?
+        .into_iter().map(|(portfolio, statement)| {
+            telemetry.add_broker(portfolio.broker);
+            statement
+        })
+        .collect_vec();
+
+    let (results, metrics) = backtesting::backtest(
+        &config.backtesting, &statements, converter.clone(), quotes.clone(),
+        backfill.is_some(), interactive)?;
+
+    if let Some(config) = backfill {
+        backfilling::backfill(config, metrics).map_err(|e| format!(
+            "Failed to backfill backtesting results: {e}"))?;
+    }
+
+    Ok((results, telemetry))
+}
+
 pub fn simulate_sell(
     config: &Config, portfolio_name: &str, positions: Option<Vec<(String, Option<Decimal>)>>,
     base_currency: Option<&str>,
@@ -74,29 +102,6 @@ pub fn simulate_sell(
         converter, &quotes, positions, base_currency)?;
 
     Ok(TelemetryRecordBuilder::new_with_broker(portfolio.broker))
-}
-
-pub fn backtest(
-    config: &Config, portfolio_name: Option<&str>, with_benchmarks: bool,
-    backfilling: Option<BackfillingConfig>, interactive: Option<BenchmarkPerformanceType>,
-) -> GenericResult<Vec<BenchmarkBacktestingResult>> {
-    let (converter, quotes) = load_tools(config)?;
-
-    let statements = load_portfolios(config, portfolio_name, ReadingStrictness::empty())?
-        .into_iter()
-        .map(|(_portfolio, statement)| statement)
-        .collect_vec();
-
-    let (results, metrics) = backtesting::backtest(
-        &config.backtesting, &statements, converter.clone(), quotes.clone(),
-        with_benchmarks.then_some(backfilling.is_some()), interactive)?;
-
-    if let Some(config) = backfilling {
-        backfilling::backfill(&config, metrics).map_err(|e| format!(
-            "Failed to backfill backtesting results: {e}"))?;
-    }
-
-    Ok(results)
 }
 
 fn load_portfolios<'a>(

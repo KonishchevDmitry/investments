@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use investments::analysis::backtesting::BenchmarkPerformanceType;
 use investments::analysis::performance::types::PerformanceAnalysisMethod;
 use investments::time::Date;
 use investments::types::Decimal;
@@ -9,6 +10,11 @@ pub enum Action {
         name: Option<String>,
         method: PerformanceAnalysisMethod,
         show_closed_positions: bool,
+    },
+    Backtest {
+        name: Option<String>,
+        method: BenchmarkPerformanceType,
+        backfill: bool,
     },
     SimulateSell {
         name: String,

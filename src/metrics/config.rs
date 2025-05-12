@@ -7,6 +7,8 @@ use crate::analysis::performance::config::{AssetGroupConfig, PerformanceMergingC
 use crate::core::EmptyResult;
 use crate::metrics;
 
+use super::backfilling::BackfillingConfig;
+
 #[derive(Deserialize, Default, Validate)]
 #[serde(deny_unknown_fields)]
 pub struct MetricsConfig {
@@ -20,6 +22,9 @@ pub struct MetricsConfig {
 
     #[serde(default)]
     pub merge_performance: PerformanceMergingConfig,
+
+    #[validate(nested)]
+    pub backfilling: Option<BackfillingConfig>,
 }
 
 impl MetricsConfig {

@@ -87,6 +87,10 @@ fn run(cli_config: CliConfig, parser: Parser) -> EmptyResult {
             statistics.print(method);
             telemetry
         },
+        Action::Backtest {name, method, backfill} => {
+            let (_results, telemetry) = analysis::backtest(&config, name.as_deref(), backfill, Some(method))?;
+            telemetry
+        },
         Action::SimulateSell {name, positions, base_currency} => analysis::simulate_sell(
             &config, &name, positions, base_currency.as_deref())?,
 

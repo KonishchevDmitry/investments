@@ -9,6 +9,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use strum::{EnumMessage, IntoEnumIterator};
 
+use investments::analysis::backtesting::BenchmarkPerformanceType;
 use investments::analysis::performance::types::PerformanceAnalysisMethod;
 use investments::config::{CliConfig, Config};
 use investments::core::GenericResult;
@@ -70,12 +71,15 @@ impl Parser {
                     and monthly capitalization.
                 "))
                 .args([
+                    Arg::new("portfolio")
+                        .help("Portfolio name (omit to show an aggregated result for all portfolios)")
+                        .value_name("PORTFOLIO")
+                        .value_parser(NonEmptyStringValueParser::new()),
+
                     Arg::new("method").short('m').long("method")
-                        .help(
-                            PerformanceAnalysisMethod::iter().map(|method| {
-                                format!("{} - {}", Into::<&'static str>::into(method), method.get_message().unwrap())
-                            }).join(", ")
-                        )
+                        .help(PerformanceAnalysisMethod::iter().map(|method| {
+                            format!("{} - {}", Into::<&'static str>::into(method), method.get_message().unwrap())
+                        }).join(", "))
                         .value_name("METHOD")
                         .value_parser(PerformanceAnalysisMethod::from_str)
                         .default_value(Into::<&'static str>::into(PerformanceAnalysisMethod::Real)),
@@ -83,10 +87,29 @@ impl Parser {
                     Arg::new("all").short('a').long("all")
                         .help("Don't hide closed positions")
                         .action(ArgAction::SetTrue),
+                ]))
 
-                    Arg::new("PORTFOLIO")
+            .subcommand(Command::new("backtest")
+                .about("Backtest portfolio")
+                .long_about("Backtest all portfolio cash flows against configured benchmarks.")
+                .args([
+                    Arg::new("portfolio")
                         .help("Portfolio name (omit to show an aggregated result for all portfolios)")
-                        .value_parser(NonEmptyStringValueParser::new()),
+                        .value_name("PORTFOLIO")
+                        .value_parser(NonEmptyStringValueParser::new())
+                        .conflicts_with("backfill"),
+
+                    Arg::new("method").short('m').long("method")
+                        .help(format!("Performance analysis method ({})", BenchmarkPerformanceType::iter().map(|method| {
+                            Into::<&'static str>::into(method)
+                        }).join(", ")))
+                        .value_name("METHOD")
+                        .value_parser(BenchmarkPerformanceType::from_str)
+                        .default_value(Into::<&'static str>::into(BenchmarkPerformanceType::Virtual)),
+
+                    Arg::new("backfill").short('b').long("backfill")
+                        .help("Backfill backtesting results")
+                        .action(ArgAction::SetTrue),
                 ]))
 
             .subcommand(Command::new("show")
@@ -248,9 +271,15 @@ impl Parser {
     fn parse_command(&self, command: &str, matches: &ArgMatches) -> GenericResult<Action> {
         Ok(match command {
             "analyse" => Action::Analyse {
-                name: matches.get_one("PORTFOLIO").cloned(),
+                name: matches.get_one("portfolio").cloned(),
                 method: matches.get_one("method").cloned().unwrap(),
                 show_closed_positions: matches.get_flag("all"),
+            },
+
+            "backtest" => Action::Backtest {
+                name: matches.get_one("portfolio").cloned(),
+                method: matches.get_one("method").cloned().unwrap(),
+                backfill: matches.get_flag("backfill"),
             },
 
             "sync" => Action::Sync(portfolio::get(matches)),
