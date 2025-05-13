@@ -14,14 +14,14 @@ use crate::core::{EmptyResult, GenericResult};
 use crate::time::{self, Date};
 use crate::util;
 
-// FIXME(konishchev): To docs
 #[derive(Deserialize, Validate)]
 #[serde(deny_unknown_fields)]
 pub struct BackfillingConfig {
     pub url: Url,
     #[serde(deserialize_with = "deserialize_scrape_interval")]
     pub scrape_interval: Duration,
-    // FIXME(konishchev): Labels
+    #[serde(default)]
+    pub labels: HashMap<String, String>,
 }
 
 pub struct DailyTimeSeries {
@@ -54,7 +54,17 @@ impl DailyTimeSeries {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn backfill(config: &BackfillingConfig, metrics: Vec<DailyTimeSeries>) -> EmptyResult {
+pub async fn backfill(config: &BackfillingConfig, mut metrics: Vec<DailyTimeSeries>) -> EmptyResult {
+    if !config.labels.is_empty() {
+        for metric in &mut metrics {
+            for (label, value) in &config.labels {
+                if metric.labels.insert(label.to_owned(), value.to_owned()).is_some() {
+                    return Err!("Invalid metrics backfilling configuration: backfilled metrics already have {label:?} label");
+                }
+            }
+        }
+    }
+
     let client = ClientBuilder::new()
         .redirect(reqwest::redirect::Policy::none())
         .no_brotli()
