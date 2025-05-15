@@ -18,10 +18,10 @@ use crate::util;
 #[serde(deny_unknown_fields)]
 pub struct BackfillingConfig {
     pub url: Url,
-    #[serde(deserialize_with = "deserialize_scrape_interval")]
-    pub scrape_interval: Duration,
     #[serde(default)]
     pub labels: HashMap<String, String>,
+    #[serde(deserialize_with = "deserialize_scrape_interval")]
+    pub scrape_interval: Duration,
 }
 
 pub struct DailyTimeSeries {

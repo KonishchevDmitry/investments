@@ -3,11 +3,13 @@
 # Investments
 
 Helps you with managing your investments:
+* **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends, tax deductions and optionally inflation when calculates portfolio performance.
+* **Backtesting:** backtests you portfolio against configured benchmarks.
 * **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your asset allocation.
 * **Stock selling simulation:** calculates revenue, profit, taxes and real profit percent which considers taxes into account.
 * **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program named Декларация) by adding all required information about income from stock selling, paid dividends and idle cash interest.
-* **Analysis:** calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends, tax deductions and optionally inflation when calculates portfolio performance.
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
+* **Metrics:** exports analysis results in Prometheus format.
 
 Targeted for Russian investors who use [Firstrade](https://www.firstrade.com/), [Interactive Brokers](https://interactivebrokers.com/), [БКС](https://broker.ru/), [Сбер](https://sberbank.ru/) or [Т-Банк](https://www.tbank.ru/).
 
@@ -44,6 +46,14 @@ Investments keeps some data in local database located at `~/.investments/db.sqli
 `investments analyse` command calculates average rate of return from cash investments by comparing portfolio performance to performance of a bank deposit in USD and RUB currency with exactly the same investments and monthly capitalization. Considers taxes, commissions, dividends, tax deductions and optionally inflation when calculates portfolio performance.
 
 <img src="/docs/images/analyse-command.png?raw=true" width="80%" height="80%" alt="investments analyse" title="investments analyse">
+
+### Backtesting
+
+`investments backtest` command backtests all your cash flows against configured benchmarks which allows you to compare your portfolio performace with these benchmarks.
+
+The command also allows to backfill backtesting results (historical data) to [VictoriaMetrics](https://victoriametrics.com/) for further analysis.
+
+<img src="/docs/images/backtest-command.png?raw=true" width="50%" height="50%" alt="investments backtest" title="investments backtest">
 
 ### Portfolio rebalancing
 

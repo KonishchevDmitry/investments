@@ -178,6 +178,13 @@ brokers:
 
 # Stock quotes providers (see https://github.com/KonishchevDmitry/investments/blob/master/docs/quotes.md for details)
 quotes:
+  # Alpha Vantage is used to obtain historical quotes for LSE ETF which may be used as benchmarks during portfolio
+  # backtesting.
+  #
+  # API key that should be obtained here - https://www.alphavantage.co/
+  alphavantage:
+    api_key: secret
+
   fcsapi:
     # Access key that must be obtained here - https://fcsapi.com/
     access_key: secret
@@ -193,12 +200,6 @@ quotes:
   #  RSHE:  95.02 RUB
   #  83010: 45.26 CNY
 
-
-# This field is always ignored. You can place any data inside of it and use YAML anchors to refer repeatable
-# configuration values from other places of the configuration file. For example, you may refer a single asset
-# allocation configuration from multiple portfolios.
-#anchors: {}
-
 deposits:
   - name: Тинькофф
     open_date: 2019.01.31
@@ -213,3 +214,165 @@ deposits:
 
 # Configures the number of days to notify before deposit closing (for --cron mode)
 notify_deposit_closing_days: 10
+
+# This field is always ignored. You can place any data inside of it and use YAML anchors to refer repeatable
+# configuration values from other places of the configuration file. For example, you may refer a single asset
+# allocation configuration from multiple portfolios.
+anchors:
+  blackrock_benchmark: &blackrock_benchmark
+    provider: BlackRock
+    exchange: LSE
+  sber_benchmark: &sber_benchmark
+    provider: Sber
+    exchange: MOEX
+  tbank_benchmark: &tbank_benchmark
+    provider: T-Bank
+    exchange: MOEX
+  vtb_benchmark: &vtb_benchmark
+    provider: VTB
+    exchange: MOEX
+
+# Configures benchmarks for portfolio backtesting according to the following rules:
+# * At this time only MOEX and LSE exchanges are available. LSE historical quotes are available only when Alpha Vantage
+#   API key is specified (quotes.alphavantage.api_key setting). T-Bank API (brokers.tbank.api_token setting) is highly
+#   recommended for MOEX historical quotes, because MOEX API is buggy.
+# * It's assumed that accumulating ETF are used for benchmarks (because historical quotes don't provide dividend history).
+# * Each benchmark may be marked with provider info which allows to track performance of single index using different
+#   ETF providers (and split the results using provider label in metrics).
+# * Each benchmark may transition from one ETF to another during its life. For example, you want to track performance of
+#   SBMX, TMOS and EQMX ETF (Russian stocks), but your portfolio has been created when these ETF weren't available yet.
+#   In this case you select the closest analog (FXRL ETF), which will be used until some point of time, selected by you
+#   (typically some day with low volatility) at which backtesting logic sell all your FXRL and buy SBMX/TMOS/EQMX.
+#
+# Historical API handle instrument renames differently:
+# * With MOEX API you need to request quotes for different symbols depending on the period.
+# * T-Bank API forgets all previous instrument symbols and returns all quotes by its current symbol.
+# `aliases` field helps to write search rules which will work with both provider types.
+backtesting:
+  benchmarks:
+    - <<: *blackrock_benchmark
+      name: Global stocks
+      symbol: SSAC
+    - <<: *blackrock_benchmark
+      name: Global corporate bonds
+      symbol: IGLA
+      transitions:
+        2018.05.15: {symbol: CRPA}
+    - <<: *blackrock_benchmark
+      name: Global government bonds
+      symbol: IGLA
+
+    - <<: *sber_benchmark
+      name: Russian stocks
+      symbol: FXRL
+      transitions:
+        2020.12.07: {symbol: SBMX}
+    - <<: *tbank_benchmark
+      name: Russian stocks
+      symbol: FXRL
+      transitions:
+        2020.12.07: {symbol: TMOS}
+    - <<: *vtb_benchmark
+      name: Russian stocks
+      symbol: FXRL
+      transitions:
+        2020.12.07: {symbol: VTBX, aliases: [EQMX]}
+        2022.07.22: {symbol: EQMX, transition_type: rename}
+
+    - <<: *sber_benchmark
+      name: Russian money market
+      symbol: FXMM
+      transitions:
+        2021.12.30: {symbol: SBMM}
+    - <<: *tbank_benchmark
+      name: Russian money market
+      symbol: FXMM
+      transitions:
+        2021.12.30: {symbol: SBMM}
+        2023.07.14: {symbol: TMON}
+    - <<: *vtb_benchmark
+      name: Russian money market
+      symbol: FXMM
+      transitions:
+        2021.12.30: {symbol: VTBM, aliases: [LQDT]}
+        2022.07.22: {symbol: LQDT, transition_type: rename}
+
+    - <<: *sber_benchmark
+      name: Russian government bonds
+      symbol: FXRB
+      transitions:
+        2019.11.01: {symbol: SBGB}
+    - <<: *tbank_benchmark
+      name: Russian government bonds
+      symbol: FXRB
+      transitions:
+        2019.11.01: {symbol: SBGB}
+        2024.12.17: {symbol: TOFZ}
+
+    - <<: *sber_benchmark
+      name: Russian corporate bonds
+      symbol: FXRB
+      transitions:
+        2020.05.20: {symbol: SBRB}
+    - <<: *tbank_benchmark
+      name: Russian corporate bonds
+      symbol: FXRB
+      transitions:
+        2020.05.20: {symbol: SBRB}
+        2021.08.17: {symbol: TBRU}
+    - <<: *vtb_benchmark
+      name: Russian corporate bonds
+      symbol: FXRB
+      transitions:
+        2020.05.20: {symbol: SBRB}
+        2021.08.17: {symbol: VTBB, aliases: [OBLG]}
+        2022.07.22: {symbol: OBLG, transition_type: rename}
+
+    - <<: *sber_benchmark
+      name: Russian corporate eurobonds
+      symbol: FXRU
+      transitions:
+        2020.09.24: {symbol: SBCB}
+        # SBCB was frozen for a long time. SBGB had releatively low volatility during this period and resulted almost
+        # the same peformance as SBCB.
+        2022.02.03: {symbol: SBGB}
+        2024.01.15: {symbol: SBCB}
+    - <<: *tbank_benchmark
+      name: Russian corporate eurobonds
+      symbol: FXRU
+      transitions:
+        2020.09.24: {symbol: SBCB}
+        # SBCB was frozen for a long time. SBGB had releatively low volatility during this period and resulted almost
+        # the same peformance as SBCB.
+        2022.02.03: {symbol: SBGB}
+        2024.01.15: {symbol: SBCB}
+        2024.04.01: {symbol: TLCB}
+
+    - <<: *sber_benchmark
+      name: Gold
+      symbol: FXGD
+      transitions:
+        2022.02.09: {symbol: VTBG}
+        2022.07.22: {symbol: GOLD, transition_type: rename}
+        2023.01.27: {symbol: SBGD}
+    - <<: *tbank_benchmark
+      name: Gold
+      symbol: FXGD
+      transitions:
+        2022.02.09: {symbol: VTBG}
+        2022.07.22: {symbol: GOLD, transition_type: rename}
+        2023.01.27: {symbol: SBGD}
+        2025.01.29: {symbol: TGLD}
+    - <<: *vtb_benchmark
+      name: Gold
+      symbol: FXGD
+      transitions:
+        2022.02.09: {symbol: VTBG}
+        2022.07.22: {symbol: GOLD, transition_type: rename}
+
+# Specifies VictoriaMetrics configuration for metrics backfilling which is available in backtest command
+#metrics:
+#  backfilling:
+#    url: http://user:password@localhost:8428
+#    labels: {job: node, instance: server}
+#    scrape_interval: 1m
