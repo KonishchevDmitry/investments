@@ -4,7 +4,7 @@ The program needs stock and forex quotes for its work. It's actually a real prob
 
 At this time investments uses [FCS API](https://fcsapi.com/) and [Finnhub](https://finnhub.io/), so you have to register, obtain API tokens and specify them in configuration file (see [example config](config-example.yaml)).
 
-If you are client of [T-Bank broker](https://www.tbank.ru/invest/), it's also highly recommended to obtain [T-Bank Invest API sandbox token](https://tinkoff.github.io/investAPI/token/) and specify it in the config: T-Bank has a brilliant API with very high rate limits. When token is specified in config, investments uses T-Bank API for currency and SPB Exchange quotes + also falls back to T-Bank SPB/OTC quotes for other exchanges for which it doesn't have quotes provider yet (LSE and HKEX for example).
+If you are client of [T-Bank broker](https://www.tbank.ru/invest/), it's also highly recommended to obtain [T-Bank Invest API sandbox token](https://developer.tbank.ru/invest/intro/intro/token) and specify it in the config: T-Bank has a brilliant API with very high rate limits. When token is specified in config, investments uses T-Bank API for currency and SPB Exchange quotes + also falls back to T-Bank SPB/OTC quotes for other exchanges for which it doesn't have quotes provider yet (LSE and HKEX for example).
 
 ## Historical quotes
 

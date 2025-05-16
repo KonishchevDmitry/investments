@@ -173,7 +173,7 @@ brokers:
       USD: {fixed_amount: 0}
 
   tbank:
-    # Sandbox token from https://tinkoff.github.io/investAPI/token/
+    # Sandbox token from https://developer.tbank.ru/invest/intro/intro/token
     #api_token: secret
 
 # Stock quotes providers (see https://github.com/KonishchevDmitry/investments/blob/master/docs/quotes.md for details)
