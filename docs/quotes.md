@@ -6,6 +6,13 @@ At this time investments uses [FCS API](https://fcsapi.com/) and [Finnhub](https
 
 If you are client of [T-Bank broker](https://www.tbank.ru/invest/), it's also highly recommended to obtain [T-Bank Invest API sandbox token](https://tinkoff.github.io/investAPI/token/) and specify it in the config: T-Bank has a brilliant API with very high rate limits. When token is specified in config, investments uses T-Bank API for currency and SPB Exchange quotes + also falls back to T-Bank SPB/OTC quotes for other exchanges for which it doesn't have quotes provider yet (LSE and HKEX for example).
 
+## Historical quotes
+
+`investments backtest` command needs historical quotes for its work. At this time the following providers are used:
+* [MOEX API](https://iss.moex.com/iss/reference/) for MOEX exchange.
+* [T-Bank API](https://developer.tbank.ru/invest/api) if you specify its token. T-Bank API is preferred over MOEX API, because MOEX API is buggy.
+* [Stooq API](https://stooq.com/) for LSE stocks. But it doesn't provide any metainformation about stocks (quote currency for example), so [Alpha Vantage](https://www.alphavantage.co/) is used for obtaining this information (and sadly it has very low API rate limits).
+
 ## Custom quotes provider
 
 There is also an option to use your own quotes provider. Add the following configuration option:
