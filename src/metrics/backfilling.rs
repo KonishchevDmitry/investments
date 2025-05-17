@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use async_stream::try_stream;
 use chrono::{Duration, TimeZone, Utc};
@@ -98,6 +98,11 @@ pub async fn backfill(config: &BackfillingConfig, mut metrics: Vec<DailyTimeSeri
     Ok(())
 }
 
+struct DayMetric<'a> {
+    labels: &'a HashMap<String, String>,
+    value: f64,
+}
+
 async fn get_import_stream(metrics: Vec<DailyTimeSeries>, scrape_interval: Duration) -> impl Stream<Item = GenericResult<Vec<u8>>> {
     try_stream! {
         let scrape_interval = scrape_interval.num_seconds();
@@ -106,10 +111,26 @@ async fn get_import_stream(metrics: Vec<DailyTimeSeries>, scrape_interval: Durat
         let mut logged_percent = 0;
         let total: usize = metrics.iter().map(|time_series| time_series.values.len()).sum();
 
-        for time_series in metrics {
-            for (date, value) in time_series.values {
-                let mut timestamps = Vec::new();
-                let mut values = Vec::new();
+        // Without this ordering backfilling process leads to very high memory usage by VictoriaMetrics, because it runs
+        // LSM rebuilding processes in the background.
+        let mut ordered_metrics: BTreeMap<Date, Vec<DayMetric>> = BTreeMap::new();
+
+        for time_series in &metrics {
+            for &(date, value) in &time_series.values {
+                ordered_metrics.entry(date).or_default().push(DayMetric {
+                    labels: &time_series.labels,
+                    value,
+                })
+            }
+        }
+
+        let mut timestamps = Vec::new();
+        let mut values = Vec::new();
+
+        for (date, metrics) in ordered_metrics {
+            for DayMetric { labels, value } in metrics {
+                timestamps.clear();
+                values.clear();
 
                 let mut cur_time = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap()).timestamp();
                 let end_time = Utc.from_utc_datetime(&date.succ_opt().unwrap().and_hms_opt(0, 0, 0).unwrap()).timestamp();
@@ -121,8 +142,9 @@ async fn get_import_stream(metrics: Vec<DailyTimeSeries>, scrape_interval: Durat
                 }
 
                 let time_series = TimeSeries {
-                    labels: time_series.labels.clone(),
-                    timestamps, values,
+                    labels,
+                    timestamps: &timestamps,
+                    values: &values,
                 };
 
                 let mut buf = Vec::new();
@@ -145,13 +167,13 @@ async fn get_import_stream(metrics: Vec<DailyTimeSeries>, scrape_interval: Durat
 }
 
 #[derive(Serialize)]
-struct TimeSeries {
+struct TimeSeries<'a> {
     #[serde(rename="metric")]
-    labels: HashMap<String, String>,
+    labels: &'a HashMap<String, String>,
     #[serde(rename="timestamps")]
-    timestamps: Vec<i64>,
+    timestamps: &'a Vec<i64>,
     #[serde(rename="values")]
-    values: Vec<f64>,
+    values: &'a Vec<f64>,
 }
 
 fn deserialize_scrape_interval<'de, D>(deserializer: D) -> Result<Duration, D::Error>
