@@ -4,7 +4,7 @@ version = "0.8.7"
 description = "Procedural macros for investments crate"
 
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
-homepage = "https://github.com/KonishchevDmitry/investments"
+repository = "https://github.com/KonishchevDmitry/investments"
 license = "GPL-3.0+"
 edition = "2024"
 
