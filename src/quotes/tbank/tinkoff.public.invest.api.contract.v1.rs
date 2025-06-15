@@ -902,6 +902,9 @@ pub struct Option {
     /// Возможность торговать инструментом через API.
     #[prost(bool, tag = "409")]
     pub api_trade_available_flag: bool,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "410")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Данные по акции.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1048,6 +1051,9 @@ pub struct Bond {
     /// Уникальный идентификатор актива.
     #[prost(string, tag = "43")]
     pub asset_uid: ::prost::alloc::string::String,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "44")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Признак доступности для ИИС.
     #[prost(bool, tag = "51")]
     pub for_iis_flag: bool,
@@ -1180,6 +1186,9 @@ pub struct Currency {
     /// Уникальный идентификатор позиции инструмента.
     #[prost(string, tag = "29")]
     pub position_uid: ::prost::alloc::string::String,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "30")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Признак доступности для ИИС.
     #[prost(bool, tag = "41")]
     pub for_iis_flag: bool,
@@ -1315,6 +1324,9 @@ pub struct Etf {
     /// Тип площадки торговли.
     #[prost(enumeration = "InstrumentExchangeType", tag = "35")]
     pub instrument_exchange: i32,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "36")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Признак доступности для ИИС.
     #[prost(bool, tag = "41")]
     pub for_iis_flag: bool,
@@ -1453,6 +1465,9 @@ pub struct Future {
     /// Уникальный идентификатор позиции основного инструмента.
     #[prost(string, tag = "34")]
     pub basic_asset_position_uid: ::prost::alloc::string::String,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "35")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Признак доступности для ИИС.
     #[prost(bool, tag = "41")]
     pub for_iis_flag: bool,
@@ -1600,6 +1615,9 @@ pub struct Share {
     /// Тип площадки торговли.
     #[prost(enumeration = "InstrumentExchangeType", tag = "37")]
     pub instrument_exchange: i32,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "38")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Признак доступности для ИИС.
     #[prost(bool, tag = "46")]
     pub for_iis_flag: bool,
@@ -1794,6 +1812,9 @@ pub struct Instrument {
     /// Уникальный идентификатор актива.
     #[prost(string, tag = "28")]
     pub asset_uid: ::prost::alloc::string::String,
+    /// Тесты, которые необходимо пройти клиенту, чтобы совершать сделки по инструменту.
+    #[prost(string, repeated, tag = "29")]
+    pub required_tests: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Признак доступности для ИИС.
     #[prost(bool, tag = "36")]
     pub for_iis_flag: bool,
@@ -5001,7 +5022,7 @@ pub struct MarketDataServerSideStreamRequest {
 pub struct MarketDataResponse {
     #[prost(
         oneof = "market_data_response::Payload",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12"
     )]
     pub payload: ::core::option::Option<market_data_response::Payload>,
 }
@@ -5042,6 +5063,9 @@ pub mod market_data_response {
         /// Цена последней сделки.
         #[prost(message, tag = "11")]
         LastPrice(super::LastPrice),
+        /// Открытый интерес.
+        #[prost(message, tag = "12")]
+        OpenInterest(super::OpenInterest),
     }
 }
 /// subscribeCandles | Изменения статуса подписки на свечи.
@@ -5108,6 +5132,9 @@ pub struct CandleSubscription {
     /// Идентификатор подписки в формате `UUID`.
     #[prost(string, tag = "7")]
     pub subscription_id: ::prost::alloc::string::String,
+    /// Действие подписки.
+    #[prost(enumeration = "SubscriptionAction", tag = "8")]
+    pub subscription_action: i32,
     /// Источник свечей.
     #[prost(enumeration = "get_candles_request::CandleSource", optional, tag = "9")]
     pub candle_source_type: ::core::option::Option<i32>,
@@ -5173,6 +5200,9 @@ pub struct OrderBookSubscription {
     /// Тип стакана.
     #[prost(enumeration = "OrderBookType", tag = "7")]
     pub order_book_type: i32,
+    /// Действие подписки.
+    #[prost(enumeration = "SubscriptionAction", tag = "8")]
+    pub subscription_action: i32,
 }
 /// Изменение статуса подписки на поток обезличенных сделок.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -5186,6 +5216,9 @@ pub struct SubscribeTradesRequest {
     /// Тип источника сделок. Значение по умолчанию — `TRADE_SOURCE_ALL`, все сделки.
     #[prost(enumeration = "TradeSourceType", tag = "3")]
     pub trade_source: i32,
+    /// Флаг открытого интереса. **true** - в стриме дополнительно передается информация об открытом интересе для фьючерсов
+    #[prost(bool, tag = "4")]
+    pub with_open_interest: bool,
 }
 /// Запрос подписки на поток обезличенных сделок.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -5229,6 +5262,12 @@ pub struct TradeSubscription {
     /// Идентификатор подписки в формате UUID.
     #[prost(string, tag = "5")]
     pub subscription_id: ::prost::alloc::string::String,
+    /// Флаг открытого интереса. **true** - в стриме дополнительно передается информация об открытом интересе для фьючерсов
+    #[prost(bool, tag = "6")]
+    pub with_open_interest: bool,
+    /// Действие подписки.
+    #[prost(enumeration = "SubscriptionAction", tag = "7")]
+    pub subscription_action: i32,
 }
 /// Изменение статуса подписки на торговый статус инструмента.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -5279,6 +5318,9 @@ pub struct InfoSubscription {
     /// Идентификатор подписки в формате UUID.
     #[prost(string, tag = "5")]
     pub subscription_id: ::prost::alloc::string::String,
+    /// Действие подписки.
+    #[prost(enumeration = "SubscriptionAction", tag = "6")]
+    pub subscription_action: i32,
 }
 /// Изменение статуса подписки на цену последней сделки по инструменту.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -5329,6 +5371,9 @@ pub struct LastPriceSubscription {
     /// Идентификатор подписки в формате `UUID`.
     #[prost(string, tag = "5")]
     pub subscription_id: ::prost::alloc::string::String,
+    /// Действие подписки.
+    #[prost(enumeration = "SubscriptionAction", tag = "6")]
+    pub subscription_action: i32,
 }
 /// Пакет свечей в рамках стрима.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -5607,6 +5652,18 @@ pub struct LastPrice {
     #[prost(enumeration = "LastPriceType", tag = "12")]
     pub last_price_type: i32,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct OpenInterest {
+    /// UID инструмента.
+    #[prost(string, tag = "1")]
+    pub instrument_uid: ::prost::alloc::string::String,
+    /// Время получения открытого интереса в часовом поясе UTC по времени биржи.
+    #[prost(message, optional, tag = "2")]
+    pub time: ::core::option::Option<::prost_types::Timestamp>,
+    /// Открытый интерес.
+    #[prost(int64, tag = "3")]
+    pub open_interest: i64,
+}
 /// Запрос стакана.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetOrderBookRequest {
@@ -5786,6 +5843,9 @@ pub struct InstrumentClosePriceResponse {
     /// Дата совершения торгов.
     #[prost(message, optional, tag = "21")]
     pub time: ::core::option::Option<::prost_types::Timestamp>,
+    /// Дата цены закрытия вечерней сессии.
+    #[prost(message, optional, tag = "23")]
+    pub evening_session_price_time: ::core::option::Option<::prost_types::Timestamp>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetTechAnalysisRequest {
