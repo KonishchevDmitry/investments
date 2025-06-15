@@ -30,15 +30,16 @@ impl CashFlows {
 
 #[derive(Deserialize)]
 struct CashFlow {
-    #[serde(rename = "operation_date", deserialize_with = "deserialize_date")]
+    #[serde(rename = "@operation_date", deserialize_with = "deserialize_date")]
     date: Date,
 
-    #[serde(rename = "currency_code")]
+    #[serde(rename = "@currency_code")]
     currency: String,
 
+    #[serde(rename = "@amount")]
     amount: Decimal,
 
-    #[serde(rename = "comment")]
+    #[serde(rename = "@comment")]
     description: String,
 }
 

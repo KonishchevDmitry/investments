@@ -36,40 +36,42 @@ impl<const REPO: bool> ConcludedTrades<REPO> {
 
 #[derive(Deserialize)]
 struct ConcludedTrade<const REPO: bool> {
-    #[serde(rename = "deal_no")]
+    #[serde(rename = "@deal_no")]
     id: u64,
 
+    #[serde(rename = "@security_name")]
     security_name: String,
 
-    #[serde(deserialize_with = "deserialize_date_time")]
+    #[serde(rename = "@conclusion_time", deserialize_with = "deserialize_date_time")]
     conclusion_time: DateTime,
 
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@execution_date", deserialize_with = "deserialize_date")]
     execution_date: Date,
 
-    #[serde(rename = "buy_qnty")]
+    #[serde(rename = "@buy_qnty")]
     buy_quantity: Option<Decimal>,
 
-    #[serde(rename = "sell_qnty")]
+    #[serde(rename = "@sell_qnty")]
     sell_quantity: Option<Decimal>,
 
+    #[serde(rename = "@price")]
     price: Decimal,
 
-    #[serde(rename = "price_currency_code")]
+    #[serde(rename = "@price_currency_code")]
     price_currency: String,
 
     // volume - for repo trades
     // volume_currency - for ordinary trades
-    #[serde(alias="volume_currency")]
+    #[serde(rename = "@volume", alias="@volume_currency")]
     volume: Decimal,
 
-    #[serde(rename = "accounting_currency_code")]
+    #[serde(rename = "@accounting_currency_code")]
     accounting_currency: String,
 
-    #[serde(rename = "broker_commission")]
+    #[serde(rename = "@broker_commission")]
     commission: Decimal,
 
-    #[serde(rename = "broker_commission_currency_code")]
+    #[serde(rename = "@broker_commission_currency_code")]
     commission_currency: Option<String>,
 }
 
@@ -164,13 +166,13 @@ pub struct ExecutedTrades {
 
 #[derive(Deserialize)]
 struct ExecutedTrade {
-    #[serde(rename = "deal_no")]
+    #[serde(rename = "@deal_no")]
     id: u64,
 
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@plan_execution_date", deserialize_with = "deserialize_date")]
     plan_execution_date: Date,
 
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@fact_execution_date", deserialize_with = "deserialize_date")]
     fact_execution_date: Date,
 }
 

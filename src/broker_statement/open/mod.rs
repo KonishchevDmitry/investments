@@ -63,12 +63,13 @@ fn get_report_type(data: &[u8]) -> GenericResult<String> {
 
                 #[derive(Deserialize)]
                 pub struct XmlStylesheet {
+                    #[serde(rename = "@href")]
                     href: String,
                 }
 
                 let to_decode = format!("<{} {}/>", name, data);
                 let xml_stylesheet: XmlStylesheet = xml::deserialize(to_decode.as_bytes()).map_err(|_| format!(
-                    "Unexpected {} contents: {:?}", name, data))?;
+                    "Unexpected {name} contents: {data:?}"))?;
 
                 return Ok(xml_stylesheet.href)
             },

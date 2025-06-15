@@ -80,6 +80,7 @@ scraper = "0.23.1"
 separator = "0.4.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
+serde-xml-rs = "0.8.1"
 serde_yaml = "0.9.34"
 shellexpand = "3.1.1"
 strum = { version = "0.27", features = ["derive"] }
@@ -99,9 +100,6 @@ diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 # Pin rust_decimal version since it's not stable enough yet
 rust_decimal = "~1.37.1"
 rust_decimal_macros = "~1.37.1"
-
-# FIXME(konishchev): Support new version
-serde-xml-rs = "=0.7.1"
 
 # FIXME(konishchev): A workaround for broken colored table rendering (https://github.com/phsym/prettytable-rs/issues/165)
 unicode-width = "=0.1.12"

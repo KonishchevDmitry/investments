@@ -16,16 +16,17 @@ pub struct Securities {
 
 #[derive(Deserialize)]
 struct Security {
-    #[serde(rename = "security_name")]
+    #[serde(rename = "@security_name")]
     name: String,
-    #[serde(rename = "issuer_name")]
+    #[serde(rename = "@issuer_name")]
     issuer: String,
+    #[serde(rename = "@isin")]
     isin: String,
-    #[serde(rename = "security_type")]
+    #[serde(rename = "@security_type")]
     type_: String,
-    #[serde(rename = "ticker")]
+    #[serde(rename = "@ticker")]
     symbol: String,
-    #[serde(rename = "board_name")]
+    #[serde(rename = "@board_name")]
     exchange: String,
 }
 

@@ -27,10 +27,10 @@ use trades::{ConcludedTrades, ExecutedTrades};
 
 #[derive(Deserialize)]
 pub struct BrokerReport {
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@date_from", deserialize_with = "deserialize_date")]
     date_from: Date,
 
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@date_to", deserialize_with = "deserialize_date")]
     date_to: Date,
 
     #[serde(rename = "spot_account_totally", alias = "unified_account_totally")]

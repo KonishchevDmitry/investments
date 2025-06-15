@@ -241,6 +241,7 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
 
     #[derive(Deserialize)]
     struct Data {
+        #[serde(rename = "@id")]
         id: String,
 
         #[serde(rename = "rows")]
@@ -257,28 +258,28 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
     struct Row {
         // Common fields
 
-        #[serde(rename = "SECID")]
+        #[serde(rename = "@SECID")]
         symbol: Option<String>,
 
         // Security fields
 
-        #[serde(rename = "CURRENCYID")]
+        #[serde(rename = "@CURRENCYID")]
         currency: Option<String>,
 
         /// Previous trade day date
-        #[serde(rename = "PREVDATE")]
+        #[serde(rename = "@PREVDATE")]
         prev_date: Option<String>,
 
         /// Previous trade day close price
-        #[serde(rename = "PREVLEGALCLOSEPRICE")]
+        #[serde(rename = "@PREVLEGALCLOSEPRICE")]
         prev_price: Option<Decimal>,
 
         // Market data fields
 
-        #[serde(rename = "NUMTRADES")]
+        #[serde(rename = "@NUMTRADES")]
         trades: Option<u64>,
 
-        #[serde(default, rename = "LAST", deserialize_with = "deserialize_optional_decimal")]
+        #[serde(default, rename = "@LAST", deserialize_with = "deserialize_optional_decimal")]
         price: Option<Decimal>,
 
         // Time columns behaviour:
@@ -288,7 +289,7 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
         // TIME - last trade time
         // UPDATETIME - data update time
         // SYSTIME - data fetch time
-        #[serde(rename = "SYSTIME")]
+        #[serde(rename = "@SYSTIME")]
         time: Option<String>,
     }
 

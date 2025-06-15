@@ -19,34 +19,34 @@ pub struct ForexTrades {
 
 #[derive(Deserialize)]
 struct ForexTradeInfo {
-    #[serde(rename = "deal_date", deserialize_with = "deserialize_date")]
+    #[serde(rename = "@deal_date", deserialize_with = "deserialize_date")]
     conclusion_date: Date,
 
-    #[serde(rename = "deal_time", deserialize_with = "deserialize_time")]
+    #[serde(rename = "@deal_time", deserialize_with = "deserialize_time")]
     conclusion_time: Time,
 
-    #[serde(rename = "contract_code")]
+    #[serde(rename = "@contract_code")]
     code: String,
 
-    #[serde(rename = "exec_symbol")]
+    #[serde(rename = "@exec_symbol")]
     action: String,
 
-    #[serde(rename = "quantity")]
+    #[serde(rename = "@quantity")]
     quantity: Decimal,
 
-    #[serde(rename = "price_plan")]
+    #[serde(rename = "@price_plan")]
     price: Decimal,
 
-    #[serde(rename = "currency_code")]
+    #[serde(rename = "@currency_code")]
     currency: String,
 
-    #[serde(rename = "volume")]
+    #[serde(rename = "@volume")]
     volume: Decimal,
 
-    #[serde(rename = "broker_comm")]
+    #[serde(rename = "@broker_comm")]
     commission: Decimal,
 
-    #[serde(rename = "broker_comm_currency_code")]
+    #[serde(rename = "@broker_comm_currency_code")]
     commission_currency: String,
 }
 
@@ -112,28 +112,28 @@ pub struct CurrencyConversions {
 // It's actually T+1 currency conversion trade. But for now consider it as T+0 forex trade.
 #[derive(Deserialize)]
 struct CurrencyConversionInfo {
-    #[serde(deserialize_with = "deserialize_date_time")]
+    #[serde(rename = "@conclusion_time", deserialize_with = "deserialize_date_time")]
     conclusion_time: DateTime,
 
-    #[serde(rename = "direction")]
+    #[serde(rename = "@direction")]
     direction: String,
 
-    #[serde(rename = "currency_1")]
+    #[serde(rename = "@currency_1")]
     currency_1: String,
 
-    #[serde(rename = "sum_1")]
+    #[serde(rename = "@sum_1")]
     volume_1: Decimal,
 
-    #[serde(rename = "currency_2")]
+    #[serde(rename = "@currency_2")]
     currency_2: String,
 
-    #[serde(rename = "sum_2")]
+    #[serde(rename = "@sum_2")]
     volume_2: Decimal,
 
-    #[serde(rename = "brokers_fee")]
+    #[serde(rename = "@brokers_fee")]
     commission: Decimal,
 
-    #[serde(rename = "brokers_fee_currency")]
+    #[serde(rename = "@brokers_fee_currency")]
     commission_currency: String,
 }
 

@@ -3173,9 +3173,9 @@ dependencies = [
 
 [[package]]
 name = "serde-xml-rs"
-version = "0.7.1"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6560602b989198ebb381e3192c86970116b3b2e13b8b8a39d6d0850e40b6b81"
+checksum = "53630160a98edebde0123eb4dfd0fce6adff091b2305db3154a9e920206eb510"
 dependencies = [
  "log",
  "serde",
@@ -3336,7 +3336,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "static_table_derive"
-version = "0.1.77"
+version = "0.1.78"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -4460,7 +4460,7 @@ dependencies = [
 
 [[package]]
 name = "xls_table_derive"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "darling",
  "proc-macro2",

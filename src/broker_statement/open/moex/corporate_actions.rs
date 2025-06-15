@@ -24,10 +24,13 @@ pub struct CorporateActions {
 
 #[derive(Deserialize)]
 struct Operation {
-    #[serde(rename = "operation_date", deserialize_with = "deserialize_date")]
+    #[serde(rename = "@operation_date", deserialize_with = "deserialize_date")]
     date: Date,
+    #[serde(rename = "@security_name")]
     security_name: String,
+    #[serde(rename = "@quantity")]
     quantity: Decimal,
+    #[serde(rename = "@comment")]
     comment: String,
 }
 

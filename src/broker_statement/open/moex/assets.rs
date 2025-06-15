@@ -19,10 +19,10 @@ pub struct AccountSummary {
 
 #[derive(Deserialize)]
 struct AccountSummaryItem {
-    #[serde(rename = "row_name")]
+    #[serde(rename = "@row_name")]
     name: String,
 
-    #[serde(rename = "value")]
+    #[serde(rename = "@value")]
     amount: Decimal,
 }
 
@@ -62,19 +62,19 @@ impl Assets {
 
 #[derive(Deserialize)]
 struct Asset {
-    #[serde(rename = "asset_type")]
+    #[serde(rename = "@asset_type")]
     type_: String,
 
-    #[serde(rename = "asset_name")]
+    #[serde(rename = "@asset_name")]
     name: String,
 
-    #[serde(rename = "asset_code")]
+    #[serde(rename = "@asset_code")]
     code: String,
 
-    #[serde(rename = "opening_position_plan")]
+    #[serde(rename = "@opening_position_plan")]
     start_amount: Decimal,
 
-    #[serde(rename = "closing_position_plan")]
+    #[serde(rename = "@closing_position_plan")]
     end_amount: Decimal,
 }
 

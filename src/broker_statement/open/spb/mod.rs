@@ -19,9 +19,9 @@ use trades::Trades;
 
 #[derive(Deserialize)]
 pub struct BrokerReport {
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@date_from", deserialize_with = "deserialize_date")]
     date_from: Date,
-    #[serde(deserialize_with = "deserialize_date")]
+    #[serde(rename = "@date_to", deserialize_with = "deserialize_date")]
     date_to: Date,
     #[serde(rename = "account_totally_line")]
     cash_assets: CashAssets,

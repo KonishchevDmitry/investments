@@ -45,7 +45,7 @@ impl Cbr {
     fn get_currency_rates(&self) -> GenericResult<HashMap<String, Decimal>> {
         #[derive(Deserialize, Validate)]
         struct Rates {
-            #[serde(rename = "Date", deserialize_with = "deserialize_date")]
+            #[serde(rename = "@Date", deserialize_with = "deserialize_date")]
             date: Date,
 
             #[validate(nested)]
@@ -74,10 +74,10 @@ impl Cbr {
     pub fn get_historical_currency_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
         #[derive(Deserialize, Validate)]
         struct Rates {
-            #[serde(rename = "DateRange1", deserialize_with = "deserialize_date")]
+            #[serde(rename = "@DateRange1", deserialize_with = "deserialize_date")]
             start_date: Date,
 
-            #[serde(rename = "DateRange2", deserialize_with = "deserialize_date")]
+            #[serde(rename = "@DateRange2", deserialize_with = "deserialize_date")]
             end_date: Date,
 
             #[validate(nested)]
@@ -87,7 +87,7 @@ impl Cbr {
 
         #[derive(Deserialize, Validate)]
         struct Rate {
-            #[serde(rename = "Date", deserialize_with = "deserialize_date")]
+            #[serde(rename = "@Date", deserialize_with = "deserialize_date")]
             date: Date,
 
             #[validate(range(min = 1))]
@@ -130,7 +130,7 @@ impl Cbr {
 
         #[derive(Deserialize)]
         struct Currency {
-            #[serde(rename = "ID")]
+            #[serde(rename = "@ID")]
             code: String,
 
             #[serde(rename = "ISO_Char_Code")]

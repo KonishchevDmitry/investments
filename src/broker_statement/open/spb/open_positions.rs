@@ -17,17 +17,17 @@ pub struct OpenPositions {
 
 #[derive(Deserialize)]
 struct OpenPosition {
-    #[serde(rename = "sharecode")]
+    #[serde(rename = "@sharecode")]
     code: String,
-    #[serde(rename = "isin")]
+    #[serde(rename = "@isin")]
     isin: String,
-    #[serde(rename = "categoryname")]
+    #[serde(rename = "@categoryname")]
     category: String,
-    #[serde(rename = "issuername")]
+    #[serde(rename = "@issuername")]
     issuer: String,
-    #[serde(rename = "onaccountbegin")]
+    #[serde(rename = "@onaccountbegin")]
     start_quantity: Decimal,
-    #[serde(rename = "plannedbalance")]
+    #[serde(rename = "@plannedbalance")]
     end_quantity: Decimal,
 }
 

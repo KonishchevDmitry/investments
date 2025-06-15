@@ -28,33 +28,33 @@ impl Trades {
 
 #[derive(Deserialize)]
 struct Trade {
-    #[serde(rename = "ticketdate", deserialize_with = "deserialize_date")]
+    #[serde(rename = "@ticketdate", deserialize_with = "deserialize_date")]
     conclusion_date: Date,
-    #[serde(rename = "tickettime", deserialize_with = "deserialize_time")]
+    #[serde(rename = "@tickettime", deserialize_with = "deserialize_time")]
     conclusion_time: Time,
-    #[serde(rename = "date3real", deserialize_with = "deserialize_date")]
+    #[serde(rename = "@date3real", deserialize_with = "deserialize_date")]
     execution_date: Date,
 
-    #[serde(rename = "operationtype")]
+    #[serde(rename = "@operationtype")]
     action: String,
-    #[serde(rename = "coderts")]
+    #[serde(rename = "@coderts")]
     security_code: String,
-    #[serde(rename = "categoryname")]
+    #[serde(rename = "@categoryname")]
     category: String,
-    #[serde(rename = "place")]
+    #[serde(rename = "@place")]
     exchange: String,
 
-    #[serde(rename = "price")]
+    #[serde(rename = "@price")]
     price: Decimal,
-    #[serde(rename = "pricecurrency")]
+    #[serde(rename = "@pricecurrency")]
     price_currency: String,
-    #[serde(rename = "quantity")]
+    #[serde(rename = "@quantity")]
     quantity: Decimal,
-    #[serde(rename = "paymentamount")]
+    #[serde(rename = "@paymentamount")]
     volume: Decimal,
-    #[serde(rename = "brokerage")]
+    #[serde(rename = "@brokerage")]
     commission: Decimal,
-    #[serde(rename = "paymentcurrency")]
+    #[serde(rename = "@paymentcurrency")]
     payment_currency: String,
 }
 

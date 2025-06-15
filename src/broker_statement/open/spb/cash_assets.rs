@@ -13,11 +13,11 @@ pub struct CashAssets {
 
 #[derive(Deserialize)]
 struct CashAssetsItem {
-    #[serde(rename = "currencycode")]
+    #[serde(rename = "@currencycode")]
     currency: String,
-    #[serde(rename = "amountin")]
+    #[serde(rename = "@amountin")]
     start_amount: Decimal,
-    #[serde(rename = "amountplaneout")]
+    #[serde(rename = "@amountplaneout")]
     end_amount: Decimal,
 }
 
