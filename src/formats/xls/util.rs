@@ -6,8 +6,7 @@ pub fn is_empty_row(row: &[Cell]) -> bool {
     row.iter().all(|cell| matches!(cell, Cell::Empty))
 }
 
-#[allow(dead_code)]
-fn trim_row(row: &[Cell]) -> &[Cell] {
+pub fn trim_row(row: &[Cell]) -> &[Cell] {
     trim_row_right(trim_row_left(row))
 }
 

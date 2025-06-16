@@ -101,12 +101,16 @@ impl TableColumn {
                     } else if self.optional {
                         Ok(None)
                     } else {
-                        Err!("Unable to find {:?} column - got {:?} instead", self.name, value)
+                        Err!("Unable to find {:?} column - got {value:?} instead", self.name)
                     };
                 },
-                Cell::Empty => {}
-                _ => return Err!(
-                    "Unable to find {:?} column - got an unexpected {:?} cell", self.name, cell),
+                Cell::Empty => {
+                    // A special case to be able to match empty (typically first) column
+                    if self.name.is_empty() {
+                        return Ok(Some(cell_id));
+                    }
+                }
+                _ => return Err!("Unable to find {:?} column - got an unexpected {cell:?} cell", self.name),
             };
         }
 
