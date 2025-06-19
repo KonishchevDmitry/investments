@@ -4,10 +4,9 @@ use std::ops::Bound;
 use itertools::Itertools;
 use log::debug;
 
-use crate::analysis::deposit::{InterestPeriod, Transaction};
-use crate::analysis::deposit::performance::compare_instrument_to_bank_deposit;
+use crate::analysis::deposit::Transaction;
 use crate::core::{EmptyResult, GenericResult};
-use crate::currency::{self, Cash, CashAssets, MultiCurrencyCashAccount};
+use crate::currency::{Cash, CashAssets, MultiCurrencyCashAccount};
 use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::exchanges::Exchange;
 use crate::formatting;
@@ -115,7 +114,6 @@ impl Benchmark for StockBenchmark {
     fn backtest(
         &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: bool,
     ) -> GenericResult<Vec<BacktestingResult>> {
-        debug!("Backtesting {}...", self.name());
         let start_date = cash_flows.first().unwrap().date;
 
         let (transition_date, instrument) = self.select_instrument(start_date, today, &self.quotes, true)?;
@@ -234,26 +232,12 @@ impl Backtester<'_> {
         net_value.add(&self.cash_assets);
         net_value.deposit(self.instrument.get_value(self.date)?);
 
-        let net_value = net_value.total_assets(self.date, self.currency, &self.converter)?;
+        let net_value = net_value.total_cash_assets(self.date, self.currency, &self.converter)?;
 
-        let mut result = BacktestingResult {
-            date: self.date,
-            net_value: currency::round(net_value),
-            performance: None,
-        };
+        self.results.push(BacktestingResult::calculate(
+            &self.benchmark.name(), self.date, net_value,
+            self.method, &self.transactions, 365)?);
 
-        let start_date = self.transactions.first().unwrap().date;
-        if (self.date - start_date).num_days() >= 365 {
-            let name = format!("{} @ {}", self.benchmark.name(), formatting::format_date(self.date));
-
-            let transactions = self.method.adjust_transactions(self.currency, self.date, &self.transactions)?;
-            let interest_periods = [InterestPeriod::new(start_date, self.date)];
-
-            result.performance = compare_instrument_to_bank_deposit(
-                &name, self.currency, &transactions, &interest_periods, net_value)?;
-        }
-
-        self.results.push(result);
         self.date = self.date.succ_opt().unwrap();
 
         Ok(())

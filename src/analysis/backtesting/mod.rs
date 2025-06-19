@@ -1,5 +1,6 @@
 mod benchmark;
 pub mod config;
+mod deposit;
 mod stock;
 
 use std::borrow::Cow;
@@ -7,12 +8,12 @@ use std::collections::BTreeMap;
 
 use easy_logging::GlobalContext;
 use itertools::Itertools;
-use log::warn;
+use log::{debug, warn};
 use num_traits::ToPrimitive;
 use static_table_derive::StaticTable;
 use strum::IntoEnumIterator;
 
-use crate::analysis::deposit::{self, InterestPeriod, Transaction};
+use crate::analysis::deposit::{InterestPeriod, Transaction};
 use crate::analysis::deposit::performance::compare_instrument_to_bank_deposit;
 use crate::analysis::inflation::InflationCalc;
 use crate::broker_statement::{BrokerStatement, StockSellType, StockSource};
@@ -73,7 +74,7 @@ pub fn backtest(
     }
 
     let interest_periods = [InterestPeriod::new(start_date, today)];
-    let days = deposit::get_total_activity_duration(&interest_periods);
+    let days = crate::analysis::deposit::get_total_activity_duration(&interest_periods);
     let format_performance = |performance| format!("{}%", performance);
 
     let mut results = Vec::new();
@@ -126,6 +127,8 @@ pub fn backtest(
             for benchmark in &benchmarks {
                 let full_name = format!("{} / {method} {currency}", benchmark.name());
                 let _logging_context = GlobalContext::new(&full_name);
+
+                debug!("Backtesting {}...", benchmark.name());
 
                 let daily_results = benchmark.backtest(
                     method, currency, &cash_flows, today, with_metrics,
