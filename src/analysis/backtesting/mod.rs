@@ -29,6 +29,7 @@ use crate::types::Decimal;
 
 use self::benchmark::{Benchmark, BacktestingResult};
 use self::config::{BacktestingConfig};
+use self::deposit::DepositBenchmark;
 use self::stock::StockBenchmark;
 
 pub struct BenchmarkBacktestingResult {
@@ -46,6 +47,8 @@ pub fn backtest(
     config: &BacktestingConfig, statements: &[BrokerStatement], converter: CurrencyConverterRc, quotes: QuotesRc,
     with_metrics: bool, interactive: Option<BenchmarkPerformanceType>,
 ) -> GenericResult<(Vec<BenchmarkBacktestingResult>, Vec<DailyTimeSeries>)> {
+    let currencies = ["USD", "RUB"];
+
     let mut benchmarks = Vec::<Box<dyn Benchmark>>::new();
     for benchmark in &config.benchmarks {
         benchmarks.push(Box::new(StockBenchmark::new(benchmark, converter.clone(), quotes.clone())?));
@@ -73,6 +76,12 @@ pub fn backtest(
         return Err!("The portfolio contains future cash flows");
     }
 
+    for currency in currencies {
+        let infinity = (Date::MAX - start_date).num_days().try_into().unwrap();
+        benchmarks.push(Box::new(DepositBenchmark::new(
+            &format!("{currency} cash"), currency, infinity, infinity, converter.clone())));
+    }
+
     let interest_periods = [InterestPeriod::new(start_date, today)];
     let days = crate::analysis::deposit::get_total_activity_duration(&interest_periods);
     let format_performance = |performance| format!("{}%", performance);
@@ -81,7 +90,7 @@ pub fn backtest(
     let mut daily_time_series = Vec::new();
 
     for (method_index, method) in BenchmarkPerformanceType::iter().enumerate() {
-        for currency in ["USD", "RUB"] {
+        for currency in currencies {
             let mut table = interactive.and_then(|interactive_method| {
                 if method == interactive_method {
                     Some(BacktestingResultsTable::new())

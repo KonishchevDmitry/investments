@@ -17,16 +17,19 @@ use super::benchmark::{Benchmark, BacktestingResult};
 pub struct DepositBenchmark {
     name: String,
     currency: &'static str,
-    duration: u32,
+    duration: u64,
+    replenishment_period: u64,
     converter: CurrencyConverterRc,
 }
 
 impl DepositBenchmark {
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
-    pub fn new(name: &str, currency: &'static str, duration: u32, converter: CurrencyConverterRc) -> Self {
+    pub fn new(name: &str, currency: &'static str, duration: u64, replenishment_period: u64, converter: CurrencyConverterRc) -> Self {
         DepositBenchmark {
             name: name.to_owned(),
-            currency, duration, converter,
+            currency,
+            duration,
+            replenishment_period,
+            converter,
         }
     }
 }
@@ -85,7 +88,8 @@ impl Backtester<'_> {
             let assets = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.currency)?;
             self.transactions.push(Transaction::new(cash_flow.date, assets));
 
-            self.process_cash_flow(cash_flow.date, cash_flow.cash)?;
+            let assets = self.converter.convert_to(cash_flow.date, cash_flow.cash, self.benchmark.currency)?;
+            self.process_cash_flow(cash_flow.date, assets)?;
         }
 
         self.process_to(self.today)?;
@@ -112,10 +116,11 @@ impl Backtester<'_> {
             if date == deposit.close_date {
                 let assets = self.deposits.pop_front().unwrap().close(date, false);
                 if !assets.is_zero() {
-                    self.open_new_deposit(date)?.transaction(date, assets);
+                    self.process_cash_flow(date, assets)?;
                 }
             } else {
-                assert!(date < deposit.close_date);
+                assert!(date < deposit.close_date, "open: {}, close: {}, current: {date}",
+                    deposit.open_date, deposit.close_date);
             }
         }
 
@@ -129,19 +134,22 @@ impl Backtester<'_> {
             );
 
             let net_value = self.converter.convert_to_cash(date, assets, self.currency)?;
+            let min_days_for_performance = if self.benchmark.currency == self.currency {
+                1
+            } else {
+                365 // FIXME(konishchev): To config
+            };
 
             self.results.push(BacktestingResult::calculate(
                 &self.benchmark.name(), date, net_value,
-                self.method, &self.transactions, 1)?);
+                self.method, &self.transactions, min_days_for_performance)?);
         }
 
         self.date = date.succ_opt().unwrap();
         Ok(())
     }
 
-    fn process_cash_flow(&mut self, date: Date, cash: Cash) -> EmptyResult {
-        let amount = self.converter.convert_to(date, cash, self.benchmark.currency)?;
-
+    fn process_cash_flow(&mut self, date: Date, amount: Decimal) -> EmptyResult {
         if amount.is_sign_negative() {
             while let Some(deposit) = self.deposits.back() {
                 if deposit.amount >= amount || self.deposits.len() == 1 {
@@ -154,7 +162,10 @@ impl Backtester<'_> {
         }
 
         let deposit = match self.deposits.back_mut() {
-            Some(deposit) if amount.is_sign_negative() || (date - deposit.open_date).num_days() < 30 => deposit,
+            Some(deposit) if (
+                amount.is_sign_negative() ||
+                (date - deposit.open_date).num_days() < self.benchmark.replenishment_period.try_into().unwrap()
+            ) => deposit,
             _ => self.open_new_deposit(date)?,
         };
 
@@ -180,11 +191,12 @@ struct Deposit {
 }
 
 impl Deposit {
-    fn new(date: Date, duration: u32, interest: Decimal) -> GenericResult<Deposit> {
-        let close_date = date.checked_add_days(Days::new(duration.into())).ok_or_else(|| format!(
+    fn new(date: Date, duration: u64, interest: Decimal) -> GenericResult<Deposit> {
+        let close_date = date.checked_add_days(Days::new(duration)).ok_or_else(|| format!(
             "Invalid date: {}", formatting::format_date(date)))?;
 
-        debug!("{}: Opening new {}% deposit.", formatting::format_date(date), interest);
+        debug!("{}: Opening new {}% deposit: {}.",
+            formatting::format_date(date), interest, Period::new(date, close_date)?);
 
         Ok(Deposit {
             open_date: date,
