@@ -112,7 +112,7 @@ impl Benchmark for StockBenchmark {
     }
 
     fn backtest(
-        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: bool,
+        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: Option<Date>,
     ) -> GenericResult<Vec<BacktestingResult>> {
         let start_date = cash_flows.first().unwrap().date;
 
@@ -149,7 +149,7 @@ struct Backtester<'a> {
     cash_flows: &'a [CashAssets],
     transactions: Vec<Transaction>,
     results: Vec<BacktestingResult>,
-    full: bool,
+    full: Option<Date>,
 
     date: Date,
     today: Date,
@@ -181,7 +181,7 @@ impl Backtester<'_> {
         assert!(date >= self.date);
 
         while self.date != date {
-            if self.full {
+            if self.full.is_some() {
                 self.close_day()?; // Steps to the next day
             } else {
                 self.date = date; // Attention: jumps to the requested date possibly skipping some transitions
@@ -198,7 +198,7 @@ impl Backtester<'_> {
             let (transition_date, mut new_instrument) = self.benchmark.select_instrument(
                 self.date, self.today, &self.quotes, false)?;
 
-            if self.full {
+            if self.full.is_some() {
                 assert_eq!(transition_date, self.date);
             }
 
@@ -228,15 +228,18 @@ impl Backtester<'_> {
 
         // Intentionally don't try to use real time quotes for today's date because real time and historical quotes
         // providers give access to different stocks.
-        let mut net_value = MultiCurrencyCashAccount::new();
-        net_value.add(&self.cash_assets);
-        net_value.deposit(self.instrument.get_value(self.date)?);
+        let net_value = {
+            let mut net_value = MultiCurrencyCashAccount::new();
+            net_value.add(&self.cash_assets);
+            net_value.deposit(self.instrument.get_value(self.date)?);
+            net_value.total_cash_assets(self.date, self.currency, &self.converter)?
+        };
 
-        let net_value = net_value.total_cash_assets(self.date, self.currency, &self.converter)?;
+        let performance_from = std::cmp::min(self.full.unwrap_or(self.today), self.today);
 
         self.results.push(BacktestingResult::calculate(
             &self.benchmark.name(), self.date, net_value,
-            self.method, &self.transactions, 365)?);
+            self.method, &self.transactions, self.date >= performance_from)?);
 
         self.date = self.date.succ_opt().unwrap();
 

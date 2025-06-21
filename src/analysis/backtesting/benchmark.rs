@@ -13,7 +13,7 @@ pub trait Benchmark {
     fn provider(&self) -> Option<String>;
 
     fn backtest(
-        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: bool,
+        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: Option<Date>,
     ) -> GenericResult<Vec<BacktestingResult>>;
 }
 
@@ -26,7 +26,7 @@ pub struct BacktestingResult {
 impl BacktestingResult {
     pub fn calculate(
         name: &str, date: Date, net_value: Cash, method: BenchmarkPerformanceType,
-        transactions: &[Transaction], min_days_for_performance: i64,
+        transactions: &[Transaction], with_performance: bool,
     ) -> GenericResult<BacktestingResult> {
         let mut result = BacktestingResult {
             date,
@@ -34,12 +34,11 @@ impl BacktestingResult {
             performance: None,
         };
 
-        let start_date = transactions.first().unwrap().date;
-        if (date - start_date).num_days() >= min_days_for_performance {
+        if with_performance {
             let name = format!("{} @ {}", name, formatting::format_date(date));
 
             let transactions = method.adjust_transactions(net_value.currency, date, transactions)?;
-            let interest_periods = [InterestPeriod::new(start_date, date)];
+            let interest_periods = [InterestPeriod::new(transactions.first().unwrap().date, date)];
 
             result.performance = compare_instrument_to_bank_deposit(
                 &name, net_value.currency, &transactions, &interest_periods, net_value.amount)?;

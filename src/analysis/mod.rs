@@ -77,7 +77,7 @@ pub fn backtest(
 
     let (results, metrics) = backtesting::backtest(
         &config.backtesting, &statements, converter.clone(), quotes.clone(),
-        backfill.is_some(), interactive)?;
+        backfill.map(|config| config.min_performance_period), interactive)?;
 
     if let Some(config) = backfill {
         backfilling::backfill(config, metrics).map_err(|e| format!(

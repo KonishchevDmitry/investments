@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use async_stream::try_stream;
-use chrono::{Duration, TimeZone, Utc};
+use chrono::{Duration, TimeDelta, TimeZone, Utc};
 use futures_core::stream::Stream;
 use log::info;
 use reqwest::{self, Body, ClientBuilder};
@@ -22,6 +22,9 @@ pub struct BackfillingConfig {
     pub labels: HashMap<String, String>,
     #[serde(deserialize_with = "deserialize_scrape_interval")]
     pub scrape_interval: Duration,
+    // FIXME(konishchev): To example config
+    #[serde(default = "default_min_performance_period", deserialize_with = "deserialize_min_performance_period")]
+    pub min_performance_period: Duration,
 }
 
 pub struct DailyTimeSeries {
@@ -183,4 +186,23 @@ fn deserialize_scrape_interval<'de, D>(deserializer: D) -> Result<Duration, D::E
     time::parse_duration(&value).ok().filter(|&scrape_interval| {
         scrape_interval >= Duration::seconds(1) && scrape_interval <= Duration::days(1)
     }).ok_or_else(|| D::Error::custom(format!("Invalid scrape interval: {value:?}")))
+}
+
+fn default_min_performance_period() -> Duration {
+    Duration::days(1)
+}
+
+fn deserialize_min_performance_period<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where D: Deserializer<'de>
+{
+    let value: String = Deserialize::deserialize(deserializer)?;
+    let duration = time::parse_duration(&value).ok().ok_or_else(|| D::Error::custom(format!(
+        "Invalid minimum performance period: {value:?}")))?;
+
+    let days = duration.num_days();
+    if days < 1 || duration != TimeDelta::days(days) {
+        return Err(D::Error::custom("Invalid minimum performance period: it must have day granularity"));
+    }
+
+    Ok(duration)
 }

@@ -6,6 +6,7 @@ mod stock;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
+use chrono::Duration;
 use easy_logging::GlobalContext;
 use itertools::Itertools;
 use log::{debug, warn};
@@ -14,7 +15,6 @@ use static_table_derive::StaticTable;
 use strum::IntoEnumIterator;
 
 use crate::analysis::deposit::{InterestPeriod, Transaction};
-use crate::analysis::deposit::performance::compare_instrument_to_bank_deposit;
 use crate::analysis::inflation::InflationCalc;
 use crate::broker_statement::{BrokerStatement, StockSellType, StockSource};
 use crate::core::GenericResult;
@@ -45,7 +45,7 @@ pub struct BenchmarkBacktestingResult {
 
 pub fn backtest(
     config: &BacktestingConfig, statements: &[BrokerStatement], converter: CurrencyConverterRc, quotes: QuotesRc,
-    with_metrics: bool, interactive: Option<BenchmarkPerformanceType>,
+    with_metrics: Option<Duration>, interactive: Option<BenchmarkPerformanceType>,
 ) -> GenericResult<(Vec<BenchmarkBacktestingResult>, Vec<DailyTimeSeries>)> {
     let currencies = ["USD", "RUB"];
 
@@ -76,6 +76,10 @@ pub fn backtest(
         return Err!("The portfolio contains future cash flows");
     }
 
+    let with_metrics = with_metrics.map(|min_performance_period| {
+        start_date.checked_add_signed(min_performance_period).unwrap_or(Date::MAX)
+    });
+
     for currency in currencies {
         let infinity = (Date::MAX - start_date).num_days().try_into().unwrap();
         benchmarks.push(Box::new(DepositBenchmark::new(
@@ -100,36 +104,35 @@ pub fn backtest(
             });
 
             {
-                let _logging_context = GlobalContext::new(&format!("Portfolio / {method} {currency}"));
+                let name = metrics::PORTFOLIO_INSTRUMENT;
+                let _logging_context = GlobalContext::new(&format!("{name} / {method} {currency}"));
 
                 let transactions = cash_flows_to_transactions(currency, &cash_flows, &converter)?;
-                let transactions = method.adjust_transactions(currency, today, &transactions)?;
 
                 let mut net_value = Cash::zero(currency);
                 for statement in statements {
                     net_value += statement.net_value(&converter, &quotes, currency, true)?;
                 }
 
-                let performance = compare_instrument_to_bank_deposit(
-                    "portfolio", currency, &transactions, &interest_periods, net_value.amount)?;
+                let result = BacktestingResult::calculate(name, today, net_value, method, &transactions, true)?;
 
                 if let Some(table) = table.as_mut() {
                     table.add_row(BacktestingResultsTableRow {
-                        benchmark: s!("Portfolio"),
+                        benchmark: name.to_owned(),
                         result: Cell::new_round_decimal(net_value.amount),
-                        performance: performance.map(format_performance),
+                        performance: result.performance.map(format_performance),
                     });
                 }
 
                 results.push(BenchmarkBacktestingResult {
-                    name: metrics::PORTFOLIO_INSTRUMENT.to_owned(),
+                    name: name.to_owned(),
                     provider: None,
 
                     method,
                     currency: currency.to_owned(),
 
-                    net_value: net_value.round().amount,
-                    performance: performance,
+                    net_value: result.net_value,
+                    performance: result.performance,
                 });
             };
 
@@ -143,9 +146,9 @@ pub fn backtest(
                     method, currency, &cash_flows, today, with_metrics,
                 ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
 
-                if with_metrics {
+                if let Some(performance_start_date) = with_metrics {
                     let metrics = generate_metrics(
-                        benchmark.as_ref(), method, currency, &daily_results, method_index == 0
+                        benchmark.as_ref(), method, currency, &daily_results, performance_start_date, method_index == 0
                     ).map_err(|e| format!("Failed to generate metrics for {full_name}: {e}"))?;
                     daily_time_series.extend(metrics);
                 }
@@ -295,7 +298,7 @@ fn cash_flows_to_transactions(currency: &str, cash_flows: &[CashAssets], convert
 
 fn generate_metrics(
     benchmark: &dyn Benchmark, method: BenchmarkPerformanceType, currency: &str, results: &[BacktestingResult],
-    with_net_value: bool,
+    performance_start_date: Date, with_net_value: bool,
 ) -> GenericResult<Vec<DailyTimeSeries>> {
     let time_series = |name: &str| {
         DailyTimeSeries::new(&format!("{}_{name}", metrics::NAMESPACE))
@@ -316,9 +319,11 @@ fn generate_metrics(
         }
 
         if let Some(performance) = result.performance {
-            let performance = performance.to_f64().ok_or_else(|| format!(
-                "Got an invalid performance: {}", performance))?;
-            performance_time_series.add_value(result.date, performance);
+            if result.date >= performance_start_date {
+                let performance = performance.to_f64().ok_or_else(|| format!(
+                    "Got an invalid performance: {}", performance))?;
+                performance_time_series.add_value(result.date, performance);
+            }
         }
     }
 

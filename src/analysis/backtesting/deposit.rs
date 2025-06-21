@@ -44,7 +44,7 @@ impl Benchmark for DepositBenchmark {
     }
 
     fn backtest(
-        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: bool,
+        &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: Option<Date>,
     ) -> GenericResult<Vec<BacktestingResult>> {
         Backtester {
             method, currency,
@@ -72,7 +72,7 @@ struct Backtester<'a> {
     cash_flows: &'a [CashAssets],
     transactions: Vec<Transaction>,
     results: Vec<BacktestingResult>,
-    full: bool,
+    full: Option<Date>,
 
     date: Date,
     today: Date,
@@ -102,7 +102,7 @@ impl Backtester<'_> {
         assert!(date >= self.date);
 
         while self.date != date {
-            self.close_day(self.full)?;
+            self.close_day(self.full.is_some())?;
         }
 
         Ok(())
@@ -134,15 +134,11 @@ impl Backtester<'_> {
             );
 
             let net_value = self.converter.convert_to_cash(date, assets, self.currency)?;
-            let min_days_for_performance = if self.benchmark.currency == self.currency {
-                1
-            } else {
-                365 // FIXME(konishchev): To config
-            };
+            let performance_from = std::cmp::min(self.full.unwrap_or(self.today), self.today);
 
             self.results.push(BacktestingResult::calculate(
                 &self.benchmark.name(), date, net_value,
-                self.method, &self.transactions, min_days_for_performance)?);
+                self.method, &self.transactions, self.date >= performance_from)?);
         }
 
         self.date = date.succ_opt().unwrap();

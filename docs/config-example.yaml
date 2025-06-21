@@ -376,3 +376,6 @@ backtesting:
 #    url: http://user:password@localhost:8428
 #    labels: {job: node, instance: server}
 #    scrape_interval: 1m
+#    # Excludes dates at which portfolio's age was less then the specified value during performance calculation to
+#    # exclude too volatile and non-representative results.
+#    min_performance_period: 365d
