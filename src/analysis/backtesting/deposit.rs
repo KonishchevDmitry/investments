@@ -137,7 +137,7 @@ impl Backtester<'_> {
             let performance_from = std::cmp::min(self.full.unwrap_or(self.today), self.today);
 
             self.results.push(BacktestingResult::calculate(
-                &self.benchmark.name(), date, net_value,
+                &self.benchmark.full_name(), date, net_value,
                 self.method, &self.transactions, self.date >= performance_from)?);
         }
 

@@ -137,14 +137,14 @@ pub fn backtest(
             };
 
             for benchmark in &benchmarks {
-                let full_name = format!("{} / {method} {currency}", benchmark.name());
+                let full_name = format!("{} / {method} {currency}", benchmark.full_name());
                 let _logging_context = GlobalContext::new(&full_name);
 
-                debug!("Backtesting {}...", benchmark.name());
+                debug!("Backtesting {}...", benchmark.full_name());
 
                 let daily_results = benchmark.backtest(
                     method, currency, &cash_flows, today, with_metrics,
-                ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.name()))?;
+                ).map_err(|e| format!("Failed to backtest the portfolio against {} benchmark: {e}", benchmark.full_name()))?;
 
                 if let Some(performance_start_date) = with_metrics {
                     let metrics = generate_metrics(
@@ -169,7 +169,7 @@ pub fn backtest(
 
                 if let Some(table) = table.as_mut() {
                     table.add_row(BacktestingResultsTableRow {
-                        benchmark: benchmark.name(),
+                        benchmark: benchmark.full_name(),
                         result: Cell::new_round_decimal(current.net_value),
                         performance: current.performance.map(format_performance),
                     });

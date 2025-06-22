@@ -101,10 +101,7 @@ impl StockBenchmark {
 
 impl Benchmark for StockBenchmark {
     fn name(&self) -> String {
-        match self.provider.as_ref() {
-            Some(provider) => format!("{} ({provider})", self.name),
-            None => self.name.clone(),
-        }
+        self.name.clone()
     }
 
     fn provider(&self) -> Option<String> {
@@ -238,7 +235,7 @@ impl Backtester<'_> {
         let performance_from = std::cmp::min(self.full.unwrap_or(self.today), self.today);
 
         self.results.push(BacktestingResult::calculate(
-            &self.benchmark.name(), self.date, net_value,
+            &self.benchmark.full_name(), self.date, net_value,
             self.method, &self.transactions, self.date >= performance_from)?);
 
         self.date = self.date.succ_opt().unwrap();

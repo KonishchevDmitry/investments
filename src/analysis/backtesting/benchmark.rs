@@ -12,6 +12,13 @@ pub trait Benchmark {
     fn name(&self) -> String;
     fn provider(&self) -> Option<String>;
 
+    fn full_name(&self) -> String {
+        match self.provider() {
+            Some(provider) => format!("{} ({provider})", self.name()),
+            None => self.name(),
+        }
+    }
+
     fn backtest(
         &self, method: BenchmarkPerformanceType, currency: &str, cash_flows: &[CashAssets], today: Date, full: Option<Date>,
     ) -> GenericResult<Vec<BacktestingResult>>;
