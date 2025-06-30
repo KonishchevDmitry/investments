@@ -1,4 +1,4 @@
-mod deposits;
+pub mod deposits;
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -25,6 +25,7 @@ use crate::util::{self, DecimalRestrictions};
 
 use super::common::send_request;
 
+pub const BASE_URL: &str = "https://www.cbr.ru";
 pub const BASE_CURRENCY: &str = "RUB";
 
 pub struct Cbr {

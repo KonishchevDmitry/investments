@@ -127,7 +127,7 @@ impl Quotes {
         // * FCS API is too restrictive
         //
         // So use CBR API here and fallback to FCS API only for unknown currencies.
-        providers.push(Arc::new(Cbr::new("https://www.cbr.ru")));
+        providers.push(Arc::new(Cbr::new(cbr::BASE_URL)));
 
         // Use FCS API for forex
         if let Some(config) = config.quotes.fcsapi.as_ref() {

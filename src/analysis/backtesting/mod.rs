@@ -23,7 +23,7 @@ use crate::currency::converter::{CurrencyConverter, CurrencyConverterRc};
 use crate::formatting;
 use crate::formatting::table::Cell;
 use crate::metrics::{self, backfilling::DailyTimeSeries};
-use crate::quotes::QuotesRc;
+use crate::quotes::{cbr, QuotesRc};
 use crate::time::{self, Date};
 use crate::types::Decimal;
 
@@ -80,10 +80,28 @@ pub fn backtest(
         start_date.checked_add_signed(min_performance_period).unwrap_or(Date::MAX)
     });
 
+    if config.deposit_benchmarks.unwrap_or(true) {
+        for deposit in cbr::deposits::get_interest_rates(cbr::BASE_URL)? {
+            let name = deposit.name.as_str();
+            if benchmarks.iter().any(|benchmark| benchmark.name() == name) {
+                return Err!("Invalid benchmark name: {:?}", name);
+            }
+
+            benchmarks.push(Box::new(DepositBenchmark::new(
+                name, deposit.currency, deposit.duration.into(), 30,
+                Some(deposit.interest_rates), converter.clone())));
+        }
+    }
+
     for currency in currencies {
+        let name = format!("{currency} cash");
+        if benchmarks.iter().any(|benchmark| benchmark.name() == name) {
+            return Err!("Invalid benchmark name: {:?}", name);
+        }
+
         let infinity = (Date::MAX - start_date).num_days().try_into().unwrap();
         benchmarks.push(Box::new(DepositBenchmark::new(
-            &format!("{currency} cash"), currency, infinity, infinity, converter.clone())));
+            &name, currency, infinity, infinity, None, converter.clone())));
     }
 
     let interest_periods = [InterestPeriod::new(start_date, today)];

@@ -1,12 +1,13 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
-use chrono::Days;
+use chrono::{Datelike, Days};
 use log::{trace, debug};
 
-use crate::analysis::deposit::Transaction;
+use crate::analysis::deposit::{DepositEmulator, Transaction};
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
 use crate::currency::converter::CurrencyConverterRc;
+#[cfg(test)] use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::time::{Date, Period};
 use crate::types::Decimal;
@@ -19,18 +20,54 @@ pub struct DepositBenchmark {
     currency: &'static str,
     duration: u64,
     replenishment_period: u64,
+    interest_rates: Option<BTreeMap<i32, Vec<Decimal>>>,
     converter: CurrencyConverterRc,
 }
 
 impl DepositBenchmark {
-    pub fn new(name: &str, currency: &'static str, duration: u64, replenishment_period: u64, converter: CurrencyConverterRc) -> Self {
+    pub fn new(
+        name: &str, currency: &'static str, duration: u64, replenishment_period: u64,
+        interest_rates: Option<BTreeMap<i32, Vec<Decimal>>>, converter: CurrencyConverterRc,
+    ) -> Self {
         DepositBenchmark {
             name: name.to_owned(),
             currency,
             duration,
             replenishment_period,
+            interest_rates,
             converter,
         }
+    }
+
+    fn get_interest_rate(&self, date: Date, max_age: i32) -> GenericResult<Decimal> {
+        assert!(max_age < 12);
+
+        let Some(interest_rates) = self.interest_rates.as_ref() else {
+            return Ok(dec!(0));
+        };
+
+
+        if let Some(rates) = interest_rates.get(&date.year()) {
+            let month = std::cmp::min(date.month() as i32, rates.len() as i32);
+
+            if date.month() as i32 - month > max_age {
+                return Err!("There is no deposit interest rates statistics for {}: the last known date is {}.{:02}",
+                    formatting::format_date(date), date.year(), rates.len())
+            }
+
+            return Ok(rates[month as usize - 1]);
+        }
+
+        if let Some((&year, rates)) = interest_rates.range(..&date.year()).last() {
+            if (date.year() * 12 + date.month() as i32) - (year * 12 + rates.len() as i32) > max_age {
+                return Err!("There is no deposit interest rates statistics for {}: the last known date is {}.{:02}",
+                    formatting::format_date(date), year, rates.len())
+            }
+            return Ok(rates[rates.len() - 1]);
+        }
+
+        Err!("There is no deposit interest rates statistics for {}: the first interest rate is at {}",
+            formatting::format_date(date), *interest_rates.first_key_value().unwrap().0)
     }
 }
 
@@ -114,7 +151,7 @@ impl Backtester<'_> {
 
         if let Some(deposit) = self.deposits.front() {
             if date == deposit.close_date {
-                let assets = self.deposits.pop_front().unwrap().close(date, false);
+                let assets = self.deposits.pop_front().unwrap().close(date);
                 if !assets.is_zero() {
                     self.process_cash_flow(date, assets)?;
                 }
@@ -152,7 +189,7 @@ impl Backtester<'_> {
                     break;
                 }
 
-                let assets = self.deposits.pop_back().unwrap().close(date, false);
+                let assets = self.deposits.pop_back().unwrap().close(date);
                 self.deposits.back_mut().unwrap().transaction(date, assets);
             }
         }
@@ -170,7 +207,7 @@ impl Backtester<'_> {
     }
 
     fn open_new_deposit(&mut self, date: Date) -> GenericResult<&mut Deposit> {
-        let interest = dec!(0); // FIXME(konishchev): Implement
+        let interest = self.benchmark.get_interest_rate(date, 3)?;
         self.deposits.push_back(Deposit::new(date, self.benchmark.duration, interest)?);
         Ok(self.deposits.back_mut().unwrap())
     }
@@ -179,7 +216,6 @@ impl Backtester<'_> {
 struct Deposit {
     open_date: Date,
     close_date: Date,
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
     interest: Decimal,
 
     amount: Decimal,
@@ -218,23 +254,103 @@ impl Deposit {
         self.amount += amount;
     }
 
-    fn close(self, date: Date, lose_income: bool) -> Decimal {
+    fn close(self, date: Date) -> Decimal {
         if date == self.close_date {
-            debug!("{}: Closing {} deposit.", formatting::format_date(date), self.open_date);
+            debug!("{}: Closing {} deposit.", formatting::format_date(date), formatting::format_date(self.open_date));
         } else {
             assert!(date < self.close_date);
-
-            debug!("{}: Early closing {} deposit{}.",
+            debug!("{}: Early closing {} deposit.",
                 formatting::format_date(date),
-                Period::new(self.open_date, self.close_date).unwrap(),
-                lose_income.then_some(" with income losing").unwrap_or_default());
-
-            if lose_income {
-                return self.amount;
-            }
+                Period::new(self.open_date, self.close_date).unwrap());
         }
 
-        // FIXME(konishchev): Don't interest negative amount
-        self.amount // FIXME(konishchev): Implement calculation
+        DepositEmulator::new(self.open_date, date, self.interest)
+            .with_monthly_capitalization(false)
+            .emulate(&self.transactions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_interest_rate_cash() {
+        let benchmark = mock_benchmark(None);
+
+        assert_eq!(
+            benchmark.get_interest_rate(date!(2025, 1, 1), 3).unwrap(),
+            dec!(0),
+        );
+    }
+
+    #[test]
+    fn get_interest_rate() {
+        let benchmark = mock_benchmark(Some(btreemap! {
+            2025 => vec![dec!(1.25), dec!(2.25), dec!(3.25)],
+            2024 => vec![
+                dec!(1.24), dec!(2.24), dec!(3.24), dec!(4.24), dec!(5.24), dec!(6.24),
+                dec!(7.24), dec!(8.24), dec!(9.24), dec!(10.24), dec!(11.24), dec!(12.24),
+            ],
+            2023 => vec![
+                dec!(1.23), dec!(2.23), dec!(3.23), dec!(4.23), dec!(5.23), dec!(6.23),
+                dec!(7.23), dec!(8.23), dec!(9.23), dec!(10.23), dec!(11.23), dec!(12.23),
+            ],
+        }));
+
+        // Exact matches
+
+        assert_eq!(benchmark.get_interest_rate(date!(2024,  1,  1), 3).unwrap(), dec!( 1.24));
+        assert_eq!(benchmark.get_interest_rate(date!(2024, 12, 12), 3).unwrap(), dec!(12.24));
+
+        assert_eq!(benchmark.get_interest_rate(date!(2025, 1, 1), 3).unwrap(), dec!(1.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025, 3, 3), 3).unwrap(), dec!(3.25));
+
+        // Outdated matches
+
+        assert_eq!(benchmark.get_interest_rate(date!(2025, 4, 4), 3).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025, 5, 5), 3).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025, 6, 6), 3).unwrap(), dec!(3.25));
+
+        assert_eq!(
+            benchmark.get_interest_rate(date!(2025, 7, 7), 3).unwrap_err().to_string(),
+            "There is no deposit interest rates statistics for 07.07.2025: the last known date is 2025.03",
+        );
+        assert_eq!(
+            benchmark.get_interest_rate(date!(2026, 1, 1), 3).unwrap_err().to_string(),
+            "There is no deposit interest rates statistics for 01.01.2026: the last known date is 2025.03",
+        );
+
+        // From previous year
+
+        assert_eq!(
+            benchmark.get_interest_rate(date!(2026, 3, 3), 11).unwrap_err().to_string(),
+            "There is no deposit interest rates statistics for 03.03.2026: the last known date is 2025.03",
+        );
+
+        assert_eq!(benchmark.get_interest_rate(date!(2026,  2,  2), 11).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2026,  1,  1), 11).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025, 12, 12), 11).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025,  4,  4), 11).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025,  3,  3), 11).unwrap(), dec!(3.25));
+        assert_eq!(benchmark.get_interest_rate(date!(2025,  2,  2), 11).unwrap(), dec!(2.25));
+
+        // Too early
+
+        assert_eq!(
+            benchmark.get_interest_rate(date!(2022, 12, 12), 3).unwrap_err().to_string(),
+            "There is no deposit interest rates statistics for 12.12.2022: the first interest rate is at 2023",
+        );
+    }
+
+    fn mock_benchmark(interest_rates: Option<BTreeMap<i32, Vec<Decimal>>>) -> DepositBenchmark {
+        DepositBenchmark {
+            name: s!("Mock"),
+            currency: "RUB",
+            duration: 365,
+            replenishment_period: 30,
+            interest_rates,
+            converter: CurrencyConverter::mock(),
+        }
     }
 }

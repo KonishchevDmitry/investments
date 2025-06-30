@@ -22,7 +22,6 @@ pub struct BackfillingConfig {
     pub labels: HashMap<String, String>,
     #[serde(deserialize_with = "deserialize_scrape_interval")]
     pub scrape_interval: Duration,
-    // FIXME(konishchev): To example config
     #[serde(default = "default_min_performance_period", deserialize_with = "deserialize_min_performance_period")]
     pub min_performance_period: Duration,
 }

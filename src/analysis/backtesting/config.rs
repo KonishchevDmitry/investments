@@ -15,6 +15,7 @@ pub struct BacktestingConfig {
     #[serde(default)]
     #[validate(nested)]
     pub benchmarks: Vec<BenchmarkConfig>,
+    pub deposit_benchmarks: Option<bool>,
 }
 
 impl BacktestingConfig {

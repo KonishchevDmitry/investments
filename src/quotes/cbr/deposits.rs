@@ -19,7 +19,6 @@ use crate::types::Decimal;
 // Статистика -> Банковский сектор -> Процентные ставки по кредитам и депозитам и структура кредитов и депозитов по
 // срочности -> Сведения по вкладам (депозитам) физических лиц и нефинансовых организаций в рублях, долларах США и евро
 // (https://www.cbr.ru/statistics/bank_sector/int_rat/)
-#[allow(dead_code)] // FIXME(konishchev): Drop it
 pub fn get_interest_rates(base_url: &str) -> GenericResult<Vec<DepositStatistics>> {
     let client = Client::new();
     let url = format!("{}/vfs/statistics/pdko/int_rat/deposits.xlsx", base_url);
@@ -30,13 +29,9 @@ pub fn get_interest_rates(base_url: &str) -> GenericResult<Vec<DepositStatistics
 }
 
 pub struct DepositStatistics {
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
     pub name: String,
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
     pub currency: &'static str,
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
     pub duration: u32,
-    #[allow(dead_code)] // FIXME(konishchev): Drop it
     pub interest_rates: BTreeMap<i32, Vec<Decimal>>,
 }
 
@@ -204,9 +199,9 @@ fn parse_interest_rates_sheet(currency: &'static str, mut reader: SheetReader) -
         }
     }
 
-    let mut deposit_3m = DepositStatistics::new(&format!("{currency} deposit: 3 months"), currency, 3);
-    let mut deposit_6m = DepositStatistics::new(&format!("{currency} deposit: 6 months"), currency, 6);
-    let mut deposit_1y = DepositStatistics::new(&format!("{currency} deposit: 1 year"), currency, 12);
+    let mut deposit_3m = DepositStatistics::new(&format!("{currency} deposit: 3 months"), currency, 91);
+    let mut deposit_6m = DepositStatistics::new(&format!("{currency} deposit: 6 months"), currency, 181);
+    let mut deposit_1y = DepositStatistics::new(&format!("{currency} deposit: 1 year"), currency, 365);
 
     for row in xls::read_table::<InterestRatesRow>(&mut reader)? {
         let (year, month) = parse_date(&row.date).ok_or_else(|| format!(
@@ -282,13 +277,13 @@ mod tests {
         }).collect_vec();
 
         assert_eq!(deposits, vec![
-            ("RUB", 3, dec!(4.37)),
-            ("RUB", 6, dec!(4.62)),
-            ("RUB", 12, dec!(4.91)),
+            ("RUB", 91, dec!(4.37)),
+            ("RUB", 181, dec!(4.62)),
+            ("RUB", 365, dec!(4.91)),
 
-            ("USD", 3, dec!(0.39)),
-            ("USD", 6, dec!(0.84)),
-            ("USD", 12, dec!(0.87)),
+            ("USD", 91, dec!(0.39)),
+            ("USD", 181, dec!(0.84)),
+            ("USD", 365, dec!(0.87)),
         ]);
     }
 
