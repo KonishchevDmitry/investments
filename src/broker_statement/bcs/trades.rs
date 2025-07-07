@@ -169,7 +169,7 @@ impl TradeRow {
                     None
                 }
             })
-            .ok_or_else(|| format!("Invalid quantity: {}", quantity))?;
+            .ok_or_else(|| format!("Invalid quantity: {quantity}"))?;
 
         let price = util::validate_named_decimal("price", price, DecimalRestrictions::StrictlyPositive)
             .map(|price| Cash::new(currency, price))?;
@@ -218,7 +218,7 @@ impl CurrentInstrument {
     fn parse(name: &str) -> GenericResult<CurrentInstrument> {
         Ok(CurrentInstrument {
             symbol: parse_symbol(name)?,
-            end_marker: format!("Итого по {}:", name),
+            end_marker: format!("Итого по {name}:"),
         })
     }
 }

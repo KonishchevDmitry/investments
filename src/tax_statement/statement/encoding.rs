@@ -36,11 +36,11 @@ macro_rules! impl_tax_statement_type {
 impl_tax_statement_type!(usize);
 impl TaxStatementPrimitiveType for usize {
     fn decode(data: &str) -> GenericResult<usize> {
-        Ok(data.parse().map_err(|_| format!("Invalid integer value: {:?}", data))?)
+        Ok(data.parse().map_err(|_| format!("Invalid integer value: {data:?}"))?)
     }
 
     fn encode(&self, buffer: &mut String) -> EmptyResult {
-        Ok(write!(buffer, "{}", self)?)
+        Ok(write!(buffer, "{self}")?)
     }
 }
 
@@ -77,14 +77,14 @@ impl_tax_statement_type!(Date);
 impl TaxStatementPrimitiveType for Date {
     fn decode(data: &str) -> GenericResult<Date> {
         let days = Duration::days(data.parse().map_err(|_| format!(
-            "Invalid integer value: {:?}", data))?);
+            "Invalid integer value: {data:?}"))?);
 
         Ok(get_base_date() + days)
     }
 
     fn encode(&self, buffer: &mut String) -> EmptyResult {
         let days = (*self - get_base_date()).num_days();
-        Ok(write!(buffer, "{}", days)?)
+        Ok(write!(buffer, "{days}")?)
     }
 }
 
@@ -95,7 +95,7 @@ fn get_base_date() -> Date {
 impl_tax_statement_type!(Decimal);
 impl TaxStatementPrimitiveType for Decimal {
     fn decode(data: &str) -> GenericResult<Decimal> {
-        Ok(Decimal::from_str(data).map_err(|_| format!("Invalid decimal value: {:?}", data))?)
+        Ok(Decimal::from_str(data).map_err(|_| format!("Invalid decimal value: {data:?}"))?)
     }
 
     fn encode(&self, buffer: &mut String) -> EmptyResult {
@@ -105,6 +105,6 @@ impl TaxStatementPrimitiveType for Decimal {
             return Err!("An attempt to write a non-rounded decimal value: {:?}", self);
         }
 
-        Ok(write!(buffer, "{}", value)?)
+        Ok(write!(buffer, "{value}")?)
     }
 }

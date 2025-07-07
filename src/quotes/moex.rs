@@ -350,7 +350,7 @@ fn parse_quotes(response: Response) -> GenericResult<HashMap<String, Cash>> {
 
         let trades = get_value(row.trades)?;
         let &(currency, prev_date, prev_price) = symbols.get(&symbol).ok_or_else(|| format!(
-            "There is market data for {} but security info is missing", symbol))?;
+            "There is market data for {symbol} but security info is missing"))?;
 
         let price = match row.price {
             Some(price) => {
@@ -455,7 +455,7 @@ fn deserialize_optional_decimal<'de, D>(deserializer: D) -> Result<Option<Decima
     }
 
     Ok(Some(Decimal::from_str(&value)
-        .map_err(|_| D::Error::custom(format!("Invalid decimal value: {:?}", value)))?))
+        .map_err(|_| D::Error::custom(format!("Invalid decimal value: {value:?}")))?))
 }
 
 #[cfg(test)]
@@ -526,7 +526,7 @@ mod tests {
         let securities = ["FXAU", "FXCN", "FXDE", "FXIT", "FXJP", "FXRB", "FXRL", "FXRU", "FXUK", "FXUS"];
 
         let (mut server, client) = create_server();
-        let _mock = mock_quotes(&mut server, ETF_BOARD, &securities, &format!("moex-{}.xml", status));
+        let _mock = mock_quotes(&mut server, ETF_BOARD, &securities, &format!("moex-{status}.xml"));
 
         let quotes = client.get_quotes(&securities).unwrap();
         assert_eq!(

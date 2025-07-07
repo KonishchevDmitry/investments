@@ -35,7 +35,7 @@ impl MetricsConfig {
             }
 
             group.validate_inner(portfolios).map_err(|e| format!(
-                "{:?} asset group: {}", name, e))?;
+                "{name:?} asset group: {e}"))?;
         }
         Ok(())
     }

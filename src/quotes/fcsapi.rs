@@ -70,9 +70,9 @@ impl QuotesProvider for FcsApi {
             ("access_key", &self.access_key),
         ])?;
 
-        self.rate_limiter.wait(&format!("request to {}", url));
+        self.rate_limiter.wait(&format!("request to {url}"));
         Ok(send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
-            "Failed to get quotes from {}: {}", url, e))?)
+            "Failed to get quotes from {url}: {e}"))?)
     }
 }
 
@@ -108,7 +108,7 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
             "Got an invalid UNIX timestamp: {:?}", quote.time))?;
 
         if let Some(time) = is_outdated_unix_time(time, 1650259200)? {
-            debug!("{}: Got outdated quotes: {}.", symbol, time);
+            debug!("{symbol}: Got outdated quotes: {time}.");
             continue
         }
 

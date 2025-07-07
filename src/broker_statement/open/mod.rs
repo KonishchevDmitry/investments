@@ -67,7 +67,7 @@ fn get_report_type(data: &[u8]) -> GenericResult<String> {
                     href: String,
                 }
 
-                let to_decode = format!("<{} {}/>", name, data);
+                let to_decode = format!("<{name} {data}/>");
                 let xml_stylesheet: XmlStylesheet = xml::deserialize(to_decode.as_bytes()).map_err(|_| format!(
                     "Unexpected {name} contents: {data:?}"))?;
 
@@ -124,11 +124,11 @@ mod tests {
         };
 
         let broker = Broker::Open.get_info(&Config::mock(), None).unwrap();
-        let config = Config::new(format!("testdata/configs/{}", namespace), None).unwrap();
+        let config = Config::new(format!("testdata/configs/{namespace}"), None).unwrap();
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(
-            broker, &format!("testdata/open/{}", name),
+            broker, &format!("testdata/open/{name}"),
             &Default::default(), &portfolio.instrument_internal_ids, &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()

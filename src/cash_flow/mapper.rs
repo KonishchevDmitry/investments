@@ -167,9 +167,9 @@ impl CashFlowMapper {
                 };
 
                 self.add(date, Operation::Dividend, amount, if amount.is_positive() {
-                    format!("Дивиденд от {}", description)
+                    format!("Дивиденд от {description}")
                 } else {
-                    format!("Возврат дивиденда от {}", description)
+                    format!("Возврат дивиденда от {description}")
                 });
             },
 
@@ -180,9 +180,9 @@ impl CashFlowMapper {
                 };
 
                 self.add(date, Operation::Dividend, amount, if amount.is_positive() {
-                    format!("Возврат налога, удержанного с дивиденда от {}", description)
+                    format!("Возврат налога, удержанного с дивиденда от {description}")
                 } else {
-                    format!("Налог, удержанный с дивиденда от {}", description)
+                    format!("Налог, удержанный с дивиденда от {description}")
                 });
             },
 
@@ -190,11 +190,11 @@ impl CashFlowMapper {
                 let description = statement.instrument_info.get_name(symbol);
 
                 self.add(date, Operation::RepoDeal, amount, format!(
-                    "Сделка РЕПО с {}", description));
+                    "Сделка РЕПО с {description}"));
 
                 if !commission.is_zero() {
                     self.add(date, Operation::Commission, -commission, format!(
-                        "Комиссия за заключение сделки РЕПО с {}", description));
+                        "Комиссия за заключение сделки РЕПО с {description}"));
                 }
             },
         }

@@ -141,7 +141,7 @@ impl AssetGroupRebalancer<'_> {
             balance: dec!(0),
         };
 
-        debug!("{name}:", name=name);
+        debug!("{name}:");
         rebalancer.calculate_initial_target_values();
         rebalancer.apply_restrictions();
         rebalancer.correct_balance();
@@ -621,7 +621,7 @@ fn calculate_target_commission(
 
     let date = crate::exchanges::today_trade_conclusion_time().date;
     let commission = commission_calc.add_trade(date, trade_type, shares, holding.currency_price)
-        .map_err(|e| format!("{}: {}", name, e))?;
+        .map_err(|e| format!("{name}: {e}"))?;
 
     converter.convert_to(date, commission, currency)
 }

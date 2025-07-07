@@ -21,8 +21,8 @@ fn generate_regression_tests() {
         "analyse", "backtest", "simulate-sell", "tax-statement", "cash-flow",
         "deposits", "metrics", "completion",
     ] {
-        t.add(&format!("Help {} short", command), &format!("{} -h", command));
-        t.add(&format!("Help {} long", command), &format!("{} --help", command));
+        t.add(&format!("Help {command} short"), &format!("{command} -h"));
+        t.add(&format!("Help {command} long"), &format!("{command} --help"));
     }
 
     // deposits
@@ -144,8 +144,8 @@ fn generate_regression_tests() {
     for (name, year_spec) in accounts {
         let id = &name_to_id(name);
 
-        t.with_args(&format!("Rebalance {}", name), &["rebalance", id]);
-        t.with_args(&format!("Simulate sell {}", name), &["simulate-sell", id]);
+        t.with_args(&format!("Rebalance {name}"), &["rebalance", id]);
+        t.with_args(&format!("Simulate sell {name}"), &["simulate-sell", id]);
 
         if let Some((first_tax_year, last_tax_year_spec)) = year_spec {
             let last_tax_year = last_tax_year_spec.unwrap_or(last_tax_year);
@@ -154,19 +154,19 @@ fn generate_regression_tests() {
                 let tax_year_string = &tax_year.to_string();
 
                 t.with_args(
-                    &format!("{} tax statement {}", name, tax_year),
+                    &format!("{name} tax statement {tax_year}"),
                     &["tax-statement", id, tax_year_string],
                 );
                 t.tax_statement(name, tax_year);
 
                 t.with_args(
-                    &format!("{} cash flow {}", name, tax_year),
+                    &format!("{name} cash flow {tax_year}"),
                     &["cash-flow", id, tax_year_string],
                 );
             }
         } else {
-            t.with_args(&format!("{} tax statement", name), &["tax-statement", id]);
-            t.with_args(&format!("{} cash flow", name), &["cash-flow", id]);
+            t.with_args(&format!("{name} tax statement"), &["tax-statement", id]);
+            t.with_args(&format!("{name} cash flow"), &["cash-flow", id]);
         }
     }
 
@@ -197,7 +197,7 @@ impl Tests {
         let path = format!("$OUT_PATH/{}-tax-statement-{}.dc{}", id, year, year % 10);
 
         self.tests.push(Test::new(
-            &format!("{} tax statement generation {}", name, year),
+            &format!("{name} tax statement generation {year}"),
             "tests/test-tax-statement", &[id, &year.to_string(), &path],
         ));
 

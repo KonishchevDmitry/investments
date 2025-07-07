@@ -31,7 +31,7 @@ pub struct TaxStatement {
 impl TaxStatement {
     pub fn read(path: &Path) -> GenericResult<TaxStatement> {
         Ok(TaxStatementReader::read(path).map_err(|e| format!(
-            "Error while reading {:?} tax statement: {}", path, e))?)
+            "Error while reading {path:?} tax statement: {e}"))?)
     }
 
     pub fn save(&self) -> EmptyResult {
@@ -39,7 +39,7 @@ impl TaxStatement {
 
         TaxStatementWriter::write(self, &temp_path).map_err(|e| {
             let _ = fs::remove_file(&temp_path);
-            format!("Failed to save the tax statement to {:?}: {}", temp_path, e)
+            format!("Failed to save the tax statement to {temp_path:?}: {e}")
         })?;
 
         fs::rename(&temp_path, &self.path).map_err(|e| {
@@ -164,7 +164,7 @@ impl TaxStatement {
         Ok(match found_record {
             Some(record) => Some(
                 record.as_mut_any().downcast_mut::<T>().ok_or_else(|| format!(
-                    "Failed to cast {} record to the underlaying type", name))?),
+                    "Failed to cast {name} record to the underlaying type"))?),
             None => None,
         })
     }

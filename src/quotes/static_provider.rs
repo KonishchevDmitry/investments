@@ -21,7 +21,7 @@ impl<'de> Deserialize<'de> for StaticProviderConfig {
 
         for (symbol, price) in value {
             let price = parse_price(&price).ok_or_else(|| D::Error::custom(format!(
-                "Invalid price: {:?}", price)))?;
+                "Invalid price: {price:?}")))?;
 
             quotes.insert(symbol, price);
         }

@@ -78,7 +78,7 @@ impl Payments {
                 let reversal = -reversal.cash;
                 let index = payments.iter()
                     .position(|&payment| payment.cash == reversal)
-                    .ok_or_else(|| format!("Unexpected reversal: {}", reversal))?;
+                    .ok_or_else(|| format!("Unexpected reversal: {reversal}"))?;
 
                 payments.remove(index);
             }

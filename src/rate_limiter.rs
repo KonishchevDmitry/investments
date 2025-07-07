@@ -39,7 +39,7 @@ impl RateLimiter {
         for limiter in &self.limiters {
             while let Err(until) = limiter.check() {
                 if !limited {
-                    debug!("Rate limiting {}...", name);
+                    debug!("Rate limiting {name}...");
                     limited = true;
                 }
                 std::thread::sleep(until.wait_time_from(self.clock.now()));

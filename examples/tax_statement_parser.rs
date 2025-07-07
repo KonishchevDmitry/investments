@@ -25,12 +25,12 @@ pub fn run() -> EmptyResult {
 
     if matches.get_flag("verbose") {
         easy_logging::init("investments", log::Level::Trace).map_err(|e| format!(
-            "Failed to initialize the logging: {}.", e))?;
+            "Failed to initialize the logging: {e}."))?;
     }
 
     let path = matches.get_one::<PathBuf>("TAX_STATEMENT").unwrap();
     let statement = TaxStatement::read(path)?;
-    println!("{:#?}", statement);
+    println!("{statement:#?}");
 
     Ok(())
 }

@@ -113,10 +113,10 @@ fn print_asset(asset: AssetAllocation, expected_total_value: Decimal, currency: 
            expected_value=format_cash(currency, expected_value)).unwrap();
 
     if let Holding::Group(holdings) = asset.holding {
-        println!("{}:", buffer);
+        println!("{buffer}:");
         print_assets(holdings, expected_value, currency, depth + 1);
     } else {
-        println!("{}", buffer);
+        println!("{buffer}");
     }
 }
 
@@ -129,9 +129,9 @@ fn format_shares(shares: Decimal, with_sign: bool) -> String {
     let symbol = 's';
 
     if with_sign {
-        format!("{:+}{}", shares, symbol)
+        format!("{shares:+}{symbol}")
     } else {
-        format!("{}{}", shares, symbol)
+        format!("{shares}{symbol}")
     }
 }
 

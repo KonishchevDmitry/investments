@@ -576,7 +576,7 @@ impl<'a> TradesProcessor<'a> {
         let local_currency = self.country.currency;
 
         let tax_year = self.get_tax_year(date);
-        assert!(self.needs_processing(tax_year), "An attempt to process {} tax year", tax_year);
+        assert!(self.needs_processing(tax_year), "An attempt to process {tax_year} tax year");
 
         self.tax_year_stat.entry(tax_year).or_insert_with(|| {
             let zero = Cash::zero(local_currency);

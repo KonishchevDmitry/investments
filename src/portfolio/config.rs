@@ -49,7 +49,7 @@ fn deserialize_weight<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
             } else {
                 None
             }
-        }).ok_or_else(|| D::Error::custom(format!("Invalid weight: {}", weight)))?;
+        }).ok_or_else(|| D::Error::custom(format!("Invalid weight: {weight}")))?;
 
     Ok(weight / dec!(100))
 }

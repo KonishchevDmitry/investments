@@ -43,7 +43,7 @@ impl TelemetryRecord {
     #[cfg(test)]
     fn mock(id: usize) -> TelemetryRecord {
         let mut record = TelemetryRecordBuilder::new().build("command-mock");
-        record.id = format!("{}", id);
+        record.id = format!("{id}");
         record
     }
 }
@@ -166,7 +166,7 @@ impl Telemetry {
         let mut records: &[_] = &records;
         if records.len() > max_records {
             let count = records.len() - max_records;
-            trace!("Dropping {} telemetry records.", count);
+            trace!("Dropping {count} telemetry records.");
             self.delete(records[count - 1].0)?;
             records = &records[count..];
         }
@@ -174,7 +174,7 @@ impl Telemetry {
         let mut payloads = Vec::with_capacity(records.len());
         for record in records {
             let payload = serde_json::from_str(&record.1).map_err(|e| format!(
-                "Failed to parse telemetry record: {}", e))?;
+                "Failed to parse telemetry record: {e}"))?;
             payloads.push(payload);
         }
 
@@ -220,7 +220,7 @@ impl Telemetry {
         if let Some(sender) = self.sender.take() {
             if let Some(last_record_id) = sender.wait() {
                 self.delete(last_record_id).map_err(|e| format!(
-                    "Failed to delete telemetry records: {}", e))?;
+                    "Failed to delete telemetry records: {e}"))?;
             }
         }
         Ok(())
@@ -230,7 +230,7 @@ impl Telemetry {
 impl Drop for Telemetry {
     fn drop(&mut self) {
         if let Err(err) = self.close_impl() {
-            error!("{}.", err)
+            error!("{err}.")
         }
     }
 }
@@ -293,7 +293,7 @@ impl TelemetrySender {
     }
 
     fn send(base_url: &str, request: TelemetryRequest) -> bool {
-        let url = format!("{}/telemetry", base_url);
+        let url = format!("{base_url}/telemetry");
 
         trace!("Sending telemetry ({} records)...", request.records.len());
         match Client::new().post(url).json(&request).send() {
@@ -307,12 +307,12 @@ impl TelemetrySender {
                     trace!("Telemetry has been successfully sent.");
                     true
                 } else {
-                    trace!("Telemetry server returned an error: {}.", status);
+                    trace!("Telemetry server returned an error: {status}.");
                     false
                 }
             },
             Err(e) => {
-                trace!("Failed to send telemetry: {}.", e);
+                trace!("Failed to send telemetry: {e}.");
                 false
             },
         }

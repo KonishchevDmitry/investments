@@ -111,7 +111,7 @@ fn parse(record: &Record) -> GenericResult<CorporateAction> {
 
     let captures: Captures = GENERIC_REGEX.captures(description)
         .or_else(|| LIQUIDATION_REGEX.captures(description))
-        .ok_or_else(|| format!("Unsupported corporate action: {:?}", description))?;
+        .ok_or_else(|| format!("Unsupported corporate action: {description:?}"))?;
 
     let symbol = parse_symbol(captures.name("symbol").unwrap().as_str())?;
     let other_symbol = parse_symbol(captures.name("other_symbol").unwrap().as_str())?;

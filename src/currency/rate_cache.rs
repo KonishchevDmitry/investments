@@ -80,7 +80,7 @@ impl CurrencyRateCache {
                 let price = match price {
                     Some(price) => Some(
                         util::parse_decimal(&price, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
-                            "Got an invalid price from the database: {:?}", price))?
+                            "Got an invalid price from the database: {price:?}"))?
                     ),
                     None => None,
                 };

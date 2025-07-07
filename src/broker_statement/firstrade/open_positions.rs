@@ -65,7 +65,7 @@ impl OpenPosition {
         };
 
         let quantity = util::validate_named_decimal(
-            &format!("{} open positions quantity", symbol), self.units,
+            &format!("{symbol} open positions quantity"), self.units,
             DecimalRestrictions::StrictlyPositive,
         )?.normalize();
 

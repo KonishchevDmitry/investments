@@ -68,7 +68,7 @@ impl TaxStatementReader {
 
         let mut records = Vec::new();
         let mut next_record_name = None;
-        trace!("Parsing {:?} tax statement:", path);
+        trace!("Parsing {path:?} tax statement:");
 
         loop {
             let record_name = match next_record_name.take() {
@@ -96,7 +96,7 @@ impl TaxStatementReader {
                 },
             };
 
-            trace!("{:?}", record);
+            trace!("{record:?}");
             records.push(record);
         }
 
@@ -110,7 +110,7 @@ impl TaxStatementReader {
             modified: false,
             records: records,
         };
-        debug!("Read statement:\n{:#?}", statement);
+        debug!("Read statement:\n{statement:#?}");
 
         Ok(statement)
     }
@@ -162,7 +162,7 @@ impl TaxStatementReader {
     fn read_data_size(&mut self) -> GenericResult<usize> {
         let data = self.read_raw(4)?;
         let size = data.parse::<usize>().map_err(|_| format!(
-            "Got an invalid record data size: {:?}", data))?;
+            "Got an invalid record data size: {data:?}"))?;
         Ok(size)
     }
 
@@ -196,7 +196,7 @@ pub struct TaxStatementWriter {
 
 impl TaxStatementWriter {
     pub fn write(statement: &TaxStatement, path: &Path) -> EmptyResult {
-        debug!("Statement to write:\n{:#?}", statement);
+        debug!("Statement to write:\n{statement:#?}");
 
         let mut writer = TaxStatementWriter {
             file: BufWriter::new(File::create(path)?),
@@ -256,7 +256,7 @@ fn get_extension(year: i32) -> String {
 }
 
 fn get_header(year: i32) -> String {
-    format!(r"DLSG            Decl{}0103FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", year)
+    format!(r"DLSG            Decl{year}0103FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 }
 
 fn encode(data: &str) -> GenericResult<Cow<[u8]>> {

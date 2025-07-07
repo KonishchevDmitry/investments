@@ -70,7 +70,7 @@ fn parse_forex_record(
 
     let commission_currency = parser.base_currency()?;
     let commission = -record.parse_cash(
-        &format!("Comm in {}", commission_currency),
+        &format!("Comm in {commission_currency}"),
         commission_currency, DecimalRestrictions::NegativeOrZero)?;
 
     parser.statement.forex_trades.push(ForexTrade::new(

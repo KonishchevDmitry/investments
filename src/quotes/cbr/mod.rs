@@ -150,7 +150,7 @@ impl Cbr {
         }).as_ref().map_err(|e| e.to_string())?;
 
         let code = codes.get(currency).ok_or_else(|| format!(
-            "Invalid currency: {:?}", currency))?;
+            "Invalid currency: {currency:?}"))?;
 
         Ok(code.clone())
     }
@@ -173,7 +173,7 @@ impl Cbr {
             Ok(result)
         };
 
-        Ok(get(url.as_str()).map_err(|e| format!("Failed to get {} from {}: {}", name, url, e))?)
+        Ok(get(url.as_str()).map_err(|e| format!("Failed to get {name} from {url}: {e}"))?)
     }
 }
 
@@ -221,12 +221,12 @@ fn deserialize_price<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
         } else {
             None
         })
-        .ok_or_else(|| D::Error::custom(format!("Invalid price: {:?}", price)))
+        .ok_or_else(|| D::Error::custom(format!("Invalid price: {price:?}")))
 }
 
 fn validate_price(&price: &Decimal) -> Result<(), ValidationError> {
     if util::validate_decimal(price, DecimalRestrictions::StrictlyPositive).is_err() {
-        return Err(ValidationError::new("price").with_message(format!("Invalid price: {}", price).into()));
+        return Err(ValidationError::new("price").with_message(format!("Invalid price: {price}").into()));
     }
     Ok(())
 }

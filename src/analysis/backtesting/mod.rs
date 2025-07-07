@@ -106,7 +106,7 @@ pub fn backtest(
 
     let interest_periods = [InterestPeriod::new(start_date, today)];
     let days = crate::analysis::deposit::get_total_activity_duration(&interest_periods);
-    let format_performance = |performance| format!("{}%", performance);
+    let format_performance = |performance| format!("{performance}%");
 
     let mut results = Vec::new();
     let mut daily_time_series = Vec::new();
@@ -339,7 +339,7 @@ fn generate_metrics(
         if let Some(performance) = result.performance {
             if result.date >= performance_start_date {
                 let performance = performance.to_f64().ok_or_else(|| format!(
-                    "Got an invalid performance: {}", performance))?;
+                    "Got an invalid performance: {performance}"))?;
                 performance_time_series.add_value(result.date, performance);
             }
         }

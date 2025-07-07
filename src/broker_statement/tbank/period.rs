@@ -61,7 +61,7 @@ fn parse_period(value: &str) -> GenericResult<Period> {
     }
 
     let captures = PERIOD_REGEX.captures(value).ok_or_else(|| format!(
-        "Invalid period: {:?}", value))?;
+        "Invalid period: {value:?}"))?;
 
     Period::new(
         parse_date(captures.name("start").unwrap().as_str())?,

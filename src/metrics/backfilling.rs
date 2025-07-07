@@ -160,7 +160,7 @@ async fn get_import_stream(metrics: Vec<DailyTimeSeries>, scrape_interval: Durat
                 let sent_percent = sent * 100 / total;
 
                 if sent_percent != logged_percent {
-                    info!("Sent {sent} of {total} ({}%).", sent_percent);
+                    info!("Sent {sent} of {total} ({sent_percent}%).");
                     logged_percent = sent_percent;
                 }
             }

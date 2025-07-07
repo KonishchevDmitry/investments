@@ -262,12 +262,12 @@ impl CashFlowRow {
 fn parse_dividend_description(description: &str) -> GenericResult<&str> {
     lazy_static! {
         static ref REGEX: Regex = Regex::new(&format!(
-            r"^(?:{isin}/ )?(?P<issuer_name>[^/]+)/ \d+ шт\.$", isin=ISIN_REGEX),
+            r"^(?:{ISIN_REGEX}/ )?(?P<issuer_name>[^/]+)/ \d+ шт\.$"),
         ).unwrap();
     }
 
     let captures = REGEX.captures(description).ok_or_else(|| format!(
-        "Unexpected dividend description: {:?}", description))?;
+        "Unexpected dividend description: {description:?}"))?;
 
     Ok(captures.name("issuer_name").unwrap().as_str())
 }

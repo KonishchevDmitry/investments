@@ -28,7 +28,7 @@ impl SheetReader {
     pub fn open(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
         let sheet_name = parser.sheet_name();
         let sheet = open_sheet(path, sheet_name)?.ok_or_else(|| format!(
-            "There is no {:?} sheet in the workbook", sheet_name))?;
+            "There is no {sheet_name:?} sheet in the workbook"))?;
 
         Ok(SheetReader::new(sheet, parser))
     }

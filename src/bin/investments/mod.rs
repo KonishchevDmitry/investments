@@ -122,7 +122,7 @@ fn run(cli_config: CliConfig, parser: Parser) -> EmptyResult {
 
         Action::ShellCompletion {path, data} => {
             write_shell_completion(&path, &data).map_err(|e| format!(
-                "Failed to write {:?}: {}", path, e))?;
+                "Failed to write {path:?}: {e}"))?;
             TelemetryRecordBuilder::new()
         },
     };

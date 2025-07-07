@@ -41,7 +41,7 @@ pub struct PerformanceMergingConfig {
 impl PerformanceMergingConfig {
     pub fn add(&mut self, other: &PerformanceMergingConfig) -> EmptyResult {
         Ok(self.add_mapping(other.mapping.clone()).map_err(|e| format!(
-            "Invalid performance merging configuration: {}", e))?)
+            "Invalid performance merging configuration: {e}"))?)
     }
 
     pub fn map<'a, 'b: 'a>(&'a self, symbol: &'b str) -> &'a str {
@@ -95,7 +95,7 @@ impl<'de> Deserialize<'de> for PerformanceMergingConfig {
 
         let mapping = Deserialize::deserialize(deserializer)?;
         config.add_mapping(mapping).map_err(|e| D::Error::custom(format!(
-            "Invalid performance merging configuration: {}", e)))?;
+            "Invalid performance merging configuration: {e}")))?;
 
         Ok(config)
     }

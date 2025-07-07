@@ -6,7 +6,7 @@ use crate::core::GenericResult;
 use crate::types::Decimal;
 
 pub fn get_currency_pair(base: &str, quote: &str) -> String {
-    format!("{}/{}", base, quote)
+    format!("{base}/{quote}")
 }
 
 pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
@@ -15,7 +15,7 @@ pub fn parse_currency_pair(pair: &str) -> GenericResult<(&str, &str)> {
     }
 
     let captures = REGEX.captures(pair).ok_or_else(|| format!(
-        "Invalid currency pair: {:?}", pair))?;
+        "Invalid currency pair: {pair:?}"))?;
 
     Ok((
         captures.name("base").unwrap().as_str(),
@@ -35,7 +35,7 @@ pub fn parse_forex_code(code: &str) -> GenericResult<(&str, &str, Option<Decimal
         "EUR_RUB__TOD" | "EUR_RUB__TOM" => ("EUR", "RUB", Some(dec!(1000))),
         _ => {
             let captures = CODE_REGEX.captures(code).ok_or_else(|| format!(
-                "Unsupported forex pair code: {:?}", code))?;
+                "Unsupported forex pair code: {code:?}"))?;
             (
                 captures.name("base").unwrap().as_str(),
                 captures.name("quote").unwrap().as_str(),

@@ -29,7 +29,7 @@ pub fn deserialize_date_time<'de, D>(deserializer: D) -> Result<DateTime, D::Err
 
 pub fn get_symbol<'a>(securities: &'a HashMap<String, String>, name: &str) -> GenericResult<&'a str> {
     Ok(securities.get(name).ok_or_else(|| format!(
-        "Unable to find security info by its name ({:?})", name))?.as_str())
+        "Unable to find security info by its name ({name:?})"))?.as_str())
 }
 
 #[cfg(test)]

@@ -41,10 +41,10 @@ pub fn is_outdated_quote<T: TimeZone>(date_time: DateTime<T>, now_provider: &dyn
 
 pub fn is_outdated_unix_time(time: i64, test_outdated_time: i64) -> GenericResult<Option<DateTime<Local>>> {
     let test_outdated_time = DateTime::from_timestamp(test_outdated_time, 0).ok_or_else(|| format!(
-        "Got an invalid UNIX time: {}", test_outdated_time))?;
+        "Got an invalid UNIX time: {test_outdated_time}"))?;
 
     let date_time = DateTime::from_timestamp(time, 0).ok_or_else(|| format!(
-        "Got an invalid UNIX time: {}", time))?;
+        "Got an invalid UNIX time: {time}"))?;
 
     Ok(is_outdated_time::<Utc>(date_time, test_outdated_time.naive_utc()))
 }
@@ -69,9 +69,9 @@ pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Optio
         request = request.bearer_auth(authorization);
     }
 
-    trace!("Sending request to {}...", url);
+    trace!("Sending request to {url}...");
     let response = request.send().map_err(util::humanize_reqwest_error)?;
-    trace!("Got response from {}.", url);
+    trace!("Got response from {url}.");
 
     if !response.status().is_success() {
         return Err!("Server returned an error: {}", response.status());
@@ -81,5 +81,5 @@ pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Optio
 }
 
 pub fn parse_response<T: DeserializeOwned>(response: &str) -> GenericResult<T> {
-    Ok(serde_json::from_str(response).map_err(|e| format!("Got an unexpected response: {}", e))?)
+    Ok(serde_json::from_str(response).map_err(|e| format!("Got an unexpected response: {e}"))?)
 }

@@ -359,7 +359,7 @@ impl Parser {
 fn parse_year(year: &str) -> GenericResult<i32> {
     Ok(year.parse::<i32>().ok()
         .and_then(|year| Date::from_ymd_opt(year, 1, 1).and(Some(year)))
-        .ok_or_else(|| format!("Invalid year: {}", year))?)
+        .ok_or_else(|| format!("Invalid year: {year}"))?)
 }
 
 macro_rules! arg {

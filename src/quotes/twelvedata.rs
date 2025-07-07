@@ -58,7 +58,7 @@ impl TwelveData {
 
         Ok(send_request(&self.client, &url, None).and_then(|response| {
             get_quote(symbol, response)
-        }).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
+        }).map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
     }
 }
 
@@ -140,7 +140,7 @@ fn get_quote(symbol: &str, response: Response) -> GenericResult<Option<Cash>> {
 
     let time = time::parse_tz_date_time(&value.datetime, "%Y-%m-%d %H:%M:%S", Utc, true)?;
     if let Some(time) = is_outdated_time(time, date_time!(2020, 1, 31, 20, 58, 00)) {
-        debug!("{}: Got outdated quotes: {}.", symbol, time);
+        debug!("{symbol}: Got outdated quotes: {time}.");
         return Ok(None);
     }
 

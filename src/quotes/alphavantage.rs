@@ -76,8 +76,8 @@ impl QuotesProvider for AlphaVantage {
 
         Ok(send_request(&self.client, &url, None).and_then(|response| {
             Ok(parse_quotes(response).map_err(|e| format!(
-                "Quotes info parsing error: {}", e))?)
-        }).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
+                "Quotes info parsing error: {e}"))?)
+        }).map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
     }
 }
 

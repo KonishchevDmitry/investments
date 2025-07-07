@@ -134,8 +134,7 @@ impl CashFlowRow {
 
                 let comment = self.comment.as_deref().unwrap_or_default();
                 let year = comment.parse::<u16>().map_err(|_| format!(
-                    "Got an unexpected comment for {:?} operation: {:?}",
-                    operation, comment,
+                    "Got an unexpected comment for {operation:?} operation: {comment:?}",
                 ))? as i32;
 
                 statement.tax_agent_withholdings.add(self.date, year, Withholding::new(withheld_tax))?;

@@ -22,10 +22,10 @@ impl Connection {
 
 pub fn connect(url: &str) -> GenericResult<Connection> {
     let mut connection = SqliteConnection::establish(url).map_err(|e| format!(
-        "Unable to open {:?} database: {}", url, e))?;
+        "Unable to open {url:?} database: {e}"))?;
 
     connection.run_pending_migrations(MIGRATIONS).map_err(|e| format!(
-        "Failed to prepare the database: {}", e))?;
+        "Failed to prepare the database: {e}"))?;
 
     Ok(Connection(Arc::new(Mutex::new(connection))))
 }

@@ -127,7 +127,7 @@ impl BrokerStatement {
             }
 
             statement.merge(partial, last_period.last_date(), index == 0, index == last_index).map_err(|e| format!(
-                "Failed to merge broker statements: {}", e))?;
+                "Failed to merge broker statements: {e}"))?;
         }
 
         for (dividend_id, accruals) in dividend_accruals {
@@ -156,7 +156,7 @@ impl BrokerStatement {
             if statement.broker.type_ == Broker::InteractiveBrokers {
                 // https://github.com/KonishchevDmitry/investments/blob/master/docs/brokers.md#ib-tax-remapping
                 let url = "https://bit.ly/investments-ib-tax-remapping";
-                hint = format!("\n\nProbably manual tax remapping rules are required (see {})", url);
+                hint = format!("\n\nProbably manual tax remapping rules are required (see {url})");
             }
 
             return Err!("Unable to find origin operations for the following taxes:\n{}{}", taxes, hint);
@@ -166,12 +166,12 @@ impl BrokerStatement {
 
         for (symbol, new_symbol) in symbol_remapping.iter() {
             statement.rename_symbol(symbol, new_symbol, None, true).map_err(|e| format!(
-                "Failed to remap {} to {}: {}", symbol, new_symbol, e))?;
+                "Failed to remap {symbol} to {new_symbol}: {e}"))?;
         }
 
         for (symbol, new_symbol) in statement.instrument_info.suggest_remapping() {
             statement.rename_symbol(&symbol, &new_symbol, None, false).map_err(|e| format!(
-                "Failed to apply automatically generated remapping rule {} -> {}: {}", symbol, new_symbol, e))?;
+                "Failed to apply automatically generated remapping rule {symbol} -> {new_symbol}: {e}"))?;
         }
 
         statement.corporate_actions.extend(corporate_actions.iter().cloned());

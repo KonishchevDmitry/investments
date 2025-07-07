@@ -35,7 +35,7 @@ pub fn map_currency(name: &str) -> Option<&'static str> {
 }
 
 pub fn parse_currency(name: &str) -> GenericResult<&'static str> {
-    Ok(map_currency(name).ok_or_else(|| format!("Unsupported currency: {:?}", name))?)
+    Ok(map_currency(name).ok_or_else(|| format!("Unsupported currency: {name:?}"))?)
 }
 
 pub fn parse_symbol(name: &str) -> GenericResult<String> {
@@ -45,7 +45,7 @@ pub fn parse_symbol(name: &str) -> GenericResult<String> {
     }
 
     let captures = SYMBOL_REGEX.captures(name).ok_or_else(|| format!(
-        "Invalid instrument symbol: {:?}", name))?;
+        "Invalid instrument symbol: {name:?}"))?;
 
     Ok(captures.name("symbol").unwrap().as_str().to_owned())
 }

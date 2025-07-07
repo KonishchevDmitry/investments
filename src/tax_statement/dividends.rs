@@ -306,6 +306,6 @@ impl Processor<'_> {
             self.warning = true;
             eprintln!();
         }
-        warn!("{}", args);
+        warn!("{args}");
     }
 }

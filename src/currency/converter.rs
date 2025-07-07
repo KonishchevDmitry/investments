@@ -168,7 +168,7 @@ impl CurrencyRateCacheBackend {
 
     fn get_price(&self, currency: &str, date: Date, from_cache_only: bool) -> GenericResult<Option<Decimal>> {
         let cache_result = self.rate_cache.get(currency, date).map_err(|e| format!(
-            "Failed to get currency rate from the currency rate cache: {}", e))?;
+            "Failed to get currency rate from the currency rate cache: {e}"))?;
 
         Ok(match cache_result {
             CurrencyRateCacheResult::Exists(cached_value) => cached_value,
@@ -191,7 +191,7 @@ impl CurrencyRateCacheBackend {
     #[cfg(not(test))]
     fn get_rates(&self, currency: &str, start_date: Date, end_date: Date) -> GenericResult<Vec<CurrencyRate>> {
         Ok(self.cbr.get_historical_currency_rates(currency, start_date, end_date).map_err(|e| format!(
-            "Failed to get currency rates from the Central Bank of the Russian Federation: {}", e))?)
+            "Failed to get currency rates from the Central Bank of the Russian Federation: {e}"))?)
     }
 
     #[cfg(test)]
@@ -341,7 +341,7 @@ mod tests {
             assert_matches!(
                 converter.convert(from, to, date!(2018, 8, 31), value),
                 Err(ref e) if e.to_string().starts_with(&format!(
-                    "Unable to find {}/{} currency rate", from, to))
+                    "Unable to find {from}/{to} currency rate"))
             );
 
             for day in 1..4 {
@@ -367,7 +367,7 @@ mod tests {
             assert_matches!(
                 converter.convert(from, to, date, value),
                 Err(ref e) if e.to_string().starts_with(&format!(
-                    "Unable to find {}/{} currency rate", from, to))
+                    "Unable to find {from}/{to} currency rate"))
             );
         }
     }

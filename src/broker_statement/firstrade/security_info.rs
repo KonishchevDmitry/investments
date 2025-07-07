@@ -31,7 +31,7 @@ impl SecurityInfo {
     }
 
     pub fn get(&self, id: &SecurityId) -> GenericResult<&SecurityType> {
-        Ok(self.info.get(id).ok_or_else(|| format!("Got an unknown {} security", id))?)
+        Ok(self.info.get(id).ok_or_else(|| format!("Got an unknown {id} security"))?)
     }
 }
 

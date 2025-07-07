@@ -138,7 +138,7 @@ impl<'de> Deserialize<'de> for StockSplitRatio {
                 (Some(from), Some(to)) => Some(StockSplitRatio::new(from, to)),
                 _ => None,
             }
-        }).ok_or_else(|| D::Error::custom(format!("Invalid stock split ratio: {:?}", ratio)))
+        }).ok_or_else(|| D::Error::custom(format!("Invalid stock split ratio: {ratio:?}")))
     }
 }
 
@@ -311,7 +311,7 @@ fn process_stock_split(
 
         match statement.stock_splits.add(split_time, symbol, ratio.to)? {
             Ok(()) => return Ok(()),
-            Err(e) => debug!("{}: {}. Using complex stock split algorithm.", symbol, e),
+            Err(e) => debug!("{symbol}: {e}. Using complex stock split algorithm."),
         };
     };
 

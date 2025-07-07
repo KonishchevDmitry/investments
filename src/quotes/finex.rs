@@ -48,7 +48,7 @@ impl QuotesProvider for Finex {
         let url = format!("{}/v1/fonds/nav.xlsx", self.url);
         Ok(send_request(&self.client, &url, None)
             .and_then(|response| get_quotes(response, symbols))
-            .map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
+            .map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
     }
 }
 

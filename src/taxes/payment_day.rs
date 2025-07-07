@@ -98,6 +98,6 @@ impl TaxPaymentDaySpec {
             }
 
             Some(TaxPaymentDaySpec::Day {month, day})
-        }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {:?}", tax_payment_day)))
+        }).ok_or_else(|| D::Error::custom(format!("Invalid tax payment day: {tax_payment_day:?}")))
     }
 }

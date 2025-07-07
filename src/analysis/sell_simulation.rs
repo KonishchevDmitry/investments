@@ -61,7 +61,7 @@ pub fn simulate_sell(
         let quantity = *match quantity {
             Some(quantity) => quantity,
             None => statement.open_positions.get(symbol).ok_or_else(|| format!(
-                "The portfolio has no open {:?} positions", symbol))?,
+                "The portfolio has no open {symbol:?} positions"))?,
         };
 
         let mut price = quotes.get(statement.get_quote_query(symbol))?;
@@ -289,7 +289,7 @@ fn print_results(
     for (tax_year, lto) in &lto_deductions {
         let mut title = s!("Long term ownership deduction");
         if lto_deductions.len() > 1 {
-            title = format!("{} ({})", title, tax_year)
+            title = format!("{title} ({tax_year})")
         }
         lto.print(&title);
     }

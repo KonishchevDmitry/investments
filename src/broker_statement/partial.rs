@@ -115,7 +115,7 @@ impl PartialBrokerStatement {
 
     pub fn add_open_position(&mut self, symbol: &str, quantity: Decimal) -> EmptyResult {
         validate_named_decimal(
-            &format!("{} open position", symbol), quantity, DecimalRestrictions::StrictlyPositive)?;
+            &format!("{symbol} open position"), quantity, DecimalRestrictions::StrictlyPositive)?;
 
         match self.open_positions.entry(symbol.to_owned()) {
             Entry::Vacant(entry) => entry.insert(quantity),

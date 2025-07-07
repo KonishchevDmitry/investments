@@ -67,7 +67,7 @@ fn parse_tax_description(description: &str) -> GenericResult<String> {
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
-        "Unexpected tax description: {:?}", description))?;
+        "Unexpected tax description: {description:?}"))?;
 
     parse_symbol(captures.name("issuer").unwrap().as_str())
 }

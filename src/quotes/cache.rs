@@ -64,7 +64,7 @@ impl Cache {
         };
 
         let price = util::parse_decimal(&price, DecimalRestrictions::StrictlyPositive).map_err(|_| format!(
-            "Got an invalid price from the database: {:?}", price))?;
+            "Got an invalid price from the database: {price:?}"))?;
 
         let price = Cash::new(&currency, price);
         if let Some(ref cache) = self.real_time {

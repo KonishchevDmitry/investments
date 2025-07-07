@@ -16,8 +16,7 @@ pub fn convert_price(
         volume_precision);
 
     Ok(calculate_price(quantity, Cash::new(currency, converted_volume)).map_err(|e| format!(
-        "Unable to convert {} x {} price to {}: {}",
-        quantity, price, currency, e
+        "Unable to convert {quantity} x {price} price to {currency}: {e}"
     ))?)
 }
 

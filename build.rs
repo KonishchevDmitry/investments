@@ -18,7 +18,7 @@ fn generate() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // We don't want to depend on protoc in our crate, so generate the code only when it's missing
     // (we delete it during dependency update to force regeneration)
-    if out_path.try_exists().map_err(|e| format!("Failed to stat() {:?}: {}", out_path, e))? {
+    if out_path.try_exists().map_err(|e| format!("Failed to stat() {out_path:?}: {e}"))? {
         return Ok(());
     }
 

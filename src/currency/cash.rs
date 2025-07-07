@@ -30,7 +30,7 @@ impl Cash {
 
     pub fn new_from_string(currency: &str, amount: &str) -> GenericResult<Cash> {
         Ok(Cash::new(currency, Decimal::from_str(amount).map_err(|_| format!(
-            "Invalid cash amount: {:?}", amount))?))
+            "Invalid cash amount: {amount:?}"))?))
     }
 
     pub fn is_zero(&self) -> bool {
@@ -229,8 +229,8 @@ mod tests {
         let currency = "CURRENCY";
 
         for sign in &["", "-"] {
-            let input = Cash::new(currency, Decimal::from_str(&format!("{}{}", sign, input)).unwrap());
-            let expected = format!("{}{} {}", sign, expected, currency);
+            let input = Cash::new(currency, Decimal::from_str(&format!("{sign}{input}")).unwrap());
+            let expected = format!("{sign}{expected} {currency}");
             assert_eq!(input.to_string(), expected);
         }
     }

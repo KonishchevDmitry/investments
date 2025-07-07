@@ -262,11 +262,11 @@ fn register_structure_metric(name: &str, help: &str) -> GaugeVec {
 }
 
 fn register_metric(name: &str, help: &str, labels: &[&str]) -> GaugeVec {
-    register_gauge_vec!(&format!("{}_{}", NAMESPACE, name), help, labels).unwrap()
+    register_gauge_vec!(&format!("{NAMESPACE}_{name}"), help, labels).unwrap()
 }
 
 fn register_simple_metric(name: &str, help: &str) -> Gauge {
-    register_gauge!(&format!("{}_{}", NAMESPACE, name), help).unwrap()
+    register_gauge!(&format!("{NAMESPACE}_{name}"), help).unwrap()
 }
 
 fn set_portfolio_metric(collector: &GaugeVec, currency: &str, value: Decimal) {

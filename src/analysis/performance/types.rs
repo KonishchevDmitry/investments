@@ -179,7 +179,7 @@ impl InstrumentPerformanceAnalysis {
             profit: Cell::new_round_decimal(profit),
             result: Cell::new_round_decimal(result),
             duration: formatting::format_days(self.days),
-            performance: self.performance.map(|performance| format!("{}%", performance)),
+            performance: self.performance.map(|performance| format!("{performance}%")),
         });
 
         if self.inactive {

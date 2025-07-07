@@ -91,7 +91,7 @@ impl CashFlows {
         }
 
         if self.enable_warnings {
-            error!("{}.", error);
+            error!("{error}.");
             self.enable_warnings = false;
         }
 

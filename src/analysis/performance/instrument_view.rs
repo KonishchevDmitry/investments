@@ -35,7 +35,7 @@ impl InstrumentDepositView {
         // We should handle each portfolio separately to work properly with stock splits (different
         // portfolios with different open position periods may have different stock split
         // information and as a consequence - different quantity multipliers.
-        let instrument_id = format!("{}:{}", portfolio_id, symbol);
+        let instrument_id = format!("{portfolio_id}:{symbol}");
 
         let position = self.trades.entry(time.date).or_default()
             .entry(instrument_id).or_default();

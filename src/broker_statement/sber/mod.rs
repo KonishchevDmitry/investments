@@ -83,7 +83,7 @@ mod tests {
             _ => name,
         };
 
-        let path = format!("testdata/sber/{}", name);
+        let path = format!("testdata/sber/{name}");
         let broker = Broker::Sber.get_info(&Config::mock(), None).unwrap();
         let config = Config::new("testdata/configs/main", None).unwrap();
         let corporate_actions = &config.get_portfolio(portfolio_name).unwrap().corporate_actions;

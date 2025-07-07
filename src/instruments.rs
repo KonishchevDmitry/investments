@@ -82,7 +82,7 @@ impl InstrumentInfo {
 
     pub fn get_name(&self, symbol: &str) -> String {
         if let Some(name) = self.instruments.get(symbol).and_then(|info| info.name.as_ref()) {
-            format!("{} ({})", name, symbol)
+            format!("{name} ({symbol})")
         } else {
             symbol.to_owned()
         }
@@ -117,7 +117,7 @@ impl InstrumentInfo {
         Ok(match instrument_id {
             InstrumentId::Symbol(symbol) => {
                 self.get(symbol).ok_or_else(|| format!(
-                    "Unable to find instrument information by its symbol ({})", symbol))?
+                    "Unable to find instrument information by its symbol ({symbol})"))?
             },
 
             InstrumentId::Isin(isin) => {
@@ -332,7 +332,7 @@ impl Instrument {
             if let Some(prev) = result_taxation_type.as_ref() {
                 if *prev != taxation_type {
                     let ids = self.isin.iter().map(ToString::to_string)
-                        .chain(self.cusip.iter().map(|id| format!("CUSIP:{}", id)))
+                        .chain(self.cusip.iter().map(|id| format!("CUSIP:{id}")))
                         .join(", ");
 
                     return Err!(
@@ -393,5 +393,5 @@ pub enum IssuerTaxationType {
 pub const ISIN_REGEX: &str = r"[A-Z]{2}[A-Z0-9]{9}[0-9]";
 
 pub fn parse_isin(value: &str) -> GenericResult<ISIN> {
-    Ok(value.parse().map_err(|_| format!("Invalid ISIN: {}", value))?)
+    Ok(value.parse().map_err(|_| format!("Invalid ISIN: {value}"))?)
 }

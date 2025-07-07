@@ -73,7 +73,7 @@ impl CellType for Decimal {
             Cell::Int(value) => Decimal::from_i64(*value),
             _ => None,
         }.ok_or_else(|| format!(
-            "Got an unexpected cell value where decimal is expected: {:?}", cell
+            "Got an unexpected cell value where decimal is expected: {cell:?}"
         ))?)
     }
 }

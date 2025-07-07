@@ -16,7 +16,7 @@ pub fn deserialize_cash_flows<'de, D>(deserializer: D) -> Result<Vec<(Date, Deci
     for (date, amount) in deserialized {
         let date = time::parse_user_date(&date).map_err(D::Error::custom)?;
         let amount = util::validate_decimal(amount, DecimalRestrictions::StrictlyPositive).map_err(|_|
-            D::Error::custom(format!("Invalid amount: {:?}", amount)))?;
+            D::Error::custom(format!("Invalid amount: {amount:?}")))?;
 
         cash_flows.push((date, amount));
     }

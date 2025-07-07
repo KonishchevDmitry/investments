@@ -107,7 +107,7 @@ impl StatementReader {
                 CashFlowType::Repo {symbol, ..} => {
                     if let Ok(isin) = parse_isin(symbol) {
                         let instrument = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(|e| format!(
-                            "Failed to remap {} trade from ISIN to stock symbol: {}", symbol, e))?;
+                            "Failed to remap {symbol} trade from ISIN to stock symbol: {e}"))?;
                         symbol.clone_from(&instrument.symbol);
                     }
                 },
@@ -120,7 +120,7 @@ impl StatementReader {
         for symbol in statement.open_positions.keys().cloned().collect::<Vec<String>>() {
             if let Ok(isin) = parse_isin(&symbol) {
                 let map_err = |e: GenericError| -> GenericError {
-                    format!("Failed to remap {} open position from ISIN to stock symbol: {}", symbol, e).into()
+                    format!("Failed to remap {symbol} open position from ISIN to stock symbol: {e}").into()
                 };
 
                 let new_symbol = statement.instrument_info.get_by_id(&InstrumentId::Isin(isin)).map_err(map_err)?.symbol.clone();
@@ -171,11 +171,11 @@ impl StatementReader {
 impl BrokerStatementReader for StatementReader {
     fn check(&mut self, path: &str) -> GenericResult<bool> {
         let is_foreign_income_statement = ForeignIncomeStatementReader::is_statement(path).map_err(|e| format!(
-            "Error while reading {:?}: {}", path, e))?;
+            "Error while reading {path:?}: {e}"))?;
 
         if is_foreign_income_statement {
             self.parse_foreign_income_statement(path).map_err(|e| format!(
-                "Error while reading {:?} foreign income statement: {}", path, e))?;
+                "Error while reading {path:?} foreign income statement: {e}"))?;
             return Ok(false);
         }
 
@@ -318,16 +318,16 @@ mod tests {
         let portfolio_name = match (namespace, name) {
             ("main", "my") => s!("tbank"),
             ("main", "iia") => s!("tbank-iia"),
-            ("other", name) => format!("tbank-{}", name),
+            ("other", name) => format!("tbank-{name}"),
             _ => name.to_owned(),
         };
 
         let broker = Broker::Tbank.get_info(&Config::mock(), None).unwrap();
-        let config = Config::new(format!("testdata/configs/{}", namespace), None).unwrap();
+        let config = Config::new(format!("testdata/configs/{namespace}"), None).unwrap();
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(
-            broker, &format!("testdata/tbank/{}", name),
+            broker, &format!("testdata/tbank/{name}"),
             &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()

@@ -129,7 +129,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
     fn analyse_instrument_performance(
         &mut self, symbol: &str, mut deposit_view: InstrumentDepositView
     ) -> GenericResult<InstrumentPerformanceAnalysis> {
-        trace!("Analysing {} performance...", symbol);
+        trace!("Analysing {symbol} performance...");
 
         deposit_view.transactions.sort_by_key(|transaction| transaction.date);
         let adjusted_transactions = self.adjust_transactions(&deposit_view.transactions)?;
@@ -200,7 +200,7 @@ impl <'a> PortfolioPerformanceAnalyser<'a> {
                         formatting::format_date(period.end)))
                     .join(", ");
 
-                trace!("* {}: {}", symbol, periods);
+                trace!("* {symbol}: {periods}");
             }
         }
 

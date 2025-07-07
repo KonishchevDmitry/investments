@@ -45,7 +45,7 @@ pub fn read(
     }?;
 
     let mut file_names = preprocess_statement_directory(statement_dir_path, statement_reader.as_mut())
-        .map_err(|e| format!("Error while reading {:?}: {}", statement_dir_path, e))?;
+        .map_err(|e| format!("Error while reading {statement_dir_path:?}: {e}"))?;
 
     if file_names.is_empty() {
         return Err!("{:?} doesn't contain any broker statement", statement_dir_path);
@@ -60,9 +60,9 @@ pub fn read(
         let path = Path::new(statement_dir_path).join(file_name);
         let path = path.to_str().unwrap();
 
-        debug!("Reading {:?}...", path);
+        debug!("Reading {path:?}...");
         let statement = statement_reader.read(path, is_last).map_err(|e| format!(
-            "Error while reading {:?} broker statement: {}", path, e))?;
+            "Error while reading {path:?} broker statement: {e}"))?;
 
         statements.push(statement);
     }

@@ -71,12 +71,12 @@ impl Finnhub {
         };
 
         if let Some(time) = is_outdated_unix_time(time, 1582295300)? {
-            debug!("{}: Got outdated quotes: {}.", symbol, time);
+            debug!("{symbol}: Got outdated quotes: {time}.");
             return Ok(None);
         }
 
         let price = util::validate_decimal(price, DecimalRestrictions::StrictlyPositive)
-            .map_err(|_| format!("Got an invalid {} price: {:?}", symbol, price))?;
+            .map_err(|_| format!("Got an invalid {symbol} price: {price:?}"))?;
 
         // Profile API has too expensive rate limit weight, so try to avoid using it
         let currency = if symbol.contains('.') {
@@ -105,7 +105,7 @@ impl Finnhub {
         ])?;
 
         let get = |url| -> GenericResult<Option<T>> {
-            self.rate_limiter.wait(&format!("request to {}", url));
+            self.rate_limiter.wait(&format!("request to {url}"));
 
             let reply = send_request(&self.client, url, None)?.text()?;
             if reply.trim() == "Symbol not supported" {
@@ -115,7 +115,7 @@ impl Finnhub {
             Ok(serde_json::from_str(&reply)?)
         };
 
-        Ok(get(&url).map_err(|e| format!("Failed to get quotes from {}: {}", url, e))?)
+        Ok(get(&url).map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
     }
 }
 

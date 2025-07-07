@@ -18,7 +18,7 @@ pub struct InstrumentTrace {
 
 impl InstrumentTrace {
     pub fn new(name: &'static str, may_be_empty: bool) -> InstrumentTrace {
-        trace!("Getting a list of available {} from T-Bank...", name);
+        trace!("Getting a list of available {name} from T-Bank...");
 
         InstrumentTrace {
             name,

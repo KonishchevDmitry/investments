@@ -54,7 +54,7 @@ fn parse_dividend_description(description: &str) -> GenericResult<(String, Secur
     }
 
     let captures = DESCRIPTION_REGEX.captures(description).ok_or_else(|| format!(
-        "Unexpected dividend description: {:?}", description))?;
+        "Unexpected dividend description: {description:?}"))?;
 
     Ok((
         parse_symbol(captures.name("issuer").unwrap().as_str())?,

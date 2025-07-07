@@ -64,7 +64,7 @@ impl BrokerStatementReader for StatementReader {
         }
 
         let is_confirmation_report = confirmation::try_parse(path, &mut self.trade_execution_info)
-            .map_err(|e| format!("Error while reading {:?}: {}", path, e))?;
+            .map_err(|e| format!("Error while reading {path:?}: {e}"))?;
 
         Ok(!is_confirmation_report)
     }
@@ -333,14 +333,14 @@ mod tests {
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
-        let path = format!("testdata/interactive-brokers/partial/{}.csv", name);
+        let path = format!("testdata/interactive-brokers/partial/{name}.csv");
         StatementReader::new(TaxRemapping::new(), ReadingStrictness::all()).unwrap()
             .read(&path, true).unwrap();
     }
 
     fn parse_full(name: &str, tax_remapping: Option<TaxRemapping>) -> BrokerStatement {
         let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
-        let path = format!("testdata/interactive-brokers/{}", name);
+        let path = format!("testdata/interactive-brokers/{name}");
         let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
         BrokerStatement::read(
             broker, &path, &Default::default(), &Default::default(), &Default::default(), tax_remapping, &[], &[],

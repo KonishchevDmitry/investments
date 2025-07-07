@@ -111,7 +111,7 @@ impl<'a> Record<'a> {
     pub fn parse_value<T: FromStr>(&self, field: &str) -> GenericResult<T> {
         let value = self.get_value(field)?;
         Ok(value.parse().map_err(|_| format!(
-            "{:?} field has an invalid value: {:?}", field, value))?)
+            "{field:?} field has an invalid value: {value:?}"))?)
     }
 
     pub fn parse_date(&self, field: &str) -> GenericResult<Date> {
@@ -133,7 +133,7 @@ impl<'a> Record<'a> {
 
     pub fn parse_amount(&self, field: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
         let value = self.get_value(field)?;
-        let amount = parse_quantity(value).map_err(|_| format!("Invalid amount: {:?}", value))?;
+        let amount = parse_quantity(value).map_err(|_| format!("Invalid amount: {value:?}"))?;
         util::validate_named_decimal("amount", amount, restrictions)
     }
 
@@ -190,7 +190,7 @@ pub fn format_record<'a, I>(iter: I) -> String
     where I: IntoIterator<Item = &'a str> {
 
     iter.into_iter()
-        .map(|value| format!("{:?}", value))
+        .map(|value| format!("{value:?}"))
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -217,7 +217,7 @@ pub fn parse_date_time(date_time: &str) -> GenericResult<DateTime> {
 pub fn parse_symbol(symbol: &str) -> GenericResult<String> {
     lazy_static! {
         static ref SYMBOL_REGEX: Regex = Regex::new(&format!(
-            r"^{}$", STOCK_SYMBOL_REGEX)).unwrap();
+            r"^{STOCK_SYMBOL_REGEX}$")).unwrap();
     }
 
     if !SYMBOL_REGEX.is_match(symbol) || symbol.ends_with(OLD_SYMBOL_SUFFIX) {
@@ -244,7 +244,7 @@ fn parse_quantity(quantity: &str) -> GenericResult<Decimal> {
         stripped = new.into_owned();
     }
 
-    Ok(Decimal::from_str(&stripped).map_err(|_| format!("Invalid quantity: {:?}", quantity))?)
+    Ok(Decimal::from_str(&stripped).map_err(|_| format!("Invalid quantity: {quantity:?}"))?)
 }
 
 #[cfg(test)]
@@ -288,7 +288,7 @@ mod tests {
         } else {
             assert_eq!(
                 parse_quantity(value).unwrap_err().to_string(),
-                format!("Invalid quantity: {:?}", value),
+                format!("Invalid quantity: {value:?}"),
             );
         }
     }

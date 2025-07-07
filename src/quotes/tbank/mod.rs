@@ -194,7 +194,7 @@ impl Tbank {
                 "Got an invalid {symbol} quote time: {timestamp:?}"))?;
 
             if let Some(time) = is_outdated_quote(time, &SystemTime()) {
-                debug!("{}: Got outdated quotes: {}.", symbol, time);
+                debug!("{symbol}: Got outdated quotes: {time}.");
                 continue;
             }
 

@@ -11,7 +11,7 @@ use super::{Date, Time, DateTime, DateOptTime, TzDateTime, utc_now};
 
 pub fn parse_date(date: &str, format: &str) -> GenericResult<Date> {
     Ok(Date::parse_from_str(date, format).map_err(|_| format!(
-        "Invalid date: {:?}", date))?)
+        "Invalid date: {date:?}"))?)
 }
 
 pub fn parse_user_date(date: &str) -> GenericResult<Date> {
@@ -20,12 +20,12 @@ pub fn parse_user_date(date: &str) -> GenericResult<Date> {
 
 pub fn parse_time(time: &str, format: &str) -> GenericResult<Time> {
     Ok(Time::parse_from_str(time, format).map_err(|_| format!(
-        "Invalid time: {:?}", time))?)
+        "Invalid time: {time:?}"))?)
 }
 
 pub fn parse_date_time(date_time: &str, format: &str) -> GenericResult<DateTime> {
     Ok(DateTime::parse_from_str(date_time, format).map_err(|_| format!(
-        "Invalid time: {:?}", date_time))?)
+        "Invalid time: {date_time:?}"))?)
 }
 
 pub fn parse_tz_date_time<T: TimeZone>(
@@ -33,7 +33,7 @@ pub fn parse_tz_date_time<T: TimeZone>(
 ) -> GenericResult<TzDateTime<T>> {
     let date_time = DateTime::parse_from_str(string, format).ok()
         .and_then(|date_time| tz.from_local_datetime(&date_time).single())
-        .ok_or_else(|| format!("Invalid time: {:?}", string))?;
+        .ok_or_else(|| format!("Invalid time: {string:?}"))?;
 
     if future_check && (date_time.naive_utc() - utc_now()).num_hours() > 0 {
         return Err!("Invalid time: {:?}. It's from future", date_time);
@@ -59,7 +59,7 @@ pub fn deserialize_date_opt_time<'de, D>(deserializer: D) -> Result<DateOptTime,
 }
 
 pub fn parse_timezone(timezone: &str) -> GenericResult<Tz> {
-    Ok(timezone.parse().map_err(|_| format!("Invalid time zone: {:?}", timezone))?)
+    Ok(timezone.parse().map_err(|_| format!("Invalid time zone: {timezone:?}"))?)
 }
 
 pub fn parse_duration(string: &str) -> GenericResult<Duration> {
@@ -79,7 +79,7 @@ pub fn parse_duration(string: &str) -> GenericResult<Duration> {
         };
 
         Some(duration)
-    }).ok_or_else(|| format!("Invalid duration: {}", string))?;
+    }).ok_or_else(|| format!("Invalid duration: {string}"))?;
 
     Ok(Duration::seconds(seconds))
 }
@@ -100,7 +100,7 @@ pub fn parse_fake_now() -> GenericResult<Option<TzDateTime<Local>>> {
             VarError::NotPresent => return Ok(None),
             VarError::NotUnicode(_) => None,
         },
-    }.ok_or_else(|| format!("Invalid {} environment variable value", name))?;
+    }.ok_or_else(|| format!("Invalid {name} environment variable value"))?;
 
     Ok(Some(fake_now))
 }

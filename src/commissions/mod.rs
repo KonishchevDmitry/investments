@@ -186,7 +186,7 @@ impl CommissionCalc {
         // We don't know how commissions are calculated for fractional shares yet, so use ceiled
         // value for now.
         let whole_shares = shares.ceil().to_u32().ok_or_else(|| format!(
-            "Got an invalid number of shares: {}", shares))?;
+            "Got an invalid number of shares: {shares}"))?;
 
         let volume = price * shares;
         self.volume.entry(date).or_default().deposit(volume);

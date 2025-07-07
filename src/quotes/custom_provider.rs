@@ -53,7 +53,7 @@ impl QuotesProvider for CustomProvider {
         ])?;
 
         Ok(send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
-            "Failed to get quotes from {}: {}", url, e))?)
+            "Failed to get quotes from {url}: {e}"))?)
     }
 }
 
@@ -74,7 +74,7 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
 
     let response: Response = parse_response(&response.text()?)?;
     response.validate().map_err(|e| format!(
-        "The server returned an invalid response: {}", e))?;
+        "The server returned an invalid response: {e}"))?;
 
     let mut quotes = QuotesMap::new();
 
@@ -90,7 +90,7 @@ fn get_quotes(response: Response) -> GenericResult<QuotesMap> {
             },
             Err(_) => {
                 let currency = quote.currency.as_ref().ok_or_else(|| format!(
-                    "Got {} quotes without currency", symbol))?;
+                    "Got {symbol} quotes without currency"))?;
 
                 if currency.len() != 3 || !currency.chars().all(|c| c.is_uppercase()) {
                     return Err!("Got an invalid currency: {:?}", currency);

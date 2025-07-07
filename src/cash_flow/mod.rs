@@ -149,12 +149,11 @@ fn generate_other_summary_report(
         }).join(", ");
 
         if !clarification.is_empty() {
-            clarification = format!(" Available dates: {}.", clarification)
+            clarification = format!(" Available dates: {clarification}.")
         }
 
         eprintln!(); warn!(
-            "The broker statements don't contain net asset value information for the specified period.{}",
-            clarification);
+            "The broker statements don't contain net asset value information for the specified period.{clarification}");
     }
 
     Ok(())

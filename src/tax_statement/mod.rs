@@ -57,15 +57,15 @@ pub fn generate_tax_statement(
 
     let (trades_tax, has_trading_income, has_trading_income_to_declare) = trades::process_income(
         &country, portfolio, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
-    ).map_err(|e| format!("Failed to process income from stock trading: {}", e))?;
+    ).map_err(|e| format!("Failed to process income from stock trading: {e}"))?;
 
     let (dividends_tax, has_dividend_income, has_dividend_income_to_declare) = dividends::process_income(
         &country, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
-    ).map_err(|e| format!("Failed to process dividend income: {}", e))?;
+    ).map_err(|e| format!("Failed to process dividend income: {e}"))?;
 
     let (interest_tax, has_interest_income, has_interest_income_to_declare) = interest::process_income(
         &country, &broker_statement, year, &mut tax_calculator, tax_statement.as_mut(), &converter,
-    ).map_err(|e| format!("Failed to process income from idle cash interest: {}", e))?;
+    ).map_err(|e| format!("Failed to process income from idle cash interest: {e}"))?;
 
     let has_income = has_trading_income | has_dividend_income | has_interest_income;
     let has_income_to_declare = has_trading_income_to_declare | has_dividend_income_to_declare | has_interest_income_to_declare;

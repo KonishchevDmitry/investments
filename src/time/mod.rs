@@ -39,7 +39,7 @@ pub fn tz_now() -> TzDateTime<Local> {
 
         lazy_static! {
             static ref FAKE_NOW: Option<TzDateTime<Local>> = parsing::parse_fake_now().unwrap_or_else(|e| {
-                eprintln!("{}.", e);
+                eprintln!("{e}.");
                 process::exit(1);
             });
         }

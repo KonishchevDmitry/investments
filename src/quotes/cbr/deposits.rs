@@ -21,7 +21,7 @@ use crate::types::Decimal;
 // (https://www.cbr.ru/statistics/bank_sector/int_rat/)
 pub fn get_interest_rates(base_url: &str) -> GenericResult<Vec<DepositStatistics>> {
     let client = Client::new();
-    let url = format!("{}/vfs/statistics/pdko/int_rat/deposits.xlsx", base_url);
+    let url = format!("{base_url}/vfs/statistics/pdko/int_rat/deposits.xlsx");
 
     Ok(send_request(&client, &url, None)
         .and_then(parse_interest_rates)

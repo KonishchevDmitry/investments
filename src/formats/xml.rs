@@ -19,7 +19,7 @@ pub fn deserialize<'de, R: Read, T: Deserialize<'de>>(mut reader: R) -> GenericR
     };
 
     let encoding = Encoding::for_label(encoding_name.as_bytes()).ok_or_else(|| format!(
-        "Unsupported XML document encoding: {:?}", encoding_name))?;
+        "Unsupported XML document encoding: {encoding_name:?}"))?;
 
     let (data, _, errors) = encoding.decode(data.as_slice());
     if errors {
