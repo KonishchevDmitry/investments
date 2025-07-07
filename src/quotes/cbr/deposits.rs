@@ -230,7 +230,7 @@ fn parse_interest_rates_sheet(currency: &'static str, mut reader: SheetReader) -
         .and_then(|date| date.pred_opt())
         .ok_or_else(|| format!("Got an invalid date: {last_human_date}"))?;
 
-    if (time::today() - last_date).num_days() < 61 {
+    if (time::today() - last_date).num_days() <= 75 {
         debug!("Got {currency} deposit interest rates for {first_human_date} - {last_human_date}.")
     } else {
         warn!("Got an outdated {currency} deposit interest rates: {first_human_date} - {last_human_date}.")
