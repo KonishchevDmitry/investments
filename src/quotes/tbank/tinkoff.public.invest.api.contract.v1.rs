@@ -6125,6 +6125,42 @@ pub mod get_tech_analysis_response {
         pub macd: ::core::option::Option<super::Quotation>,
     }
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetMarketValuesRequest {
+    /// Массив идентификаторов инструментов.
+    #[prost(string, repeated, tag = "1")]
+    pub instrument_id: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Массив запрашиваемых параметров.
+    #[prost(enumeration = "MarketValueType", repeated, tag = "2")]
+    pub values: ::prost::alloc::vec::Vec<i32>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetMarketValuesResponse {
+    /// Массив значений параметров.
+    #[prost(message, repeated, tag = "1")]
+    pub instruments: ::prost::alloc::vec::Vec<MarketValueInstrument>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MarketValueInstrument {
+    /// Идентификатор инструмента.
+    #[prost(string, tag = "1")]
+    pub instrument_uid: ::prost::alloc::string::String,
+    /// Массив параметров инструмента.
+    #[prost(message, repeated, tag = "2")]
+    pub values: ::prost::alloc::vec::Vec<MarketValue>,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct MarketValue {
+    /// Тип параметра.
+    #[prost(enumeration = "MarketValueType", optional, tag = "1")]
+    pub r#type: ::core::option::Option<i32>,
+    /// Значение.
+    #[prost(message, optional, tag = "2")]
+    pub value: ::core::option::Option<Quotation>,
+    /// Дата и время.
+    #[prost(message, optional, tag = "3")]
+    pub time: ::core::option::Option<::prost_types::Timestamp>,
+}
 /// Тип операции со списком подписок.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -6493,6 +6529,56 @@ impl CandleSource {
             "CANDLE_SOURCE_UNSPECIFIED" => Some(Self::Unspecified),
             "CANDLE_SOURCE_EXCHANGE" => Some(Self::Exchange),
             "CANDLE_SOURCE_DEALER_WEEKEND" => Some(Self::DealerWeekend),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum MarketValueType {
+    /// Не определен.
+    InstrumentValueUnspecified = 0,
+    /// Последняя биржевая цена.
+    InstrumentValueLastPrice = 1,
+    /// Последняя цена дилера.
+    InstrumentValueLastPriceDealer = 2,
+    /// Цена закрытия.
+    InstrumentValueClosePrice = 3,
+    /// Цена последней сделки с вечерней сессии.
+    InstrumentValueEveningSessionPrice = 4,
+    /// Открытый интерес, возвращается только для фьючерсов
+    InstrumentValueOpenInterest = 5,
+}
+impl MarketValueType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::InstrumentValueUnspecified => "INSTRUMENT_VALUE_UNSPECIFIED",
+            Self::InstrumentValueLastPrice => "INSTRUMENT_VALUE_LAST_PRICE",
+            Self::InstrumentValueLastPriceDealer => "INSTRUMENT_VALUE_LAST_PRICE_DEALER",
+            Self::InstrumentValueClosePrice => "INSTRUMENT_VALUE_CLOSE_PRICE",
+            Self::InstrumentValueEveningSessionPrice => {
+                "INSTRUMENT_VALUE_EVENING_SESSION_PRICE"
+            }
+            Self::InstrumentValueOpenInterest => "INSTRUMENT_VALUE_OPEN_INTEREST",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INSTRUMENT_VALUE_UNSPECIFIED" => Some(Self::InstrumentValueUnspecified),
+            "INSTRUMENT_VALUE_LAST_PRICE" => Some(Self::InstrumentValueLastPrice),
+            "INSTRUMENT_VALUE_LAST_PRICE_DEALER" => {
+                Some(Self::InstrumentValueLastPriceDealer)
+            }
+            "INSTRUMENT_VALUE_CLOSE_PRICE" => Some(Self::InstrumentValueClosePrice),
+            "INSTRUMENT_VALUE_EVENING_SESSION_PRICE" => {
+                Some(Self::InstrumentValueEveningSessionPrice)
+            }
+            "INSTRUMENT_VALUE_OPEN_INTEREST" => Some(Self::InstrumentValueOpenInterest),
             _ => None,
         }
     }
@@ -6894,6 +6980,36 @@ pub mod market_data_service_client {
                     GrpcMethod::new(
                         "tinkoff.public.invest.api.contract.v1.MarketDataService",
                         "GetTechAnalysis",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// GetMarketValues — рыночные данные по инструментам
+        pub async fn get_market_values(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetMarketValuesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetMarketValuesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetMarketValues",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.MarketDataService",
+                        "GetMarketValues",
                     ),
                 );
             self.inner.unary(req, path, codec).await
