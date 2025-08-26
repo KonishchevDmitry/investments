@@ -44,9 +44,16 @@ pub fn read_table<T: TableRow + TableReader>(sheet: &mut SheetReader) -> Generic
     let mut columns_mapping = match map_columns(sheet.next_row_checked()?, &columns, T::trim_column_title) {
         Ok(mapping) => mapping,
         Err(err) => {
-            if T::next_row(sheet).is_none() && !sheet.parse_empty_tables() {
+            let parse_empty_tables = sheet.parse_empty_tables();
+
+            let next_row = T::next_row(sheet);
+            if next_row.is_none() && !parse_empty_tables {
                 trace!("Skip empty {} table.", std::any::type_name::<T>());
                 return Ok(table);
+            }
+
+            if next_row.is_some() {
+                sheet.step_back();
             }
             return Err(err);
         },
