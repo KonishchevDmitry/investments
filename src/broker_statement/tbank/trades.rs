@@ -114,11 +114,11 @@ struct TradeRow {
     time: Time,
     #[column(name="Торговая площадка")]
     exchange: String,
-    #[column(name="Режим торгов", optional=true)]
+    #[column(name="Режим торгов", optional=true)] // Old statements may have it here. New statements have it at the end of the table.
     _6: Option<SkipCell>,
     #[column(name="Вид сделки")]
     operation: String,
-    #[column(name="Сокращенное наименование", alias="Сокращенное наименование актива")]
+    #[column(name="Наименование актива", aliases=r#"["Сокращенное наименование", "Сокращенное наименование актива"]"#)]
     _8: SkipCell,
     #[column(name="Код актива")]
     symbol: String,
@@ -175,6 +175,10 @@ struct TradeRow {
     _31: SkipCell,
     #[column(name="Тип расчета по сделке", optional=true)]
     _32: Option<SkipCell>,
+    #[column(name="Режим торгов", optional=true)] // New statements have it here. Old statements may have it at the beginning of the table.
+    _33: Option<SkipCell>,
+    #[column(name="Контрагент", optional=true)]
+    _34: Option<SkipCell>,
 }
 
 impl TableReader for TradeRow {

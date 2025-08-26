@@ -57,7 +57,7 @@ impl SectionParser for SecuritiesInfoParser {
 #[derive(XlsTableRow)]
 #[table(trim_column_title="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct SecuritiesInfoRow {
-    #[column(name="Сокращенное наименование актива")]
+    #[column(name="Наименование актива", alias="Сокращенное наименование актива")]
     name: String,
     #[column(name="Торговая площадка", optional=true)]
     exchange: Option<String>,
@@ -67,14 +67,16 @@ struct SecuritiesInfoRow {
     isin: Option<String>,
     #[column(name="Код государственной регистрации", alias="Номер гос.регистрации")]
     _4: SkipCell,
+    #[column(name="Тип", optional=true)] // New statements have it here. Old statements have it below.
+    _5: Option<SkipCell>,
     #[column(name="Наименование эмитента")]
-    _5: SkipCell,
-    #[column(name="Тип")]
     _6: SkipCell,
-    #[column(name="Номинал", optional=true)]
+    #[column(name="Тип", optional=true)] // Old statements have it here. New statements have it above.
     _7: Option<SkipCell>,
-    #[column(name="Валюта номинала", optional=true)]
+    #[column(name="Номинал", optional=true)]
     _8: Option<SkipCell>,
+    #[column(name="Валюта номинала", optional=true)]
+    _9: Option<SkipCell>,
 }
 
 impl TableReader for SecuritiesInfoRow {

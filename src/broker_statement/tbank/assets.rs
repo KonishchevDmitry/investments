@@ -53,32 +53,35 @@ impl SectionParser for AssetsParser {
 #[derive(XlsTableRow)]
 #[table(trim_column_title="trim_column_title", case_insensitive_match=true, space_insensitive_match=true)]
 struct AssetsRow {
-    #[column(name="Сокращенное наименование актива")]
+    #[column(name="Наименование актива", alias="Сокращенное наименование актива")]
     name: String,
     #[column(name="Код актива")]
     code: String,
+    // FIXME(konishchev): Support it
+    #[column(name="ISIN", optional=true)] // Old statements don't have it
+    _2: Option<SkipCell>,
     #[column(name="Место хранения")]
-    _2: SkipCell,
+    _3: SkipCell,
     #[column(name="Входящий остаток", strict=false)] // Old statements stored it as string, new - as float
     starting: u32,
     #[column(name="Зачисление")]
-    _4: SkipCell,
-    #[column(name="Списание")]
     _5: SkipCell,
-    #[column(name="Исходящий остаток")]
+    #[column(name="Списание")]
     _6: SkipCell,
+    #[column(name="Исходящий остаток")]
+    _7: SkipCell,
     #[column(name="Плановый исходящий остаток", strict=false)] // Old statements stored it as string, new - as float
     planned: u32,
 
     // Deprecated columns
     #[column(name="Рыночная цена", optional=true)]
-    _8: Option<SkipCell>,
-    #[column(name="Валюта цены", optional=true)]
     _9: Option<SkipCell>,
-    #[column(name="НКД", optional=true)]
+    #[column(name="Валюта цены", optional=true)]
     _10: Option<SkipCell>,
-    #[column(name="Рыночная стоимость", optional=true)]
+    #[column(name="НКД", optional=true)]
     _11: Option<SkipCell>,
+    #[column(name="Рыночная стоимость", optional=true)]
+    _12: Option<SkipCell>,
 }
 
 impl TableReader for AssetsRow {

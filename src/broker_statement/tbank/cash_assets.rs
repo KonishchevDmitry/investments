@@ -72,20 +72,21 @@ fn parse_current_assets(
 struct AssetsRow {
     #[column(name="Валюта")]
     currency: String,
-    #[column(name="Входящий остаток на начало периода:", parse_with="parse_decimal_cell")]
+    #[column(name="Входящий остаток", alias="Входящий остаток на начало периода:", parse_with="parse_decimal_cell")]
     starting: Decimal,
-    #[column(name="Исходящий остаток на конец периода:")]
+    #[column(name="Исходящий остаток", alias="Исходящий остаток на конец периода:")]
     _2: SkipCell,
 
     // Regex to support variations:
+    // * "Плановый исходящий остаток"
     // * "Плановый исходящий остаток на конец периода (с учетом неисполненных на дату отчета сделок):"
     // * "Плановый исходящий остаток на конец периода (с учетом неисполненных на дату "
-    #[column(name=r"^Плановый исходящий остаток на конец периода", regex=true, parse_with="parse_decimal_cell")]
+    #[column(name=r"^Плановый исходящий остаток", regex=true, parse_with="parse_decimal_cell")]
     planned: Decimal,
 
-    #[column(name="Задолженность клиента перед брокером:", parse_with="parse_decimal_cell")]
+    #[column(name="Задолженность клиента", alias="Задолженность клиента перед брокером:", parse_with="parse_decimal_cell")]
     debt: Decimal,
-    #[column(name="Сумма непокрытого остатка:", parse_with="parse_decimal_cell")]
+    #[column(name="Непокрытая позиция", alias="Сумма непокрытого остатка:", parse_with="parse_decimal_cell")]
     uncovered: Decimal,
     #[column(name="Задолженность клиента перед депозитарием (справочно)")]
     _6: SkipCell,
