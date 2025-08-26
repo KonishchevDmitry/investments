@@ -23,7 +23,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap, BTreeSet, hash_map::Entry};
 
 use itertools::Itertools;
-use log::{debug, warn};
+use log::{Level, log_enabled, debug, warn};
 
 use crate::brokers::{BrokerInfo, Broker};
 use crate::commissions::CommissionCalc;
@@ -164,6 +164,13 @@ impl BrokerStatement {
 
         process_grants(&mut statement, strictness.contains(ReadingStrictness::GRANTS))?;
 
+        if log_enabled!(Level::Debug) {
+            debug!("Parsed open positions:");
+            for (symbol, position) in &statement.open_positions {
+                debug!("* {symbol}: {position}");
+            }
+        }
+
         for (symbol, new_symbol) in symbol_remapping.iter() {
             statement.rename_symbol(symbol, new_symbol, None, true).map_err(|e| format!(
                 "Failed to remap {symbol} to {new_symbol}: {e}"))?;
@@ -183,6 +190,14 @@ impl BrokerStatement {
         statement.validate(strictness)?;
 
         process_corporate_actions(&mut statement)?;
+
+        if log_enabled!(Level::Debug) {
+            debug!("Open positions after all corporate actions and renames:");
+            for (symbol, position) in &statement.open_positions {
+                debug!("* {symbol}: {position}");
+            }
+        }
+
         statement.process_trades(None)?;
 
         statement.check_otc_instruments(strictness);
@@ -726,6 +741,13 @@ impl BrokerStatement {
             open_positions.entry(&stock_buy.symbol)
                 .and_modify(|position| *position += quantity)
                 .or_insert(quantity);
+        }
+
+        if log_enabled!(Level::Debug) {
+            debug!("Calculated open positions:");
+            for (symbol, position) in &open_positions {
+                debug!("* {symbol}: {position}");
+            }
         }
 
         let symbols: BTreeSet<&str> = self.open_positions.keys().map(String::as_str)
