@@ -10,7 +10,7 @@ use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStat
 use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets};
-use crate::formats::xls::{self, XlsStatementParser, XlsTableRow, SectionParser, SheetReader, Cell, SkipCell, TableReader};
+use crate::formats::xls::{self, Cell, SectionParser, SheetReader, SkipCell, TableReader, XlsStatementParser, XlsTableRow};
 use crate::instruments::{InstrumentId, ISIN_REGEX};
 use crate::time::{Date, Time};
 use crate::types::Decimal;
@@ -111,8 +111,12 @@ fn parse_cash_flows(
         info: CashFlowRow,
     }
 
-    loop {
-        let row = xls::strip_row_expecting_columns(parser.sheet.next_row_checked()?, 1)?;
+    while let Some(row) = parser.sheet.next_row() {
+        if xls::is_empty_row(row) {
+            continue;
+        }
+
+        let row = xls::strip_row_expecting_columns(row, 1)?;
         let title = xls::get_string_cell(row[0])?;
 
         let currency = match currencies.get(title) {
