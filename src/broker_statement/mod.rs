@@ -172,13 +172,19 @@ impl BrokerStatement {
         }
 
         for (symbol, new_symbol) in symbol_remapping.iter() {
-            statement.rename_symbol(symbol, new_symbol, None, true).map_err(|e| format!(
-                "Failed to remap {symbol} to {new_symbol}: {e}"))?;
+            statement.rename_symbol(symbol, new_symbol, RenameType::Remapping {
+                check_existence: true,
+                allow_override: false,
+            }).map_err(|e| format!("Failed to remap {symbol} to {new_symbol}: {e}"))?;
         }
 
         for (symbol, new_symbol) in statement.instrument_info.suggest_remapping() {
-            statement.rename_symbol(&symbol, &new_symbol, None, false).map_err(|e| format!(
-                "Failed to apply automatically generated remapping rule {symbol} -> {new_symbol}: {e}"))?;
+            statement.rename_symbol(&symbol, &new_symbol, RenameType::Remapping {
+                check_existence: false,
+                allow_override: false,
+            }).map_err(|e| format!(
+                "Failed to apply automatically generated remapping rule {symbol} -> {new_symbol}: {e}",
+            ))?;
         }
 
         statement.corporate_actions.extend(corporate_actions.iter().cloned());
@@ -503,21 +509,22 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, time: Option<DateOptTime>, check_existence: bool) -> EmptyResult {
-        // For now don't introduce any enums here:
-        // * When date is set - it's always a corporate action.
-        // * In other case it's a manual remapping.
-        let remapping = if let Some(time) = time {
-            debug!("Renaming {symbol} -> {new_symbol} due to corporate action from {}...", formatting::format_date(time.date));
-            false
-        } else {
-            debug!("Remapping {symbol} -> {new_symbol}...");
-            true
+    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, type_: RenameType) -> EmptyResult {
+        let (remapping, check_existence) = match type_ {
+            RenameType::CorporateAction {time} => {
+                debug!("Renaming {symbol} -> {new_symbol} due to corporate action from {}...",
+                    formatting::format_date(time.date));
+                (false, true)
+            },
+            RenameType::Remapping {check_existence, ..} => {
+                debug!("Remapping {symbol} -> {new_symbol}...");
+                (true, check_existence)
+            },
         };
 
         let mut found = false;
         let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String, operation_original_symbol: &mut String| {
-            if let Some(time) = time {
+            if let RenameType::CorporateAction {time} = type_ {
                 if operation_time > time {
                     return;
                 }
@@ -536,22 +543,26 @@ impl BrokerStatement {
             }
         };
 
-        if remapping {
-            if let Some(quantity) = self.open_positions.remove(symbol) {
-                match self.open_positions.entry(new_symbol.to_owned()) {
-                    Entry::Occupied(_) => {
-                        self.open_positions.insert(symbol.to_owned(), quantity);
-                        return Err!("The portfolio already has {new_symbol} symbol");
-                    },
-                    Entry::Vacant(entry) => {
-                        entry.insert(quantity);
-                    },
+        match type_ {
+            RenameType::Remapping {allow_override, ..} => {
+                if let Some(quantity) = self.open_positions.remove(symbol) {
+                    match self.open_positions.entry(new_symbol.to_owned()) {
+                        Entry::Occupied(_) => {
+                            self.open_positions.insert(symbol.to_owned(), quantity);
+                            return Err!("The portfolio already has {new_symbol} symbol");
+                        },
+                        Entry::Vacant(entry) => {
+                            entry.insert(quantity);
+                        },
+                    }
                 }
-            }
 
-            self.instrument_info.remap(symbol, new_symbol)?;
-        } else {
-            self.stock_splits.rename(symbol, new_symbol)?;
+                self.instrument_info.remap(symbol, new_symbol, allow_override)?;
+            },
+
+            RenameType::CorporateAction {..} => {
+                self.stock_splits.rename(symbol, new_symbol)?;
+            },
         }
 
         for trade in &mut self.stock_buys {
@@ -771,6 +782,17 @@ impl BrokerStatement {
 
         Ok(())
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum RenameType {
+    CorporateAction{
+        time: DateOptTime,
+    },
+    Remapping {
+        check_existence: bool,
+        allow_override: bool,
+    },
 }
 
 #[derive(Clone, Default)]

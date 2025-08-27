@@ -16,7 +16,7 @@ use crate::localities::Jurisdiction;
 use crate::time::{Date, DateTime, DateOptTime, deserialize_date_opt_time};
 use crate::types::Decimal;
 
-use super::BrokerStatement;
+use super::{BrokerStatement, RenameType};
 use super::trades::{StockBuy, StockSell, StockSellSource, PurchaseTotalCost};
 
 #[derive(Deserialize, Clone, Debug)]
@@ -248,9 +248,12 @@ fn process_corporate_action(statement: &mut BrokerStatement, action: CorporateAc
         },
 
         CorporateActionType::Rename {ref new_symbol} => {
-            statement.rename_symbol(&action.symbol, new_symbol, Some(action.time), true).map_err(|e| format!(
-                "Failed to process {} -> {} rename corporate action: {}",
-                action.symbol, new_symbol, e))?;
+            statement.rename_symbol(&action.symbol, new_symbol, RenameType::CorporateAction {
+                time: action.time
+            }).map_err(|e| format!(
+                "Failed to process {} -> {new_symbol} rename corporate action: {e}",
+                action.symbol,
+            ))?;
         },
 
         CorporateActionType::Spinoff {ref symbol, quantity, ..} => {
