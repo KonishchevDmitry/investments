@@ -33,6 +33,8 @@ trap cleanup-temp-dir EXIT
 trap "exit 1" INT TERM QUIT
 
 export INVESTMENTS_BINARY=target/debug/investments
+export INVESTMENTS_CACHE_ONLY_MODE=1
+
 rm -f "$INVESTMENTS_BINARY" && cargo build
 rm -f "$actual_dir"/*
 

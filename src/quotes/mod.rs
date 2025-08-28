@@ -231,6 +231,10 @@ impl Quotes {
             return Ok(quotes);
         }
 
+        if is_cache_only_mode() {
+            return Err!("An attempt to get historical quotes for {symbol} ({exchange}) in cache-only mode");
+        }
+
         for provider in &self.providers {
             let provider = match provider.supports_historical_stocks() {
                 SupportedExchange::Some(provider_exchange) => {
@@ -418,6 +422,11 @@ impl Quotes {
                 break;
             }
 
+            if is_cache_only_mode() {
+                return Err!("An attempt to get quotes for the following symbols in cache-only mode: {}",
+                    plan.keys().join(", "))
+            }
+
             let pass_plan: Vec<_> = pass_plan.into_iter().map(|(provider_id, symbols)| {
                 (self.providers[provider_id].clone(), symbols)
             }).collect();
@@ -481,6 +490,23 @@ impl Quotes {
 
         Ok(())
     }
+}
+
+// A special mode for regression tests which must be reproducible and offline
+pub fn is_cache_only_mode() -> bool {
+    #[cfg(debug_assertions)]
+    {
+        use std::env::{self, VarError};
+
+        if env::var("INVESTMENTS_CACHE_ONLY_MODE").map_or_else(|e| match e {
+            VarError::NotUnicode(_) => true,
+            VarError::NotPresent => false,
+        }, |value| !value.is_empty()) {
+            return true
+        }
+    }
+
+    false
 }
 
 type QuotesMap = HashMap<String, Cash>;

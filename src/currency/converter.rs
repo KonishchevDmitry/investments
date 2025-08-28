@@ -11,7 +11,7 @@ use crate::db;
 use crate::forex::get_currency_pair;
 use crate::formatting;
 use crate::localities;
-use crate::quotes::{cbr, CurrencyRate, Quotes, QuoteQuery};
+use crate::quotes::{self, cbr, CurrencyRate, Quotes, QuoteQuery};
 #[cfg(test)] use crate::time;
 use crate::types::{Date, Decimal};
 #[cfg(test)] use crate::util;
@@ -178,6 +178,11 @@ impl CurrencyRateCacheBackend {
                         "Failed to get {} currency rate for {}: ",
                         "it's expected to be in the cache, but actually it's missing"),
                         currency, formatting::format_date(date));
+                }
+
+                if quotes::is_cache_only_mode() {
+                    let date = std::cmp::min(date, self.today().pred_opt().unwrap());
+                    return self.get_price(currency, date, true);
                 }
 
                 let currency_rates = self.get_rates(currency, start_date, end_date)?;
