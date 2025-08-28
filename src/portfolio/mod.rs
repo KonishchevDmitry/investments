@@ -27,7 +27,7 @@ pub fn sync(config: &Config, portfolio_name: &str) -> GenericResult<TelemetryRec
     let database = db::connect(&config.db_path)?;
 
     let statement = BrokerStatement::read(
-        broker, portfolio.statements_path()?, &portfolio.get_symbol_remapping()?, &portfolio.instrument_internal_ids,
+        broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions,
         &portfolio.corporate_actions, ReadingStrictness::empty())?;
     statement.check_date();
@@ -141,9 +141,8 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
 
     let statement = portfolio_config.statements.as_ref().map(|path| {
         BrokerStatement::read(
-            broker.clone(), path, &portfolio_config.get_symbol_remapping()?,
-            &portfolio_config.instrument_internal_ids, &portfolio_config.instrument_names,
-            portfolio_config.get_tax_remapping()?, &portfolio_config.tax_exemptions,
+            broker.clone(), path, &portfolio_config.symbol_remapping, &portfolio_config.instrument_internal_ids,
+            &portfolio_config.instrument_names, portfolio_config.get_tax_remapping()?, &portfolio_config.tax_exemptions,
             &portfolio_config.corporate_actions, ReadingStrictness::empty())
     }).transpose()?;
 

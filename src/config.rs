@@ -11,7 +11,7 @@ use validator::Validate;
 
 use crate::analysis::backtesting::config::BacktestingConfig;
 use crate::analysis::performance::config::PerformanceMergingConfig;
-use crate::broker_statement::{CorporateAction, SymbolRemappingRule};
+use crate::broker_statement::{CorporateAction, SymbolRemappingRules};
 use crate::brokers::Broker;
 use crate::brokers::config::BrokersConfig;
 use crate::cash_flow::config::deserialize_cash_flows;
@@ -272,7 +272,7 @@ pub struct PortfolioConfig {
 
     pub statements: Option<String>,
     #[serde(default)]
-    symbol_remapping: HashMap<String, String>,
+    pub symbol_remapping: SymbolRemappingRules,
     #[serde(default, deserialize_with = "InstrumentInternalIds::deserialize")]
     pub instrument_internal_ids: InstrumentInternalIds,
     #[serde(default)]
@@ -325,23 +325,6 @@ impl PortfolioConfig {
 
     pub fn tax_payment_day(&self) -> TaxPaymentDay {
         TaxPaymentDay::new(self.broker.jurisdiction(), self.tax_payment_day_spec)
-    }
-
-    pub fn get_symbol_remapping(&self) -> GenericResult<Vec<SymbolRemappingRule>> {
-        let mut rules = Vec::new();
-
-        for (old, new) in &self.symbol_remapping {
-            if self.symbol_remapping.contains_key(new) {
-                return Err!("Invalid symbol remapping configuration: Recursive {old} symbol");
-            }
-
-            rules.push(SymbolRemappingRule {
-                old: old.clone(),
-                new: new.clone(),
-            });
-        }
-
-        Ok(rules)
     }
 
     pub fn get_tax_remapping(&self) -> GenericResult<TaxRemapping> {

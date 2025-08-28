@@ -55,7 +55,7 @@ pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::payments::Withholding;
 pub use self::reader::ReadingStrictness;
-pub use self::remapping::{SymbolRemappingRule, SymbolRenameType};
+pub use self::remapping::{SymbolRemappingRules, SymbolRenameType};
 pub use self::taxes::TaxAgentWithholding;
 pub use self::trades::{ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSourceDetails, SellDetails, FifoDetails};
 
@@ -89,7 +89,7 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        broker: BrokerInfo, statement_dir_path: &str, symbol_remapping: &HashMap<String, String>,
+        broker: BrokerInfo, statement_dir_path: &str, symbol_remapping: &SymbolRemappingRules,
         instrument_internal_ids: &InstrumentInternalIds, instrument_names: &HashMap<String, String>,
         tax_remapping: TaxRemapping, tax_exemptions: &[TaxExemption], corporate_actions: &[CorporateAction],
         strictness: ReadingStrictness,

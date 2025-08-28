@@ -133,7 +133,7 @@ fn load_portfolios<'a>(
 fn load_portfolio(config: &Config, portfolio: &PortfolioConfig, strictness: ReadingStrictness) -> GenericResult<BrokerStatement> {
     let broker = portfolio.broker.get_info(config, portfolio.plan.as_deref())?;
     BrokerStatement::read(
-        broker, portfolio.statements_path()?, &portfolio.get_symbol_remapping()?, &portfolio.instrument_internal_ids,
+        broker, portfolio.statements_path()?, &portfolio.symbol_remapping, &portfolio.instrument_internal_ids,
         &portfolio.instrument_names, portfolio.get_tax_remapping()?, &portfolio.tax_exemptions,
         &portfolio.corporate_actions, strictness)
 }
