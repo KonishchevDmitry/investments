@@ -129,7 +129,7 @@ mod tests {
 
         BrokerStatement::read(
             broker, &format!("testdata/open/{name}"),
-            &Default::default(), &portfolio.instrument_internal_ids, &Default::default(), TaxRemapping::new(), &[],
+            &[], &portfolio.instrument_internal_ids, &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()
     }

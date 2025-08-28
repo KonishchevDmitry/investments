@@ -8,6 +8,7 @@ mod merging;
 mod partial;
 mod payments;
 mod reader;
+mod remapping;
 mod taxes;
 mod trades;
 mod validators;
@@ -54,6 +55,7 @@ pub use self::interest::IdleCashInterest;
 pub use self::merging::StatementsMergingStrategy;
 pub use self::payments::Withholding;
 pub use self::reader::ReadingStrictness;
+pub use self::remapping::{SymbolRemappingRule, SymbolRenameType};
 pub use self::taxes::TaxAgentWithholding;
 pub use self::trades::{ForexTrade, StockBuy, StockSource, StockSell, StockSellType, StockSourceDetails, SellDetails, FifoDetails};
 
@@ -171,15 +173,15 @@ impl BrokerStatement {
             }
         }
 
-        for (symbol, new_symbol) in symbol_remapping.iter() {
-            statement.rename_symbol(symbol, new_symbol, RenameType::Remapping {
+        for rule in symbol_remapping {
+            statement.rename_symbol(&rule.old, &rule.new, SymbolRenameType::Remapping {
                 check_existence: true,
                 allow_override: false,
-            }).map_err(|e| format!("Failed to remap {symbol} to {new_symbol}: {e}"))?;
+            }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.old, rule.new))?;
         }
 
         for (symbol, new_symbol) in statement.instrument_info.suggest_remapping() {
-            statement.rename_symbol(&symbol, &new_symbol, RenameType::Remapping {
+            statement.rename_symbol(&symbol, &new_symbol, SymbolRenameType::Remapping {
                 check_existence: false,
                 allow_override: false,
             }).map_err(|e| format!(
@@ -509,14 +511,14 @@ impl BrokerStatement {
         Ok(())
     }
 
-    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, type_: RenameType) -> EmptyResult {
+    fn rename_symbol(&mut self, symbol: &str, new_symbol: &str, type_: SymbolRenameType) -> EmptyResult {
         let (remapping, check_existence) = match type_ {
-            RenameType::CorporateAction {time} => {
+            SymbolRenameType::CorporateAction {time} => {
                 debug!("Renaming {symbol} -> {new_symbol} due to corporate action from {}...",
                     formatting::format_date(time.date));
                 (false, true)
             },
-            RenameType::Remapping {check_existence, ..} => {
+            SymbolRenameType::Remapping {check_existence, ..} => {
                 debug!("Remapping {symbol} -> {new_symbol}...");
                 (true, check_existence)
             },
@@ -524,7 +526,7 @@ impl BrokerStatement {
 
         let mut found = false;
         let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String, operation_original_symbol: &mut String| {
-            if let RenameType::CorporateAction {time} = type_ {
+            if let SymbolRenameType::CorporateAction {time} = type_ {
                 if operation_time > time {
                     return;
                 }
@@ -544,7 +546,7 @@ impl BrokerStatement {
         };
 
         match type_ {
-            RenameType::Remapping {allow_override, ..} => {
+            SymbolRenameType::Remapping {allow_override, ..} => {
                 if let Some(quantity) = self.open_positions.remove(symbol) {
                     match self.open_positions.entry(new_symbol.to_owned()) {
                         Entry::Occupied(_) => {
@@ -560,7 +562,7 @@ impl BrokerStatement {
                 self.instrument_info.remap(symbol, new_symbol, allow_override)?;
             },
 
-            RenameType::CorporateAction {..} => {
+            SymbolRenameType::CorporateAction {..} => {
                 self.stock_splits.rename(symbol, new_symbol)?;
             },
         }
@@ -782,17 +784,6 @@ impl BrokerStatement {
 
         Ok(())
     }
-}
-
-#[derive(Clone, Copy)]
-pub enum RenameType {
-    CorporateAction{
-        time: DateOptTime,
-    },
-    Remapping {
-        check_existence: bool,
-        allow_override: bool,
-    },
 }
 
 #[derive(Clone, Default)]

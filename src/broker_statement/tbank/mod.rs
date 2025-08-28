@@ -328,7 +328,7 @@ mod tests {
 
         BrokerStatement::read(
             broker, &format!("testdata/tbank/{name}"),
-            &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(), &[],
+            &[], &Default::default(), &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()
     }

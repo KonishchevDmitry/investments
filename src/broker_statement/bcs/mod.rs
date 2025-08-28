@@ -106,7 +106,7 @@ mod tests {
         let corporate_actions = &config.get_portfolio(portfolio_name).unwrap().corporate_actions;
 
         let statement = BrokerStatement::read(
-            broker, &path, &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(), &[],
+            broker, &path, &[], &Default::default(), &Default::default(), TaxRemapping::new(), &[],
             corporate_actions, ReadingStrictness::all()).unwrap();
 
         assert!(!statement.assets.cash.is_empty());

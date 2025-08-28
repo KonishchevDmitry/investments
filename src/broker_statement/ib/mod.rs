@@ -343,7 +343,7 @@ mod tests {
         let path = format!("testdata/interactive-brokers/{name}");
         let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
         BrokerStatement::read(
-            broker, &path, &Default::default(), &Default::default(), &Default::default(), tax_remapping, &[], &[],
+            broker, &path, &[], &Default::default(), &Default::default(), tax_remapping, &[], &[],
             ReadingStrictness::all()).unwrap()
     }
 }
