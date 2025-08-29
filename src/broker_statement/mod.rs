@@ -43,6 +43,7 @@ use crate::util;
 use self::dividends::{DividendAccruals, process_dividend_accruals};
 use self::partial::PartialBrokerStatement;
 use self::reader::BrokerStatementReader;
+use self::remapping::SymbolRemappingTime;
 use self::taxes::{TaxId, TaxAccruals, TaxAgentWithholdings};
 use self::validators::{DateValidator, sort_and_validate_trades};
 
@@ -166,6 +167,14 @@ impl BrokerStatement {
 
         process_grants(&mut statement, strictness.contains(ReadingStrictness::GRANTS))?;
 
+        let (mut symbol_remapping_pre, mut symbol_remapping_post) = (Vec::new(), Vec::new());
+        for rule in symbol_remapping {
+            match rule.when {
+                SymbolRemappingTime::Pre => &mut symbol_remapping_pre,
+                SymbolRemappingTime::Post => &mut symbol_remapping_post,
+            }.push(rule);
+        }
+
         if log_enabled!(Level::Debug) {
             debug!("Parsed open positions:");
             for (symbol, position) in &statement.open_positions {
@@ -173,10 +182,10 @@ impl BrokerStatement {
             }
         }
 
-        for rule in symbol_remapping {
+        for rule in symbol_remapping_pre {
             statement.rename_symbol(&rule.old, &rule.new, SymbolRenameType::Remapping {
                 check_existence: true,
-                allow_override: false,
+                allow_override: rule.allow_override,
             }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.old, rule.new))?;
         }
 
@@ -196,8 +205,14 @@ impl BrokerStatement {
         }
 
         statement.validate(strictness)?;
-
         process_corporate_actions(&mut statement)?;
+
+        for rule in symbol_remapping_post {
+            statement.rename_symbol(&rule.old, &rule.new, SymbolRenameType::Remapping {
+                check_existence: true,
+                allow_override: rule.allow_override,
+            }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.old, rule.new))?;
+        }
 
         if log_enabled!(Level::Debug) {
             debug!("Open positions after all corporate actions and renames:");
@@ -207,7 +222,6 @@ impl BrokerStatement {
         }
 
         statement.process_trades(None)?;
-
         statement.check_otc_instruments(strictness);
         statement.validate_tax_exemptions(tax_exemptions, strictness)?;
 
@@ -525,6 +539,31 @@ impl BrokerStatement {
         };
 
         let mut found = false;
+
+        match type_ {
+            SymbolRenameType::Remapping {allow_override, ..} => {
+                if let Some(quantity) = self.open_positions.remove(symbol) {
+                    found = true; // FIXME(konishchev): Recheck
+
+                    match self.open_positions.entry(new_symbol.to_owned()) {
+                        Entry::Occupied(_) => {
+                            self.open_positions.insert(symbol.to_owned(), quantity);
+                            return Err!("The portfolio already has {new_symbol} symbol");
+                        },
+                        Entry::Vacant(entry) => {
+                            entry.insert(quantity);
+                        },
+                    }
+                }
+
+                self.instrument_info.remap(symbol, new_symbol, allow_override)?;
+            },
+
+            SymbolRenameType::CorporateAction {..} => {
+                self.stock_splits.rename(symbol, new_symbol)?;
+            },
+        }
+
         let mut rename = |operation_time: DateOptTime, operation_symbol: &mut String, operation_original_symbol: &mut String| {
             if let SymbolRenameType::CorporateAction {time} = type_ {
                 if operation_time > time {
@@ -544,28 +583,6 @@ impl BrokerStatement {
                 }
             }
         };
-
-        match type_ {
-            SymbolRenameType::Remapping {allow_override, ..} => {
-                if let Some(quantity) = self.open_positions.remove(symbol) {
-                    match self.open_positions.entry(new_symbol.to_owned()) {
-                        Entry::Occupied(_) => {
-                            self.open_positions.insert(symbol.to_owned(), quantity);
-                            return Err!("The portfolio already has {new_symbol} symbol");
-                        },
-                        Entry::Vacant(entry) => {
-                            entry.insert(quantity);
-                        },
-                    }
-                }
-
-                self.instrument_info.remap(symbol, new_symbol, allow_override)?;
-            },
-
-            SymbolRenameType::CorporateAction {..} => {
-                self.stock_splits.rename(symbol, new_symbol)?;
-            },
-        }
 
         for trade in &mut self.stock_buys {
             rename(trade.conclusion_time, &mut trade.symbol, &mut trade.original_symbol);
