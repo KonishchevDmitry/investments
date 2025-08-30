@@ -240,8 +240,8 @@ impl InstrumentInfo {
                         new_info.merge(old_info, false)
                     },
                     _ => {
-                        debug!("Overriding existing {new_symbol} instrument info by {old_symbol} instrument info.");
                         new_symbol.clone_into(&mut old_info.symbol);
+                        debug!("Overriding existing instrument info: {new_info} by {old_info}.");
                         entry.insert(old_info);
                     }
                 }
@@ -368,6 +368,48 @@ impl Instrument {
         self.isin.extend(other.isin);
         self.cusip.extend(other.cusip);
         self.exchanges.merge(other.exchanges);
+    }
+}
+
+impl Display for Instrument {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.symbol)?;
+
+        let mut has_details = false;
+        let mut on_new_detail = |f: &mut fmt::Formatter<'_>| -> fmt::Result {
+            if has_details {
+                write!(f, "; ")
+            } else {
+                has_details = true;
+                write!(f, "(")
+            }
+        };
+
+        if let Some(ref name) = self.name {
+            on_new_detail(f)?;
+            write!(f, "name = {name:?}")?;
+        }
+
+        if !self.isin.is_empty() {
+            on_new_detail(f)?;
+            write!(f, "ISIN = {}", self.isin.iter().join(", "))?;
+        }
+
+        if !self.cusip.is_empty() {
+            on_new_detail(f)?;
+            write!(f, "CUSIP = {}", self.cusip.iter().join(", "))?;
+        }
+
+        if !self.exchanges.is_empty() {
+            on_new_detail(f)?;
+            write!(f, "exchange = {}", self.exchanges.get_prioritized().into_iter().join(", "))?;
+        }
+
+        if has_details {
+            write!(f, ")")?;
+        }
+
+        Ok(())
     }
 }
 
