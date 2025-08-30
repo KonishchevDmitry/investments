@@ -184,12 +184,14 @@ impl BrokerStatement {
 
         for rule in symbol_remapping_pre {
             statement.rename_symbol(&rule.from, &rule.to, SymbolRenameType::Remapping {
+                exchange: rule.exchange,
                 check_existence: true,
             }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.from, rule.to))?;
         }
 
         for (symbol, new_symbol) in statement.instrument_info.suggest_remapping() {
             statement.rename_symbol(&symbol, &new_symbol, SymbolRenameType::Remapping {
+                exchange: None,
                 check_existence: false,
             }).map_err(|e| format!(
                 "Failed to apply automatically generated remapping rule {symbol} -> {new_symbol}: {e}",
@@ -207,6 +209,7 @@ impl BrokerStatement {
 
         for rule in symbol_remapping_post {
             statement.rename_symbol(&rule.from, &rule.to, SymbolRenameType::Remapping {
+                exchange: rule.exchange,
                 check_existence: true,
             }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.from, rule.to))?;
         }
@@ -538,7 +541,7 @@ impl BrokerStatement {
         let mut found = false;
 
         match type_ {
-            SymbolRenameType::Remapping {..} => {
+            SymbolRenameType::Remapping {exchange, ..} => {
                 if let Some(quantity) = self.open_positions.remove(symbol) {
                     match self.open_positions.entry(new_symbol.to_owned()) {
                         Entry::Occupied(_) => {
@@ -551,7 +554,7 @@ impl BrokerStatement {
                     }
                 }
 
-                self.instrument_info.remap(symbol, new_symbol)?;
+                self.instrument_info.remap(symbol, new_symbol, exchange)?;
             },
 
             SymbolRenameType::CorporateAction {..} => {

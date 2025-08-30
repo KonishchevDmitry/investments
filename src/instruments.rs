@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde::de::Deserializer;
 
 use crate::core::{GenericResult, EmptyResult};
-use crate::exchanges::Exchanges;
+use crate::exchanges::{Exchange, Exchanges};
 use crate::localities::Jurisdiction;
 use crate::time::Date;
 
@@ -224,31 +224,40 @@ impl InstrumentInfo {
         rules
     }
 
-    pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
-        let Some(mut old_info) = self.instruments.remove(old_symbol) else {
-            return Ok(());
+    pub fn remap(&mut self, symbol: &str, target_symbol: &str, exchange: Option<Exchange>) -> EmptyResult {
+        let with_overrides = exchange.is_some();
+
+        let mut info = match self.instruments.remove(symbol) {
+            Some(info) => info,
+            None if with_overrides => Instrument::new(symbol),
+            None => return Ok(()),
         };
 
-        match self.instruments.entry(new_symbol.to_owned()) {
-            Entry::Occupied(mut entry) => {
-                let new_info = entry.get_mut();
+        if let Some(exchange) = exchange {
+            info.exchanges = Exchanges::new(&[exchange]);
+        }
 
-                match parse_isin(old_symbol) {
-                    Ok(isin) if new_info.isin.contains(&isin) => {
+        match self.instruments.entry(target_symbol.to_owned()) {
+            Entry::Occupied(mut entry) => {
+                let target_info = entry.get_mut();
+
+                match parse_isin(symbol) {
+                    Ok(isin) if target_info.isin.contains(&isin) && !with_overrides => {
                         // Assuming the case when some stock became delisted, lost its symbol and we want to restore the
                         // original symbol back to merge the instruments which are actually the same.
-                        new_info.merge(old_info, false)
+                        debug!("Merging instrument info: {info} into {target_info}.");
+                        target_info.merge(info, false)
                     },
                     _ => {
-                        new_symbol.clone_into(&mut old_info.symbol);
-                        debug!("Overriding existing instrument info: {new_info} by {old_info}.");
-                        entry.insert(old_info);
+                        target_symbol.clone_into(&mut info.symbol);
+                        debug!("Overriding existing instrument info: {target_info} by {info}.");
+                        entry.insert(info);
                     }
                 }
             },
             Entry::Vacant(entry) => {
-                new_symbol.clone_into(&mut old_info.symbol);
-                entry.insert(old_info);
+                target_symbol.clone_into(&mut info.symbol);
+                entry.insert(info);
             },
         }
 

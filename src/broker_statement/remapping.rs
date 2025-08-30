@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::de::{Deserializer, Error};
 use serde_yaml::Value;
 
+use crate::exchanges::Exchange;
 use crate::time::DateOptTime;
 
 #[derive(Default)]
@@ -29,6 +30,7 @@ impl<'de> Deserialize<'de> for SymbolRemappingRules {
                     from: old.clone(),
                     to: new.clone(),
                     when: SymbolRemappingTime::Pre,
+                    exchange: None,
                 });
             }
 
@@ -53,6 +55,7 @@ pub struct SymbolRemappingRule {
     pub from: String,
     pub to: String,
     pub when: SymbolRemappingTime,
+    pub exchange: Option<Exchange>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -68,6 +71,7 @@ pub enum SymbolRenameType {
         time: DateOptTime,
     },
     Remapping {
+        exchange: Option<Exchange>,
         check_existence: bool,
     },
 }
