@@ -30,11 +30,18 @@ impl SectionParser for AssetsParser {
 
             // We can have multiple rows per one instrument: a technical one with ISIN and a real one with stock symbol
             if let Ok(isin) = parse_isin(&asset.code) {
-                trace!("* ISIN: {}: {}", isin, asset.name);
-                info.isin.insert(isin);
+                if info.isin.insert(isin) {
+                    trace!("* ISIN: {isin}: {}", asset.name);
+                }
             } else {
                 trace!("* Symbol: {}: {}", asset.code, asset.name);
                 info.symbols.insert(asset.code.clone());
+            }
+
+            if let Some(isin) = &asset.isin {
+                if info.isin.insert(parse_isin(isin)?) {
+                    trace!("* ISIN: {isin}: {}", asset.name);
+                }
             }
 
             if asset.starting != 0 {
@@ -57,9 +64,8 @@ struct AssetsRow {
     name: String,
     #[column(name="Код актива")]
     code: String,
-    // FIXME(konishchev): Support it
     #[column(name="ISIN", optional=true)] // Old statements don't have it
-    _2: Option<SkipCell>,
+    isin: Option<String>,
     #[column(name="Место хранения")]
     _3: SkipCell,
     #[column(name="Входящий остаток", strict=false)] // Old statements stored it as string, new - as float
