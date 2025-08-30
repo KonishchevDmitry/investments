@@ -178,8 +178,8 @@ impl Cbr {
 }
 
 impl QuotesProvider for Cbr {
-    fn name(&self) -> &'static str {
-        "CBR"
+    fn name(&self) -> String {
+        s!("CBR")
     }
 
     fn supports_forex(&self) -> bool {

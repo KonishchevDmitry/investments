@@ -30,8 +30,8 @@ impl Stooq {
 }
 
 impl QuotesProvider for Stooq {
-    fn name(&self) -> &'static str {
-        "Stooq"
+    fn name(&self) -> String {
+        s!("Stooq")
     }
 
     // For now support only LSE, because historical quotes are needed only for backtesting in which we have to use

@@ -61,8 +61,8 @@ impl Moex {
 }
 
 impl QuotesProvider for Moex {
-    fn name(&self) -> &'static str {
-        "Moscow Exchange"
+    fn name(&self) -> String {
+        s!("Moscow Exchange")
     }
 
     fn supports_stocks(&self) -> SupportedExchange {

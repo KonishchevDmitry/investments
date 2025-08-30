@@ -65,8 +65,8 @@ impl StaticProvider {
 }
 
 impl QuotesProvider for StaticProvider {
-    fn name(&self) -> &'static str {
-        "static quotes provider"
+    fn name(&self) -> String {
+        s!("static quotes provider")
     }
 
     fn supports_stocks(&self) -> SupportedExchange {

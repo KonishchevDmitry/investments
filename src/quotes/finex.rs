@@ -32,8 +32,8 @@ impl Finex {
 }
 
 impl QuotesProvider for Finex {
-    fn name(&self) -> &'static str {
-        "FinEx"
+    fn name(&self) -> String {
+        s!("FinEx")
     }
 
     fn supports_stocks(&self) -> SupportedExchange {

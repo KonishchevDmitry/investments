@@ -53,11 +53,15 @@ pub struct TbankApiConfig {
     token: String,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, strum::Display)]
 pub enum TbankExchange {
+    #[strum(to_string = "currency")]
     Currency,
+    #[strum(to_string = "MOEX")]
     Moex,
+    #[strum(to_string = "SPB")]
     Spb,
+    #[strum(to_string = "unknown")]
     Unknown, // Try to collect here instruments from exchanges that we don't support yet to use it as best effort fallback
 }
 
@@ -472,8 +476,8 @@ impl Tbank {
 }
 
 impl QuotesProvider for Tbank {
-    fn name(&self) -> &'static str {
-        "T-Bank"
+    fn name(&self) -> String {
+        format!("T-Bank ({})", self.exchange)
     }
 
     fn supports_forex(&self) -> bool {

@@ -120,8 +120,8 @@ impl Finnhub {
 }
 
 impl QuotesProvider for Finnhub {
-    fn name(&self) -> &'static str {
-        "Finnhub"
+    fn name(&self) -> String {
+        s!("Finnhub")
     }
 
     fn supports_stocks(&self) -> SupportedExchange {

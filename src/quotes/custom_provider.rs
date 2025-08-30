@@ -35,8 +35,8 @@ impl CustomProvider {
 }
 
 impl QuotesProvider for CustomProvider {
-    fn name(&self) -> &'static str {
-        "custom quotes provider"
+    fn name(&self) -> String {
+        s!("custom quotes provider")
     }
 
     fn supports_stocks(&self) -> SupportedExchange {

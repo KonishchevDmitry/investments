@@ -437,7 +437,7 @@ impl Quotes {
 
                 let symbols: Vec<_> = symbols.iter().map(String::as_str).collect();
                 let quotes = provider.get_quotes(&symbols).map_err(|e| format!(
-                    "Failed to get quotes from {}: {}", provider.name(), e))?;
+                    "Failed to get quotes from {}: {e}", provider.name()))?;
 
                 Ok((provider, quotes))
             }).collect::<Vec<_>>() {
@@ -519,7 +519,7 @@ enum SupportedExchange {
 }
 
 trait QuotesProvider: Send + Sync {
-    fn name(&self) -> &'static str;
+    fn name(&self) -> String;
 
     fn high_precision(&self) -> bool {false}
     fn supports_forex(&self) -> bool {false}
@@ -551,8 +551,8 @@ mod tests {
         }
 
         impl QuotesProvider for AnyProvider {
-            fn name(&self) -> &'static str {
-                "any-provider"
+            fn name(&self) -> String {
+                s!("any-provider")
             }
 
             fn supports_stocks(&self) -> SupportedExchange {
@@ -581,8 +581,8 @@ mod tests {
         }
 
         impl QuotesProvider for FirstProvider {
-            fn name(&self) -> &'static str {
-                "first-provider"
+            fn name(&self) -> String {
+                s!("first-provider")
             }
 
             fn supports_stocks(&self) -> SupportedExchange {
@@ -612,8 +612,8 @@ mod tests {
         }
 
         impl QuotesProvider for SecondProvider {
-            fn name(&self) -> &'static str {
-                "second-provider"
+            fn name(&self) -> String {
+                s!("second-provider")
             }
 
             fn supports_stocks(&self) -> SupportedExchange {
@@ -638,8 +638,8 @@ mod tests {
         }
 
         impl QuotesProvider for OtherProvider {
-            fn name(&self) -> &'static str {
-                "other-provider"
+            fn name(&self) -> String {
+                s!("other-provider")
             }
 
             fn supports_stocks(&self) -> SupportedExchange {

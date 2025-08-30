@@ -51,8 +51,8 @@ impl FcsApi {
 }
 
 impl QuotesProvider for FcsApi {
-    fn name(&self) -> &'static str {
-        "FCS API"
+    fn name(&self) -> String {
+        s!("FCS API")
     }
 
     // Stocks are actually supported, but we use it only for Forex quotes due to small API rate limits

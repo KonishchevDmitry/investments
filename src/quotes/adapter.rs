@@ -30,7 +30,7 @@ impl<P: QuotesProvider> QuotesProviderAdapter<P> {
 }
 
 impl<P: QuotesProvider> QuotesProvider for QuotesProviderAdapter<P> {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         self.provider.name()
     }
 

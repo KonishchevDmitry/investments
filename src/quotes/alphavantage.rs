@@ -57,8 +57,8 @@ impl AlphaVantage {
 }
 
 impl QuotesProvider for AlphaVantage {
-    fn name(&self) -> &'static str {
-        "Alpha Vantage"
+    fn name(&self) -> String {
+        s!("Alpha Vantage")
     }
 
     // At some time it has became too restrictive in API limits - only 5 RPM + 25 RPD and deprecated batch quotes API

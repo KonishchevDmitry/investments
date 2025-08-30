@@ -63,8 +63,8 @@ impl TwelveData {
 }
 
 impl QuotesProvider for TwelveData {
-    fn name(&self) -> &'static str {
-        "Twelve Data"
+    fn name(&self) -> String {
+        s!("Twelve Data")
     }
 
     // Stocks are actually supported, but use Finnhub for them now to diversify over quote providers
