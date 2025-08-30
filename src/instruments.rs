@@ -224,7 +224,7 @@ impl InstrumentInfo {
         rules
     }
 
-    pub fn remap(&mut self, old_symbol: &str, new_symbol: &str, allow_override: bool) -> EmptyResult {
+    pub fn remap(&mut self, old_symbol: &str, new_symbol: &str) -> EmptyResult {
         let Some(mut old_info) = self.instruments.remove(old_symbol) else {
             return Ok(());
         };
@@ -239,11 +239,10 @@ impl InstrumentInfo {
                         // original symbol back to merge the instruments which are actually the same.
                         new_info.merge(old_info, false)
                     },
-                    _ => if allow_override {
-                        self.instruments.insert(new_symbol.to_owned(), old_info);
-                    } else {
-                        self.instruments.insert(old_symbol.to_owned(), old_info);
-                        return Err!("The portfolio already has {} symbol", new_symbol);
+                    _ => {
+                        debug!("Overriding existing {new_symbol} instrument info by {old_symbol} instrument info.");
+                        new_symbol.clone_into(&mut old_info.symbol);
+                        entry.insert(old_info);
                     }
                 }
             },

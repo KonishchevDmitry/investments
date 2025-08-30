@@ -26,10 +26,9 @@ impl<'de> Deserialize<'de> for SymbolRemappingRules {
                 }
 
                 rules.push(SymbolRemappingRule {
-                    old: old.clone(),
-                    new: new.clone(),
+                    from: old.clone(),
+                    to: new.clone(),
                     when: SymbolRemappingTime::Pre,
-                    allow_override: false,
                 });
             }
 
@@ -49,14 +48,11 @@ impl<'a> IntoIterator for &'a SymbolRemappingRules {
     }
 }
 
-// FIXME(konishchev): Rewrite
 #[derive(Deserialize)]
 pub struct SymbolRemappingRule {
-    pub old: String,
-    pub new: String,
+    pub from: String,
+    pub to: String,
     pub when: SymbolRemappingTime,
-    #[serde(default)]
-    pub allow_override: bool,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -73,6 +69,5 @@ pub enum SymbolRenameType {
     },
     Remapping {
         check_existence: bool,
-        allow_override: bool,
     },
 }

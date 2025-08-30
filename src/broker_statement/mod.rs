@@ -183,16 +183,14 @@ impl BrokerStatement {
         }
 
         for rule in symbol_remapping_pre {
-            statement.rename_symbol(&rule.old, &rule.new, SymbolRenameType::Remapping {
+            statement.rename_symbol(&rule.from, &rule.to, SymbolRenameType::Remapping {
                 check_existence: true,
-                allow_override: rule.allow_override,
-            }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.old, rule.new))?;
+            }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.from, rule.to))?;
         }
 
         for (symbol, new_symbol) in statement.instrument_info.suggest_remapping() {
             statement.rename_symbol(&symbol, &new_symbol, SymbolRenameType::Remapping {
                 check_existence: false,
-                allow_override: false,
             }).map_err(|e| format!(
                 "Failed to apply automatically generated remapping rule {symbol} -> {new_symbol}: {e}",
             ))?;
@@ -208,10 +206,9 @@ impl BrokerStatement {
         process_corporate_actions(&mut statement)?;
 
         for rule in symbol_remapping_post {
-            statement.rename_symbol(&rule.old, &rule.new, SymbolRenameType::Remapping {
+            statement.rename_symbol(&rule.from, &rule.to, SymbolRenameType::Remapping {
                 check_existence: true,
-                allow_override: rule.allow_override,
-            }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.old, rule.new))?;
+            }).map_err(|e| format!("Failed to remap {} to {}: {e}", rule.from, rule.to))?;
         }
 
         if log_enabled!(Level::Debug) {
@@ -541,10 +538,8 @@ impl BrokerStatement {
         let mut found = false;
 
         match type_ {
-            SymbolRenameType::Remapping {allow_override, ..} => {
+            SymbolRenameType::Remapping {..} => {
                 if let Some(quantity) = self.open_positions.remove(symbol) {
-                    found = true; // FIXME(konishchev): Recheck
-
                     match self.open_positions.entry(new_symbol.to_owned()) {
                         Entry::Occupied(_) => {
                             self.open_positions.insert(symbol.to_owned(), quantity);
@@ -556,7 +551,7 @@ impl BrokerStatement {
                     }
                 }
 
-                self.instrument_info.remap(symbol, new_symbol, allow_override)?;
+                self.instrument_info.remap(symbol, new_symbol)?;
             },
 
             SymbolRenameType::CorporateAction {..} => {
