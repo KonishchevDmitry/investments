@@ -71,8 +71,6 @@ num-traits = "0.2.19"
 platforms = "3.6.0"
 prettytable-rs = "0.10.0"
 prometheus = "0.14.0"
-prost = "0.13"
-prost-types = "0.13"
 quick-xml = { version = "0.38.3", features = ["serialize"] }
 rayon = "1.11.0"
 regex = "1.11.2"
@@ -87,7 +85,6 @@ shellexpand = "3.1.1"
 strum = { version = "0.27", features = ["derive"] }
 textwrap = "0.16.2"
 tokio = "1.47.1"
-tonic = { version = "0.13", features = ["tls-ring", "tls-native-roots"] }
 url = { version = "2.5.7", features = ["serde"] }
 uuid = { version = "1.18.0", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
@@ -101,6 +98,11 @@ diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 # Pin rust_decimal version since it's not stable enough yet
 rust_decimal = "~1.37.2"
 rust_decimal_macros = "~1.37.1"
+
+prost = "0.14"
+prost-types = "0.14"
+tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots"] }
+tonic-prost = "0.14"
 
 # FIXME(konishchev): A workaround for broken colored table rendering (https://github.com/phsym/prettytable-rs/issues/165)
 unicode-width = "=0.1.12"
@@ -117,7 +119,7 @@ static_table_derive = { path = "src/formatting/static_table_derive" }
 xls_table_derive = { path = "src/formats/xls/xls_table_derive" }
 
 [build-dependencies]
-tonic-build = "0.13"
+tonic-prost-build = "0.14"
 
 [dev-dependencies]
 mockito = "1.7.0"

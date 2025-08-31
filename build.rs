@@ -22,7 +22,7 @@ fn generate() -> Result<(), Box<dyn Error + Send + Sync>> {
         return Ok(());
     }
 
-    let builder = tonic_build::configure()
+    let builder = tonic_prost_build::configure()
         .build_server(false)
         .out_dir(out_dir);
 
