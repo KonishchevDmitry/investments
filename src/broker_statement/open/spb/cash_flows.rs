@@ -137,6 +137,7 @@ mod tests {
     use rstest::rstest;
     use super::*;
 
+    #[allow(clippy::useless_concat)]
     #[rstest(description, issuer_id, paid_tax,
         case(concat!(
             "Начисление дивидендов: количество 1, ставка 0.42 USD, удержан налог эмитентом 0.04, ",

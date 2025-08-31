@@ -143,7 +143,7 @@ struct InterestRatesRow {
 impl TableReader for InterestRatesRow {
 }
 
-fn trim_column_title(title: &str) -> Cow<str> {
+fn trim_column_title(title: &str) -> Cow<'_, str> {
     Cow::from(title.trim_end_matches('*')) // Footnotes
 }
 

@@ -55,11 +55,11 @@ pub struct TradeInfo<'a> {
 }
 
 pub trait StockTrade {
-    fn info(&self) -> TradeInfo;
+    fn info(&self) -> TradeInfo<'_>;
 }
 
 impl StockTrade for StockBuy {
-    fn info(&self) -> TradeInfo {
+    fn info(&self) -> TradeInfo<'_> {
         TradeInfo {
             symbol: &self.symbol,
             conclusion_time: self.conclusion_time,
@@ -70,7 +70,7 @@ impl StockTrade for StockBuy {
 }
 
 impl StockTrade for StockSell {
-    fn info(&self) -> TradeInfo {
+    fn info(&self) -> TradeInfo<'_> {
         TradeInfo {
             symbol: &self.symbol,
             conclusion_time: self.conclusion_time,

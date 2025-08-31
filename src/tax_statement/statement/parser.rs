@@ -125,7 +125,7 @@ impl TaxStatementReader {
         Ok(value)
     }
 
-    pub fn read_data(&mut self) -> GenericResult<Cow<str>> {
+    pub fn read_data(&mut self) -> GenericResult<Cow<'_, str>> {
         let size = self.read_data_size()?;
         let data = self.read_raw(size)?;
         Ok(data)
@@ -166,7 +166,7 @@ impl TaxStatementReader {
         Ok(size)
     }
 
-    fn read_raw(&mut self, size: usize) -> GenericResult<Cow<str>> {
+    fn read_raw(&mut self, size: usize) -> GenericResult<Cow<'_, str>> {
         if self.buffer.len() < size {
             let additional_space = size - self.buffer.len();
             self.buffer.reserve(additional_space);
@@ -259,7 +259,7 @@ fn get_header(year: i32) -> String {
     format!(r"DLSG            Decl{year}0103FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 }
 
-fn encode(data: &str) -> GenericResult<Cow<[u8]>> {
+fn encode(data: &str) -> GenericResult<Cow<'_, [u8]>> {
     let (encoded_data, _, errors) = encoding_rs::WINDOWS_1251.encode(data);
     if errors {
         return Err!("Unable to encode {:?} with Windows-1251 character encoding", data);

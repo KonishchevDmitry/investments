@@ -151,22 +151,22 @@ fn format_weight(weight: Decimal) -> String {
     }
 }
 
-fn colorify_title(name: &str) -> ANSIString {
+fn colorify_title(name: &str) -> ANSIString<'_> {
     Style::new().bold().paint(name)
 }
 
-fn colorify_restriction(message: &str) -> ANSIString {
+fn colorify_restriction(message: &str) -> ANSIString<'_> {
     Color::Blue.paint(message)
 }
 
-fn colorify_buy(message: &str) -> ANSIString {
+fn colorify_buy(message: &str) -> ANSIString<'_> {
     Color::Green.paint(message)
 }
 
-fn colorify_sell(message: &str) -> ANSIString {
+fn colorify_sell(message: &str) -> ANSIString<'_> {
     Color::Red.paint(message)
 }
 
-fn colorify_commission(message: &str) -> ANSIString {
+fn colorify_commission(message: &str) -> ANSIString<'_> {
     Color::Yellow.paint(message)
 }

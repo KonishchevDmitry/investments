@@ -25,7 +25,7 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
     util::parse_decimal(&value, DecimalRestrictions::No)
 }
 
-pub fn trim_column_title(title: &str) -> Cow<str> {
+pub fn trim_column_title(title: &str) -> Cow<'_, str> {
     Cow::from(title.trim_end_matches(['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']))
 }
 

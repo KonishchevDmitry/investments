@@ -50,7 +50,7 @@ pub fn parse_symbol(name: &str) -> GenericResult<String> {
     Ok(captures.name("symbol").unwrap().as_str().to_owned())
 }
 
-pub fn trim_column_title(title: &str) -> Cow<str> {
+pub fn trim_column_title(title: &str) -> Cow<'_, str> {
     lazy_static! {
         static ref FOOTNOTE_REFERENCE_REGEX: Regex = Regex::new(r"\s*\(\d+\*\)\s*$").unwrap();
     }

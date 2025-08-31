@@ -55,7 +55,7 @@ impl StockBenchmark {
         Ok(benchmark)
     }
 
-    fn select_instrument(&self, date: Date, today: Date, quotes: &Quotes, first: bool) -> GenericResult<(Date, CurrentInstrument)> {
+    fn select_instrument(&self, date: Date, today: Date, quotes: &Quotes, first: bool) -> GenericResult<(Date, CurrentInstrument<'_>)> {
         let Some((&start_date, instrument)) = self.instruments.range(..=date).last() else {
             return Err!("There is no benchmark instrument for {}", formatting::format_date(date));
         };

@@ -82,7 +82,7 @@ pub fn parse_decimal_cell(cell: &Cell) -> GenericResult<Decimal> {
     }
 }
 
-pub fn trim_column_title(title: &str) -> Cow<str> {
+pub fn trim_column_title(title: &str) -> Cow<'_, str> {
     Cow::from(title.trim_end_matches('*')) // Footnotes
 }
 

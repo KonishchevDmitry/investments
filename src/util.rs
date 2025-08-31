@@ -86,7 +86,7 @@ pub fn round_with(value: Decimal, points: u32, method: RoundingMethod) -> Decima
     round_value.normalize()
 }
 
-pub fn fold_spaces(string: &str) -> Cow<str> {
+pub fn fold_spaces(string: &str) -> Cow<'_, str> {
     lazy_static! {
         static ref SPACES_REGEX: Regex = Regex::new(r"\s+").unwrap();
     }

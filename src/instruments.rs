@@ -99,7 +99,7 @@ impl InstrumentInfo {
         self.instruments.get(symbol)
     }
 
-    pub fn get_or_empty(&self, symbol: &str) -> MaybeOwned<Instrument> {
+    pub fn get_or_empty(&self, symbol: &str) -> MaybeOwned<'_, Instrument> {
         match self.instruments.get(symbol) {
             Some(instrument) => MaybeOwned::Borrowed(instrument),
             None => MaybeOwned::Owned(Instrument::new(symbol))

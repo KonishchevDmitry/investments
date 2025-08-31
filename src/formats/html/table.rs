@@ -13,7 +13,7 @@ pub type RawRowType<'a> = ElementRef<'a>;
 pub trait TableRow: Sized {
     fn columns() -> Vec<TableColumn>;
     fn skip_row(row: RawRowType) -> bool;
-    fn trim_column_title(title: &str) -> Cow<str>;
+    fn trim_column_title(title: &str) -> Cow<'_, str>;
     fn parse(row: &[Option<&Cell>]) -> GenericResult<Self>;
 }
 

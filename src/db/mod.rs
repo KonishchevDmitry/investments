@@ -15,7 +15,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 pub struct Connection(Arc<Mutex<SqliteConnection>>);
 
 impl Connection {
-    pub fn borrow(&self) -> MutexGuard<SqliteConnection> {
+    pub fn borrow(&self) -> MutexGuard<'_, SqliteConnection> {
         self.0.as_ref().lock().unwrap()
     }
 }

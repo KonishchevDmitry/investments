@@ -140,7 +140,7 @@ impl SectionParsers {
     }
 }
 
-fn parse_header(record: &StringRecord) -> RecordSpec {
+fn parse_header(record: &StringRecord) -> RecordSpec<'_> {
     let offset = 2;
     let name = record.get(0).unwrap();
     let fields = record.iter().skip(offset).collect::<Vec<_>>();
