@@ -374,6 +374,47 @@ impl ResultSubscriptionStatus {
         }
     }
 }
+/// Реальная площадка исполнения расчетов.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum RealExchange {
+    /// Тип не определен.
+    Unspecified = 0,
+    /// Московская биржа.
+    Moex = 1,
+    /// Санкт-Петербургская биржа.
+    Rts = 2,
+    /// Внебиржевой инструмент.
+    Otc = 3,
+    /// Инструмент, торгуемый на площадке брокера.
+    Dealer = 4,
+}
+impl RealExchange {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "REAL_EXCHANGE_UNSPECIFIED",
+            Self::Moex => "REAL_EXCHANGE_MOEX",
+            Self::Rts => "REAL_EXCHANGE_RTS",
+            Self::Otc => "REAL_EXCHANGE_OTC",
+            Self::Dealer => "REAL_EXCHANGE_DEALER",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "REAL_EXCHANGE_UNSPECIFIED" => Some(Self::Unspecified),
+            "REAL_EXCHANGE_MOEX" => Some(Self::Moex),
+            "REAL_EXCHANGE_RTS" => Some(Self::Rts),
+            "REAL_EXCHANGE_OTC" => Some(Self::Otc),
+            "REAL_EXCHANGE_DEALER" => Some(Self::Dealer),
+            _ => None,
+        }
+    }
+}
 /// Запрос расписания торгов.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TradingSchedulesRequest {
@@ -3218,6 +3259,113 @@ pub mod trading_interval {
         pub end_ts: ::core::option::Option<::prost_types::Timestamp>,
     }
 }
+/// Запрос сделок по инсайдерам
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetInsiderDealsRequest {
+    #[prost(string, tag = "1")]
+    pub instrument_id: ::prost::alloc::string::String,
+    #[prost(int32, tag = "2")]
+    pub limit: i32,
+    #[prost(string, optional, tag = "3")]
+    pub next_cursor: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// сделки инсайдеров
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetInsiderDealsResponse {
+    /// Массив сделок.
+    #[prost(message, repeated, tag = "1")]
+    pub insider_deals: ::prost::alloc::vec::Vec<get_insider_deals_response::InsiderDeal>,
+    /// Курсор для получения следующей страницы.
+    #[prost(string, optional, tag = "2")]
+    pub next_cursor: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Nested message and enum types in `GetInsiderDealsResponse`.
+pub mod get_insider_deals_response {
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct InsiderDeal {
+        /// Уникальный идентификатор сделки.
+        #[prost(int64, tag = "1")]
+        pub trade_id: i64,
+        /// Направление сделки.
+        #[prost(enumeration = "TradeDirection", tag = "2")]
+        pub direction: i32,
+        /// Валюта сделки.
+        #[prost(string, tag = "3")]
+        pub currency: ::prost::alloc::string::String,
+        /// Дата сделки.
+        #[prost(message, optional, tag = "4")]
+        pub date: ::core::option::Option<::prost_types::Timestamp>,
+        /// Количество.
+        #[prost(int64, tag = "5")]
+        pub quantity: i64,
+        /// Цена.
+        #[prost(message, optional, tag = "6")]
+        pub price: ::core::option::Option<super::Quotation>,
+        /// Уникальный идентификатор инструмента.
+        #[prost(string, tag = "7")]
+        pub instrument_uid: ::prost::alloc::string::String,
+        /// Тикер инструмента.
+        #[prost(string, tag = "8")]
+        pub ticker: ::prost::alloc::string::String,
+        /// Имя инвестора.
+        #[prost(string, tag = "9")]
+        pub investor_name: ::prost::alloc::string::String,
+        /// Какое отношение покупатель/продавец имеет к эмитенту
+        #[prost(string, tag = "10")]
+        pub investor_position: ::prost::alloc::string::String,
+        /// Купленный/проданный объём от общего количества ценных бумаг на рынке
+        #[prost(float, tag = "11")]
+        pub percentage: f32,
+        /// Признак является ли сделка реализацией опциона
+        #[prost(bool, tag = "12")]
+        pub is_option_execution: bool,
+        /// Дата раскрытия сделки.
+        #[prost(message, optional, tag = "13")]
+        pub disclosure_date: ::core::option::Option<::prost_types::Timestamp>,
+    }
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum TradeDirection {
+        /// Не определено.
+        Unspecified = 0,
+        /// Покупка.
+        Buy = 1,
+        /// Продажа.
+        Sell = 2,
+    }
+    impl TradeDirection {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unspecified => "TRADE_DIRECTION_UNSPECIFIED",
+                Self::Buy => "TRADE_DIRECTION_BUY",
+                Self::Sell => "TRADE_DIRECTION_SELL",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "TRADE_DIRECTION_UNSPECIFIED" => Some(Self::Unspecified),
+                "TRADE_DIRECTION_BUY" => Some(Self::Buy),
+                "TRADE_DIRECTION_SELL" => Some(Self::Sell),
+                _ => None,
+            }
+        }
+    }
+}
 /// Тип купонов.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -3614,47 +3762,6 @@ impl EditFavoritesActionType {
             "EDIT_FAVORITES_ACTION_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
             "EDIT_FAVORITES_ACTION_TYPE_ADD" => Some(Self::Add),
             "EDIT_FAVORITES_ACTION_TYPE_DEL" => Some(Self::Del),
-            _ => None,
-        }
-    }
-}
-/// Реальная площадка исполнения расчетов.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum RealExchange {
-    /// Тип не определен.
-    Unspecified = 0,
-    /// Московская биржа.
-    Moex = 1,
-    /// Санкт-Петербургская биржа.
-    Rts = 2,
-    /// Внебиржевой инструмент.
-    Otc = 3,
-    /// Инструмент, торгуемый на площадке брокера.
-    Dealer = 4,
-}
-impl RealExchange {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "REAL_EXCHANGE_UNSPECIFIED",
-            Self::Moex => "REAL_EXCHANGE_MOEX",
-            Self::Rts => "REAL_EXCHANGE_RTS",
-            Self::Otc => "REAL_EXCHANGE_OTC",
-            Self::Dealer => "REAL_EXCHANGE_DEALER",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "REAL_EXCHANGE_UNSPECIFIED" => Some(Self::Unspecified),
-            "REAL_EXCHANGE_MOEX" => Some(Self::Moex),
-            "REAL_EXCHANGE_RTS" => Some(Self::Rts),
-            "REAL_EXCHANGE_OTC" => Some(Self::Otc),
-            "REAL_EXCHANGE_DEALER" => Some(Self::Dealer),
             _ => None,
         }
     }
@@ -4957,6 +5064,36 @@ pub mod instruments_service_client {
                     GrpcMethod::new(
                         "tinkoff.public.invest.api.contract.v1.InstrumentsService",
                         "GetRiskRates",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// GetInsiderDeals —  сделки инсайдеров по инструментам
+        pub async fn get_insider_deals(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetInsiderDealsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetInsiderDealsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetInsiderDeals",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "tinkoff.public.invest.api.contract.v1.InstrumentsService",
+                        "GetInsiderDeals",
                     ),
                 );
             self.inner.unary(req, path, codec).await
@@ -6549,8 +6686,10 @@ pub enum MarketValueType {
     InstrumentValueClosePrice = 3,
     /// Цена последней сделки с вечерней сессии.
     InstrumentValueEveningSessionPrice = 4,
-    /// Открытый интерес, возвращается только для фьючерсов
+    /// Открытый интерес, возвращается только для фьючерсов.
     InstrumentValueOpenInterest = 5,
+    /// Теоретическая цена, возвращается только для опционов.
+    InstrumentValueTheorPrice = 6,
 }
 impl MarketValueType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -6567,6 +6706,7 @@ impl MarketValueType {
                 "INSTRUMENT_VALUE_EVENING_SESSION_PRICE"
             }
             Self::InstrumentValueOpenInterest => "INSTRUMENT_VALUE_OPEN_INTEREST",
+            Self::InstrumentValueTheorPrice => "INSTRUMENT_VALUE_THEOR_PRICE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -6582,6 +6722,7 @@ impl MarketValueType {
                 Some(Self::InstrumentValueEveningSessionPrice)
             }
             "INSTRUMENT_VALUE_OPEN_INTEREST" => Some(Self::InstrumentValueOpenInterest),
+            "INSTRUMENT_VALUE_THEOR_PRICE" => Some(Self::InstrumentValueTheorPrice),
             _ => None,
         }
     }
