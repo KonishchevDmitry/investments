@@ -193,7 +193,7 @@ impl InstrumentInfo {
         'symbol_loop: for symbol in self.instruments.keys() {
             // The case:
             //
-            // Finex ETF were bought on MOEX exchange, but then have been delisted due to sanctions. Old T-Bank
+            // FinEx ETF were bought on MOEX exchange, but then have been delisted due to sanctions. Old T-Bank
             // statements contain symbol <-> ISIN mapping, but new ones have only ISIN (since it's considered as
             // an OTC stock).
 

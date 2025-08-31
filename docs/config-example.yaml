@@ -150,6 +150,28 @@ portfolios:
     # - {date: 2022.06.27, symbol: FXRB, type: delisting, quantity: 12460} # FinEx FXRB fund lost all its assets and has been closed
     # - {date: 2023.03.24, symbol: "700", type: stock-dividend, stock: "3690", quantity: 14} # Tencent Holdings paid dividends with Meituan shares
 
+    # During broker statement parsing stock symbols may be remapped to another symbols either manually or automatically
+    # due to various reasons. Here is the sequence in which it happens:
+    # 1. Broker statement is parsed.
+    # 2. Custom remapping rules with `when: pre` are applied.
+    # 3. Automatically generated rules are applied. An example: FinEx ETF were bought on MOEX exchange, but then got
+    #    delisted due to sanctions. Old statements contain symbol <-> ISIN mapping, but new ones have only ISIN (since
+    #    it's considered as an OTC stock) – in this case an automatic remapping rule (ISIN -> symbol) will be generated
+    #    to make subsequent work easier.
+    # 4. Corporate actions (either manually specified or obtained from broken statement) are applied.
+    # 5. Custom remapping rules with `when: post` are applied.
+    #
+    # Symbol remapping rules have required `from`, `to` and `when` fields and an optional `exchange` field, using which
+    # we can set (or override) exchange to which the symbol will by assigned to.
+    #
+    # Here is an example of symbol remapping. There is TMOS ETF which is traded on MOEX exchange. At some point in time
+    # T-Bank made it also listed on SPB exchange as TMOS@ and replaced all MOEX's TMOS with SPB's TMOS@ in portfolios.
+    # The following symbol remapping can be used to make this ETF look like it was bought on MOEX exchange. It may be
+    # useful for example when you have more than one broker to see aggregated analysis results over all of them.
+    #
+    # symbol_remapping:
+    #   - {from: TMOS@, to: TMOS, exchange: MOEX, when: post}
+
 # Starting from 2021 progressive tax rate has replaced the fixed one in Russia. Here you can specify your non-investment
 # income by year to make investments calculate tax rate taking into account this tax base.
 #

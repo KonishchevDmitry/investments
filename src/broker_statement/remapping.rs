@@ -10,7 +10,6 @@ use crate::time::DateOptTime;
 #[derive(Default)]
 pub struct SymbolRemappingRules(Vec<SymbolRemappingRule>);
 
-// FIXME(konishchev): Document it
 impl<'de> Deserialize<'de> for SymbolRemappingRules {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let value: Value = Deserialize::deserialize(deserializer)?;
