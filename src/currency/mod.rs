@@ -17,6 +17,9 @@ pub mod converter;
 pub use self::cash::{Cash, CashAssets};
 pub use self::multi::MultiCurrencyCashAccount;
 
+pub const CURRENCY_REGEX: &str = r"[A-Z]{3}";
+pub const POSITIVE_AMOUNT_REGEX: &str = r"\d+(?:\.\d+)?";
+
 pub fn round(amount: Decimal) -> Decimal {
     util::round(amount, 2)
 }
@@ -27,9 +30,10 @@ pub fn round_to(amount: Decimal, points: u32) -> Decimal {
 
 pub fn validate_currency(currency: &str) -> Result<(), ValidationError> {
     lazy_static! {
-        static ref CURRENCY_REGEX: Regex = Regex::new(r"^[A-Z]{3}$").unwrap();
+        pub static ref REGEX: Regex = Regex::new(&format!(r"^{CURRENCY_REGEX}$")).unwrap();
     }
-    if !CURRENCY_REGEX.is_match(currency) {
+
+    if !REGEX.is_match(currency) {
         return Err(ValidationError::new("Invalid currency"));
     }
     Ok(())
