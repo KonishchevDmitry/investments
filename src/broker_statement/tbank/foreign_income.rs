@@ -27,7 +27,7 @@ pub struct ForeignIncomeStatementReader {
 
 impl ForeignIncomeStatementReader {
     pub fn is_statement(path: &str) -> GenericResult<bool> {
-        if !path.ends_with(".xlsx") {
+        if !path.to_lowercase().ends_with(".xlsx") {
             return Ok(false);
         }
 

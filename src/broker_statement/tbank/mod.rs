@@ -179,7 +179,7 @@ impl BrokerStatementReader for StatementReader {
             return Ok(false);
         }
 
-        Ok(path.ends_with(".xlsx"))
+        Ok(path.to_lowercase().ends_with(".xlsx"))
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {

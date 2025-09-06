@@ -59,7 +59,7 @@ impl StatementReader {
 
 impl BrokerStatementReader for StatementReader {
     fn check(&mut self, path: &str) -> GenericResult<bool> {
-        if !path.ends_with(".csv") {
+        if !path.to_lowercase().ends_with(".csv") {
             return Ok(false)
         }
 

@@ -43,7 +43,7 @@ impl StatementReader {
 
 impl BrokerStatementReader for StatementReader {
     fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.ends_with(".html"))
+        Ok(path.to_lowercase().ends_with(".html"))
     }
 
     fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {

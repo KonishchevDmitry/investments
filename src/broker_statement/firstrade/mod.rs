@@ -34,7 +34,7 @@ impl StatementReader {
 
 impl BrokerStatementReader for StatementReader {
     fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.ends_with(".ofx"))
+        Ok(path.to_lowercase().ends_with(".ofx"))
     }
 
     fn read(&mut self, path: &str, is_last: bool) -> GenericResult<PartialBrokerStatement> {
