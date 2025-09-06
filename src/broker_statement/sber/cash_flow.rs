@@ -1,3 +1,4 @@
+use chrono::Datelike;
 use isin::ISIN;
 use lazy_static::lazy_static;
 use regex::{Regex, RegexBuilder};
@@ -5,10 +6,12 @@ use scraper::ElementRef;
 
 use crate::broker_statement::CashGrant;
 use crate::broker_statement::partial::{PartialBrokerStatement, PartialBrokerStatementRc};
+use crate::broker_statement::payments::Withholding;
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::{Cash, CashAssets, POSITIVE_AMOUNT_REGEX, CURRENCY_REGEX};
 use crate::formats::html::{self, HtmlTableRow, SectionParser, SkipCell};
-use crate::instruments::{self, ISIN_REGEX};
+use crate::formatting;
+use crate::instruments::{self, InstrumentId, ISIN_REGEX};
 use crate::time::Date;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
@@ -91,10 +94,29 @@ impl CashFlowRow {
                     self.date, -check_amount(withdrawal)?));
             },
 
-            // XXX(konishchev): Support
-            #[cfg(debug_assertions)]
+            "Списание д/с. Налог на доходы физ.лиц" => {
+                let year = self.date.year();
+                let withholding = Withholding::Withholding(check_amount(withdrawal)?);
+                statement.tax_agent_withholdings.add(self.date, year, withholding)?;
+            },
+
             _ if operation.starts_with("Дивиденды ") => {
-                parse_dividend_description(operation)?;
+                let dividend = parse_dividend_description(operation)?;
+                let issuer = InstrumentId::Isin(dividend.isin);
+                let result = check_amount(deposit)?;
+
+                if result.currency != dividend.amount.currency {
+                    return Err!(
+                        "Got a {} dividend from {} in {} with a payment in {}",
+                        dividend.name, formatting::format_date(self.date), dividend.amount.currency, result.currency);
+                } else if result > dividend.amount {
+                    return Err!(
+                        "Got a {} dividend from {} with credited amount which is bigger the dividend amount: {} vs {}",
+                        dividend.name, formatting::format_date(self.date), result, dividend.amount);
+                }
+
+                statement.dividend_accruals(self.date, issuer.clone(), true).add(self.date, dividend.amount);
+                statement.tax_accruals(self.date, issuer, true).add(self.date, dividend.amount - result);
             },
 
             _ if operation.starts_with("Зачисление участнику акции ") => {
@@ -127,8 +149,7 @@ fn parse_dividend_description(description: &str) -> GenericResult<Dividend> {
             r"Курс\ конвертации\ {amount};\ ",
             r"Налог\ удержан\ ",
             r"Дополнительная\ информация:\ Дивиденды\ (?P<amount>{amount})\ (?P<currency>{currency})\ по\ курсу\ ЦБ\ {amount}",
-        // "$"
-        ), isin=ISIN_REGEX, amount=POSITIVE_AMOUNT_REGEX, currency=CURRENCY_REGEX)).ignore_whitespace(true).build().unwrap();
+        "$"), isin=ISIN_REGEX, amount=POSITIVE_AMOUNT_REGEX, currency=CURRENCY_REGEX)).ignore_whitespace(true).build().unwrap();
     }
 
     Ok(DESCRIPTION_REGEX.captures(description).and_then(|captures| {
