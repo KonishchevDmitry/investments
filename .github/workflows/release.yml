@@ -64,7 +64,7 @@ jobs:
         mv "target/${CARGO_BUILD_TARGET:-}/release/$binary_name" .
         [[ "$(uname)" = MINGW* ]] || sudo chown 0:0 "$binary_name"
 
-        archive_name="investments-${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name }}.${{ matrix.archive_ext }}"
+        archive_name="investments-${{ runner.os }}-${{ github.ref_name }}-${{ runner.arch }}.${{ matrix.archive_ext }}"
         archive_name="$(tr '[:upper:]' '[:lower:]' <<< "$archive_name")"
         echo "name=$archive_name" >> "$GITHUB_OUTPUT"
 
