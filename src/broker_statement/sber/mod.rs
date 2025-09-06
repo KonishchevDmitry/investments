@@ -99,14 +99,14 @@ mod tests {
         assert!(statement.fees.is_empty());
         assert_eq!(statement.cash_grants.is_empty(), name != "my");
         assert!(statement.idle_cash_interest.is_empty());
-        assert!(statement.tax_agent_withholdings.is_empty());
+        assert_eq!(statement.tax_agent_withholdings.is_empty(), name != "my");
 
         assert!(statement.forex_trades.is_empty());
         assert!(!statement.stock_buys.is_empty());
-        assert!(statement.stock_sells.is_empty());
-        assert!(statement.dividends.is_empty());
+        assert_eq!(statement.stock_sells.is_empty(), name != "my");
+        assert_eq!(statement.dividends.is_empty(), name != "my");
 
-        assert!(!statement.open_positions.is_empty());
+        assert_eq!(statement.open_positions.is_empty(), name == "my");
         assert!(!statement.instrument_info.is_empty());
     }
 }
