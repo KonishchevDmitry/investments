@@ -1,6 +1,6 @@
 [package]
 name = "static_table_derive"
-version = "0.1.81"
+version = "0.1.82"
 description = "Procedural macros for investments crate"
 
 authors = ["Dmitry Konishchev <konishchev@gmail.com>"]
