@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
-use log::trace;
+use log::debug;
 use rayon::prelude::*;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
@@ -69,9 +70,11 @@ pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Optio
         request = request.bearer_auth(authorization);
     }
 
-    trace!("Sending request to {url}...");
+    debug!("Sending request to {url}...");
+    let start = Instant::now();
     let response = request.send().map_err(util::humanize_reqwest_error)?;
-    trace!("Got response from {url}.");
+    let duration = start.elapsed();
+    debug!("Got response from {url} ({duration:?}).");
 
     if !response.status().is_success() {
         return Err!("Server returned an error: {}", response.status());

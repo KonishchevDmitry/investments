@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 #[cfg(test)] use indoc::indoc;
 use log::error;
@@ -8,11 +9,20 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::rate_limiter::RateLimiter;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
 use super::common::{send_request, is_outdated_time};
+
+// It looks like Alpha Vantage has 1/s rate limit. The requests are typically handled in ~200ms, but the initial one
+// (which establishes TLS connection) may take from 600ms up to few seconds, which significantly desynchronizes client
+// and server rate limiters.
+//
+// Our rate limiter doesn't provide an ability to workaround the problem, so we do this manually.
+const RATE_LIMIT: Duration = Duration::from_secs(1);
+const REQUEST_LATENCY: Duration = Duration::from_millis(600);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,7 +41,9 @@ impl AlphaVantageConfig {
 pub struct AlphaVantage {
     url: String,
     api_key: String,
+
     client: Client,
+    rate_limiter: RateLimiter,
 }
 
 impl AlphaVantage {
@@ -39,7 +51,9 @@ impl AlphaVantage {
         AlphaVantage {
             url: config.url.clone(),
             api_key: config.api_key.clone(),
+
             client: Client::new(),
+            rate_limiter: RateLimiter::new().with_quota(RATE_LIMIT + REQUEST_LATENCY, 1),
         }
     }
 
@@ -50,9 +64,20 @@ impl AlphaVantage {
             ("apikey", self.api_key.as_ref()),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(|response| {
+        Ok(self.send_request(&url).and_then(|response| {
             parse_symbol_search(symbol, response)
         }).map_err(|e| format!("Failed to lookup {symbol} via {url}: {e}"))?)
+    }
+
+    fn send_request(&self, url: &Url) -> GenericResult<Response> {
+        self.rate_limiter.wait(&format!("request to {url}"));
+
+        let start = Instant::now();
+        send_request(&self.client, &url, None).inspect(|_| {
+            if start.elapsed() >= REQUEST_LATENCY {
+                self.rate_limiter.wait(&format!("response from {url}"));
+            }
+        })
     }
 }
 
@@ -74,7 +99,7 @@ impl QuotesProvider for AlphaVantage {
             ("apikey", self.api_key.as_ref()),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(|response| {
+        Ok(self.send_request(&url).and_then(|response| {
             Ok(parse_quotes(response).map_err(|e| format!(
                 "Quotes info parsing error: {e}"))?)
         }).map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
