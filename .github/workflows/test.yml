@@ -27,9 +27,8 @@ jobs:
     - name: Configure build target
       run: .github/configure-build-target
 
-    # FIXME(konishchev): Enable it after resolving xml crate issue
-    # - name: Drop caches
-    #   run: rm Cargo.lock
+    - name: Drop caches
+      run: rm Cargo.lock
 
     - name: Build
       run: cargo build
