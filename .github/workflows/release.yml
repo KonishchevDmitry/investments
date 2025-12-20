@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         include:
-          # See https://bit.ly/github-runners for actual runners
+          # See https://docs.github.com/en/actions/reference/runners/github-hosted-runners for actual runners
 
           - name: Linux
             os: ubuntu-latest
@@ -25,12 +25,12 @@ jobs:
             archive_ext: tar.bz2
 
           - name: Intel MacOS
-            os: macos-13
+            os: macos-15-intel
             binary_name: investments
             archive_ext: tar.bz2
 
           - name: ARM MacOS
-            os: macos-14
+            os: macos-latest
             binary_name: investments
             archive_ext: tar.bz2
 
