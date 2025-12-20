@@ -86,9 +86,6 @@ impl Parser {
 }
 
 impl SheetParser for Parser {
-    fn sheet_name(&self) -> &str {
-        self.sheet_name
-    }
 }
 
 #[derive(XlsTableRow)]
@@ -162,9 +159,9 @@ fn parse_interest_rates(response: Response) -> GenericResult<Vec<DepositStatisti
         Parser::new("USD", "ставки_долл.США"),
     ] {
         let currency = parser.currency;
-        let sheet_name = parser.sheet_name().to_owned();
+        let sheet_name = parser.sheet_name;
 
-        let sheet = document.worksheet_range(&sheet_name)?;
+        let sheet = document.worksheet_range(sheet_name)?;
         let reader = SheetReader::new(sheet, Box::new(parser));
 
         statistics.extend(parse_interest_rates_sheet(currency, reader).map_err(|e| format!(

@@ -60,9 +60,6 @@ struct QuotesParser {
 }
 
 impl SheetParser for QuotesParser {
-    fn sheet_name(&self) -> &str {
-        "Report"
-    }
 }
 
 #[derive(XlsTableRow)]
@@ -82,12 +79,13 @@ impl TableReader for QuotesRow {
 
 fn get_quotes(response: Response, symbols: &[&str]) -> GenericResult<QuotesMap> {
     let data = response.bytes()?;
-
     let parser = Box::new(QuotesParser {});
-    let sheet_name = parser.sheet_name();
 
-    let sheet = Xlsx::new(Cursor::new(data))?.worksheet_range(sheet_name)?;
-    let mut reader = SheetReader::new(sheet, parser);
+    let mut sheets = Xlsx::new(Cursor::new(data))?.worksheets();
+    if sheets.len() != 1 {
+        return Err!("The workbook has an unexpected sheet count: {}", sheets.len());
+    }
+    let mut reader = SheetReader::new(sheets.pop().unwrap().1, parser);
 
     let mut quotes = QuotesMap::new();
     let symbols: HashSet<&str> = HashSet::from_iter(symbols.iter().copied());

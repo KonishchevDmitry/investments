@@ -80,9 +80,6 @@ struct StatementSheetParser {
 }
 
 impl SheetParser for StatementSheetParser {
-    fn sheet_name(&self) -> &str {
-        "TDSheet"
-    }
 }
 
 #[cfg(test)]

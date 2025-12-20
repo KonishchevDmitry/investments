@@ -26,11 +26,7 @@ impl SheetReader {
     }
 
     pub fn open(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
-        let sheet_name = parser.sheet_name();
-        let sheet = open_sheet(path, sheet_name)?.ok_or_else(|| format!(
-            "There is no {sheet_name:?} sheet in the workbook"))?;
-
-        Ok(SheetReader::new(sheet, parser))
+        Ok(SheetReader::new(open_sheet(path)?, parser))
     }
 
     pub fn parse_empty_tables(&self) -> bool {
@@ -96,8 +92,6 @@ impl SheetReader {
 }
 
 pub trait SheetParser {
-    fn sheet_name(&self) -> &str;
-
     // In the beginning of 2024 year T-Bank statements became broken: empty tables started to lose random columns.
     // This property can help to workaround such temporary problems.
     fn parse_empty_tables(&self) -> bool {
@@ -113,12 +107,13 @@ pub trait SheetParser {
     }
 }
 
-pub fn open_sheet(path: &str, name: &str) -> GenericResult<Option<Range<Cell>>> {
+pub fn open_sheet(path: &str) -> GenericResult<Range<Cell>> {
     let mut workbook = open_workbook_auto(path)?;
 
-    if !workbook.sheets_metadata().iter().any(|sheet| sheet.name == name) {
-        return Ok(None);
+    let mut sheets = workbook.worksheets();
+    if sheets.len() > 1 {
+        return Err!("The workbook has more than one sheet");
     }
 
-    Ok(Some(workbook.worksheet_range(name)?))
+    Ok(sheets.pop().ok_or("The workbook is empty")?.1)
 }

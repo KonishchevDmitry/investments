@@ -238,10 +238,6 @@ struct StatementSheetParser {
 }
 
 impl SheetParser for StatementSheetParser {
-    fn sheet_name(&self) -> &str {
-        "broker_rep"
-    }
-
     fn repeatable_table_column_titles(&self) -> bool {
         true
     }
@@ -315,6 +311,9 @@ mod tests {
     }
 
     fn parse(namespace: &str, name: &str) -> BrokerStatement {
+        let path = format!("testdata/tbank/{name}");
+        assert!(!ForeignIncomeStatementReader::is_statement(&path).unwrap());
+
         let portfolio_name = match (namespace, name) {
             ("main", "my") => s!("tbank"),
             ("main", "iia") => s!("tbank-iia"),
@@ -327,7 +326,7 @@ mod tests {
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(
-            broker, &format!("testdata/tbank/{name}"),
+            broker, &path,
             &Default::default(), &Default::default(), &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()

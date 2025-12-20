@@ -19,7 +19,6 @@ use crate::util::{self, DecimalRestrictions, RoundingMethod};
 
 use super::common::{parse_date_cell, parse_decimal_cell, trim_column_title};
 
-const SHEET_NAME: &str = "Отчет";
 const TITLE_PREFIX: &str = "Отчет о выплате доходов по ценным бумагам иностранных эмитентов";
 
 pub struct ForeignIncomeStatementReader {
@@ -31,12 +30,7 @@ impl ForeignIncomeStatementReader {
             return Ok(false);
         }
 
-        let sheet = match xls::open_sheet(path, SHEET_NAME)? {
-            Some(sheet) => sheet,
-            None => return Ok(false),
-        };
-
-        for mut row in sheet.rows() {
+        for mut row in xls::open_sheet(path)?.rows() {
             row = xls::trim_row_right(row);
             if row.len() == 1 && matches!(&row[0], Cell::String(value) if value.starts_with(TITLE_PREFIX)) {
                 return Ok(true);
@@ -63,10 +57,6 @@ struct ForeignIncomeSheetParser {
 }
 
 impl SheetParser for ForeignIncomeSheetParser {
-    fn sheet_name(&self) -> &str {
-        SHEET_NAME
-    }
-
     fn repeatable_table_column_titles(&self) -> bool {
         true
     }
@@ -367,9 +357,7 @@ mod tests {
     #[rstest(name => ["foreign-income/report.xlsx", "complex-full/foreign-income-report.xlsx"])]
     fn parse_real(name: &str) {
         let path = format!("testdata/tbank/{name}");
-
-        let is_statement = ForeignIncomeStatementReader::is_statement(&path).unwrap();
-        assert!(is_statement);
+        assert!(ForeignIncomeStatementReader::is_statement(&path).unwrap());
 
         let income = ForeignIncomeStatementReader::read(&path).unwrap();
         assert!(!income.is_empty());
