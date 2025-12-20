@@ -135,7 +135,7 @@ impl Telemetry {
             // accumulated some records - we do.
             let mut deadline = Instant::now();
             for (&threshold, &timeout) in flush_thresholds.iter().rev() {
-                if request.records.len() % threshold == 0 {
+                if request.records.len().is_multiple_of(threshold) {
                     deadline += timeout;
                     break;
                 }

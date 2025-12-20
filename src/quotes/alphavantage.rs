@@ -73,7 +73,7 @@ impl AlphaVantage {
         self.rate_limiter.wait(&format!("request to {url}"));
 
         let start = Instant::now();
-        send_request(&self.client, &url, None).inspect(|_| {
+        send_request(&self.client, url, None).inspect(|_| {
             if start.elapsed() >= REQUEST_LATENCY {
                 self.rate_limiter.wait(&format!("response from {url}"));
             }

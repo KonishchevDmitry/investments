@@ -27,7 +27,7 @@ impl PortfolioStatistics {
     pub fn new(country: Country) -> PortfolioStatistics {
         PortfolioStatistics {
             country: country.clone(),
-            currencies: ["USD", "RUB"].iter().map(|&currency| (
+            currencies: ["USD", "RUB"].iter().map(|&currency| {
                 PortfolioCurrencyStatistics {
                     currency: currency.to_owned(),
 
@@ -42,7 +42,7 @@ impl PortfolioStatistics {
                     projected_tax_deductions: dec!(0),
                     projected_commissions: dec!(0),
                 }
-            )).collect(),
+            }).collect(),
             asset_groups: BTreeMap::new(),
             lto: None,
         }
