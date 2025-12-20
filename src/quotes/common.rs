@@ -1,18 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::Instant;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc, Local};
-use log::debug;
 use rayon::prelude::*;
-use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::currency::Cash;
 use crate::quotes::QuotesMap;
 use crate::time::{SystemTime, TimeProvider};
-use crate::util;
 
 pub fn parallelize_quotes<F>(symbols: &[&str], get_quote: F) -> GenericResult<QuotesMap>
     where F: Fn(&str) -> GenericResult<Option<Cash>> + Sync + Send
@@ -60,27 +56,6 @@ pub fn is_outdated_time<T: TimeZone>(date_time: DateTime<T>, test_outdated_time:
     } else {
         is_outdated_quote(date_time, &SystemTime())
     }
-}
-
-pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Option<&str>) -> GenericResult<Response> {
-    let url = url.as_ref();
-
-    let mut request = client.get(url);
-    if let Some(authorization) = authorization {
-        request = request.bearer_auth(authorization);
-    }
-
-    debug!("Sending request to {url}...");
-    let start = Instant::now();
-    let response = request.send().map_err(util::humanize_reqwest_error)?;
-    let duration = start.elapsed();
-    debug!("Got response from {url} ({duration:?}).");
-
-    if !response.status().is_success() {
-        return Err!("Server returned an error: {}", response.status());
-    }
-
-    Ok(response)
 }
 
 pub fn parse_response<T: DeserializeOwned>(response: &str) -> GenericResult<T> {

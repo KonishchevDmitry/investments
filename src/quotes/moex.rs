@@ -15,11 +15,12 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formats::xml;
+use crate::http;
 use crate::time::{self, Date, DateTime, Period};
 use crate::types::Decimal;
 use crate::util;
 
-use super::common::{send_request, parse_response};
+use super::common::parse_response;
 use super::{QuotesProvider, SupportedExchange, QuotesMap, HistoricalQuotes};
 
 const ENGINE: &str = "stock";
@@ -54,7 +55,7 @@ impl Moex {
             ("iss.json", "extended"),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(|response| {
+        Ok(http::send_request(&self.client, &url, None).and_then(|response| {
             parse_instrument_info(symbol, response)
         }).map_err(|e| format!("Failed to get instrument info from {url}: {e}"))?)
     }
@@ -83,7 +84,7 @@ impl QuotesProvider for Moex {
                 &[("securities", symbols.iter().sorted().join(",").as_str())],
             )?;
 
-            let quotes = send_request(&self.client, &url, None).and_then(parse_quotes).map_err(|e| format!(
+            let quotes = http::send_request(&self.client, &url, None).and_then(parse_quotes).map_err(|e| format!(
                 "Failed to get quotes from {url}: {e}"))?;
 
             for symbol in quotes.keys() {
@@ -131,7 +132,7 @@ impl QuotesProvider for Moex {
                 ])?;
 
                 tries += 1;
-                let count = send_request(&self.client, &url, None).and_then(|response| {
+                let count = http::send_request(&self.client, &url, None).and_then(|response| {
                     parse_historical_quotes(response, &mut board_quotes)
                 }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?;
 

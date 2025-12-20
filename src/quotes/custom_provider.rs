@@ -7,11 +7,12 @@ use validator::Validate;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::forex;
+use crate::http;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
-use super::common::{send_request, parse_response};
+use super::common::parse_response;
 
 #[derive(Deserialize, Validate)]
 #[serde(deny_unknown_fields)]
@@ -52,7 +53,7 @@ impl QuotesProvider for CustomProvider {
             ("symbols", &symbols.join(",")),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
+        Ok(http::send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
             "Failed to get quotes from {url}: {e}"))?)
     }
 }

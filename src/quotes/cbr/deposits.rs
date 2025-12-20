@@ -12,7 +12,7 @@ use reqwest::blocking::{Client, Response};
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formats::xls::{self, XlsTableRow, SheetReader, SheetParser, TableReader, RawRowType, Cell, SkipCell};
-use crate::quotes::common::send_request;
+use crate::http;
 use crate::time::{self, Date};
 use crate::types::Decimal;
 
@@ -23,7 +23,7 @@ pub fn get_interest_rates(base_url: &str) -> GenericResult<Vec<DepositStatistics
     let client = Client::new();
     let url = format!("{base_url}/vfs/statistics/pdko/int_rat/deposits.xlsx");
 
-    Ok(send_request(&client, &url, None)
+    Ok(http::send_request(&client, &url, None)
         .and_then(parse_interest_rates)
         .map_err(|e| format!("Failed to get deposit interest rates from {url}: {e}"))?)
 }

@@ -5,13 +5,13 @@ use reqwest::blocking::{Client, Response};
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::http;
 use crate::time::{Date, Period};
 use crate::util::{self, DecimalRestrictions};
 
 use super::{QuotesProvider, SupportedExchange, HistoricalQuotes};
 use super::alphavantage::AlphaVantage;
 #[cfg(test)] use super::alphavantage::AlphaVantageConfig;
-use super::common::send_request;
 
 pub struct Stooq {
     url: String,
@@ -56,7 +56,7 @@ impl QuotesProvider for Stooq {
             ("i", "d"),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(|response| {
+        Ok(http::send_request(&self.client, &url, None).and_then(|response| {
             parse_historical_quotes(&currency, response)
         }).map_err(|e| format!("Failed to get historical quotes from {url}: {e}"))?)
     }

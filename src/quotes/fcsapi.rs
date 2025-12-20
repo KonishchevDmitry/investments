@@ -9,12 +9,13 @@ use serde::Deserialize;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::forex;
+use crate::http;
 use crate::rate_limiter::RateLimiter;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
-use super::common::{send_request, parse_response, is_outdated_unix_time};
+use super::common::{parse_response, is_outdated_unix_time};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -71,7 +72,7 @@ impl QuotesProvider for FcsApi {
         ])?;
 
         self.rate_limiter.wait(&format!("request to {url}"));
-        Ok(send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
+        Ok(http::send_request(&self.client, &url, None).and_then(get_quotes).map_err(|e| format!(
             "Failed to get quotes from {url}: {e}"))?)
     }
 }

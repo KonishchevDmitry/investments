@@ -17,13 +17,12 @@ use crate::currency::Cash;
 use crate::formats::xml;
 use crate::formatting;
 use crate::forex;
+use crate::http;
 use crate::localities;
 use crate::quotes::{CurrencyRate, QuotesMap, QuotesProvider};
 use crate::time;
 use crate::types::{Date, Decimal};
 use crate::util::{self, DecimalRestrictions};
-
-use super::common::send_request;
 
 pub const BASE_URL: &str = "https://www.cbr.ru";
 pub const BASE_CURRENCY: &str = "RUB";
@@ -165,7 +164,7 @@ impl Cbr {
         };
 
         let get = |url| -> GenericResult<T> {
-            let response = send_request(&self.client, url,  None)?;
+            let response = http::send_request(&self.client, url,  None)?;
 
             let result: T = xml::deserialize(response)?;
             result.validate()?;

@@ -10,12 +10,13 @@ use serde::de::DeserializeOwned;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::exchanges::Exchange;
+use crate::http;
 use crate::rate_limiter::RateLimiter;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
-use super::common::{parallelize_quotes, send_request, is_outdated_unix_time};
+use super::common::{parallelize_quotes, is_outdated_unix_time};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -107,7 +108,7 @@ impl Finnhub {
         let get = |url| -> GenericResult<Option<T>> {
             self.rate_limiter.wait(&format!("request to {url}"));
 
-            let reply = send_request(&self.client, url, None)?.text()?;
+            let reply = http::send_request(&self.client, url, None)?.text()?;
             if reply.trim() == "Symbol not supported" {
                 return Ok(None);
             }

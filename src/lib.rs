@@ -19,6 +19,7 @@ pub mod exchanges;
 mod forex;
 mod formats;
 mod formatting;
+mod http;
 mod instruments;
 mod localities;
 pub mod metrics;

@@ -9,12 +9,13 @@ use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
+use crate::http;
 use crate::rate_limiter::RateLimiter;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
-use super::common::{send_request, is_outdated_time};
+use super::common::is_outdated_time;
 
 // It looks like Alpha Vantage has 1/s rate limit. The requests are typically handled in ~200ms, but the initial one
 // (which establishes TLS connection) may take from 600ms up to few seconds, which significantly desynchronizes client
@@ -73,7 +74,7 @@ impl AlphaVantage {
         self.rate_limiter.wait(&format!("request to {url}"));
 
         let start = Instant::now();
-        send_request(&self.client, url, None).inspect(|_| {
+        http::send_request(&self.client, url, None).inspect(|_| {
             if start.elapsed() >= REQUEST_LATENCY {
                 self.rate_limiter.wait(&format!("response from {url}"));
             }

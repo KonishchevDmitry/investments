@@ -8,12 +8,13 @@ use serde::Deserialize;
 use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::forex;
+use crate::http;
 use crate::time;
 use crate::util::{self, DecimalRestrictions};
 use crate::types::Decimal;
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
-use super::common::{send_request, parallelize_quotes, parse_response, is_outdated_time};
+use super::common::{parallelize_quotes, parse_response, is_outdated_time};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,7 +57,7 @@ impl TwelveData {
             ("apikey", self.token.as_ref()),
         ])?;
 
-        Ok(send_request(&self.client, &url, None).and_then(|response| {
+        Ok(http::send_request(&self.client, &url, None).and_then(|response| {
             get_quote(symbol, response)
         }).map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
     }

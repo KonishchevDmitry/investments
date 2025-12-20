@@ -10,11 +10,11 @@ use crate::core::GenericResult;
 #[cfg(test)] use crate::currency::Cash;
 use crate::exchanges::Exchange;
 use crate::formats::xls::{self, XlsTableRow, SheetReader, SheetParser, TableReader, SkipCell};
+use crate::http;
 use crate::types::Decimal;
 use crate::util::{self, DecimalRestrictions};
 
 use super::{SupportedExchange, QuotesMap, QuotesProvider};
-use super::common::send_request;
 
 // Temporary provider to workaround FinEx funds suspension status (see https://finex-etf.ru/calc/nav)
 pub struct Finex {
@@ -46,7 +46,7 @@ impl QuotesProvider for Finex {
         }
 
         let url = format!("{}/v1/fonds/nav.xlsx", self.url);
-        Ok(send_request(&self.client, &url, None)
+        Ok(http::send_request(&self.client, &url, None)
             .and_then(|response| get_quotes(response, symbols))
             .map_err(|e| format!("Failed to get quotes from {url}: {e}"))?)
     }
