@@ -12,17 +12,36 @@ use crate::types::{Date, Decimal};
 pub struct Country {
     pub jurisdiction: Jurisdiction,
     pub currency: &'static str,
+
     tax_rates: Rc<BTreeMap<i32, Box<dyn TaxRate>>>,
     tax_agent_rates: Rc<BTreeMap<i32, Box<dyn TaxRate>>>,
+
+    // When foreign broker withholds tax from dividends, Russian investors can credit this witheld tax due to the
+    // agreement on avoidance of double taxation.
+    //
+    // Until 2024 foreign witheld tax was limited by 10%, but starting from mid 2024 it may be up to 30%. Though
+    // theoretically it's possible to credit it (https://sergeynaumov.com/offset-of-tax-on-dividends/), there is a
+    // problem with crediting anything more than 13% (up to effective progressive tax rate) because of the current tax
+    // calculation scheme in Russia:
+    // 1. Individual sends tax form in which all income is calculated with base 13% tax rate (and there is no way to
+    //    credit more than 13%).
+    // 2. At the end of the year tax authority sums up all the income and issues a tax invoice for paying > 13% tax.
+    // ... and we have no ability to credit our > 13% here. So we take this limitation into account via this option.
+    pub tax_credit_rate_limit: Option<Decimal>,
 }
 
 impl Country {
-    fn new(jurisdiction: Jurisdiction, tax_rates: BTreeMap<i32, Box<dyn TaxRate>>, tax_agent_rates: BTreeMap<i32, Box<dyn TaxRate>>) -> Country {
+    fn new(
+        jurisdiction: Jurisdiction, tax_rates: BTreeMap<i32, Box<dyn TaxRate>>,
+        tax_agent_rates: BTreeMap<i32, Box<dyn TaxRate>>, tax_credit_rate_limit: Option<Decimal>,
+    ) -> Country {
         Country {
             jurisdiction,
             currency: jurisdiction.traits().currency,
+
             tax_rates: Rc::new(tax_rates),
             tax_agent_rates: Rc::new(tax_agent_rates),
+            tax_credit_rate_limit,
         }
     }
 
@@ -102,7 +121,7 @@ pub fn russia(config: &TaxConfig) -> Country {
         tax_calculators.insert(year, calc);
     }
 
-    Country::new(Jurisdiction::Russia, tax_calculators, tax_agent_calculators)
+    Country::new(Jurisdiction::Russia, tax_calculators, tax_agent_calculators, Some(dec!(0.13)))
 }
 
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {

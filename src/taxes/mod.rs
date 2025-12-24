@@ -16,7 +16,7 @@ use crate::currency;
 use crate::localities::Jurisdiction;
 use crate::types::Decimal;
 
-pub use self::calculator::{TaxCalculator, Tax};
+pub use self::calculator::{PaidTax, TaxCalculator, Tax};
 pub use self::long_term_ownership::{
     LtoDeductibleProfit, LtoDeductionCalculator, LtoDeduction,
     NetLtoDeduction, NetLtoDeductionCalculator};

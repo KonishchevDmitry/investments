@@ -4,6 +4,7 @@ use crate::core::GenericResult;
 use crate::currency::Cash;
 use crate::localities::{Country, Jurisdiction};
 use crate::taxes::{self, IncomeType, TaxRate};
+use crate::types::Decimal;
 
 pub struct Tax {
     pub expected: Cash,
@@ -14,6 +15,11 @@ pub struct Tax {
     // * Trading: various tax deductions
     // * Dividends: taking into account already withheld tax
     pub deduction: Cash,
+}
+
+pub struct PaidTax {
+    pub amount: Cash,
+    pub credit_rate_limit: Option<Decimal>,
 }
 
 pub struct TaxCalculator {
@@ -31,7 +37,7 @@ impl TaxCalculator {
 
     // Attention: Modifies calculator state. Must be called only for income that won't be decreased later via deductions
     // or looses balancing.
-    pub fn tax_income(&mut self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<Cash>) -> Tax {
+    pub fn tax_income(&mut self, income_type: IncomeType, year: i32, income: Cash, paid_tax: Option<PaidTax>) -> Tax {
         calculate(self.country.jurisdiction, self.year(year), income_type, income, paid_tax)
     }
 
@@ -48,20 +54,23 @@ impl TaxCalculator {
             return Err!("Got an unexpected withheld tax: {} vs {}", orig_paid_tax, paid_tax);
         }
 
-        // Please note that paid tax amount may be less than actual tax will be paid in case of progressive tax rate:
+        // Please note the following:
         //
-        // Withheld tax may be less than 13%. It may be even zero if company distributes dividends from other companies
-        // for which tax has been already withheld, so we should trust the provided amount.
+        // 1. Withheld tax may be less than 13%. It may be even zero if company distributes dividends from other
+        // companies for which tax has been already withheld, so we should trust the provided amount.
         //
         // See https://web.archive.org/web/20240622133328/https://smart-lab.ru/company/tinkoff_invest/blog/631922.php
         // for details.
         //
-        // But, in case of progressive tax rates the withheld tax may be calculated using lower tax rate, as broker
-        // doesn't know actual client's income. We try to workaround the case: tax the income using lowest tax rate and
+        // 2. In case of progressive tax rates the withheld tax may be calculated using lower tax rate, as broker
+        // doesn't know total client's income. We try to workaround the case: tax the income using lowest tax rate and
         // if the result is equal to or less than the paid tax, assume that there is no special case here, so we can tax
         // the dividend using our calculator which are aware of actual total tax base.
 
-        let tax = self.tax_income(income_type, year, income, Some(paid_tax));
+        let tax = self.tax_income(income_type, year, income, Some(PaidTax {
+            amount: paid_tax,
+            credit_rate_limit: None,
+        }));
 
         // This call increases total tax base which we should do in both cases
         let lowest_tax = Cash::new(income.currency, self.country.tax_agent_rate(year).tax(income_type, income.amount));
@@ -130,7 +139,7 @@ impl TaxCalculator {
 
 fn calculate(
     jurisdiction: Jurisdiction, calc: &mut Box<dyn TaxRate>,
-    income_type: IncomeType, income: Cash, paid_tax: Option<Cash>,
+    income_type: IncomeType, income: Cash, paid_tax: Option<PaidTax>,
 ) -> Tax {
     let country = jurisdiction.traits();
 
@@ -138,12 +147,18 @@ fn calculate(
     let expected = calc.tax(income_type, income.amount);
 
     let (paid, to_pay) = if let Some(paid_tax) = paid_tax {
-        assert!(!paid_tax.is_negative());
-        assert_eq!(paid_tax.currency, country.currency);
+        assert!(!paid_tax.amount.is_negative());
+        assert_eq!(paid_tax.amount.currency, country.currency);
+
+        let mut credited_tax = paid_tax.amount.amount;
+        if let Some(credit_rate_limit) = paid_tax.credit_rate_limit {
+            let credited_tax_limit = std::cmp::max(dec!(0), income.amount * credit_rate_limit);
+            credited_tax = std::cmp::min(credited_tax, credited_tax_limit);
+        }
 
         (
-            paid_tax.amount,
-            std::cmp::max(dec!(0), expected - taxes::round_tax(paid_tax.amount, country.tax_precision))
+            paid_tax.amount.amount,
+            std::cmp::max(dec!(0), expected - taxes::round_tax(credited_tax, country.tax_precision))
         )
     } else {
         (dec!(0), expected)

@@ -8,7 +8,7 @@ use crate::currency::converter::CurrencyConverter;
 use crate::formatting;
 use crate::instruments::{InstrumentId, IssuerTaxationType};
 use crate::localities::Country;
-use crate::taxes::{IncomeType, TaxCalculator, Tax};
+use crate::taxes::{IncomeType, PaidTax, TaxCalculator, Tax};
 use crate::time::Date;
 
 use super::cash_flows::{CashFlow, CashFlowType};
@@ -33,7 +33,10 @@ impl Dividend {
         Ok(match self.taxation_type {
             IssuerTaxationType::Manual{..} => {
                 let paid_tax = converter.convert_to_cash_rounding(self.date, self.paid_tax, country.currency)?;
-                calculator.tax_income(IncomeType::Dividends, self.date.year(), amount, Some(paid_tax))
+                calculator.tax_income(IncomeType::Dividends, self.date.year(), amount, Some(PaidTax {
+                    amount: paid_tax,
+                    credit_rate_limit: country.tax_credit_rate_limit,
+                }))
             },
             IssuerTaxationType::TaxAgent{..} => {
                 calculator.tax_agent_income(IncomeType::Dividends, self.date.year(), amount, self.paid_tax).map_err(|e| format!(
