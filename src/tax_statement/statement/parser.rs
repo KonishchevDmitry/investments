@@ -300,8 +300,8 @@ mod tests {
             let local_amount = amount * currency_rate;
             let local_paid_tax = util::round(paid_tax * currency_rate, 2);
 
-            // 840 - Код страны источника выплаты
-            // 840 - Код страны зачисления выплаты
+            // 840 (Соединённые Штаты Америки) - Код страны источника выплаты
+            // 840 (Соединённые Штаты Америки) - Код страны зачисления выплаты
             // 1530 - (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)
             statement.add_stock_income(
                 "Акции", date, CountryCode::Usa, currency, currency_rate, amount, local_amount,
