@@ -40,10 +40,11 @@ pub fn generate_tax_statement(
         Some(path) => {
             let year = year.ok_or("Tax year must be specified when tax statement is specified")?;
 
-            let statement = TaxStatement::read(path)?;
+            let statement = TaxStatement::read(path).map_err(|e| format!(
+                "Error while reading tax statement {path:?}: {e}"))?;
+
             if statement.year != year {
-                return Err!("Tax statement year ({}) doesn't match the requested year {}",
-                            statement.year, year);
+                return Err!("Tax statement year ({}) doesn't match the requested year {year}", statement.year);
             }
 
             Some(statement)
@@ -76,7 +77,7 @@ pub fn generate_tax_statement(
     }
 
     if let Some(ref tax_statement) = tax_statement {
-        assert_eq!(tax_statement.modified, has_income_to_declare);
+        assert_eq!(tax_statement.new_income_added, has_income_to_declare);
 
         if has_income_to_declare {
             tax_statement.save()?;

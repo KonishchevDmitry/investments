@@ -1,193 +1,133 @@
-use std::any::Any;
+use serde::{Serialize, Serializer};
 
-use crate::core::{EmptyResult, GenericResult};
-use crate::currency;
+use crate::core::GenericResult;
 use crate::types::{Date, Decimal};
 
 use super::countries::CountryCode;
-use super::encoding::TaxStatementType;
-use super::parser::{TaxStatementReader, TaxStatementWriter};
-use super::record::Record;
-use super::types::Integer;
+use super::encoding::{serialize_date, serialize_decimal, serialize_with_default};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ForeignIncome {
-    pub incomes: Vec<CurrencyIncome>,
+    #[serde(rename = "IncomeCod")]
+    pub type_: IncomeType,
+    #[serde(rename = "SourseName")]
+    pub description: String,
+
+    #[serde(rename = "IncomeGetDate", serialize_with = "serialize_date")]
+    pub date: Date,
+    #[serde(rename = "HoldDate", serialize_with = "serialize_date")]
+    pub tax_payment_date: Date,
+
+    #[serde(rename = "CountryCode1")]
+    pub source_from: CountryCode,
+    #[serde(rename = "CountryCode2")]
+    pub received_in: CountryCode,
+    #[serde(flatten)]
+    pub currency: Currency,
+
+    #[serde(rename = "IncomeSum", serialize_with = "serialize_decimal")]
+    pub amount: Decimal,
+    #[serde(rename = "IncomeRoubleSum", serialize_with = "serialize_decimal")]
+    pub local_amount: Decimal,
+
+    #[serde(rename = "TaxRate")]
+    pub tax_rate: u8,
+    #[serde(rename = "TaxCurrencySum", serialize_with = "serialize_decimal")]
+    pub paid_tax: Decimal,
+    #[serde(rename = "TaxRoubleSum", serialize_with = "serialize_decimal")]
+    pub local_paid_tax: Decimal,
+    #[serde(flatten, serialize_with = "serialize_with_default")]
+    pub deduction: Option<Deduction>,
+
+    #[serde(flatten, serialize_with = "serialize_with_default")]
+    pub controlled_foreign_company: Option<ControlledForeignCompany>,
 }
 
-impl ForeignIncome {
-    pub const RECORD_NAME: &'static str = "@DeclForeign";
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IncomeType {
+    Dividend,
+    Interest,
+    Stock,
+}
 
-    pub fn read(reader: &mut TaxStatementReader) -> GenericResult<ForeignIncome> {
-        let number: usize = reader.read_value()?;
-        let mut incomes = Vec::with_capacity(number);
-
-        for index in 0..number {
-            incomes.push(CurrencyIncome::read(reader, index)?);
-        }
-
-        Ok(ForeignIncome {incomes: incomes})
+impl Serialize for IncomeType {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(match self {
+            IncomeType::Dividend => "1010", // Дивиденды
+            IncomeType::Stock    => "1530", // (01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)
+            IncomeType::Interest => "6013", // "Доходы в виде процентов, полученных от источников за пределами Российской Федерации, в отношении которых применяется налоговая ставка, предусмотренная пунктом 1 статьи 224 Кодекса"),
+        })
     }
 }
 
-impl Record for ForeignIncome {
-    fn name(&self) -> &str {
-        ForeignIncome::RECORD_NAME
-    }
+#[derive(Debug, Serialize)]
+pub struct Currency {
+    #[serde(rename = "CurrencyCode")]
+    pub code: &'static str,
+    #[serde(rename = "CurrencyName")]
+    pub name: &'static str,
 
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
+    #[serde(rename = "CurrencyExchange", serialize_with = "serialize_decimal")]
+    pub income_date_rate: Decimal,
+    #[serde(rename = "CurrencyUnits")]
+    pub income_date_units: u16,
 
-    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
-        writer.write_data(ForeignIncome::RECORD_NAME)?;
-        writer.write_value(&self.incomes.len())?;
+    #[serde(rename = "CurrencyExchangeHoldDate", serialize_with = "serialize_decimal")]
+    pub tax_payment_date_rate: Decimal,
+    #[serde(rename = "CurrencyUnitsHoldDate")]
+    pub tax_payment_date_units: u16,
 
-        for (index, income) in self.incomes.iter().enumerate() {
-            income.write(writer, index)?;
-        }
-
-        Ok(())
-    }
-
+    #[serde(rename = "IsAutoExchange")]
+    pub automatic_currency_rates: bool,
 }
 
-tax_statement_array_record!(CurrencyIncome {
-    type_: IncomeType,
-    description: String,
-
-    source_from: CountryCode,
-    received_in: CountryCode,
-
-    date: Date,
-    tax_payment_date: Date,
-    currency: CurrencyInfo,
-
-    amount: Decimal,
-    local_amount: Decimal,
-
-    paid_tax: Decimal,
-    local_paid_tax: Decimal,
-    deduction: DeductionInfo,
-
-    controlled_foreign_company: ControlledForeignCompanyInfo,
-}, index_length=4);
-
-tax_statement_inner_record!(CurrencyInfo {
-    automatic_convertion: bool,
-    code: String,
-
-    income_date_rate: Decimal,
-    income_date_units: Integer,
-
-    tax_payment_date_rate: Decimal,
-    tax_payment_date_units: Integer,
-
-    name: String,
-});
-
-impl CurrencyInfo {
-    pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<CurrencyInfo> {
-        let (currency_code, currency_name, currency_rate_units) = match currency {
+impl Currency {
+    pub fn new(currency: &str, precise_currency_rate: Decimal) -> GenericResult<Currency> {
+        let (code, name, units) = match currency {
             "AUD" => ("036", "Австралийский доллар", 100),
             "EUR" => ("978", "Евро", 100),
             "GBP" => ("826", "Фунт стерлингов", 100),
             "HKD" => ("344", "Гонконгский доллар", 100),
             "RUB" => ("643", "Российский рубль", 1000),
             "USD" => ("840", "Доллар США", 100),
-            _ => return Err!("{} currency is not supported yet", currency),
+            _ => return Err!("{currency} currency is not supported yet"),
         };
-        let currency_rate = currency::round(precise_currency_rate * Decimal::from(currency_rate_units));
 
-        Ok(CurrencyInfo {
-            automatic_convertion: true,
-            code: currency_code.to_owned(),
+        let rate = crate::currency::round(precise_currency_rate * Decimal::from(units));
 
-            income_date_rate: currency_rate,
-            income_date_units: currency_rate_units,
+        Ok(Currency {
+            code,
+            name,
 
-            tax_payment_date_rate: currency_rate,
-            tax_payment_date_units: currency_rate_units,
+            income_date_rate: rate,
+            income_date_units: units,
 
-            name: currency_name.to_owned(),
+            tax_payment_date_rate: rate,
+            tax_payment_date_units: units,
+
+            // It's always false for some reason, although it's actually always automatic
+            automatic_currency_rates: false,
         })
     }
 }
 
-tax_statement_inner_record!(DeductionInfo {
-    code: Integer,
-    amount: Decimal,
-});
+#[derive(Debug, Default, Serialize)]
+pub struct Deduction {
+    #[serde(rename = "SubtractCod")]
+    pub code: &'static str,
 
-impl DeductionInfo {
-    pub fn new_none() -> DeductionInfo {
-        DeductionInfo {
-            code: 0,
-            amount: dec!(0),
-        }
-    }
+    #[serde(rename = "SubtractSum", serialize_with = "serialize_decimal")]
+    pub amount: Decimal,
 }
 
-tax_statement_inner_record!(ControlledForeignCompanyInfo {
-    unknown1: Integer,
-    unknown2: Integer,
-    profit_calculation_method: Integer,
-    number: String,
-    paid_tax: Integer,
-});
+#[derive(Debug, Default, Serialize)]
+pub struct ControlledForeignCompany {
+    #[serde(rename = "KIKIncomeType")]
+    profit_calculation_method: u8,
 
-impl ControlledForeignCompanyInfo {
-    pub fn new_none() -> ControlledForeignCompanyInfo {
-        ControlledForeignCompanyInfo {
-            unknown1: 0,
-            unknown2: 0,
-            profit_calculation_method: 0,
-            number: String::new(),
-            paid_tax: 0,
-        }
-    }
+    #[serde(rename = "KIKNum")]
+    number: &'static str,
+
+    #[serde(rename = "TaxKIKHoldRF", serialize_with = "serialize_decimal")]
+    paid_tax: Decimal,
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IncomeType {
-    Dividend,
-    Interest,
-    Stock,
-    Other(GenericIncomeType),
-}
-
-impl IncomeType {
-    fn to_generic(&self) -> GenericIncomeType {
-        let (category, code, name) = match self {
-            IncomeType::Dividend => (0, 1010, "Дивиденды"),
-            IncomeType::Stock => (0, 1530, "(01)Доходы от реализации ЦБ (обращ-ся на орг. рынке ЦБ)"),
-            IncomeType::Interest => (0, 6013, "Доходы в виде процентов, полученных от источников за пределами Российской Федерации, в отношении которых применяется налоговая ставка, предусмотренная пунктом 1 статьи 224 Кодекса"),
-            IncomeType::Other(other) => return other.clone(),
-        };
-        GenericIncomeType {category, code, name: name.to_owned()}
-    }
-}
-
-impl TaxStatementType for IncomeType {
-    fn read(reader: &mut TaxStatementReader) -> GenericResult<IncomeType> {
-        let generic = GenericIncomeType::read(reader)?;
-
-        for income_type in [IncomeType::Dividend, IncomeType::Interest, IncomeType::Stock] {
-            if income_type.to_generic() == generic {
-                return Ok(income_type);
-            }
-        }
-
-        Ok(IncomeType::Other(generic))
-    }
-
-    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
-        self.to_generic().write(writer)
-    }
-}
-
-tax_statement_inner_record!(GenericIncomeType {
-    category: Integer,
-    code: Integer,
-    name: String,
-});

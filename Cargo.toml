@@ -96,7 +96,7 @@ diesel_migrations = "2.3.1"
 diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
 
 # Pin rust_decimal version since it's not stable enough yet
-rust_decimal = "~1.39.0"
+rust_decimal = { version = "~1.39.0", features = ["serde-with-float"] }
 rust_decimal_macros = "~1.39.0"
 
 prost = "0.14"
@@ -123,6 +123,7 @@ tonic-prost-build = "0.14"
 
 [dev-dependencies]
 mockito = "1.7.1"
+pretty_assertions = "1.4.1"
 qtrac-retest = { path = "tests/retest" } # The original crate has been removed from crates.io (https://github.com/KonishchevDmitry/investments/issues/84)
 rstest = "0.26.1"
 tempfile = "3.23.0"

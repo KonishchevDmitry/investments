@@ -14,7 +14,7 @@ cargo test
 echo -e "\nRunning regression tests..."
 ./tests/run
 
-# XXX(konishchev): Enable it back
+# FIXME(konishchev): Enable it back
 # echo -e "\nChecking that it works in real life..."
 # cargo run -- analyse > /dev/null
 

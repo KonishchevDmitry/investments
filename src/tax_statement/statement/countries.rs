@@ -1,22 +1,20 @@
-use crate::core::{EmptyResult, GenericResult};
+use serde::{Serialize, Serializer};
 
-use super::encoding::TaxStatementType;
-use super::parser::{TaxStatementReader, TaxStatementWriter};
-use super::types::Integer;
+use crate::core::GenericResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CountryCode {
     Russia,
     Usa,
-    Other(Integer),
+    Other(u16),
 }
 
 impl CountryCode {
     pub fn new(country: &str) -> GenericResult<CountryCode> {
-        Ok(CountryCode::from_code(get_code(country)?.into()))
+        Ok(CountryCode::from_code(get_code(country)?))
     }
 
-    fn from_code(code: Integer) -> CountryCode {
+    fn from_code(code: u16) -> CountryCode {
         match code {
             643 => CountryCode::Russia,
             840 => CountryCode::Usa,
@@ -24,7 +22,7 @@ impl CountryCode {
         }
     }
 
-    fn to_code(self) -> Integer {
+    fn to_code(self) -> u16 {
         match self {
             CountryCode::Russia => 643,
             CountryCode::Usa => 840,
@@ -33,14 +31,10 @@ impl CountryCode {
     }
 }
 
-impl TaxStatementType for CountryCode {
-    fn read(reader: &mut TaxStatementReader) -> GenericResult<CountryCode> {
-        Ok(CountryCode::from_code(reader.read_value()?))
-    }
-
-    fn write(&self, writer: &mut TaxStatementWriter) -> EmptyResult {
-        writer.write_value(&self.to_code())?;
-        Ok(())
+// FIXME(konishchev): Zero prefixed
+impl Serialize for CountryCode {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_code().to_string())
     }
 }
 
