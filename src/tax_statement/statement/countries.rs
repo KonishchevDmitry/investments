@@ -31,17 +31,17 @@ impl CountryCode {
     }
 }
 
-// FIXME(konishchev): Zero prefixed
 impl Serialize for CountryCode {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_code().to_string())
+        let code = format!("{:03}", self.to_code());
+        serializer.serialize_str(&code)
     }
 }
 
 fn get_code(country: &str) -> GenericResult<u16> {
     Ok(match country {
         // https://ru.wikipedia.org/wiki/Общероссийский_классификатор_стран_мира
-        // cat countries | sed -r 's/^.*\.svg\s+//' | awk -F '\t' '{ printf "\"%s\" => %3d, // %s\n", $3, $5, $1 }'
+        // cat countries | sed -r 's/^ +//' | awk -F '\t' '{ printf "\"%s\" => %3d, // %s\n", $3, $5, $1 }' | sed -r 's/\[[0-9]\]$//'
         "AB" => 895, // АБХАЗИЯ
         "AU" =>  36, // АВСТРАЛИЯ
         "AT" =>  40, // АВСТРИЯ
@@ -106,6 +106,7 @@ fn get_code(country: &str) -> GenericResult<u16> {
         "DK" => 208, // ДАНИЯ
         "JE" => 832, // ДЖЕРСИ
         "DJ" => 262, // ДЖИБУТИ
+        "DN" => 897, // ДНР
         "DM" => 212, // ДОМИНИКА
         "DO" => 214, // ДОМИНИКАНСКАЯ РЕСПУБЛИКА
         "EG" => 818, // ЕГИПЕТ
@@ -154,6 +155,7 @@ fn get_code(country: &str) -> GenericResult<u16> {
         "LY" => 434, // ЛИВИЯ
         "LT" => 440, // ЛИТВА
         "LI" => 438, // ЛИХТЕНШТЕЙН
+        "LN" => 898, // ЛНР
         "LU" => 442, // ЛЮКСЕМБУРГ
         "MU" => 480, // МАВРИКИЙ
         "MR" => 478, // МАВРИТАНИЯ
@@ -253,7 +255,7 @@ fn get_code(country: &str) -> GenericResult<u16> {
         "TT" => 780, // ТРИНИДАД И ТОБАГО
         "TV" => 798, // ТУВАЛУ
         "TN" => 788, // ТУНИС
-        "TM" => 795, // ТУРКМЕНИЯ
+        "TM" => 795, // ТУРКМЕНИСТАН
         "TR" => 792, // ТУРЦИЯ
         "UG" => 800, // УГАНДА
         "UZ" => 860, // УЗБЕКИСТАН
