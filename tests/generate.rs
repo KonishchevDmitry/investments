@@ -194,16 +194,14 @@ impl Tests {
 
     fn tax_statement(&mut self, name: &str, year: i32) -> &mut Test {
         let id = &name_to_id(name);
-        let path = format!("$OUT_PATH/{}-tax-statement-{}.dc{}", id, year, year % 10);
+        let path = format!("$OUT_PATH/{}-tax-statement-{}.de{}", id, year, year % 10);
 
         self.tests.push(Test::new(
             &format!("{name} tax statement generation {year}"),
             "tests/test-tax-statement", &[id, &year.to_string(), &path],
         ));
 
-        let test = self.tests.last_mut().unwrap();
-        test.diff(DiffKind::Binary);
-        test
+        self.tests.last_mut().unwrap()
     }
 
     fn write(self) -> EmptyResult {

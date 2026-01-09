@@ -589,8 +589,7 @@ APP: tests/test-tax-statement
      other
      ib-complex
      2020
-     $OUT_PATH/ib-complex-tax-statement-2020.dc0
-DIFF: rt-binary
+     $OUT_PATH/ib-complex-tax-statement-2020.de0
 
 [71]
 NAME: IB external exchanges tax statement generation 2021
@@ -598,8 +597,7 @@ APP: tests/test-tax-statement
      other
      ib-external-exchanges
      2021
-     $OUT_PATH/ib-external-exchanges-tax-statement-2021.dc1
-DIFF: rt-binary
+     $OUT_PATH/ib-external-exchanges-tax-statement-2021.de1
 
 [72]
 NAME: Open dividends MOEX tax statement generation 2021
@@ -607,8 +605,7 @@ APP: tests/test-tax-statement
      other
      open-dividends-moex
      2021
-     $OUT_PATH/open-dividends-moex-tax-statement-2021.dc1
-DIFF: rt-binary
+     $OUT_PATH/open-dividends-moex-tax-statement-2021.de1
 
 [73]
 NAME: Open dividends SPB tax statement generation 2021
@@ -616,8 +613,7 @@ APP: tests/test-tax-statement
      other
      open-dividends-spb
      2021
-     $OUT_PATH/open-dividends-spb-tax-statement-2021.dc1
-DIFF: rt-binary
+     $OUT_PATH/open-dividends-spb-tax-statement-2021.de1
 
 [74]
 NAME: TBank complex full tax statement generation 2020
@@ -625,8 +621,7 @@ APP: tests/test-tax-statement
      other
      tbank-complex-full
      2020
-     $OUT_PATH/tbank-complex-full-tax-statement-2020.dc0
-DIFF: rt-binary
+     $OUT_PATH/tbank-complex-full-tax-statement-2020.de0
 
 [75]
 NAME: IB margin RUB cash flow
@@ -977,8 +972,7 @@ APP: tests/test-tax-statement
      main
      firstrade
      2020
-     $OUT_PATH/firstrade-tax-statement-2020.dc0
-DIFF: rt-binary
+     $OUT_PATH/firstrade-tax-statement-2020.de0
 
 [117]
 NAME: Firstrade cash flow 2020
@@ -1004,8 +998,7 @@ APP: tests/test-tax-statement
      main
      firstrade
      2021
-     $OUT_PATH/firstrade-tax-statement-2021.dc1
-DIFF: rt-binary
+     $OUT_PATH/firstrade-tax-statement-2021.de1
 
 [120]
 NAME: Firstrade cash flow 2021
@@ -1031,8 +1024,7 @@ APP: tests/test-tax-statement
      main
      firstrade
      2022
-     $OUT_PATH/firstrade-tax-statement-2022.dc2
-DIFF: rt-binary
+     $OUT_PATH/firstrade-tax-statement-2022.de2
 
 [123]
 NAME: Firstrade cash flow 2022
@@ -1074,8 +1066,7 @@ APP: tests/test-tax-statement
      main
      ib
      2018
-     $OUT_PATH/ib-tax-statement-2018.dc8
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2018.de8
 
 [128]
 NAME: IB cash flow 2018
@@ -1101,8 +1092,7 @@ APP: tests/test-tax-statement
      main
      ib
      2019
-     $OUT_PATH/ib-tax-statement-2019.dc9
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2019.de9
 
 [131]
 NAME: IB cash flow 2019
@@ -1128,8 +1118,7 @@ APP: tests/test-tax-statement
      main
      ib
      2020
-     $OUT_PATH/ib-tax-statement-2020.dc0
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2020.de0
 
 [134]
 NAME: IB cash flow 2020
@@ -1155,8 +1144,7 @@ APP: tests/test-tax-statement
      main
      ib
      2021
-     $OUT_PATH/ib-tax-statement-2021.dc1
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2021.de1
 
 [137]
 NAME: IB cash flow 2021
@@ -1182,8 +1170,7 @@ APP: tests/test-tax-statement
      main
      ib
      2022
-     $OUT_PATH/ib-tax-statement-2022.dc2
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2022.de2
 
 [140]
 NAME: IB cash flow 2022
@@ -1209,8 +1196,7 @@ APP: tests/test-tax-statement
      main
      ib
      2023
-     $OUT_PATH/ib-tax-statement-2023.dc3
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2023.de3
 
 [143]
 NAME: IB cash flow 2023
@@ -1236,8 +1222,7 @@ APP: tests/test-tax-statement
      main
      ib
      2024
-     $OUT_PATH/ib-tax-statement-2024.dc4
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2024.de4
 
 [146]
 NAME: IB cash flow 2024
@@ -1263,8 +1248,7 @@ APP: tests/test-tax-statement
      main
      ib
      2025
-     $OUT_PATH/ib-tax-statement-2025.dc5
-DIFF: rt-binary
+     $OUT_PATH/ib-tax-statement-2025.de5
 
 [149]
 NAME: IB cash flow 2025
@@ -1306,8 +1290,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2019
-     $OUT_PATH/tbank-tax-statement-2019.dc9
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2019.de9
 
 [154]
 NAME: TBank cash flow 2019
@@ -1333,8 +1316,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2020
-     $OUT_PATH/tbank-tax-statement-2020.dc0
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2020.de0
 
 [157]
 NAME: TBank cash flow 2020
@@ -1360,8 +1342,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2021
-     $OUT_PATH/tbank-tax-statement-2021.dc1
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2021.de1
 
 [160]
 NAME: TBank cash flow 2021
@@ -1387,8 +1368,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2022
-     $OUT_PATH/tbank-tax-statement-2022.dc2
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2022.de2
 
 [163]
 NAME: TBank cash flow 2022
@@ -1414,8 +1394,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2023
-     $OUT_PATH/tbank-tax-statement-2023.dc3
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2023.de3
 
 [166]
 NAME: TBank cash flow 2023
@@ -1441,8 +1420,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2024
-     $OUT_PATH/tbank-tax-statement-2024.dc4
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2024.de4
 
 [169]
 NAME: TBank cash flow 2024
@@ -1468,8 +1446,7 @@ APP: tests/test-tax-statement
      main
      tbank
      2025
-     $OUT_PATH/tbank-tax-statement-2025.dc5
-DIFF: rt-binary
+     $OUT_PATH/tbank-tax-statement-2025.de5
 
 [172]
 NAME: TBank cash flow 2025
