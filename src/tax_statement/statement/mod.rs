@@ -33,12 +33,18 @@ pub struct TaxStatement {
 }
 
 impl TaxStatement {
-    pub fn read(path: &Path) -> GenericResult<TaxStatement> {
+    pub fn read(path: &Path, year_hint: Option<i32>) -> GenericResult<TaxStatement> {
         let short_year: i32 = path.extension().and_then(OsStr::to_str).and_then(|extension| {
             extension.strip_prefix("de")?.parse::<u8>().ok()
         }).ok_or("Invalid tax statement file extension: *.deX is expected")?.into();
 
-        let (mut decade, current_short_year) = time::today().year().div_mod_floor(&10);
+        let mut current_year = time::today().year();
+        // In regression tests we work with ancient (often fake) tax statements and we have to properly guess the decade
+        if let Some(year_hint) = year_hint && cfg!(debug_assertions) {
+            current_year = year_hint;
+        }
+
+        let (mut decade, current_short_year) = current_year.div_mod_floor(&10);
         if short_year > current_short_year + 1 {
             decade -= 1;
         }
@@ -269,7 +275,7 @@ mod tests {
 
     #[test]
     fn parse_filled() {
-        let mut statement = TaxStatement::read(&get_path("empty")).unwrap();
+        let mut statement = TaxStatement::read(&get_path("empty"), None).unwrap();
         assert_eq!(statement.year, SUPPORTED_YEAR);
 
         let date = date!(statement.year, 1, 1);

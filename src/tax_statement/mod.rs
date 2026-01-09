@@ -40,7 +40,7 @@ pub fn generate_tax_statement(
         Some(path) => {
             let year = year.ok_or("Tax year must be specified when tax statement is specified")?;
 
-            let statement = TaxStatement::read(path).map_err(|e| format!(
+            let statement = TaxStatement::read(path, Some(year)).map_err(|e| format!(
                 "Error while reading tax statement {path:?}: {e}"))?;
 
             if statement.year != year {
