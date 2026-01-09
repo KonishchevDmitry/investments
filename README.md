@@ -7,7 +7,7 @@ Helps you with managing your investments:
 * **Backtesting:** backtests you portfolio against configured benchmarks.
 * **Portfolio rebalancing:** instructs you which orders you have to submit to make your portfolio in order with your asset allocation.
 * **Stock selling simulation:** calculates revenue, profit, taxes and real profit percent which considers taxes into account.
-* **Automatic tax statement generation:** reads broker statements and alters *.dcX file (created by Russian tax program named Декларация) by adding all required information about income from stock selling, paid dividends and idle cash interest.
+* **Automatic tax statement generation:** reads broker statements and alters *.deX file (created by Russian tax program named Декларация) by adding all required information about income from stock selling, paid dividends and idle cash interest.
 * **Bank deposits control:** view opened bank deposits all in one place and get notified about upcoming deposit closures.
 * **Metrics:** exports analysis results in Prometheus format.
 

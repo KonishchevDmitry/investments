@@ -24,7 +24,6 @@ use self::foreign_income::{Currency, Deduction, ForeignIncome, IncomeType};
 const SUPPORTED_YEAR: i32 = 2024;
 
 #[derive(Debug)]
-// FIXME(konishchev): Find all *.dcX mentions and test files
 pub struct TaxStatement {
     path: PathBuf,
     pub year: i32,
@@ -178,7 +177,6 @@ impl TaxStatement {
             paid_tax: dec!(0),
             local_paid_tax: dec!(0),
 
-            // FIXME(konishchev): Check it
             // Please note that we should always specify this deduction amount - even if it's zero.
             // If it's not specified the income doesn't participate into settlement of losses.
             deduction: Some(Deduction {
@@ -241,7 +239,6 @@ impl TaxStatement {
             Self::ENABLED_SECTIONS_KEY,
         ))?;
 
-        // FIXME(konishchev): Update docs
         let foreign_income_flag = 1 << 1;
         if enabled_sections_bitmask & foreign_income_flag == 0 {
             trace!("Foreign income is not enabled in the tax statement. Enabling it.");

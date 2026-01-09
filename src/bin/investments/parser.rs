@@ -174,7 +174,7 @@ impl Parser {
             .subcommand(Command::new("tax-statement")
                 .about("Generate tax statement")
                 .long_about(long_about!("
-                    Reads broker statements and alters *.dcX file (created by Russian tax program
+                    Reads broker statements and alters *.deX file (created by Russian tax program
                     named Декларация) by adding all required information about income from stock
                     selling, paid dividends and idle cash interest.
 
@@ -189,7 +189,7 @@ impl Parser {
                         .value_parser(parse_year),
 
                     Arg::new("TAX_STATEMENT")
-                        .help("Path to tax statement *.dcX file")
+                        .help("Path to tax statement *.deX file")
                         .value_parser(value_parser!(PathBuf))
                 ]))
 
