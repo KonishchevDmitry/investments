@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 
-use retest::{Plan, DiffKind};
+use retest::Plan;
 
 use investments::core::EmptyResult;
 
@@ -227,7 +227,6 @@ struct Test {
     app: String,
     config: String,
     args: Vec<String>,
-    diff: Option<DiffKind>,
     exit_code: i32,
 }
 
@@ -238,18 +237,12 @@ impl Test {
             app: app.to_owned(),
             config: "main".to_owned(),
             args: args.iter().map(|&arg| arg.to_owned()).collect(),
-            diff: None,
             exit_code: 0,
         }
     }
 
     fn config(&mut self, name: &str) -> &mut Test {
         name.clone_into(&mut self.config);
-        self
-    }
-
-    fn diff(&mut self, kind: DiffKind) -> &mut Test {
-        self.diff.replace(kind);
         self
     }
 
@@ -278,10 +271,6 @@ impl Test {
 
         if stdout {
             test.stdout(name_to_id(&self.name));
-        }
-
-        if let Some(diff) = self.diff {
-            test.diff(diff);
         }
 
         test
