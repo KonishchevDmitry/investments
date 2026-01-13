@@ -126,7 +126,7 @@ pub fn russia(config: &TaxConfig) -> Country {
 
 pub fn get_russian_central_bank_min_last_working_day(today: Date) -> Date {
     // New Year holidays
-    if today.month() == 1 && today.day() < 12 {
+    if today.month() == 1 && today.day() <= 12 {
         std::cmp::max(
             today - Duration::days(11),
             date!(today.year() - 1, 12, 29),
