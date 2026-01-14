@@ -58,12 +58,8 @@
   },
   "StandartDeduct": {
     "ChildInfoList": [],
-    "S010Sum": 0.0,
-    "S020Sum": 0.0,
-    "S030Sum": 0.0,
-    "S040Sum": 0.0,
-    "S050Sum": 0.0,
-    "S060Sum": 0.0,
+    "IsGTO": false,
+    "KvGTO": 0,
     "Deduct218": 0,
     "Jan": 0,
     "Feb": 0,
@@ -118,9 +114,9 @@
   "IsStandartDeducts": false,
   "FixedPaymentSum": 0.0,
   "BIK": "",
-  "AccountType": 0,
   "AccountNumber": "",
   "ReturnSum": 0.0,
+  "Card": "",
   "SourseInfoQuantity": 0,
   "CurrencyQuantity": 0
 }
