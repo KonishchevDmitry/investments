@@ -19,9 +19,9 @@ use crate::types::{Date, Decimal};
 use crate::util;
 
 pub use self::countries::CountryCode;
-use self::foreign_income::{Currency, Deduction, ForeignIncome, IncomeType};
+use self::foreign_income::{Currency, Deduction, ForeignIncome, IncomeType, PaidTax};
 
-const SUPPORTED_YEAR: i32 = 2024;
+const SUPPORTED_YEAR: i32 = 2025;
 
 #[derive(Debug)]
 pub struct TaxStatement {
@@ -118,9 +118,7 @@ impl TaxStatement {
             amount,
             local_amount,
 
-            tax_rate: 0, // FIXME(konishchev): Don't know what to do here. Waiting for 2025 tax statement.
-            paid_tax,
-            local_paid_tax,
+            paid_tax: Some(PaidTax::new(paid_tax, local_paid_tax)),
             deduction: None,
 
             controlled_foreign_company: None,
@@ -145,9 +143,7 @@ impl TaxStatement {
             amount,
             local_amount,
 
-            tax_rate: 0, // FIXME(konishchev): Don't know what to do here. Waiting for 2025 tax statement.
-            paid_tax: dec!(0),
-            local_paid_tax: dec!(0),
+            paid_tax: None,
             deduction: None,
 
             controlled_foreign_company: None,
@@ -173,10 +169,7 @@ impl TaxStatement {
             amount,
             local_amount,
 
-            tax_rate: 0, // FIXME(konishchev): Don't know what to do here. Waiting for 2025 tax statement.
-            paid_tax: dec!(0),
-            local_paid_tax: dec!(0),
-
+            paid_tax: None,
             // Please note that we should always specify this deduction amount - even if it's zero.
             // If it's not specified the income doesn't participate into settlement of losses.
             deduction: Some(Deduction {
@@ -282,7 +275,7 @@ mod tests {
 
         {
             let currency = "USD"; // 840 - Доллар США
-            let currency_rate = dec!(89.6883);
+            let currency_rate = dec!(101.6797);
 
             let local_amount = amount * currency_rate;
             let local_paid_tax = util::round(paid_tax * currency_rate, 2);
@@ -309,16 +302,16 @@ mod tests {
 
         for currency in [CurrencyTestCase {
             name: "AUD", // 036 - Австралийский доллар
-            rate: dec!(61.3468),
+            rate: dec!(63.1533),
         }, CurrencyTestCase {
             name: "EUR", // 978 - Евро
-            rate: dec!(99.1919),
+            rate: dec!(106.1028),
         }, CurrencyTestCase {
             name: "GBP", // 826 - Фунт стерлингов
-            rate: dec!(114.5320),
+            rate: dec!(127.4962),
         }, CurrencyTestCase {
             name: "HKD", // 344 - Гонконгский доллар
-            rate: dec!(11.5014),
+            rate: dec!(13.1225),
         }, CurrencyTestCase {
             name: "RUB", // 643 - Российский рубль
             rate: dec!(1),

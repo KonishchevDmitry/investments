@@ -30,12 +30,8 @@ pub struct ForeignIncome {
     #[serde(rename = "IncomeRoubleSum", serialize_with = "serialize_decimal")]
     pub local_amount: Decimal,
 
-    #[serde(rename = "TaxRate")]
-    pub tax_rate: u8,
-    #[serde(rename = "TaxCurrencySum", serialize_with = "serialize_decimal")]
-    pub paid_tax: Decimal,
-    #[serde(rename = "TaxRoubleSum", serialize_with = "serialize_decimal")]
-    pub local_paid_tax: Decimal,
+    #[serde(flatten, serialize_with = "serialize_with_default")]
+    pub paid_tax: Option<PaidTax>,
     #[serde(flatten, serialize_with = "serialize_with_default")]
     pub deduction: Option<Deduction>,
 
@@ -108,6 +104,28 @@ impl Currency {
             // It's always false for some reason, although it's actually always automatic
             automatic_currency_rates: false,
         })
+    }
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct PaidTax {
+    #[serde(rename = "TaxRate")]
+    pub tax_rate: u8,
+
+    #[serde(rename = "TaxCurrencySum", serialize_with = "serialize_decimal")]
+    pub amount: Decimal,
+
+    #[serde(rename = "TaxRoubleSum", serialize_with = "serialize_decimal")]
+    pub local_amount: Decimal,
+}
+
+impl PaidTax {
+    pub fn new(amount: Decimal, local_amount: Decimal) -> PaidTax {
+        PaidTax {
+            tax_rate: 0, // Don't know what to do with it – it's always zero
+            amount,
+            local_amount,
+        }
     }
 }
 
