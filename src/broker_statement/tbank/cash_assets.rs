@@ -184,7 +184,7 @@ impl TableReader for CashFlowRow {
 
 impl CashFlowRow {
     fn parse(&self, date: Date, currency: &str, statement: &mut PartialBrokerStatement) -> EmptyResult {
-        let operation = &self.operation;
+        let operation = self.operation.as_str();
 
         let deposit = util::validate_named_cash(
             "deposit amount", currency, self.deposit, DecimalRestrictions::PositiveOrZero)?;
@@ -202,7 +202,7 @@ impl CashFlowRow {
             Ok(amount)
         };
 
-        match operation.as_str() {
+        match operation {
             "Пополнение счета" => {
                 statement.deposits_and_withdrawals.push(CashAssets::new_from_cash(
                     date, check_amount(deposit)?));
@@ -226,7 +226,7 @@ impl CashFlowRow {
 
             "Комиссия по тарифу" => {
                 let amount = check_amount(withdrawal)?;
-                let description = operation.clone();
+                let description = operation.to_owned();
                 statement.fees.push(Fee::new(date, Withholding::new(amount), Some(description)));
             },
 
@@ -257,7 +257,19 @@ impl CashFlowRow {
                 statement.tax_agent_withholdings.add(date, year, withholding)?;
             },
 
-            _ => return Err!("Unsupported cash flow operation: {:?}", operation),
+            "Налог (по итогу года)" if date.month() == 1 => {
+                let year = date.year() - 1;
+
+                let withholding = if deposit.is_zero() {
+                    Withholding::Withholding(check_amount(withdrawal)?)
+                } else {
+                    Withholding::Refund(check_amount(deposit)?)
+                };
+
+                statement.tax_agent_withholdings.add(date, year, withholding)?;
+            },
+
+            _ => return Err!("Unsupported cash flow operation: {operation:?}"),
         };
 
         Ok(())
