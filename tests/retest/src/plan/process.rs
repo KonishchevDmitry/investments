@@ -12,7 +12,7 @@ use std::{
     borrow::Cow,
     env,
     fs::{self, File},
-    io::Write,
+    io::{ErrorKind, Write},
     path::Path,
     process::{Command, Stdio},
     thread,
@@ -104,13 +104,11 @@ impl Plan {
         );
         debug!("[{: >5}] info:  {}", u, test);
         if !actual_filename.is_empty() {
-            // Delete if we can but don't worry
-            if fs::remove_file(&actual_filename).is_err() {
-                debug!(
-                    "[{: >5}] info:  failed to delete \"{}\"",
-                    u,
-                    &actual_filename.display()
-                );
+            if let Err(err) = fs::remove_file(&actual_filename) {
+                if err.kind() != ErrorKind::NotFound {
+                    error!("[{u: >5}] FAIL:  failed to delete {actual_filename:?}: {err}");
+                    return Ok(Outcome::Failed);
+                }
             }
         }
         if !abs_diff_eq!(wait, 0.0) {
@@ -208,16 +206,14 @@ impl Plan {
             &Which::Expected,
         );
         debug!("[{: >5}] info:  {}", u, test);
-        let expected_filename =
-            &test.output_filename(&self.expected_path, &Which::Expected);
-        if !expected_filename.is_empty()
-            && fs::remove_file(&expected_filename).is_err()
-        {
-            debug!(
-                "[{: >5}] info: failed to delete \"{}\"",
-                u,
-                &expected_filename.display()
-            );
+        let expected_filename = &test.output_filename(&self.expected_path, &Which::Expected);
+        if !expected_filename.is_empty() {
+            if let Err(err) = fs::remove_file(&expected_filename) {
+                if err.kind() != ErrorKind::NotFound {
+                    error!("[{u: >5}] FAIL:  failed to delete {expected_filename:?}: {err}");
+                    return Ok(Outcome::Failed);
+                }
+            }
         }
         let exit_code = run_test(&test)?;
         if exit_code != test.exit_code {
