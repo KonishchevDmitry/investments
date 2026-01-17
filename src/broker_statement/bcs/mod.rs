@@ -37,7 +37,7 @@ impl StatementReader {
 
 impl BrokerStatementReader for StatementReader {
     fn check(&mut self, path: &Path) -> GenericResult<bool> {
-        Ok(util::has_extension(path, "xls"))
+        Ok(util::has_extension(path, "xls") || util::has_extension(path, "xlsx"))
     }
 
     fn read(&mut self, path: &Path, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
