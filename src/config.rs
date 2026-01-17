@@ -309,8 +309,9 @@ impl PortfolioConfig {
         self.currency.as_deref().unwrap_or_else(|| self.broker.jurisdiction().traits().currency)
     }
 
-    pub fn statements_path(&self) -> GenericResult<&str> {
-        Ok(self.statements.as_ref().ok_or("Broker statements path is not specified in the portfolio's config")?)
+    pub fn statements_path(&self) -> GenericResult<&Path> {
+        Ok(Path::new(self.statements.as_ref().ok_or(
+            "Broker statements path is not specified in the portfolio's config")?))
     }
 
     pub fn get_stock_symbols(&self) -> HashSet<String> {

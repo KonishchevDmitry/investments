@@ -1,3 +1,6 @@
+use std::path::Path;
+#[cfg(test)] use std::path::PathBuf;
+
 use serde::Deserialize;
 use ::xml::reader::{ParserConfig, EventReader, XmlEvent};
 
@@ -6,6 +9,7 @@ use ::xml::reader::{ParserConfig, EventReader, XmlEvent};
 use crate::core::GenericResult;
 use crate::formats::xml;
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::util;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -24,11 +28,11 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.to_lowercase().ends_with(".xml"))
+    fn check(&mut self, path: &Path) -> GenericResult<bool> {
+        Ok(util::has_extension(path, "xml"))
     }
 
-    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &Path, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let data = std::fs::read(path)?;
         let report_type = get_report_type(&data)?;
 
@@ -84,7 +88,6 @@ fn get_report_type(data: &[u8]) -> GenericResult<String> {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
-
     use super::*;
 
     #[rstest(name => ["main/my", "other/iia-a", "other/iia-b", "other/inactive-with-forex"])]
@@ -128,7 +131,7 @@ mod tests {
         let portfolio = config.get_portfolio(&portfolio_name).unwrap();
 
         BrokerStatement::read(
-            broker, &format!("testdata/open/{name}"),
+            broker, &PathBuf::from(format!("testdata/open/{name}")),
             &Default::default(), &portfolio.instrument_internal_ids, &Default::default(), TaxRemapping::new(), &[],
             &portfolio.corporate_actions, ReadingStrictness::all(),
         ).unwrap()

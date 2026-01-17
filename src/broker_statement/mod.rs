@@ -22,6 +22,7 @@ mod tbank;
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, BTreeMap, BTreeSet, hash_map::Entry};
+use std::path::Path;
 
 use itertools::Itertools;
 use log::{Level, log_enabled, debug, warn};
@@ -90,7 +91,7 @@ pub struct BrokerStatement {
 
 impl BrokerStatement {
     pub fn read(
-        broker: BrokerInfo, statement_dir_path: &str, symbol_remapping: &SymbolRemappingRules,
+        broker: BrokerInfo, statement_dir_path: &Path, symbol_remapping: &SymbolRemappingRules,
         instrument_internal_ids: &InstrumentInternalIds, instrument_names: &HashMap<String, String>,
         tax_remapping: TaxRemapping, tax_exemptions: &[TaxExemption], corporate_actions: &[CorporateAction],
         strictness: ReadingStrictness,

@@ -5,6 +5,8 @@ mod period;
 mod securities;
 mod trades;
 
+use std::path::Path;
+#[cfg(test)] use std::path::PathBuf;
 use std::rc::Rc;
 
 #[cfg(test)] use crate::brokers::Broker;
@@ -13,6 +15,7 @@ use crate::core::GenericResult;
 use crate::exchanges::Exchange;
 use crate::formats::xls::{XlsStatementParser, Section, SheetParser};
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::util;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -33,11 +36,11 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.to_lowercase().ends_with(".xls"))
+    fn check(&mut self, path: &Path) -> GenericResult<bool> {
+        Ok(util::has_extension(path, "xls"))
     }
 
-    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &Path, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
         let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
@@ -95,7 +98,7 @@ mod tests {
             _ => name,
         };
 
-        let path = format!("testdata/bcs/{name}");
+        let path = PathBuf::from(format!("testdata/bcs/{name}"));
         let broker = Broker::Bcs.get_info(&Config::mock(), None).unwrap();
         let config = Config::new("testdata/configs/main", None).unwrap();
         let corporate_actions = &config.get_portfolio(portfolio_name).unwrap().corporate_actions;

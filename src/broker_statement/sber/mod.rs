@@ -8,6 +8,8 @@ mod trades;
 
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::path::Path;
+#[cfg(test)] use std::path::PathBuf;
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -21,6 +23,7 @@ use crate::exchanges::Exchange;
 use crate::formats::html::{HtmlStatementParser, Section};
 use crate::instruments::InstrumentId;
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::util;
 
 use assets::AssetsParser;
 use cash_assets::CashAssetsParser;
@@ -42,11 +45,11 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.to_lowercase().ends_with(".html"))
+    fn check(&mut self, path: &Path) -> GenericResult<bool> {
+        Ok(util::has_extension(path, "html"))
     }
 
-    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &Path, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
         HtmlStatementParser::read(path, vec![
@@ -83,7 +86,7 @@ mod tests {
             _ => name,
         };
 
-        let path = format!("testdata/sber/{name}");
+        let path = PathBuf::from(format!("testdata/sber/{name}"));
         let broker = Broker::Sber.get_info(&Config::mock(), None).unwrap();
         let config = Config::new("testdata/configs/main", None).unwrap();
         let corporate_actions = &config.get_portfolio(portfolio_name).unwrap().corporate_actions;

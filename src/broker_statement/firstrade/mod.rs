@@ -9,11 +9,13 @@ mod transactions;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{Read, BufReader, BufRead, Seek};
+use std::path::Path;
 
 #[cfg(test)] use crate::brokers::Broker;
 #[cfg(test)] use crate::config::Config;
 use crate::core::GenericResult;
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::util;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -33,16 +35,16 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool> {
-        Ok(path.to_lowercase().ends_with(".ofx"))
+    fn check(&mut self, path: &Path) -> GenericResult<bool> {
+        Ok(util::has_extension(path, "ofx"))
     }
 
-    fn read(&mut self, path: &str, is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &Path, is_last: bool) -> GenericResult<PartialBrokerStatement> {
         StatementParser::parse(self, read_statement(path)?, is_last)
     }
 }
 
-fn read_statement(path: &str) -> GenericResult<Ofx> {
+fn read_statement(path: &Path) -> GenericResult<Ofx> {
     let file = File::open(path)?;
     let size: i64 = file.metadata()?.len().try_into().unwrap();
     let mut reader = BufReader::new(file);
@@ -85,7 +87,7 @@ mod tests {
         let broker = Broker::Firstrade.get_info(&Config::mock(), None).unwrap();
 
         let statement = BrokerStatement::read(
-            broker, "testdata/firstrade/my", &Default::default(), &Default::default(), &Default::default(),
+            broker, Path::new("testdata/firstrade/my"), &Default::default(), &Default::default(), &Default::default(),
             TaxRemapping::new(), &[], &[], ReadingStrictness::all()).unwrap();
 
         assert!(!statement.assets.cash.is_empty());

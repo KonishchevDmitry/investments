@@ -1,10 +1,11 @@
 use std::collections::{HashMap, hash_map::Entry};
 #[cfg(test)] use std::fs;
-#[cfg(test)] use std::path::Path;
+use std::path::Path;
 
 use crate::core::{GenericResult, EmptyResult};
 use crate::formatting::format_date;
 use crate::time::{Date, DateTime};
+#[cfg(test)] use crate::util;
 
 use super::common::{Record, RecordSpec, format_error_record, is_header_field};
 
@@ -21,7 +22,7 @@ pub struct OrderInfo {
     non_trade: bool,
 }
 
-pub fn try_parse(path: &str, execution_info: &mut TradeExecutionInfo) -> GenericResult<bool> {
+pub fn try_parse(path: &Path, execution_info: &mut TradeExecutionInfo) -> GenericResult<bool> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(path)?;
@@ -104,9 +105,8 @@ mod tests {
     #[test]
     fn parse_empty() {
         let mut info = TradeExecutionInfo::new();
-        let path = Path::new(file!()).parent().unwrap().join(
-            "testdata/empty-trade-confirmation.csv");
-        assert!(try_parse(path.to_str().unwrap(), &mut info).unwrap());
+        let path = Path::new(file!()).parent().unwrap().join("testdata/empty-trade-confirmation.csv");
+        assert!(try_parse(&path, &mut info).unwrap());
         assert!(info.is_empty());
     }
 
@@ -117,13 +117,11 @@ mod tests {
 
         for entry in fs::read_dir("testdata/interactive-brokers/my").unwrap() {
             let path = entry.unwrap().path();
-            let path = path.to_str().unwrap();
-
-            if !path.ends_with(".csv") {
+            if !util::has_extension(&path, "csv") {
                 continue
             }
 
-            if try_parse(path, &mut info).unwrap() {
+            if try_parse(&path, &mut info).unwrap() {
                 count += 1;
             }
         }

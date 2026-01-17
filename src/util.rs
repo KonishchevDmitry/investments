@@ -97,6 +97,12 @@ pub fn is_default<T: Default + PartialEq>(value: &T) -> bool {
     *value == T::default()
 }
 
+pub fn has_extension(path: &Path, extension: &str) -> bool {
+    path.extension().map(|actual| {
+        actual.to_ascii_lowercase() == extension
+    }).unwrap_or_default()
+}
+
 pub fn temp_path(path: &Path) -> PathBuf {
     let mut temp_path = path.as_os_str().to_os_string();
     temp_path.push(".tmp");

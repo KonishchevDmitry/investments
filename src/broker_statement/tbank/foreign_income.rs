@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::path::Path;
+#[cfg(test)] use std::path::PathBuf;
 use std::rc::Rc;
 
 use log::warn;
@@ -25,8 +27,8 @@ pub struct ForeignIncomeStatementReader {
 }
 
 impl ForeignIncomeStatementReader {
-    pub fn is_statement(path: &str) -> GenericResult<bool> {
-        if !path.to_lowercase().ends_with(".xlsx") {
+    pub fn is_statement(path: &Path) -> GenericResult<bool> {
+        if !util::has_extension(path, "xlsx") {
             return Ok(false);
         }
 
@@ -40,7 +42,7 @@ impl ForeignIncomeStatementReader {
         Ok(false)
     }
 
-    pub fn read(path: &str) -> GenericResult<HashMap<DividendId, (DividendAccruals, TaxAccruals)>> {
+    pub fn read(path: &Path) -> GenericResult<HashMap<DividendId, (DividendAccruals, TaxAccruals)>> {
         let parser = Box::new(ForeignIncomeSheetParser {});
         let foreign_income = Rc::new(RefCell::new(HashMap::new()));
 
@@ -356,7 +358,7 @@ mod tests {
 
     #[rstest(name => ["foreign-income/report.xlsx", "complex-full/foreign-income-report.xlsx"])]
     fn parse_real(name: &str) {
-        let path = format!("testdata/tbank/{name}");
+        let path = PathBuf::from(format!("testdata/tbank/{name}"));
         assert!(ForeignIncomeStatementReader::is_statement(&path).unwrap());
 
         let income = ForeignIncomeStatementReader::read(&path).unwrap();

@@ -1,4 +1,5 @@
 use std::fs;
+use std::ffi::OsString;
 use std::path::Path;
 
 use bitflags::bitflags;
@@ -24,14 +25,14 @@ bitflags! {
 }
 
 pub trait BrokerStatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool>;
-    fn read(&mut self, path: &str, is_last: bool) -> GenericResult<PartialBrokerStatement>;
+    fn check(&mut self, path: &Path) -> GenericResult<bool>;
+    fn read(&mut self, path: &Path, is_last: bool) -> GenericResult<PartialBrokerStatement>;
     #[allow(clippy::boxed_local)]
     fn close(self: Box<Self>) -> EmptyResult { Ok(()) }
 }
 
 pub fn read(
-    broker: Broker, statement_dir_path: &str, tax_remapping: TaxRemapping,
+    broker: Broker, statement_dir_path: &Path, tax_remapping: TaxRemapping,
     strictness: ReadingStrictness,
 ) -> GenericResult<Vec<PartialBrokerStatement>> {
     let mut tax_remapping = Some(tax_remapping);
@@ -56,12 +57,10 @@ pub fn read(
 
     for (id, file_name) in file_names.iter().enumerate() {
         let is_last = id == file_names.len() - 1;
-
-        let path = Path::new(statement_dir_path).join(file_name);
-        let path = path.to_str().unwrap();
+        let path = statement_dir_path.join(file_name);
 
         debug!("Reading {path:?}...");
-        let statement = statement_reader.read(path, is_last).map_err(|e| format!(
+        let statement = statement_reader.read(&path, is_last).map_err(|e| format!(
             "Error while reading {path:?} broker statement: {e}"))?;
 
         statements.push(statement);
@@ -77,24 +76,19 @@ pub fn read(
 }
 
 fn preprocess_statement_directory(
-    statement_dir_path: &str, statement_reader: &mut dyn BrokerStatementReader
-) -> GenericResult<Vec<String>> {
+    statement_dir_path: &Path, statement_reader: &mut dyn BrokerStatementReader
+) -> GenericResult<Vec<OsString>> {
     let mut file_names = Vec::new();
 
     for entry in fs::read_dir(statement_dir_path)? {
         let entry = entry?;
 
         let path = entry.path();
-        let path = path.to_str().ok_or_else(|| format!(
-            "Got an invalid path: {:?}", path.to_string_lossy()))?;
-
-        if !statement_reader.check(path)? {
+        if !statement_reader.check(&path)? {
             continue;
         }
 
-        let file_name = entry.file_name().into_string().map_err(|file_name| format!(
-            "Got an invalid file name: {:?}", file_name.to_string_lossy()))?;
-        file_names.push(file_name);
+        file_names.push(entry.file_name());
     }
 
     Ok(file_names)

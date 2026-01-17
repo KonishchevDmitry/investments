@@ -1,4 +1,5 @@
 use std::ops::Index;
+use std::path::Path;
 
 use calamine::{Range, Reader, open_workbook_auto};
 
@@ -25,7 +26,7 @@ impl SheetReader {
         }
     }
 
-    pub fn open(path: &str, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
+    pub fn open(path: &Path, parser: Box<dyn SheetParser>) -> GenericResult<SheetReader> {
         Ok(SheetReader::new(open_sheet(path)?, parser))
     }
 
@@ -107,7 +108,7 @@ pub trait SheetParser {
     }
 }
 
-pub fn open_sheet(path: &str) -> GenericResult<Range<Cell>> {
+pub fn open_sheet(path: &Path) -> GenericResult<Range<Cell>> {
     let mut workbook = open_workbook_auto(path)?;
 
     let mut sheets = workbook.worksheets();

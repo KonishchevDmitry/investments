@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::ops::Range;
+use std::path::Path;
 use std::rc::Rc;
 
 use log::trace;
@@ -12,7 +13,7 @@ pub struct XlsStatementParser {
 }
 
 impl XlsStatementParser {
-    pub fn read(path: &str, parser: Box<dyn SheetParser>, sections: Vec<Section>) -> EmptyResult {
+    pub fn read(path: &Path, parser: Box<dyn SheetParser>, sections: Vec<Section>) -> EmptyResult {
         let mut parser = XlsStatementParser {
             sheet: SheetReader::open(path, parser)?,
         };

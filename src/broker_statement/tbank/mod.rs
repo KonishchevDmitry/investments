@@ -24,6 +24,8 @@ mod trades;
 
 use std::collections::HashMap;
 use std::cell::RefCell;
+use std::path::Path;
+#[cfg(test)] use std::path::PathBuf;
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -41,6 +43,7 @@ use crate::formats::xls::{XlsStatementParser, Section, SheetParser, SectionParse
 use crate::formatting;
 use crate::instruments::{InstrumentId, parse_isin};
 #[cfg(test)] use crate::taxes::TaxRemapping;
+use crate::util;
 
 #[cfg(test)] use super::{BrokerStatement, ReadingStrictness};
 use super::{BrokerStatementReader, PartialBrokerStatement};
@@ -68,7 +71,7 @@ impl StatementReader {
         }))
     }
 
-    fn parse_foreign_income_statement(&mut self, path: &str) -> EmptyResult {
+    fn parse_foreign_income_statement(&mut self, path: &Path) -> EmptyResult {
         for (dividend_id, details) in ForeignIncomeStatementReader::read(path)? {
             if self.foreign_income.insert(dividend_id.clone(), details).is_some() {
                 return Err!(
@@ -169,7 +172,7 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool> {
+    fn check(&mut self, path: &Path) -> GenericResult<bool> {
         let is_foreign_income_statement = ForeignIncomeStatementReader::is_statement(path).map_err(|e| format!(
             "Error while reading {path:?}: {e}"))?;
 
@@ -179,10 +182,10 @@ impl BrokerStatementReader for StatementReader {
             return Ok(false);
         }
 
-        Ok(path.to_lowercase().ends_with(".xlsx"))
+        Ok(util::has_extension(path, "xlsx"))
     }
 
-    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &Path, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         let parser = Box::new(StatementSheetParser{});
         let statement = PartialBrokerStatement::new_rc(&[Exchange::Moex, Exchange::Spb], true);
 
@@ -311,7 +314,7 @@ mod tests {
     }
 
     fn parse(namespace: &str, name: &str) -> BrokerStatement {
-        let path = format!("testdata/tbank/{name}");
+        let path = PathBuf::from(format!("testdata/tbank/{name}"));
         assert!(!ForeignIncomeStatementReader::is_statement(&path).unwrap());
 
         let portfolio_name = match (namespace, name) {

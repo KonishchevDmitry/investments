@@ -14,6 +14,8 @@ mod taxes;
 mod trades;
 
 use std::iter::Iterator;
+use std::path::Path;
+#[cfg(test)] use std::path::PathBuf;
 
 #[cfg(test)] use chrono::Datelike;
 use csv::{self, StringRecord};
@@ -27,6 +29,7 @@ use crate::exchanges::Exchange;
 use crate::formatting::format_date;
 use crate::taxes::TaxRemapping;
 use crate::time::{Date, DateTime};
+use crate::util;
 
 #[cfg(test)] use super::BrokerStatement;
 use super::{BrokerStatementReader, ReadingStrictness, PartialBrokerStatement};
@@ -58,8 +61,8 @@ impl StatementReader {
 }
 
 impl BrokerStatementReader for StatementReader {
-    fn check(&mut self, path: &str) -> GenericResult<bool> {
-        if !path.to_lowercase().ends_with(".csv") {
+    fn check(&mut self, path: &Path) -> GenericResult<bool> {
+        if !util::has_extension(path, "csv") {
             return Ok(false)
         }
 
@@ -69,7 +72,7 @@ impl BrokerStatementReader for StatementReader {
         Ok(!is_confirmation_report)
     }
 
-    fn read(&mut self, path: &str, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
+    fn read(&mut self, path: &Path, _is_last: bool) -> GenericResult<PartialBrokerStatement> {
         StatementParser {
             statement: PartialBrokerStatement::new(&[Exchange::Us, Exchange::Lse, Exchange::Other], false),
 
@@ -113,7 +116,7 @@ pub struct StatementParser<'a> {
 }
 
 impl StatementParser<'_> {
-    fn parse(mut self, path: &str) -> GenericResult<PartialBrokerStatement> {
+    fn parse(mut self, path: &Path) -> GenericResult<PartialBrokerStatement> {
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(false)
             .flexible(true)
@@ -333,14 +336,14 @@ mod tests {
 
     #[rstest(name => ["no-activity", "multi-currency-activity"])]
     fn parse_real_partial(name: &str) {
-        let path = format!("testdata/interactive-brokers/partial/{name}.csv");
+        let path = PathBuf::from(format!("testdata/interactive-brokers/partial/{name}.csv"));
         StatementReader::new(TaxRemapping::new(), ReadingStrictness::all()).unwrap()
             .read(&path, true).unwrap();
     }
 
     fn parse_full(name: &str, tax_remapping: Option<TaxRemapping>) -> BrokerStatement {
         let broker = Broker::InteractiveBrokers.get_info(&Config::mock(), None).unwrap();
-        let path = format!("testdata/interactive-brokers/{name}");
+        let path = PathBuf::from(format!("testdata/interactive-brokers/{name}"));
         let tax_remapping = tax_remapping.unwrap_or_else(TaxRemapping::new);
         BrokerStatement::read(
             broker, &path, &Default::default(), &Default::default(), &Default::default(), tax_remapping, &[], &[],

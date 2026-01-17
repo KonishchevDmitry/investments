@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
 use std::ops::Range;
+use std::path::Path;
 use std::rc::Rc;
 
 use log::trace;
@@ -15,7 +16,7 @@ pub struct HtmlStatementParser<'a> {
 }
 
 impl HtmlStatementParser<'_> {
-    pub fn read(path: &str, sections: Vec<Section>) -> EmptyResult {
+    pub fn read(path: &Path, sections: Vec<Section>) -> EmptyResult {
         let mut data = String::new();
         File::open(path)?.read_to_string(&mut data)?;
 
