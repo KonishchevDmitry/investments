@@ -126,11 +126,11 @@ fn generate_regression_tests() {
     // Personal accounts
 
     let accounts = [
-        ("Firstrade", Some((2020, Some(2022)))),
-        ("IB",        Some((2018, None))),
-        ("TBank",     Some((2019, None))),
+        ("BCS",       Some((2019, None, false))),
+        ("Firstrade", Some((2020, Some(2022), true))),
+        ("IB",        Some((2018, None, true))),
+        ("TBank",     Some((2019, None, true))),
 
-        ("BCS",          None),
         ("BCS IIA",      None),
         ("Investpalata", None),
         ("Kate",         None),
@@ -147,7 +147,7 @@ fn generate_regression_tests() {
         t.with_args(&format!("Rebalance {name}"), &["rebalance", id]);
         t.with_args(&format!("Simulate sell {name}"), &["simulate-sell", id]);
 
-        if let Some((first_tax_year, last_tax_year_spec)) = year_spec {
+        if let Some((first_tax_year, last_tax_year_spec, full)) = year_spec {
             let last_tax_year = last_tax_year_spec.unwrap_or(last_tax_year);
 
             for tax_year in first_tax_year..=last_tax_year {
@@ -157,12 +157,18 @@ fn generate_regression_tests() {
                     &format!("{name} tax statement {tax_year}"),
                     &["tax-statement", id, tax_year_string],
                 );
-                t.tax_statement(name, tax_year);
 
-                t.with_args(
-                    &format!("{name} cash flow {tax_year}"),
-                    &["cash-flow", id, tax_year_string],
-                );
+                if full {
+                    t.tax_statement(name, tax_year);
+                    t.with_args(
+                        &format!("{name} cash flow {tax_year}"),
+                        &["cash-flow", id, tax_year_string],
+                    );
+                }
+            }
+
+            if !full {
+                t.with_args(&format!("{name} cash flow"), &["cash-flow", id]);
             }
         } else {
             t.with_args(&format!("{name} tax statement"), &["tax-statement", id]);
