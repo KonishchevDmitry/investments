@@ -1,7 +1,6 @@
 pub mod deposits;
 
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::OnceLock;
 
 #[cfg(test)] use indoc::indoc;
@@ -214,13 +213,8 @@ fn deserialize_price<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
     where D: Deserializer<'de>
 {
     let price: String = Deserialize::deserialize(deserializer)?;
-    Decimal::from_str(&price.replace(',', ".")).ok()
-        .and_then(|price| if price > dec!(0) {
-            Some(price)
-        } else {
-            None
-        })
-        .ok_or_else(|| D::Error::custom(format!("Invalid price: {price:?}")))
+    util::parse_decimal(&price.replace(',', "."), DecimalRestrictions::StrictlyPositive)
+        .map_err(|_| D::Error::custom(format!("Invalid price: {price:?}")))
 }
 
 fn validate_price(&price: &Decimal) -> Result<(), ValidationError> {
@@ -254,57 +248,68 @@ mod tests {
     fn rates() {
         let (mut server, client) = create_server();
 
-        let _rates_mock = mock_response(
-            &mut server, "/scripts/XML_daily.asp",
-            indoc!(r#"
-                <?xml version="1.0" encoding="windows-1251"?>
-                <ValCurs Date="27.06.2024" name="Foreign Currency Market">
-                    <Valute ID="R01235">
-                        <NumCode>840</NumCode>
-                        <CharCode>USD</CharCode>
-                        <Nominal>1</Nominal>
-                        <Name>Доллар США</Name>
-                        <Value>87,8064</Value>
-                        <VunitRate>87,8064</VunitRate>
-                    </Valute>
-                    <Valute ID="R01375">
-                        <NumCode>156</NumCode>
-                        <CharCode>CNY</CharCode>
-                        <Nominal>1</Nominal>
-                        <Name>Китайский юань</Name>
-                        <Value>11,8748</Value>
-                        <VunitRate>11,8748</VunitRate>
-                    </Valute>
-                    <Valute ID="R01150">
-                        <NumCode>704</NumCode>
-                        <CharCode>VND</CharCode>
-                        <Nominal>10000</Nominal>
-                        <Name>Вьетнамских донгов</Name>
-                        <Value>36,1969</Value>
-                        <VunitRate>0,00361969</VunitRate>
-                    </Valute>
-                </ValCurs>
-            "#)
-        );
+        let _rates_mock = mock_response(&mut server, "/scripts/XML_daily.asp", indoc!(r#"
+            <?xml version="1.0" encoding="windows-1251"?>
+            <ValCurs Date="27.06.2024" name="Foreign Currency Market">
+                <Valute ID="R01235">
+                    <NumCode>840</NumCode>
+                    <CharCode>USD</CharCode>
+                    <Nominal>1</Nominal>
+                    <Name>Доллар США</Name>
+                    <Value>87,8064</Value>
+                    <VunitRate>87,8064</VunitRate>
+                </Valute>
+                <Valute ID="R01375">
+                    <NumCode>156</NumCode>
+                    <CharCode>CNY</CharCode>
+                    <Nominal>1</Nominal>
+                    <Name>Китайский юань</Name>
+                    <Value>11,8748</Value>
+                    <VunitRate>11,8748</VunitRate>
+                </Valute>
+                <Valute ID="R01150">
+                    <NumCode>704</NumCode>
+                    <CharCode>VND</CharCode>
+                    <Nominal>10000</Nominal>
+                    <Name>Вьетнамских донгов</Name>
+                    <Value>36,1969</Value>
+                    <VunitRate>0,00361969</VunitRate>
+                </Valute>
+                <Valute ID="R01300">
+                    <NumCode>364</NumCode>
+                    <CharCode>IRR</CharCode>
+                    <Nominal>1000000</Nominal>
+                    <Name>Иранских риалов</Name>
+                    <Value>72,1103</Value>
+                    <VunitRate>7,21103E-05</VunitRate>
+                </Valute>
+            </ValCurs>
+        "#));
 
-        let mut quotes = client.get_quotes(&["RUB/RUB", "USD/RUB", "RUB/USD", "VND/RUB", "RUB/VND", "USD/VND", "VND/USD", "XXX/YYY"]).unwrap();
-        quotes = quotes.into_iter().map(|(symbol, quote)| (symbol, quote.round_to(6))).collect();
+        let quotes: HashMap<String, Cash> = client.get_quotes(&[
+            "RUB/RUB",
+            "USD/RUB", "RUB/USD",
+            "VND/RUB", "RUB/VND",
+            "USD/VND", "VND/USD",
+            "IRR/RUB", "RUB/IRR",
+            "XXX/YYY",
+        ]).unwrap().into_iter().map(|(symbol, quote)| (symbol, quote.round_to(6))).collect();
 
-        assert_eq!(
-            quotes,
-            hashmap!{
-                s!("RUB/RUB") => Cash::new("RUB", dec!(1)),
+        assert_eq!(quotes, hashmap!{
+            s!("RUB/RUB") => Cash::new("RUB", dec!(1)),
 
-                s!("USD/RUB") => Cash::new("RUB", dec!(87.8064)),
-                s!("RUB/USD") => Cash::new("USD", dec!(0.011389)),
+            s!("USD/RUB") => Cash::new("RUB", dec!(87.8064)),
+            s!("RUB/USD") => Cash::new("USD", dec!(0.011389)),
 
-                s!("VND/RUB") => Cash::new("RUB", dec!(0.00362)),
-                s!("RUB/VND") => Cash::new("VND", dec!(276.266752)),
+            s!("VND/RUB") => Cash::new("RUB", dec!(0.00362)),
+            s!("RUB/VND") => Cash::new("VND", dec!(276.266752)),
 
-                s!("USD/VND") => Cash::new("VND", dec!(24257.988944)),
-                s!("VND/USD") => Cash::new("USD", dec!(0.000041)),
-            },
-        );
+            s!("USD/VND") => Cash::new("VND", dec!(24257.988944)),
+            s!("VND/USD") => Cash::new("USD", dec!(0.000041)),
+
+            s!("IRR/RUB") => Cash::new("RUB", dec!(0.000072)),
+            s!("RUB/IRR") => Cash::new("IRR", dec!(13867.644428)),
+        });
     }
 
     #[test]

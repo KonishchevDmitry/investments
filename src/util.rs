@@ -25,7 +25,10 @@ pub enum DecimalRestrictions {
 }
 
 pub fn parse_decimal(string: &str, restrictions: DecimalRestrictions) -> GenericResult<Decimal> {
-    let value = Decimal::from_str(string).map_err(|_| "Invalid decimal value")?;
+    let value = Decimal::from_str(string).or_else(|e| {
+        Decimal::from_scientific(string).or(Err(e))
+    }).map_err(|_| "Invalid decimal value")?;
+
     validate_decimal(value, restrictions)
 }
 
@@ -125,6 +128,22 @@ pub fn humanize_reqwest_error(err: reqwest::Error) -> String {
 mod tests {
     use rstest::rstest;
     use super::*;
+
+    #[rstest(scientific, expected,
+        case("2e0", dec!(2)),
+        case("3e2", dec!(300)),
+        case("9.87e2", dec!(987)),
+        case("6.72e9", dec!(6720000000)),
+        case("4.321768e3", dec!(4321.768)),
+        case("7.51e-9", dec!(0.00000000751)),
+        case("-5.3e4", dec!(-53000)),
+        case("2e-1", dec!(0.2)),
+    )]
+    fn parse_decimal(scientific: &str, expected: Decimal) {
+        assert_eq!(super::parse_decimal(scientific, DecimalRestrictions::No).unwrap(), expected);
+        assert_eq!(super::parse_decimal(&scientific.to_uppercase(), DecimalRestrictions::No).unwrap(), expected);
+        assert_eq!(super::parse_decimal(&expected.to_string(), DecimalRestrictions::No).unwrap(), expected);
+    }
 
     #[rstest(num, scale, precision,
         case(321, 0, 0),
