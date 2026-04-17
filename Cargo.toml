@@ -21,6 +21,8 @@ path = "src/bin/investments/mod.rs"
 
 [lints.clippy]
 collapsible-if = "allow"
+# FIXME(konishchev): Looks broken, revisit it
+collapsible-match = "allow"
 comparison-chain = "allow"
 derive-partial-eq-without-eq = "allow"
 new-ret-no-self = "allow"
@@ -39,19 +41,19 @@ lto = true
 ansi_term = "0.12.1"
 async-stream = "0.3.6"
 backoff = "0.4.0"
-bitflags = "2.10.0"
-calamine = "0.32.0"
-chrono = "0.4.42"
+bitflags = "2.11.1"
+calamine = "0.34.0"
+chrono = "0.4.44"
 chrono-tz = "0.10.4"
 cast = "0.3.0"
-clap = "4.5.54"
-clap_complete = "4.5.65"
+clap = "4.6.1"
+clap_complete = "4.6.2"
 csv = "1.4.0"
 cusip = "0.3.3"
 dyn-clone = "1.0.20"
 easy-logging = "1.1.0"
 encoding_rs = "0.8.35"
-futures-core = "0.3.31"
+futures-core = "0.3.32"
 governor = "0.10.4"
 indoc = "2.0.7"
 isin = "0.1.19"
@@ -63,36 +65,34 @@ matches = "0.1.10"
 maybe-owned = "0.3.4"
 num-integer = "0.1.46"
 num-traits = "0.2.19"
-platforms = "3.7.0"
+platforms = "3.10.0"
 prettytable-rs = "0.10.0"
 prometheus = "0.14.0"
-quick-xml = { version = "0.38.4", features = ["serialize"] }
-rayon = "1.11.0"
-regex = "1.12.2"
-reqwest = { version = "0.13.1", features = ["blocking", "json", "stream"] }
-scraper = "0.25.0"
+quick-xml = { version = "0.39.2", features = ["serialize"] }
+rayon = "1.12.0"
+regex = "1.12.3"
+reqwest = { version = "0.13.2", features = ["blocking", "json", "stream"] }
+rust_decimal = { version = "1.41.0", features = ["serde-with-float"] }
+rust_decimal_macros = "1.40.0"
+scraper = "0.26.0"
 separator = "0.4.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde-xml-rs = "0.8.2"
 serde_yaml = "0.9.34"
-shellexpand = "3.1.1"
-strum = { version = "0.27", features = ["derive"] }
+shellexpand = "3.1.2"
+strum = { version = "0.28", features = ["derive"] }
 textwrap = "0.16.2"
-tokio = "1.49.0"
+tokio = "1.52.1"
 url = { version = "2.5.8", features = ["serde"] }
-uuid = { version = "1.19.0", features = ["v4", "serde"] }
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
 xml-rs = "1.0.0"
 yaml-merge-keys = { version = "0.8.2", features = ["serde_yaml"] }
 
-diesel = { version = "2.3.5", features = ["sqlite", "chrono"] }
+diesel = { version = "2.3.7", features = ["sqlite", "chrono"] }
 diesel_migrations = "2.3.1"
 diesel-derive-enum = { version = "2.1.0", features = ["sqlite"] }
-
-# Pin rust_decimal version since it's not stable enough yet
-rust_decimal = { version = "~1.39.0", features = ["serde-with-float"] }
-rust_decimal_macros = "~1.39.0"
 
 prost = "0.14"
 prost-types = "0.14"
@@ -103,11 +103,10 @@ tonic-prost = "0.14"
 unicode-width = "=0.1.12"
 
 # Force static linking
-libsqlite3-sys = { version = ">=0.17.2, <0.28.0", features = ["bundled"] }
-openssl = { version = "0.10", features = ["vendored"] }
+libsqlite3-sys = { version = ">=0.17.2, <0.37.0", features = ["bundled"] }
 
-static_table_derive = "0.1.84"
-xls_table_derive = "0.8.14"
+static_table_derive = "0.1.85"
+xls_table_derive = "0.8.15"
 
 [patch.crates-io]
 static_table_derive = { path = "src/formatting/static_table_derive" }
@@ -117,9 +116,9 @@ xls_table_derive = { path = "src/formats/xls/xls_table_derive" }
 tonic-prost-build = "0.14"
 
 [dev-dependencies]
-mockito = "1.7.1"
+mockito = "1.7.2"
 pretty_assertions = "1.4.1"
 qtrac-retest = { path = "tests/retest" } # The original crate has been removed from crates.io (https://github.com/KonishchevDmitry/investments/issues/84)
 rstest = "0.26.1"
-tempfile = "3.24.0"
+tempfile = "3.27.0"
 url = "2.5.8"

@@ -145,7 +145,7 @@ impl BrokerStatement {
                 statement.dividends.push(dividend);
             }
 
-            statement.cash_flows.extend(cash_flows.into_iter());
+            statement.cash_flows.extend(cash_flows);
         }
 
         if !tax_accruals.is_empty() {
