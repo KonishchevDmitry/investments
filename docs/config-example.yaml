@@ -200,20 +200,21 @@ brokers:
 
 # Stock quotes providers (see https://github.com/KonishchevDmitry/investments/blob/master/docs/quotes.md for details)
 quotes:
-  # Alpha Vantage is used to obtain historical quotes for LSE ETF which may be used as benchmarks during portfolio
-  # backtesting.
-  #
-  # API key that should be obtained here - https://www.alphavantage.co/
   alphavantage:
+    # API key should be obtained here - https://www.alphavantage.co/
     api_key: secret
 
   fcsapi:
-    # Access key that must be obtained here - https://fcsapi.com/
+    # Access key must be obtained here - https://fcsapi.com/
     access_key: secret
 
   finnhub:
-    # API token that must be obtained here - https://finnhub.io/register
+    # API token must be obtained here - https://finnhub.io/register
     token: secret
+
+  stooq:
+    # Just leave the invalid API key here – and you'll get an error which server-provided instructions for API key obtaining
+    api_key: secret
 
   #custom_provider:
   #  url: http://localhost/

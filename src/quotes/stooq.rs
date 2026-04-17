@@ -1,6 +1,7 @@
 #[cfg(test)] use indoc::indoc;
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
+use serde::Deserialize;
 
 use crate::core::GenericResult;
 use crate::currency::Cash;
@@ -13,18 +14,32 @@ use super::{QuotesProvider, SupportedExchange, HistoricalQuotes};
 use super::alphavantage::AlphaVantage;
 #[cfg(test)] use super::alphavantage::AlphaVantageConfig;
 
-pub struct Stooq {
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StooqConfig {
+    #[serde(skip, default = "StooqConfig::default_url")]
     url: String,
+    api_key: String,
+}
+
+impl StooqConfig {
+    fn default_url() -> String {
+        s!("https://stooq.com")
+    }
+}
+
+pub struct Stooq {
     client: Client,
+    config: StooqConfig,
     symbols: AlphaVantage,
 }
 
 impl Stooq {
-    pub fn new(url: &str, alphavantage: AlphaVantage) -> Stooq {
+    pub fn new(config: &StooqConfig, alpha_vantage: AlphaVantage) -> Stooq {
         Stooq {
-            url: url.to_owned(),
             client: Client::new(),
-            symbols: alphavantage,
+            config: config.clone(),
+            symbols: alpha_vantage,
         }
     }
 }
@@ -51,9 +66,10 @@ impl QuotesProvider for Stooq {
             return Ok(None);
         };
 
-        let url = Url::parse_with_params(&format!("{}/q/d/l/", self.url), &[
+        let url = Url::parse_with_params(&format!("{}/q/d/l/", self.config.url), &[
             ("s", format!("{symbol}.UK").as_str()),
             ("i", "d"),
+            ("apikey", &self.config.api_key),
         ])?;
 
         Ok(http::send_request(&self.client, &url, None).and_then(|response| {
@@ -68,18 +84,20 @@ fn parse_historical_quotes(currency: &str, response: Response) -> GenericResult<
         return Ok(None);
     }
 
+    // If API key is invalid, the API returns a plain text response with instructions on how to obtain it
+
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .from_reader(response.as_bytes());
 
-    let headers = reader.headers()?;
+    let headers = reader.headers().map_err(|_| response.clone())?;
 
     let (Some(date_index), Some(open_index), Some(close_index)) = (
         headers.iter().position(|name| name == "Date"),
         headers.iter().position(|name| name == "Open"),
         headers.iter().position(|name| name == "Close"),
     ) else {
-        return Err!("Got an unexpected header: {:?}", headers);
+        return Err(response.into());
     };
 
     let parse_date = |date: &str| Date::parse_from_str(date, "%Y-%m-%d").ok();
@@ -154,7 +172,7 @@ mod tests {
             }
         "#));
 
-        let _mock = mock(&mut server, "/q/d/l/?s=SSAC.UK&i=d", indoc!(r#"
+        let _mock = mock(&mut server, "/q/d/l/?s=SSAC.UK&i=d&apikey=mock", indoc!(r#"
             Date,Open,High,Low,Close,Volume
             2025-04-03,6588,6603,6500,6531,81860
             2025-04-04,6492,6500,6248,6300,247645
@@ -204,7 +222,7 @@ mod tests {
             }
         "#));
 
-        let _mock = mock(&mut server, "/q/d/l?s=UNKNOWN&i=d", "No data");
+        let _mock = mock(&mut server, "/q/d/l?s=UNKNOWN&i=d&apikey=mock", "No data");
 
         let period = Period::new(date!(2025, 4, 10), date!(2025, 4, 25)).unwrap();
         assert_eq!(client.get_historical_quotes("UNKNOWN", period).unwrap(), None);
@@ -213,10 +231,15 @@ mod tests {
     fn create_server() -> (ServerGuard, Stooq) {
         let server = Server::new();
 
-        let client = Stooq::new(&server.url(), AlphaVantage::new(&AlphaVantageConfig {
-             url: server.url().clone(),
+        let alpha_vantage = AlphaVantage::new(&AlphaVantageConfig {
+             url: server.url(),
              api_key: s!("mock"),
-        }));
+        });
+
+        let client = Stooq::new(&StooqConfig {
+            url: server.url(),
+            api_key: s!("mock"),
+        }, alpha_vantage);
 
         (server, client)
     }

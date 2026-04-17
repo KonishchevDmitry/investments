@@ -11,7 +11,7 @@ If you are client of [T-Bank broker](https://www.tbank.ru/invest/), it's also hi
 `investments backtest` command needs historical quotes for its work. At this time the following providers are used:
 * [MOEX API](https://iss.moex.com/iss/reference/) for MOEX exchange.
 * [T-Bank API](https://developer.tbank.ru/invest/api) if you specify its token. T-Bank API is preferred over MOEX API, because MOEX API is buggy.
-* [Stooq API](https://stooq.com/) for LSE stocks. But it doesn't provide any metainformation about stocks (quote currency for example), so [Alpha Vantage](https://www.alphavantage.co/) is used for obtaining this information (and sadly it has very low API rate limits).
+* [Stooq API](https://stooq.com/) for LSE stocks if you specify its API key. But it doesn't provide any metainformation about stocks (quote currency for example), so [Alpha Vantage](https://www.alphavantage.co/) is used for obtaining this information (and sadly it has very low API rate limits).
 
 ## Custom quotes provider
 

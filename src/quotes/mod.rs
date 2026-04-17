@@ -44,7 +44,7 @@ use self::finex::Finex;
 use self::finnhub::{Finnhub, FinnhubConfig};
 use self::moex::Moex;
 use self::static_provider::{StaticProvider, StaticProviderConfig};
-use self::stooq::Stooq;
+use self::stooq::{Stooq, StooqConfig};
 use self::tbank::{Tbank, TbankExchange};
 
 pub use self::cache::HistoricalQuotes;
@@ -86,6 +86,7 @@ pub struct QuotesConfig {
     custom_provider: Option<CustomProviderConfig>,
     #[serde(rename="static")]
     static_provider: Option<StaticProviderConfig>,
+    stooq: Option<StooqConfig>,
 }
 
 pub struct Quotes {
@@ -149,9 +150,9 @@ impl Quotes {
         }
 
         // Use Stooq for historical quotes of foreign stocks
-        if let Some(config) = config.quotes.alphavantage.as_ref() {
-            let alphavantage = AlphaVantage::new(config);
-            providers.push(Arc::new(Stooq::new("https://stooq.com", alphavantage)));
+        if let (Some(stooq_config), Some(alpha_vantage_config)) = (config.quotes.stooq.as_ref(), config.quotes.alphavantage.as_ref()) {
+            let alpha_vantage = AlphaVantage::new(alpha_vantage_config);
+            providers.push(Arc::new(Stooq::new(stooq_config, alpha_vantage)));
         }
 
         // Prefer FinEx provider over MOEX until their funds are suspended
