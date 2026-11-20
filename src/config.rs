@@ -1,6 +1,5 @@
 use std::collections::{HashSet, HashMap};
 use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use chrono::Duration;
@@ -207,36 +206,7 @@ impl Config {
     }
 
     fn read(path: &Path) -> GenericResult<Config> {
-        let mut data = Vec::new();
-        File::open(path)?.read_to_end(&mut data)?;
-
-        {
-            // yaml-rust doesn't support merge key (https://github.com/chyh1990/yaml-rust/issues/68)
-
-            use yaml_merge_keys::serde_yaml::{self as yaml, Value};
-
-            let value: Value = yaml::from_slice(&data)?;
-            let merged = yaml_merge_keys::merge_keys_serde(value.clone())?;
-            if merged == value {
-                return Ok(serde_yaml::from_slice(&data)?);
-            }
-
-            data.clear();
-            yaml::to_writer(&mut data, &merged)?
-        }
-
-        Ok(serde_yaml::from_slice(&data).map_err(|err| {
-            // To not confuse user with changed positions
-            if let Some(message) = err.location().and_then(|location| {
-                let message = err.to_string();
-                let suffix = format!(" at line {} column {}", location.line(), location.column());
-                message.strip_suffix(&suffix).map(ToOwned::to_owned)
-            }) {
-                return message;
-            }
-
-            err.to_string()
-        })?)
+        Ok(serde_saphyr::from_reader(File::open(path)?)?)
     }
 
     fn move_deprecated_settings(&mut self) {

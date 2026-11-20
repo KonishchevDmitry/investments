@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde::de::{Deserializer, Error};
-use serde_yaml::Value;
 
 use crate::exchanges::Exchange;
 use crate::time::DateOptTime;
@@ -12,31 +11,35 @@ pub struct SymbolRemappingRules(Vec<SymbolRemappingRule>);
 
 impl<'de> Deserialize<'de> for SymbolRemappingRules {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-        let value: Value = Deserialize::deserialize(deserializer)?;
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Rules {
+            Map(HashMap<String, String>),
+            List(Vec<SymbolRemappingRule>),
+        }
 
-        Ok(SymbolRemappingRules(if value.is_mapping() {
-            let mapping: HashMap<String, String> = Deserialize::deserialize(value).map_err(D::Error::custom)?;
+        let mapping = match Rules::deserialize(deserializer)? {
+            Rules::Map(mapping) => mapping,
+            Rules::List(rules) => return Ok(SymbolRemappingRules(rules)),
+        };
 
-            let mut rules = Vec::new();
+        let mut rules = Vec::new();
 
-            for (old, new) in &mapping {
-                if mapping.contains_key(new) {
-                    return Err(D::Error::custom(format!(
-                        "Invalid symbol remapping configuration: Recursive {old} symbol")));
-                }
-
-                rules.push(SymbolRemappingRule {
-                    from: old.clone(),
-                    to: new.clone(),
-                    when: SymbolRemappingTime::Pre,
-                    exchange: None,
-                });
+        for (old, new) in &mapping {
+            if mapping.contains_key(new) {
+                return Err(D::Error::custom(format!(
+                    "Invalid symbol remapping configuration: Recursive {old} symbol")));
             }
 
-            rules
-        } else {
-            Deserialize::deserialize(value).map_err(|e| D::Error::custom(e.to_string()))?
-        }))
+            rules.push(SymbolRemappingRule {
+                from: old.clone(),
+                to: new.clone(),
+                when: SymbolRemappingTime::Pre,
+                exchange: None,
+            });
+        }
+
+        Ok(SymbolRemappingRules(rules))
     }
 }
 

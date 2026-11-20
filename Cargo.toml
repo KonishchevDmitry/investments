@@ -80,7 +80,7 @@ separator = "0.4.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 serde-xml-rs = "0.8.2"
-serde_yaml = "0.9.34"
+serde-saphyr = { version = "2.2.0", default-features = false, features = ["deserialize"] }
 shellexpand = "3.1.2"
 strum = { version = "0.28", features = ["derive"] }
 textwrap = "0.16.4"
@@ -89,7 +89,6 @@ url = { version = "2.5.8", features = ["serde"] }
 uuid = { version = "1.29.3", features = ["v4", "serde"] }
 validator = { version = "0.21.0", features = ["derive"] }
 xml-rs = "1.0.0"
-yaml-merge-keys = { version = "0.8.2", features = ["serde_yaml"] }
 
 diesel = { version = "2.4.0", features = ["sqlite", "chrono"] }
 diesel_migrations = "2.4.0"
