@@ -7,7 +7,7 @@ set -eux
 
 (
     cd src/quotes/tbank/specs
-    git checkout main
+    git checkout master
     git pull
     rm -f ../tinkoff.public.invest.api.contract.v1.rs
 )

@@ -1,6 +1,11 @@
 [submodule "testdata"]
 	path = testdata
 	url = git@konishchev.ru:investments-testdata.git
+
+# The repository uses certificate issued by the Russian Ministry of Digital Development and Communications, so
+# `git submodule init` might need GIT_SSL_NO_VERIFY=true.
+#
+# Later `(cd src/quotes/tbank/specs && git config http.sslVerify false)` can be executed to persist the setting.
 [submodule "src/quotes/tbank/specs"]
 	path = src/quotes/tbank/specs
-	url = git@github.com:RussianInvestments/investAPI.git
+	url = https://opensource.tbank.ru/invest/invest-contracts.git
