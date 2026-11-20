@@ -1792,7 +1792,7 @@ dependencies = [
 
 [[package]]
 name = "investments"
-version = "8.4.0"
+version = "8.4.1"
 dependencies = [
  "ansi_term",
  "async-stream",
