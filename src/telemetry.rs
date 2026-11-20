@@ -11,7 +11,7 @@ use std::time::{Instant, SystemTime, Duration};
 
 use diesel::{self, prelude::*};
 use log::{trace, error};
-use platforms::target::OS;
+use platforms::Os;
 use reqwest::blocking::Client;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
@@ -86,7 +86,7 @@ impl TelemetryRecordBuilder {
             os,
             version: env!("CARGO_PKG_VERSION"),
             precompiled: option_env!("INVESTMENTS_PRECOMPILED_BINARY").is_some(),
-            container: os == OS::Linux.as_str() && std::process::id() == 1,
+            container: os == Os::Linux.as_str() && std::process::id() == 1,
 
             command: command.to_owned(),
             brokers,
