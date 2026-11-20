@@ -514,14 +514,11 @@ fn calculate_min_trade_volume(
                 _ => None,
             }
         },
-    };
+    }?;
 
-    let trade_volume = match trade_volume {
-        Some(trade_volume) => match trade_type {
-            TradeType::Sell => -trade_volume,
-            TradeType::Buy => trade_volume,
-        },
-        None => return None,
+    let trade_volume = match trade_type {
+        TradeType::Sell => -trade_volume,
+        TradeType::Buy => trade_volume,
     };
 
     Some(PossibleTrade {

@@ -219,7 +219,7 @@ impl StockSplitController {
 }
 
 pub fn process_corporate_actions(statement: &mut BrokerStatement) -> EmptyResult {
-    let corporate_actions = statement.corporate_actions.drain(..).collect::<Vec<_>>();
+    let corporate_actions = std::mem::take(&mut statement.corporate_actions);
 
     for action in corporate_actions {
         process_corporate_action(statement, action)?;

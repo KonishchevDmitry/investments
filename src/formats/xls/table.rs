@@ -20,13 +20,7 @@ pub trait TableRow: Sized {
 
 pub trait TableReader {
     fn next_row(sheet: &mut SheetReader) -> Option<&[Cell]> {
-        sheet.next_row().and_then(|row| {
-            if is_empty_row(row) {
-                None
-            } else {
-                Some(row)
-            }
-        })
+        sheet.next_row().filter(|row| !is_empty_row(row))
     }
 
     fn skip_row(_row: &[Option<&Cell>]) -> GenericResult<bool> {

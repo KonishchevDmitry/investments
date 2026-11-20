@@ -67,7 +67,7 @@ impl PortfolioStatistics {
 
         for statistics in &self.currencies {
             statistics.performance(method).print(&format!(
-                "Average rate of return from cash investments in {}", &statistics.currency));
+                "Average rate of return from cash investments in {}", statistics.currency));
         }
 
         if method.tax_aware() && !lto.projected.deduction.is_zero() {
