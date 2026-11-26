@@ -40,10 +40,10 @@ pub struct CurrencyConverter {
 pub type CurrencyConverterRc = Rc<CurrencyConverter>;
 
 impl CurrencyConverter {
-    pub fn new(database: db::Connection, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> CurrencyConverterRc {
+    pub fn new(database: db::Connection, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> GenericResult<CurrencyConverterRc> {
         let rate_cache = CurrencyRateCache::new(database);
-        let backend = CurrencyRateCacheBackend::new(rate_cache, quotes, strict_mode);
-        Rc::new(CurrencyConverter::new_with_backend(backend))
+        let backend = CurrencyRateCacheBackend::new(rate_cache, quotes, strict_mode)?;
+        Ok(Rc::new(CurrencyConverter::new_with_backend(backend)))
     }
 
     #[cfg(test)]
@@ -134,14 +134,14 @@ struct CurrencyRateCacheBackend {
 }
 
 impl CurrencyRateCacheBackend {
-    pub fn new(rate_cache: CurrencyRateCache, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> Box<dyn CurrencyConverterBackend> {
-        Box::new(CurrencyRateCacheBackend {
+    pub fn new(rate_cache: CurrencyRateCache, quotes: Option<Rc<Quotes>>, strict_mode: bool) -> GenericResult<Box<dyn CurrencyConverterBackend>> {
+        Ok(Box::new(CurrencyRateCacheBackend {
             #[cfg(not(test))]
-            cbr: cbr::Cbr::new("https://www.cbr.ru"),
+            cbr: cbr::Cbr::new(cbr::BASE_URL)?,
             quotes,
             rate_cache,
             strict_mode,
-        })
+        }))
     }
 
     fn check_date(&self, date: Date) -> GenericResult<Option<Rc<Quotes>>> {
@@ -323,7 +323,7 @@ mod tests {
         let amount = dec!(3);
         let today = cache.today();
         let converter = CurrencyConverter::new_with_backend(
-            CurrencyRateCacheBackend::new(cache, None, true));
+            CurrencyRateCacheBackend::new(cache, None, true).unwrap());
 
         for &currency in &["RUB", "USD", "EUR"] {
             assert_eq!(converter.convert(currency, currency, today, amount).unwrap(), amount);

@@ -50,7 +50,7 @@ pub fn generate_tax_statement(
     };
 
     let database = db::connect(&config.db_path)?;
-    let converter = CurrencyConverter::new(database, None, true);
+    let converter = CurrencyConverter::new(database, None, true)?;
     let mut tax_calculator = TaxCalculator::new(country.clone());
 
     let (trades_tax, has_trading_income, has_trading_income_to_declare) = trades::process_income(

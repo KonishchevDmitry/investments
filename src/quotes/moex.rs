@@ -37,12 +37,12 @@ pub struct Moex {
 }
 
 impl Moex {
-    pub fn new(url: &str, incomplete_results_workaround: bool) -> Moex {
-        Moex {
+    pub fn new(url: &str, incomplete_results_workaround: bool) -> GenericResult<Moex> {
+        Ok(Moex {
             url: url.to_owned(),
-            client: Client::new(),
+            client: http::client_with_russian_root_ca()?,
             incomplete_results_workaround,
-        }
+        })
     }
 
     fn get_instrument_info(&self, symbol: &str) -> GenericResult<BTreeMap<Period, Board>> {
@@ -557,7 +557,7 @@ mod tests {
 
     fn create_server() -> (ServerGuard, Moex) {
         let server = Server::new();
-        let client = Moex::new(&server.url(), false);
+        let client = Moex::new(&server.url(), false).unwrap();
         (server, client)
     }
 

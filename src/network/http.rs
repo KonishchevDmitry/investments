@@ -1,10 +1,27 @@
 use std::time::Instant;
 
+use lazy_static::lazy_static;
 use log::debug;
+use reqwest::Certificate;
 use reqwest::blocking::{Client, Response};
 
 use crate::core::GenericResult;
 use crate::util;
+
+use super::certificates;
+
+pub fn client_with_russian_root_ca() -> GenericResult<Client> {
+    lazy_static! {
+        static ref RUSSIAN_TRUSTED_ROOT_CA: GenericResult<Certificate> = {
+            Ok(Certificate::from_pem(certificates::RUSSIAN_TRUSTED_ROOT_CA)?)
+        };
+    }
+
+    let russian_trusted_root_ca = RUSSIAN_TRUSTED_ROOT_CA.as_ref().map_err(|e| format!(
+        "Failed to load bundled Russian Trusted Root CA: {e}"))?;
+
+    Ok(Client::builder().tls_certs_merge([russian_trusted_root_ca.clone()]).build()?)
+}
 
 pub fn send_request<U: AsRef<str>>(client: &Client, url: U, authorization: Option<&str>) -> GenericResult<Response> {
     let url = url.as_ref();

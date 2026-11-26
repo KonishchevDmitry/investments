@@ -8,7 +8,7 @@ use calamine::{Reader, Xlsx};
 use chrono::Months;
 use itertools::Itertools;
 use log::{debug, warn};
-use reqwest::blocking::{Client, Response};
+use reqwest::blocking::Response;
 
 use crate::core::{EmptyResult, GenericResult};
 use crate::formats::xls::{self, XlsTableRow, SheetReader, SheetParser, TableReader, RawRowType, Cell, SkipCell};
@@ -20,7 +20,7 @@ use crate::types::Decimal;
 // срочности -> Сведения по вкладам (депозитам) физических лиц и нефинансовых организаций в рублях, долларах США и евро
 // (https://www.cbr.ru/statistics/bank_sector/int_rat/)
 pub fn get_interest_rates(base_url: &str) -> GenericResult<Vec<DepositStatistics>> {
-    let client = Client::new();
+    let client = http::client_with_russian_root_ca()?;
     let url = format!("{base_url}/vfs/statistics/pdko/int_rat/deposits.xlsx");
 
     Ok(http::send_request(&client, &url, None)

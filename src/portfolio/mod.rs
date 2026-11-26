@@ -130,7 +130,7 @@ fn process(config: &Config, portfolio_name: &str, rebalance: bool, flat: bool) -
     let database = db::connect(&config.db_path)?;
 
     let quotes = Rc::new(Quotes::new(config, database.clone())?);
-    let converter = CurrencyConverter::new(database.clone(), Some(quotes.clone()), false);
+    let converter = CurrencyConverter::new(database.clone(), Some(quotes.clone()), false)?;
 
     let assets = Assets::load(database, &portfolio_config.name)?;
     assets.validate(portfolio_config)?;

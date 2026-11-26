@@ -133,6 +133,6 @@ fn load_portfolios<'a>(
 fn load_tools(config: &Config) -> GenericResult<(CurrencyConverterRc, QuotesRc)> {
     let database = db::connect(&config.db_path)?;
     let quotes = Rc::new(Quotes::new(config, database.clone())?);
-    let converter = CurrencyConverter::new(database, Some(quotes.clone()), false);
+    let converter = CurrencyConverter::new(database, Some(quotes.clone()), false)?;
     Ok((converter, quotes))
 }

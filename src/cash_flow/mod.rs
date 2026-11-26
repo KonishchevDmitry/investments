@@ -26,7 +26,7 @@ pub fn generate_cash_flow_report(config: &Config, portfolio_name: &str, year: Op
     let statement = BrokerStatement::load(config, portfolio, ReadingStrictness::CASH_FLOW_DATES)?;
 
     let database = db::connect(&config.db_path)?;
-    let converter = CurrencyConverter::new(database, None, year.is_some());
+    let converter = CurrencyConverter::new(database, None, year.is_some())?;
 
     let period = match year {
         Some(year) => statement.check_period_against_tax_year(year)?,

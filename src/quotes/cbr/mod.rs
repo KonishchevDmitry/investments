@@ -34,13 +34,13 @@ pub struct Cbr {
 }
 
 impl Cbr {
-    pub fn new(url: &str) -> Cbr {
-        Cbr {
+    pub fn new(url: &str) -> GenericResult<Cbr> {
+        Ok(Cbr {
             url: url.to_owned(),
-            client: Client::new(),
+            client: http::client_with_russian_root_ca()?,
             codes: OnceLock::new(),
             rates: OnceLock::new(),
-        }
+        })
     }
 
     fn get_currency_rates(&self) -> GenericResult<HashMap<String, Decimal>> {
@@ -393,7 +393,7 @@ mod tests {
 
     fn create_server() -> (ServerGuard, Cbr) {
         let server = Server::new();
-        let client = Cbr::new(&server.url());
+        let client = Cbr::new(&server.url()).unwrap();
         (server, client)
     }
 

@@ -128,7 +128,7 @@ impl Quotes {
         // * FCS API is too restrictive
         //
         // So use CBR API here and fallback to FCS API only for unknown currencies.
-        providers.push(Arc::new(Cbr::new(cbr::BASE_URL)));
+        providers.push(Arc::new(Cbr::new(cbr::BASE_URL)?));
 
         // Use FCS API for forex
         if let Some(config) = config.quotes.fcsapi.as_ref() {
@@ -160,7 +160,7 @@ impl Quotes {
 
         providers.push({
             // For other MOEX stocks prefer MOEX provider
-            let mut moex = QuotesProviderAdapter::new(Moex::new("https://iss.moex.com", true));
+            let mut moex = QuotesProviderAdapter::new(Moex::new("https://iss.moex.com", true)?);
 
             // ... but MOEX historical API is buggy: it may return incomplete results without any sign of it, so prefer
             // T-Bank API when possible.
@@ -177,7 +177,7 @@ impl Quotes {
             let tbank = Tbank::new(config, TbankExchange::Moex)?;
             providers.push(Arc::new(QuotesProviderAdapter::new(tbank).historical_only()));
 
-            let moex = Moex::new("https://iss.moex.com", true);
+            let moex = Moex::new("https://iss.moex.com", true)?;
             providers.push(Arc::new(QuotesProviderAdapter::new(moex).historical_only()));
         }
 
